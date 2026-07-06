@@ -1,3 +1,5 @@
 <resources>
     <string name="app_name">MoaMap</string>
+    <!-- Mapbox public 토큰 (지도 렌더링용). 공개 토큰이라 앱에 포함됨. -->
+    <string name="mapbox_access_token" translatable="false">pk.eyJ1IjoianVuZ2VlIiwiYSI6ImNtcjIyZ3k1cjAxNHcyenE2ZzY4MGx4dDcifQ.ryrlOtVNeeiCxWcWuxVdpg</string>
 </resources>

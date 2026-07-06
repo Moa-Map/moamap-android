@@ -55,4 +55,8 @@ dependencies {
 
     // 카카오 SDK 전체 기능
     implementation(libs.kakao.sdk.all)
+
+    // Mapbox Maps SDK v11 + Compose 확장
+    implementation(libs.mapbox.maps)
+    implementation(libs.mapbox.maps.compose)
 }
