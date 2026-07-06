@@ -47,5 +47,11 @@ google-services.json
 # Android Profiling
 *.hprof
 
-# Google Cloud
-**/google-services.json
+# Claude Code / superpowers
+.claude/
+CLAUDE.md
+.superpowers/
+docs/superpowers/
+
+# Mapbox secret download token (never commit)
+mapbox.properties
