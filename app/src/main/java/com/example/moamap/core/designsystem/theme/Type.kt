@@ -1,4 +1,4 @@
-package com.example.moamap.ui.theme
+package com.example.moamap.core.designsystem.theme
 
 import androidx.compose.material3.Typography
 
