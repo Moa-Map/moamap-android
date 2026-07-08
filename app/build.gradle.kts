@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -6,6 +8,13 @@ plugins {
     alias(libs.plugins.hilt)
     alias(libs.plugins.google.services)
 }
+
+// local.properties 에서 API 키 로드
+val localProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+fun localProperty(key: String): String = localProperties.getProperty(key).orEmpty()
 
 android {
     namespace = "com.example.moamap"
@@ -19,6 +28,13 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Mapbox public 토큰
+        resValue("string", "mapbox_access_token", localProperty("MAPBOX_PUBLIC_TOKEN"))
+
+        // Kakao 네이티브 앱 키
+        buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"${localProperty("KAKAO_NATIVE_APP_KEY")}\"")
+        manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = localProperty("KAKAO_NATIVE_APP_KEY")
     }
 
     buildTypes {
@@ -37,6 +53,7 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+        resValues = true
     }
 }
 
