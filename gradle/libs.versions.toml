@@ -36,8 +36,9 @@ androidx-compose-material3 = { group = "androidx.compose.material3", name = "mat
 # 카카오 SDK 전체 기능
 kakao-sdk-all = { module = "com.kakao.sdk:v2-all", version.ref = "kakao"}
 # Mapbox Maps SDK v11 + Jetpack Compose 확장
-mapbox-maps = { group = "com.mapbox.maps", name = "android", version.ref = "mapbox" }
-mapbox-maps-compose = { group = "com.mapbox.extension", name = "maps-compose", version.ref = "mapbox" }
+# -ndk27 아티팩트: NDK 27로 빌드되어 16KB 페이지 정렬 지원 (Android 15+ / Play 필수)
+mapbox-maps = { group = "com.mapbox.maps", name = "android-ndk27", version.ref = "mapbox" }
+mapbox-maps-compose = { group = "com.mapbox.extension", name = "maps-compose-ndk27", version.ref = "mapbox" }
 # Hilt DI
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
 hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
