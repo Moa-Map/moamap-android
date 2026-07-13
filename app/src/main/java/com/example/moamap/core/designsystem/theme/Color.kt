@@ -53,6 +53,8 @@ internal object MoaMapPrimitiveColors {
 
 @Immutable
 data class MoaMapColors(
+    val primary: Color,
+    val secondary: Color,
     val textNormal: Color,
     val textAlternative: Color,
     val textAssistive: Color,
@@ -68,6 +70,8 @@ data class MoaMapColors(
 )
 
 internal val MoaMapLightColors = MoaMapColors(
+    primary = MoaMapPrimitiveColors.Blue500,
+    secondary = MoaMapPrimitiveColors.Yellow500,
     textNormal = MoaMapPrimitiveColors.TextNormal,
     textAlternative = MoaMapPrimitiveColors.Gray500,
     textAssistive = MoaMapPrimitiveColors.Gray300,
