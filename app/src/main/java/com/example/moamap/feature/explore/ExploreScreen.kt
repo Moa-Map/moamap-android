@@ -22,7 +22,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -136,7 +136,7 @@ private fun SearchBar(
                 modifier = Modifier.size(16.dp),
             )
             Text(
-                text = "장소,지도를 검색해보세요",
+                text = "장소, 지도를 검색해보세요",
                 style = MoaMapTheme.typography.body2,
                 color = MoaMapTheme.colors.textAssistive,
             )
@@ -188,7 +188,7 @@ private fun OfficialMapBanner(
 @Composable
 private fun CategoryChipRow() {
     val categories = listOf("전체", "카페", "데이트", "산책", "힙플")
-    var selected by remember { mutableStateOf(categories.first()) }
+    var selected by rememberSaveable { mutableStateOf(categories.first()) }
 
     Row(
         modifier = Modifier
@@ -244,7 +244,7 @@ private fun CommunityMapSection() {
 @Composable
 private fun SortOptionRow() {
     val options = listOf("인기순", "최신순", "추천순")
-    var selected by remember { mutableStateOf(options.first()) }
+    var selected by rememberSaveable { mutableStateOf(options.first()) }
 
     Row(
         modifier = Modifier.fillMaxWidth(),
