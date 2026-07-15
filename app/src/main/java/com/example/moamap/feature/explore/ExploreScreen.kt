@@ -1,0 +1,273 @@
+package com.example.moamap.feature.explore
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.example.moamap.R
+import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
+import com.example.moamap.core.designsystem.theme.MoaMapTheme
+
+private val ScreenHorizontalPadding = 20.dp
+
+@Composable
+fun ExploreScreen(
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MoaMapTheme.colors.backgroundPrimary)
+            .statusBarsPadding(),
+    ) {
+        ExploreTopBar()
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = ScreenHorizontalPadding),
+            verticalArrangement = Arrangement.spacedBy(20.dp),
+        ) {
+            Spacer(Modifier.height(8.dp))
+
+            SearchBar(onClick = {})
+            OfficialMapBanner(onClick = {})
+            CategoryChipRow()
+            CommunityMapSection()
+
+            // 바텀 네비게이션에 마지막 카드가 가리지 않도록 확보
+            Spacer(Modifier.height(80.dp))
+        }
+    }
+}
+
+@Composable
+private fun ExploreTopBar() {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = ScreenHorizontalPadding, vertical = 4.dp)
+            .height(44.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            // TODO: 폰트 확정 후 교체
+            text = "MOA MAP",
+            fontFamily = FontFamily.Monospace,
+            fontWeight = FontWeight.Bold,
+            fontSize = 30.sp,
+            letterSpacing = (-0.24).sp,
+            color = MoaMapPrimitiveColors.Black,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Icon(
+                painter = painterResource(R.drawable.ic_notifications),
+                contentDescription = "알림",
+                tint = MoaMapPrimitiveColors.Black,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clickable {},
+            )
+            Icon(
+                painter = painterResource(R.drawable.ic_person),
+                contentDescription = "마이페이지",
+                tint = MoaMapPrimitiveColors.Black,
+                modifier = Modifier
+                    .size(32.dp)
+                    .clickable {},
+            )
+        }
+    }
+}
+
+@Composable
+private fun SearchBar(
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp),
+        shape = RoundedCornerShape(44.dp),
+        color = MoaMapPrimitiveColors.White,
+        shadowElevation = 10.dp,
+        onClick = onClick,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_search),
+                contentDescription = null,
+                tint = MoaMapTheme.colors.textAssistive,
+                modifier = Modifier.size(16.dp),
+            )
+            Text(
+                text = "장소, 지도를 검색해보세요",
+                style = MoaMapTheme.typography.body2,
+                color = MoaMapTheme.colors.textAssistive,
+            )
+        }
+    }
+}
+
+@Composable
+private fun OfficialMapBanner(
+    onClick: () -> Unit,
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        color = MoaMapPrimitiveColors.Yellow100,
+        shadowElevation = 5.dp,
+        onClick = onClick,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = "공공데이터 기반",
+                    style = MoaMapTheme.typography.body1,
+                    color = MoaMapPrimitiveColors.Yellow800,
+                )
+                Text(
+                    text = "공식 지도 보러가기",
+                    style = MoaMapTheme.typography.subtitle2,
+                    color = MoaMapTheme.colors.textNormal,
+                )
+            }
+            Icon(
+                painter = painterResource(R.drawable.ic_arrow_outward),
+                contentDescription = null,
+                tint = MoaMapTheme.colors.textNormal,
+                modifier = Modifier.size(24.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategoryChipRow() {
+    val categories = listOf("전체", "카페", "데이트", "산책", "힙플")
+    var selected by rememberSaveable { mutableStateOf(categories.first()) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        categories.forEach { category ->
+            CategoryChip(
+                label = category,
+                selected = category == selected,
+                onClick = { selected = category },
+            )
+        }
+    }
+}
+
+@Composable
+private fun CategoryChip(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    Surface(
+        shape = RoundedCornerShape(100.dp),
+        color = if (selected) MoaMapPrimitiveColors.Gray800 else MoaMapPrimitiveColors.White,
+        shadowElevation = 5.dp,
+        onClick = onClick,
+    ) {
+        Text(
+            text = label,
+            style = MoaMapTheme.typography.button3,
+            color = if (selected) MoaMapTheme.colors.textWhite else MoaMapTheme.colors.textNormal,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun CommunityMapSection() {
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Text(
+            text = "커뮤니티 지도",
+            style = MoaMapTheme.typography.title2,
+            color = MoaMapTheme.colors.textNormal,
+            modifier = Modifier.padding(horizontal = 4.dp),
+        )
+        SortOptionRow()
+        // TODO: 커뮤니티 지도 리스트 카드는 후속 작업에서 추가한다.
+    }
+}
+
+@Composable
+private fun SortOptionRow() {
+    val options = listOf("인기순", "최신순", "추천순")
+    var selected by rememberSaveable { mutableStateOf(options.first()) }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+    ) {
+        options.forEach { option ->
+            val isSelected = option == selected
+            Text(
+                text = option,
+                style = if (isSelected) MoaMapTheme.typography.body3 else MoaMapTheme.typography.body2,
+                color = if (isSelected) MoaMapTheme.colors.textNormal else MoaMapTheme.colors.textAssistive,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.clickable { selected = option },
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Composable
+private fun ExploreScreenPreview() {
+    MoaMapTheme {
+        ExploreScreen()
+    }
+}
