@@ -1,9 +1,12 @@
 package com.example.moamap.feature.explore
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -22,10 +25,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -36,43 +41,90 @@ import androidx.compose.ui.unit.sp
 import com.example.moamap.R
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
+import com.example.moamap.feature.mypage.ProfileMenu
+import com.example.moamap.feature.mypage.rememberProfileMenuState
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.haze
 
 private val ScreenHorizontalPadding = 20.dp
 
 @Composable
 fun ExploreScreen(
+    onProfileEditClick: () -> Unit = {},
+    onSettingsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    Column(
+    val profileMenuState = rememberProfileMenuState()
+    val hazeState = remember { HazeState() }
+
+    BackHandler(enabled = profileMenuState.isVisible) {
+        profileMenuState.dismiss()
+    }
+
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MoaMapTheme.colors.backgroundPrimary)
-            .statusBarsPadding(),
+            .background(MoaMapTheme.colors.backgroundPrimary),
     ) {
-        ExploreTopBar()
-
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = ScreenHorizontalPadding),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+                .fillMaxSize()
+                .haze(state = hazeState)
+                .statusBarsPadding(),
         ) {
-            Spacer(Modifier.height(8.dp))
+            ExploreTopBar(onProfileClick = profileMenuState::show)
 
-            SearchBar(onClick = {})
-            OfficialMapBanner(onClick = {})
-            CategoryChipRow()
-            CommunityMapSection()
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = ScreenHorizontalPadding),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                Spacer(Modifier.height(8.dp))
 
-            // 바텀 네비게이션에 마지막 카드가 가리지 않도록 확보
-            Spacer(Modifier.height(80.dp))
+                SearchBar(onClick = {})
+                OfficialMapBanner(onClick = {})
+                CategoryChipRow()
+                CommunityMapSection()
+
+                // 바텀 네비게이션에 마지막 카드가 가리지 않도록 확보
+                Spacer(Modifier.height(80.dp))
+            }
+        }
+
+        if (profileMenuState.isVisible) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(profileMenuState.isVisible) {
+                        detectTapGestures(onTap = { profileMenuState.dismiss() })
+                    },
+            )
+
+            ProfileMenu(
+                hazeState = hazeState,
+                onProfileEditClick = {
+                    profileMenuState.dismiss()
+                    onProfileEditClick()
+                },
+                onSettingsClick = {
+                    profileMenuState.dismiss()
+                    onSettingsClick()
+                },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 5.dp, end = ScreenHorizontalPadding),
+            )
         }
     }
 }
 
 @Composable
-private fun ExploreTopBar() {
+private fun ExploreTopBar(
+    onProfileClick: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -105,7 +157,7 @@ private fun ExploreTopBar() {
                 tint = MoaMapPrimitiveColors.Black,
                 modifier = Modifier
                     .size(32.dp)
-                    .clickable {},
+                    .clickable(onClick = onProfileClick),
             )
         }
     }

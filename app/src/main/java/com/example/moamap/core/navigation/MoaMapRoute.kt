@@ -26,4 +26,12 @@ sealed interface MoaMapRoute {
     data object MyPage : MoaMapRoute {
         override val route = "mypage"
     }
+
+    data object ProfileEdit : MoaMapRoute {
+        override val route = "profile_edit"
+    }
+
+    data object Settings : MoaMapRoute {
+        override val route = "settings"
+    }
 }
