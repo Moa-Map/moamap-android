@@ -25,8 +25,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -90,13 +88,10 @@ private fun ProfileMenuContent(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .blur(
-                    radius = 5.dp,
-                    edgeTreatment = BlurredEdgeTreatment.Unbounded,
-                )
-                .background(
-                    color = MoaMapPrimitiveColors.Black.copy(alpha = 0.08f),
+                .compatibleShadow(
                     shape = ProfileMenuShape,
+                    blurRadius = 5.dp,
+                    color = MoaMapPrimitiveColors.Black.copy(alpha = 0.08f),
                 ),
         )
 

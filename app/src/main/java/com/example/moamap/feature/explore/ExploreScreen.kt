@@ -153,7 +153,7 @@ private fun ExploreTopBar(
             )
             Icon(
                 painter = painterResource(R.drawable.ic_person),
-                contentDescription = "마이페이지",
+                contentDescription = "프로필 메뉴",
                 tint = MoaMapPrimitiveColors.Black,
                 modifier = Modifier
                     .size(32.dp)

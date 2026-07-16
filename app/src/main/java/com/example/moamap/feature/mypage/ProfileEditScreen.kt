@@ -24,8 +24,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -85,16 +83,21 @@ private fun ProfileEditTopBar(
             .height(52.dp)
             .background(MoaMapPrimitiveColors.White),
     ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_arrow_left),
-            contentDescription = "뒤로가기",
-            tint = MoaMapTheme.colors.textNormal,
+        Box(
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .padding(start = 20.dp)
-                .size(24.dp)
+                .padding(start = 8.dp)
+                .size(48.dp)
                 .clickable(onClick = onBackClick),
-        )
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_arrow_left),
+                contentDescription = "뒤로가기",
+                tint = MoaMapTheme.colors.textNormal,
+                modifier = Modifier.size(24.dp),
+            )
+        }
         Text(
             text = "프로필 편집",
             style = MoaMapTheme.typography.title3,
@@ -286,13 +289,10 @@ private fun ShadowedContainer(
         Box(
             modifier = Modifier
                 .matchParentSize()
-                .blur(
-                    radius = shadowRadius,
-                    edgeTreatment = BlurredEdgeTreatment.Unbounded,
-                )
-                .background(
-                    color = shadowColor,
+                .compatibleShadow(
                     shape = shape,
+                    blurRadius = shadowRadius,
+                    color = shadowColor,
                 ),
         )
         Box(
