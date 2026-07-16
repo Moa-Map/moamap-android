@@ -39,14 +39,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.moamap.R
 import com.example.moamap.core.designsystem.component.MapCard
+import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.feature.mypage.ProfileMenu
 import com.example.moamap.feature.mypage.rememberProfileMenuState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
-
-private val ScreenHorizontalPadding = 20.dp
 
 @Immutable
 private data class CommunityMapUiModel(
@@ -130,7 +129,7 @@ fun ExploreScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = ScreenHorizontalPadding),
+                    .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 Spacer(Modifier.height(8.dp))
@@ -167,7 +166,7 @@ fun ExploreScreen(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(top = 5.dp, end = ScreenHorizontalPadding),
+                    .padding(top = 5.dp, end = MoaMapDimens.ScreenHorizontalPadding),
             )
         }
     }
@@ -180,7 +179,7 @@ private fun ExploreTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = ScreenHorizontalPadding, vertical = 4.dp)
+            .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding, vertical = 4.dp)
             .height(44.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -25,10 +26,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.moamap.R
 import com.example.moamap.core.designsystem.component.MapCard
+import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
-
-private val ScreenHorizontalPadding = 20.dp
 
 @Immutable
 private data class OfficialMapUiModel(
@@ -61,7 +61,8 @@ fun OfficialMapScreen(
         modifier = modifier
             .fillMaxSize()
             .background(MoaMapTheme.colors.backgroundPrimary)
-            .statusBarsPadding(),
+            .statusBarsPadding()
+            .navigationBarsPadding(),
     ) {
         OfficialMapTopBar(onBackClick = onBackClick)
 
@@ -69,7 +70,7 @@ fun OfficialMapScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = ScreenHorizontalPadding),
+                .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Spacer(Modifier.height(4.dp))

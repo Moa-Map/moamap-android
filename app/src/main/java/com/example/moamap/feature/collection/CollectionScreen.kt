@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
@@ -32,15 +34,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.moamap.R
+import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
-
-private val ScreenHorizontalPadding = 20.dp
 
 /** 카드 썸네일과 같은 높이를 유지해 제목/메타가 위아래로 벌어지도록 한다. */
 private val CardThumbnailSize = 64.dp
@@ -85,6 +87,14 @@ fun CollectionScreen(
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(CollectionTab.Community) }
 
+    // 탭마다 스크롤 위치를 따로 기억해, 탭을 오갈 때 보던 자리로 돌아온다.
+    val communityScrollState = rememberScrollState()
+    val privateScrollState = rememberScrollState()
+    val scrollState = when (selectedTab) {
+        CollectionTab.Community -> communityScrollState
+        CollectionTab.Private -> privateScrollState
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -99,8 +109,8 @@ fun CollectionScreen(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = ScreenHorizontalPadding),
+                .verticalScroll(scrollState)
+                .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             Spacer(Modifier.height(8.dp))
@@ -130,7 +140,7 @@ private fun CollectionTopBar(
         modifier = Modifier
             .fillMaxWidth()
             .height(52.dp)
-            .padding(horizontal = ScreenHorizontalPadding),
+            .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -202,7 +212,8 @@ private fun CollectionTabRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(100.dp))
             .background(MoaMapPrimitiveColors.Yellow50)
-            .padding(4.dp),
+            .padding(4.dp)
+            .selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         CollectionTab.entries.forEach { tab ->
@@ -218,7 +229,11 @@ private fun CollectionTabRow(
                             MoaMapPrimitiveColors.Yellow50
                         },
                     )
-                    .clickable { onTabClick(tab) }
+                    .selectable(
+                        selected = isSelected,
+                        role = Role.Tab,
+                        onClick = { onTabClick(tab) },
+                    )
                     .padding(horizontal = 10.dp, vertical = 14.dp),
                 contentAlignment = Alignment.Center,
             ) {
