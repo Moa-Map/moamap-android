@@ -19,6 +19,7 @@ import com.example.moamap.feature.collection.CollectionScreen
 import com.example.moamap.feature.explore.ExploreScreen
 import com.example.moamap.feature.mypage.ProfileEditScreen
 import com.example.moamap.feature.mypage.SettingsScreen
+import com.example.moamap.feature.officialmap.OfficialMapScreen
 
 @Composable
 fun MoaMapNavHost(
@@ -40,9 +41,15 @@ fun MoaMapNavHost(
                     onSettingsClick = {
                         navController.navigate(MoaMapRoute.Settings.route)
                     },
+                    onOfficialMapClick = {
+                        navController.navigate(MoaMapRoute.OfficialMap.route)
+                    },
                 )
             }
             composable(MoaMapRoute.Collection.route) { CollectionScreen() }
+            composable(MoaMapRoute.OfficialMap.route) {
+                OfficialMapScreen(onBackClick = navController::popBackStack)
+            }
             composable(MoaMapRoute.ProfileEdit.route) {
                 ProfileEditScreen(onBackClick = navController::popBackStack)
             }

@@ -1,7 +1,6 @@
 package com.example.moamap.feature.explore
 
 import androidx.activity.compose.BackHandler
-import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -39,6 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.moamap.R
+import com.example.moamap.core.designsystem.component.MapCard
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.feature.mypage.ProfileMenu
@@ -103,6 +103,7 @@ private val sampleCommunityMaps = listOf(
 fun ExploreScreen(
     onProfileEditClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
+    onOfficialMapClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val profileMenuState = rememberProfileMenuState()
@@ -135,7 +136,7 @@ fun ExploreScreen(
                 Spacer(Modifier.height(8.dp))
 
                 SearchBar(onClick = {})
-                OfficialMapBanner(onClick = {})
+                OfficialMapBanner(onClick = onOfficialMapClick)
                 CategoryChipRow()
                 CommunityMapSection()
 
@@ -339,8 +340,13 @@ private fun CommunityMapSection() {
             SortOptionRow()
             // TODO: 실제 목록은 ViewModel 연결 시 교체한다.
             sampleCommunityMaps.forEach { communityMap ->
-                CommunityMapCard(
-                    communityMap = communityMap,
+                MapCard(
+                    title = communityMap.title,
+                    description = communityMap.description,
+                    memberCount = communityMap.memberCount,
+                    placeCount = communityMap.placeCount,
+                    joined = communityMap.joined,
+                    hashtags = communityMap.hashtags,
                     onClick = {},
                     onJoinClick = {},
                 )
@@ -369,127 +375,6 @@ private fun SortOptionRow() {
                 modifier = Modifier.clickable { selected = option },
             )
         }
-    }
-}
-
-@Composable
-private fun CommunityMapCard(
-    communityMap: CommunityMapUiModel,
-    onClick: () -> Unit,
-    onJoinClick: () -> Unit,
-) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MoaMapPrimitiveColors.White,
-        shadowElevation = 5.dp,
-        onClick = onClick,
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.End,
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text(
-                            text = communityMap.title,
-                            style = MoaMapTheme.typography.subtitle2,
-                            color = MoaMapTheme.colors.textNormal,
-                        )
-                        Text(
-                            text = communityMap.description,
-                            style = MoaMapTheme.typography.body2,
-                            color = MoaMapTheme.colors.textAlternative,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    JoinButton(joined = communityMap.joined, onClick = onJoinClick)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    communityMap.hashtags.forEach { hashtag ->
-                        Text(
-                            text = "# $hashtag",
-                            style = MoaMapTheme.typography.caption0,
-                            color = MoaMapPrimitiveColors.Blue800,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                CommunityMapMeta(
-                    iconRes = R.drawable.ic_person,
-                    text = communityMap.memberCount,
-                    contentDescription = "참여 인원",
-                )
-                CommunityMapMeta(
-                    iconRes = R.drawable.ic_location,
-                    text = communityMap.placeCount,
-                    contentDescription = "등록 장소",
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun JoinButton(
-    joined: Boolean,
-    onClick: () -> Unit,
-) {
-    Surface(
-        shape = RoundedCornerShape(100.dp),
-        color = if (joined) MoaMapPrimitiveColors.Gray300 else MoaMapPrimitiveColors.Blue500,
-        onClick = onClick,
-    ) {
-        Text(
-            text = if (joined) "참여중" else "참여하기",
-            style = MoaMapTheme.typography.button3,
-            color = MoaMapTheme.colors.textWhite,
-            maxLines = 1,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-        )
-    }
-}
-
-@Composable
-private fun CommunityMapMeta(
-    @DrawableRes iconRes: Int,
-    text: String,
-    contentDescription: String,
-) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = contentDescription,
-            tint = MoaMapTheme.colors.textAssistive,
-            modifier = Modifier.size(14.dp),
-        )
-        Text(
-            text = text,
-            style = MoaMapTheme.typography.caption0,
-            color = MoaMapTheme.colors.textAssistive,
-            maxLines = 1,
-        )
     }
 }
 
