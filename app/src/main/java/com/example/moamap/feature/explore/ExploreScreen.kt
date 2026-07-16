@@ -1,6 +1,7 @@
 package com.example.moamap.feature.explore
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -23,6 +24,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -32,13 +34,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.moamap.R
+import com.example.moamap.core.designsystem.component.MapCard
+import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.feature.mypage.ProfileMenu
@@ -46,12 +47,62 @@ import com.example.moamap.feature.mypage.rememberProfileMenuState
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
 
-private val ScreenHorizontalPadding = 20.dp
+@Immutable
+private data class CommunityMapUiModel(
+    val id: Long,
+    val title: String,
+    val description: String,
+    val hashtags: List<String>,
+    val memberCount: String,
+    val placeCount: String,
+    val joined: Boolean,
+)
+
+// TODO: ViewModel 연결 전까지 사용하는 임시 데이터
+private val sampleCommunityMaps = listOf(
+    CommunityMapUiModel(
+        id = 1L,
+        title = "서울 팝업스토어 맵",
+        description = "매주 업데이트 되는 서울 팝업스토어 정보, 패션, 아트, 뷰티",
+        hashtags = listOf("맛집", "데이트코스", "데이트"),
+        memberCount = "2.3천명",
+        placeCount = "128곳",
+        joined = false,
+    ),
+    CommunityMapUiModel(
+        id = 2L,
+        title = "서울 팝업스토어 맵",
+        description = "매주 업데이트 되는 서울 팝업스토어 정보, 패션, 아트, 뷰티",
+        hashtags = listOf("맛집", "데이트코스", "데이트"),
+        memberCount = "2.3천명",
+        placeCount = "128곳",
+        joined = true,
+    ),
+    CommunityMapUiModel(
+        id = 3L,
+        title = "서울 팝업스토어 맵",
+        description = "매주 업데이트 되는 서울 팝업스토어 정보, 패션, 아트, 뷰티",
+        hashtags = listOf("맛집", "데이트코스", "데이트"),
+        memberCount = "2.3천명",
+        placeCount = "128곳",
+        joined = false,
+    ),
+    CommunityMapUiModel(
+        id = 4L,
+        title = "서울 팝업스토어 맵",
+        description = "매주 업데이트 되는 서울 팝업스토어 정보, 패션, 아트, 뷰티",
+        hashtags = listOf("맛집", "데이트코스", "데이트"),
+        memberCount = "2.3천명",
+        placeCount = "128곳",
+        joined = false,
+    ),
+)
 
 @Composable
 fun ExploreScreen(
     onProfileEditClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
+    onOfficialMapClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val profileMenuState = rememberProfileMenuState()
@@ -78,13 +129,13 @@ fun ExploreScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(rememberScrollState())
-                    .padding(horizontal = ScreenHorizontalPadding),
+                    .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 Spacer(Modifier.height(8.dp))
 
                 SearchBar(onClick = {})
-                OfficialMapBanner(onClick = {})
+                OfficialMapBanner(onClick = onOfficialMapClick)
                 CategoryChipRow()
                 CommunityMapSection()
 
@@ -115,7 +166,7 @@ fun ExploreScreen(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(top = 5.dp, end = ScreenHorizontalPadding),
+                    .padding(top = 5.dp, end = MoaMapDimens.ScreenHorizontalPadding),
             )
         }
     }
@@ -128,19 +179,15 @@ private fun ExploreTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = ScreenHorizontalPadding, vertical = 4.dp)
+            .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding, vertical = 4.dp)
             .height(44.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Text(
-            // TODO: 폰트 확정 후 교체
-            text = "MOA MAP",
-            fontFamily = FontFamily.Monospace,
-            fontWeight = FontWeight.Bold,
-            fontSize = 30.sp,
-            letterSpacing = (-0.24).sp,
-            color = MoaMapPrimitiveColors.Black,
+        Image(
+            painter = painterResource(R.drawable.img_moa_logo),
+            contentDescription = "모아맵",
+            modifier = Modifier.size(width = 74.dp, height = 44.dp),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             Icon(
@@ -178,7 +225,7 @@ private fun SearchBar(
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
@@ -246,7 +293,7 @@ private fun CategoryChipRow() {
         modifier = Modifier
             .fillMaxWidth()
             .horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         categories.forEach { category ->
             CategoryChip(
@@ -281,15 +328,29 @@ private fun CategoryChip(
 
 @Composable
 private fun CommunityMapSection() {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = "커뮤니티 지도",
             style = MoaMapTheme.typography.title2,
             color = MoaMapTheme.colors.textNormal,
             modifier = Modifier.padding(horizontal = 4.dp),
         )
-        SortOptionRow()
-        // TODO: 커뮤니티 지도 리스트 카드는 후속 작업에서 추가한다.
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            SortOptionRow()
+            // TODO: 실제 목록은 ViewModel 연결 시 교체한다.
+            sampleCommunityMaps.forEach { communityMap ->
+                MapCard(
+                    title = communityMap.title,
+                    description = communityMap.description,
+                    memberCount = communityMap.memberCount,
+                    placeCount = communityMap.placeCount,
+                    joined = communityMap.joined,
+                    hashtags = communityMap.hashtags,
+                    onClick = {},
+                    onJoinClick = {},
+                )
+            }
+        }
     }
 }
 
@@ -306,7 +367,7 @@ private fun SortOptionRow() {
             val isSelected = option == selected
             Text(
                 text = option,
-                style = if (isSelected) MoaMapTheme.typography.body3 else MoaMapTheme.typography.body2,
+                style = if (isSelected) MoaMapTheme.typography.button2 else MoaMapTheme.typography.button3,
                 color = if (isSelected) MoaMapTheme.colors.textNormal else MoaMapTheme.colors.textAssistive,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
