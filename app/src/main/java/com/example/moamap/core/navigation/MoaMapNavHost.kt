@@ -17,6 +17,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.moamap.feature.collection.CollectionScreen
 import com.example.moamap.feature.explore.ExploreScreen
+import com.example.moamap.feature.mypage.ProfileEditScreen
+import com.example.moamap.feature.mypage.SettingsScreen
 
 @Composable
 fun MoaMapNavHost(
@@ -30,18 +32,38 @@ fun MoaMapNavHost(
             navController = navController,
             startDestination = MoaMapRoute.Explore.route,
         ) {
-            composable(MoaMapRoute.Explore.route) { ExploreScreen() }
+            composable(MoaMapRoute.Explore.route) {
+                ExploreScreen(
+                    onProfileEditClick = {
+                        navController.navigate(MoaMapRoute.ProfileEdit.route)
+                    },
+                    onSettingsClick = {
+                        navController.navigate(MoaMapRoute.Settings.route)
+                    },
+                )
+            }
             composable(MoaMapRoute.Collection.route) { CollectionScreen() }
+            composable(MoaMapRoute.ProfileEdit.route) {
+                ProfileEditScreen(onBackClick = navController::popBackStack)
+            }
+            composable(MoaMapRoute.Settings.route) {
+                SettingsScreen(onBackClick = navController::popBackStack)
+            }
         }
 
-        MoaMapBottomBar(
-            currentRoute = currentRoute?.destination?.route,
-            onItemClick = { route -> navController.navigateToTab(route) },
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(bottom = 12.dp),
-        )
+        if (
+            currentRoute?.destination?.route == MoaMapRoute.Explore.route ||
+            currentRoute?.destination?.route == MoaMapRoute.Collection.route
+        ) {
+            MoaMapBottomBar(
+                currentRoute = currentRoute?.destination?.route,
+                onItemClick = { route -> navController.navigateToTab(route) },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 12.dp),
+            )
+        }
     }
 }
 

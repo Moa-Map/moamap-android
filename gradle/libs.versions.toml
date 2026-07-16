@@ -17,6 +17,7 @@ navigationCompose = "2.8.5"
 retrofit = "2.11.0"
 okhttp = "4.12.0"
 kotlinxSerialization = "1.7.3"
+haze = "1.1.1"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -50,6 +51,7 @@ retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = 
 retrofit-kotlinx-serialization = { group = "com.squareup.retrofit2", name = "converter-kotlinx-serialization", version.ref = "retrofit" }
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
+haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
