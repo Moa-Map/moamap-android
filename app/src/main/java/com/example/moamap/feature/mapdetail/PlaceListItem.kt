@@ -6,7 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -25,6 +25,7 @@ import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 
 private val PlaceCardShape = RoundedCornerShape(16.dp)
+internal val PlaceListTextMinHeight = 64.dp
 
 @Composable
 internal fun PlaceListItem(
@@ -52,7 +53,7 @@ internal fun PlaceListItem(
             Column(
                 modifier = Modifier
                     .weight(1f)
-                    .height(64.dp),
+                    .heightIn(min = PlaceListTextMinHeight),
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 Row(

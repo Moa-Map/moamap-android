@@ -61,6 +61,7 @@ internal fun PlaceDetailSheet(
     place: PlaceUiModel,
     reviews: List<PlaceReviewUiModel>,
     onDismiss: () -> Unit,
+    onSubmitReview: ((rating: Int, reviewText: String) -> Boolean)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
@@ -92,15 +93,29 @@ internal fun PlaceDetailSheet(
             place = place,
             reviews = reviews,
             onDismiss = onDismiss,
+            onSubmitReview = onSubmitReview,
         )
     }
 }
+
+internal fun favoriteIconRes(favorite: Boolean): Int = if (favorite) {
+    R.drawable.ic_favorite_filled
+} else {
+    R.drawable.ic_favorite_outline
+}
+
+internal fun trySubmitReview(
+    rating: Int,
+    reviewText: String,
+    onSubmitReview: ((rating: Int, reviewText: String) -> Boolean)?,
+): Boolean = onSubmitReview?.invoke(rating, reviewText) == true
 
 @Composable
 private fun PlaceDetailSheetContent(
     place: PlaceUiModel,
     reviews: List<PlaceReviewUiModel>,
     onDismiss: () -> Unit,
+    onSubmitReview: ((rating: Int, reviewText: String) -> Boolean)? = null,
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(
@@ -117,7 +132,10 @@ private fun PlaceDetailSheetContent(
                 thickness = 1.dp,
                 color = MoaMapTheme.colors.lineNormal,
             )
-            ReviewComposer(placeId = place.id)
+            ReviewComposer(
+                placeId = place.id,
+                onSubmitReview = onSubmitReview,
+            )
         }
 
         items(
@@ -205,9 +223,13 @@ private fun PlaceHeader(place: PlaceUiModel) {
                     modifier = Modifier.weight(1f),
                 )
                 Icon(
-                    painter = painterResource(R.drawable.ic_favorite_filled),
-                    contentDescription = "즐겨찾기",
-                    tint = MoaMapTheme.colors.statusAlert,
+                    painter = painterResource(favoriteIconRes(place.favorite)),
+                    contentDescription = if (place.favorite) "즐겨찾기됨" else "즐겨찾기 안 됨",
+                    tint = if (place.favorite) {
+                        MoaMapTheme.colors.statusAlert
+                    } else {
+                        MoaMapPrimitiveColors.Gray100
+                    },
                     modifier = Modifier.size(24.dp),
                 )
                 Icon(
@@ -311,9 +333,13 @@ private fun PlaceDetailMetric(
 }
 
 @Composable
-private fun ReviewComposer(placeId: Long) {
+private fun ReviewComposer(
+    placeId: Long,
+    onSubmitReview: ((rating: Int, reviewText: String) -> Boolean)?,
+) {
     var rating by rememberSaveable(placeId) { mutableStateOf(0) }
     var reviewText by rememberSaveable(placeId) { mutableStateOf("") }
+    val submitEnabled = onSubmitReview != null
 
     Surface(
         modifier = Modifier
@@ -417,8 +443,13 @@ private fun ReviewComposer(placeId: Long) {
                     modifier = Modifier
                         .size(48.dp)
                         .clickable(
+                            enabled = submitEnabled,
                             role = Role.Button,
-                            onClick = { reviewText = "" },
+                            onClick = {
+                                if (trySubmitReview(rating, reviewText, onSubmitReview)) {
+                                    reviewText = ""
+                                }
+                            },
                         )
                         .semantics {
                             contentDescription = "후기 보내기"
@@ -428,7 +459,11 @@ private fun ReviewComposer(placeId: Long) {
                     Surface(
                         modifier = Modifier.size(40.dp),
                         shape = CircleShape,
-                        color = MoaMapPrimitiveColors.Blue500,
+                        color = if (submitEnabled) {
+                            MoaMapPrimitiveColors.Blue500
+                        } else {
+                            MoaMapPrimitiveColors.Gray100
+                        },
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(
