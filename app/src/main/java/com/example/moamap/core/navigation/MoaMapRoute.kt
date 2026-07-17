@@ -23,6 +23,10 @@ sealed interface MoaMapRoute {
         override val route = "official_map"
     }
 
+    data object MapDetail : MoaMapRoute {
+        override val route = "map_detail"
+    }
+
     data object Notification : MoaMapRoute {
         override val route = "notification"
     }

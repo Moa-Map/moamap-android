@@ -17,6 +17,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.moamap.feature.collection.CollectionScreen
 import com.example.moamap.feature.explore.ExploreScreen
+import com.example.moamap.feature.mapdetail.MapDetailScreen
 import com.example.moamap.feature.mypage.ProfileEditScreen
 import com.example.moamap.feature.mypage.SettingsScreen
 import com.example.moamap.feature.officialmap.OfficialMapScreen
@@ -44,11 +45,20 @@ fun MoaMapNavHost(
                     onOfficialMapClick = {
                         navController.navigate(MoaMapRoute.OfficialMap.route)
                     },
+                    onFirstCommunityMapClick = {
+                        navController.navigate(MoaMapRoute.MapDetail.route)
+                    },
                 )
             }
             composable(MoaMapRoute.Collection.route) { CollectionScreen() }
             composable(MoaMapRoute.OfficialMap.route) {
                 OfficialMapScreen(onBackClick = navController::popBackStack)
+            }
+            composable(MoaMapRoute.MapDetail.route) {
+                MapDetailScreen(
+                    mapTitle = "서울 팝업스토어 맵",
+                    onBackClick = navController::popBackStack,
+                )
             }
             composable(MoaMapRoute.ProfileEdit.route) {
                 ProfileEditScreen(onBackClick = navController::popBackStack)
