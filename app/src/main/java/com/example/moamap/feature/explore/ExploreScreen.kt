@@ -98,11 +98,14 @@ private val sampleCommunityMaps = listOf(
     ),
 )
 
+internal fun shouldOpenMapDetail(mapId: Long): Boolean = mapId == 1L
+
 @Composable
 fun ExploreScreen(
     onProfileEditClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onOfficialMapClick: () -> Unit = {},
+    onFirstCommunityMapClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val profileMenuState = rememberProfileMenuState()
@@ -137,7 +140,7 @@ fun ExploreScreen(
                 SearchBar(onClick = {})
                 OfficialMapBanner(onClick = onOfficialMapClick)
                 CategoryChipRow()
-                CommunityMapSection()
+                CommunityMapSection(onFirstCommunityMapClick = onFirstCommunityMapClick)
 
                 // 바텀 네비게이션에 마지막 카드가 가리지 않도록 확보
                 Spacer(Modifier.height(80.dp))
@@ -327,7 +330,9 @@ private fun CategoryChip(
 }
 
 @Composable
-private fun CommunityMapSection() {
+private fun CommunityMapSection(
+    onFirstCommunityMapClick: () -> Unit,
+) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = "커뮤니티 지도",
@@ -346,7 +351,11 @@ private fun CommunityMapSection() {
                     placeCount = communityMap.placeCount,
                     joined = communityMap.joined,
                     hashtags = communityMap.hashtags,
-                    onClick = {},
+                    onClick = if (shouldOpenMapDetail(communityMap.id)) {
+                        onFirstCommunityMapClick
+                    } else {
+                        {}
+                    },
                     onJoinClick = {},
                 )
             }
