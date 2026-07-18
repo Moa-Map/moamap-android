@@ -21,6 +21,7 @@ import com.example.moamap.feature.mapdetail.MapDetailScreen
 import com.example.moamap.feature.mypage.ProfileEditScreen
 import com.example.moamap.feature.mypage.SettingsScreen
 import com.example.moamap.feature.officialmap.OfficialMapScreen
+import com.example.moamap.feature.officialmap.presentation.DensityMapDetailScreen
 
 @Composable
 fun MoaMapNavHost(
@@ -52,7 +53,15 @@ fun MoaMapNavHost(
             }
             composable(MoaMapRoute.Collection.route) { CollectionScreen() }
             composable(MoaMapRoute.OfficialMap.route) {
-                OfficialMapScreen(onBackClick = navController::popBackStack)
+                OfficialMapScreen(
+                    onBackClick = navController::popBackStack,
+                    onDensityMapClick = {
+                        navController.navigate(MoaMapRoute.DensityMapDetail.route)
+                    },
+                )
+            }
+            composable(MoaMapRoute.DensityMapDetail.route) {
+                DensityMapDetailScreen(onBackClick = navController::popBackStack)
             }
             composable(MoaMapRoute.MapDetail.route) {
                 MapDetailScreen(

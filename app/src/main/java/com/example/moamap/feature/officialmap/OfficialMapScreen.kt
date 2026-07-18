@@ -40,21 +40,35 @@ private data class OfficialMapUiModel(
     val joined: Boolean,
 )
 
-// TODO: ViewModel 연결 전까지 사용하는 임시 데이터
+private const val DENSITY_MAP_TITLE = "실시간 유동인구 지도"
+
+// TODO: ViewModel 연결 전까지 사용하는 임시 데이터. 첫 카드는 실시간 유동인구 지도 진입점.
 private val sampleOfficialMaps = List(6) { index ->
-    OfficialMapUiModel(
-        id = index + 1L,
-        title = "서울 팝업스토어 맵",
-        description = "매주 업데이트 되는 서울 팝업스토어 정보, 패션, 아트, 뷰티",
-        memberCount = "2.3천명",
-        placeCount = "128곳",
-        joined = index == 1 || index == 4,
-    )
+    if (index == 0) {
+        OfficialMapUiModel(
+            id = 1L,
+            title = DENSITY_MAP_TITLE,
+            description = "서울 주요 명소의 실시간 인구 밀집도를 한눈에",
+            memberCount = "2.3천명",
+            placeCount = "116곳",
+            joined = false,
+        )
+    } else {
+        OfficialMapUiModel(
+            id = index + 1L,
+            title = "서울 팝업스토어 맵",
+            description = "매주 업데이트 되는 서울 팝업스토어 정보, 패션, 아트, 뷰티",
+            memberCount = "2.3천명",
+            placeCount = "128곳",
+            joined = index == 1 || index == 4,
+        )
+    }
 }
 
 @Composable
 fun OfficialMapScreen(
     onBackClick: () -> Unit = {},
+    onDensityMapClick: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -85,7 +99,9 @@ fun OfficialMapScreen(
                     joined = officialMap.joined,
                     verified = true,
                     descriptionStyle = MoaMapTheme.typography.caption0,
-                    onClick = {},
+                    onClick = {
+                        if (officialMap.title == DENSITY_MAP_TITLE) onDensityMapClick()
+                    },
                     onJoinClick = {},
                 )
             }
