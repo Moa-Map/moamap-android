@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
@@ -124,12 +125,15 @@ private fun DensityMapContent(
     densitySource.data = GeoJSONData(featureCollectionJson)
     selectedSource.data = GeoJSONData(selectedFeatureJson)
 
-    val standardStyleState = rememberStandardStyleState()
-    // 폴리곤 탭 → 지역 코드 추출 후 선택 토글
-    standardStyleState.interactionsState.onLayerClicked(id = DENSITY_FILL_LAYER_ID) { feature, _ ->
-        val code = feature.properties.optString("code")
-        if (code.isNotEmpty()) onAreaClick(code)
-        true
+    // 클릭 리스너는 최초 1회만 등록하고, 콜백은 항상 최신 onAreaClick을 바라보게 한다.
+    val currentOnAreaClick by rememberUpdatedState(onAreaClick)
+    val standardStyleState = rememberStandardStyleState {
+        // 폴리곤 탭 → 지역 코드 추출 후 선택 토글
+        interactionsState.onLayerClicked(id = DENSITY_FILL_LAYER_ID) { feature, _ ->
+            val code = feature.properties.optString("code")
+            if (code.isNotEmpty()) currentOnAreaClick(code)
+            true
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
