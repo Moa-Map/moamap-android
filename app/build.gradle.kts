@@ -38,7 +38,13 @@ android {
     }
 
     buildTypes {
+        debug {
+            // 로컬 백엔드(map-service). 에뮬레이터에서 호스트 Mac은 10.0.2.2
+            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8083/\"")
+        }
         release {
+            // TODO: 인프라 배포 후 실제 운영 URL로 교체
+            buildConfigField("String", "BASE_URL", "\"https://api.moamap.invalid/\"")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -68,6 +74,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.haze)
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
