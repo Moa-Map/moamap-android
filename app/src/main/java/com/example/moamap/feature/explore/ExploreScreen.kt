@@ -27,7 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -44,8 +43,6 @@ import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.feature.mypage.ProfileMenu
 import com.example.moamap.feature.mypage.rememberProfileMenuState
-import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.haze
 
 @Immutable
 private data class CommunityMapUiModel(
@@ -109,7 +106,6 @@ fun ExploreScreen(
     modifier: Modifier = Modifier,
 ) {
     val profileMenuState = rememberProfileMenuState()
-    val hazeState = remember { HazeState() }
 
     BackHandler(enabled = profileMenuState.isVisible) {
         profileMenuState.dismiss()
@@ -123,7 +119,6 @@ fun ExploreScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .haze(state = hazeState)
                 .statusBarsPadding(),
         ) {
             ExploreTopBar(onProfileClick = profileMenuState::show)
@@ -157,7 +152,6 @@ fun ExploreScreen(
             )
 
             ProfileMenu(
-                hazeState = hazeState,
                 onProfileEditClick = {
                     profileMenuState.dismiss()
                     onProfileEditClick()
