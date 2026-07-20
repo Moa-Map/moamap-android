@@ -3,6 +3,7 @@ package com.example.moamap.feature.collection.instagram
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
+import java.net.URI
 import java.net.URL
 
 /** 캡션 추출 결과. UI/전송 계층에서 분기하기 쉽도록 성공/막힘/오류를 구분한다. */
@@ -58,21 +59,39 @@ class InstagramCaptionExtractor {
                 !caption.isNullOrBlank() ->
                     CaptionResult.Success(caption)
 
-                html.contains("loginForm") || html.contains("login_required") || status != 200 ->
+                html.contains("loginForm") || html.contains("login_required") ||
+                    status == 401 || status == 403 ->
                     CaptionResult.Blocked
 
                 else ->
-                    CaptionResult.Error("응답은 받았지만 캡션이 비어있습니다. (HTTP $status)")
+                    CaptionResult.Error("캡션을 가져오지 못했습니다. (HTTP $status)")
             }
         } catch (e: Exception) {
             CaptionResult.Error(e.message ?: e.toString())
         }
     }
 
-    /** 다양한 인스타 URL 형태에서 shortcode 추출 (/p/, /reel/, /reels/, /tv/) */
+    /**
+     * 인스타 URL에서 shortcode 추출 (/p/, /reel/, /reels/, /tv/).
+     *
+     * 호스트가 인스타그램인지 먼저 확인하고 경로 전체를 매칭해,
+     * 비-인스타 호스트나 쿼리스트링 안에 섞인 문자열이 잘못 매칭되지 않게 한다.
+     */
     private fun extractShortcode(url: String): String? =
-        Regex("""instagram\.com/(?:p|reel|reels|tv)/([A-Za-z0-9_-]+)""")
-            .find(url)?.groupValues?.get(1)
+        runCatching { URI(url) }.getOrNull()?.let { uri ->
+            val host = uri.host?.lowercase()
+            if (
+                uri.scheme?.lowercase() !in setOf("http", "https") ||
+                host !in setOf("instagram.com", "www.instagram.com", "m.instagram.com")
+            ) {
+                return null
+            }
+
+            Regex("""^/(?:p|reel|reels|tv)/([A-Za-z0-9_-]+)/?$""")
+                .find(uri.rawPath ?: return null)
+                ?.groupValues
+                ?.get(1)
+        }
 
     /** `<div class="Caption"> ... </div>` 블록에서 본문 캡션 영역만 잘라낸다. */
     private fun extractCaptionBlock(html: String): String? {
