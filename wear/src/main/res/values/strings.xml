@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="wear_app_name">모아 발자취</string>
+    <string name="record_start">외출 기록 시작</string>
+    <string name="record_stop">기록 종료</string>
+</resources>
