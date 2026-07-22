@@ -38,4 +38,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "MoaMap"
 include(":app")
- 
+include(":core:walksession")
