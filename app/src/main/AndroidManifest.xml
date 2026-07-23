@@ -33,6 +33,18 @@
                 android:resource="@xml/profile_image_paths" />
         </provider>
 
+        <service
+            android:name=".feature.footprint.data.WalkSessionReceiverService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.CHANNEL_EVENT" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/walk-session" />
+            </intent-filter>
+        </service>
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
