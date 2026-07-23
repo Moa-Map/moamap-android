@@ -3,4 +3,10 @@
     <cache-path
         name="profile_images"
         path="profile_images/" />
+    <files-path
+        name="walk_sessions"
+        path="walk-sessions/" />
+    <cache-path
+        name="walk_session_exports"
+        path="walk-session-exports/" />
 </paths>
