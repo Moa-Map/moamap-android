@@ -18,8 +18,8 @@ class RecordUiStateTest {
     fun `샘플이 관측되면 경과 시간과 심박과 샘플 수가 갱신된다`() {
         val state = RecordUiState.Idle
             .onStartRequested()
-            .onSampleObserved(elapsedMillis = 5_000, heartRate = 82.0)
-            .onSampleObserved(elapsedMillis = 10_000, heartRate = null)
+            .onSampleObserved(elapsedMillis = 5_000, heartRate = 82.0, sampleCount = 1)
+            .onSampleObserved(elapsedMillis = 10_000, heartRate = null, sampleCount = 2)
 
         val recording = state as RecordUiState.Recording
         assertEquals(10_000, recording.elapsedMillis)
@@ -27,18 +27,30 @@ class RecordUiStateTest {
     }
 
     @Test
+    fun `한 번의 관측에 배치 전체 샘플 수가 전달되면 그 값 그대로 반영된다`() {
+        // 회귀 테스트: ExerciseRecorder.samples 는 배치마다 누적 전체 목록을 emit 하므로,
+        // 호출 1회에 담긴 sampleCount 가 아무리 커도(=한 배치에 많은 샘플이 몰려도)
+        // 배치 횟수가 아니라 그 값 자체가 sampleCount 로 반영되어야 한다.
+        val state = RecordUiState.Idle
+            .onStartRequested()
+            .onSampleObserved(elapsedMillis = 1_000, heartRate = 70.0, sampleCount = 666)
+
+        assertEquals(666, (state as RecordUiState.Recording).sampleCount)
+    }
+
+    @Test
     fun `심박이 없는 샘플은 직전 심박 값을 유지한다`() {
         val state = RecordUiState.Idle
             .onStartRequested()
-            .onSampleObserved(elapsedMillis = 1_000, heartRate = 75.0)
-            .onSampleObserved(elapsedMillis = 2_000, heartRate = null)
+            .onSampleObserved(elapsedMillis = 1_000, heartRate = 75.0, sampleCount = 1)
+            .onSampleObserved(elapsedMillis = 2_000, heartRate = null, sampleCount = 2)
 
         assertEquals(75.0, (state as RecordUiState.Recording).latestHeartRate!!, 0.001)
     }
 
     @Test
     fun `기록 중이 아닐 때 관측된 샘플은 무시한다`() {
-        val state = RecordUiState.Idle.onSampleObserved(elapsedMillis = 1_000, heartRate = 80.0)
+        val state = RecordUiState.Idle.onSampleObserved(elapsedMillis = 1_000, heartRate = 80.0, sampleCount = 1)
 
         assertEquals(RecordUiState.Idle, state)
     }
@@ -47,7 +59,7 @@ class RecordUiStateTest {
     fun `종료하면 전송 중 상태의 완료 화면으로 간다`() {
         val state = RecordUiState.Idle
             .onStartRequested()
-            .onSampleObserved(elapsedMillis = 1_000, heartRate = 80.0)
+            .onSampleObserved(elapsedMillis = 1_000, heartRate = 80.0, sampleCount = 1)
             .onStopRequested()
 
         val finished = state as RecordUiState.Finished

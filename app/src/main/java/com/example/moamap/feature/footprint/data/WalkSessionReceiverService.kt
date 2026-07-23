@@ -11,6 +11,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import java.io.ByteArrayOutputStream
+import java.io.InputStream
 import javax.inject.Inject
 
 /**
@@ -35,7 +37,8 @@ class WalkSessionReceiverService : WearableListenerService() {
         scope.launch {
             val channelClient = Wearable.getChannelClient(applicationContext)
             runCatching {
-                val bytes = channelClient.getInputStream(channel).await().use { it.readBytes() }
+                val bytes = channelClient.getInputStream(channel).await()
+                    .use { readBytesUpTo(it, WalkSessionJson.MAX_COMPRESSED_BYTES) }
                 val payload = WalkSessionJson.decodeFromGzip(bytes)
                 fileStore.save(payload, receivedAtEpochMillis = System.currentTimeMillis())
                 Log.i(TAG, "세션 수신 완료: ${payload.clientSessionId}, 샘플 ${payload.samples.size}개")
@@ -44,6 +47,27 @@ class WalkSessionReceiverService : WearableListenerService() {
             }
             runCatching { channelClient.close(channel).await() }
         }
+    }
+
+    /**
+     * [InputStream.readBytes] 는 전체를 다 읽을 때까지 무제한으로 버퍼를 키운다.
+     * 채널 상대(워치)가 비정상적으로 큰 데이터를 보내면 그 자체로 힙을 고갈시킬 수 있으므로,
+     * 조금씩 읽으면서 누적 크기가 한도를 넘는 즉시 중단한다(다 읽은 뒤 크기를 검사하지 않는다).
+     */
+    private fun readBytesUpTo(input: InputStream, limitBytes: Int): ByteArray {
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(8192)
+        var totalRead = 0
+        while (true) {
+            val read = input.read(buffer)
+            if (read == -1) break
+            totalRead += read
+            check(totalRead <= limitBytes) {
+                "세션 채널 입력이 한도를 초과했습니다 (한도 $limitBytes bytes)"
+            }
+            output.write(buffer, 0, read)
+        }
+        return output.toByteArray()
     }
 
     companion object {

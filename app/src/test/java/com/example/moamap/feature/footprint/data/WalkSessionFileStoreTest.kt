@@ -7,6 +7,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
+import java.io.File
 
 class WalkSessionFileStoreTest {
 
@@ -89,10 +90,44 @@ class WalkSessionFileStoreTest {
     @Test
     fun `파일명이 바뀌어도 receivedAtEpochMillis 는 그대로 복원된다`() {
         val store = WalkSessionFileStore(tempFolder.root)
-        store.save(payload("s1", 1_700_000_000_000), receivedAtEpochMillis = 1_700_000_700_000)
+        val saved = store.save(payload("s1", 1_700_000_000_000), receivedAtEpochMillis = 1_700_000_700_000)
+
+        // walk-session-<millis>-... 접두 규약은 유지한 채 나머지 부분만 바꿔, 파일명이 그대로
+        // receivedAtEpochMillis 를 복원한다는 사실을 실제로 검증한다(저장된 시점 값이 아니라).
+        val renamed = File(saved.parentFile, "walk-session-1700000700000-renamed-by-test.json")
+        assertTrue(saved.renameTo(renamed))
 
         val loaded = store.loadAll().single()
 
         assertEquals(1_700_000_700_000, loaded.receivedAtEpochMillis)
+    }
+
+    @Test
+    fun `같은 clientSessionId 를 다시 저장하면 파일이 하나만 남고 처음 받은 시각이 유지된다`() {
+        val store = WalkSessionFileStore(tempFolder.root)
+
+        store.save(payload("dup-session", 1_700_000_000_000), receivedAtEpochMillis = 1_000)
+        store.save(payload("dup-session", 1_700_000_000_000), receivedAtEpochMillis = 2_000)
+
+        val loaded = store.loadAll()
+
+        assertEquals(1, loaded.size)
+        assertEquals("dup-session", loaded.single().payload.clientSessionId)
+        assertEquals(1_000, loaded.single().receivedAtEpochMillis)
+    }
+
+    @Test
+    fun `한 세션 id 가 다른 id 의 접미사여도 서로 다른 세션으로 저장된다`() {
+        // "a-x" 가 먼저 저장되면 파일명이 walk-session-1000-a-x.json 이 된다.
+        // 중복 검사를 파일명 끝 일치로 하면 전혀 다른 "x" 세션이 이 파일에 걸려
+        // 저장되지 않고 사라진다. 중복을 막으려다 데이터를 잃는 경로다.
+        val store = WalkSessionFileStore(tempFolder.root)
+
+        store.save(payload("a-x", 1_700_000_000_000), receivedAtEpochMillis = 1_000)
+        store.save(payload("x", 1_700_000_100_000), receivedAtEpochMillis = 2_000)
+
+        val ids = store.loadAll().map { it.payload.clientSessionId }.toSet()
+
+        assertEquals(setOf("a-x", "x"), ids)
     }
 }

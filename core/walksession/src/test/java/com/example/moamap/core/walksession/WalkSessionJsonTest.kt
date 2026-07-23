@@ -2,8 +2,11 @@ package com.example.moamap.core.walksession
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayOutputStream
+import java.util.zip.GZIPOutputStream
 
 class WalkSessionJsonTest {
 
@@ -51,5 +54,30 @@ class WalkSessionJsonTest {
         val restored = WalkSessionJson.decodeFromString(json)
 
         assertEquals("s", restored.clientSessionId)
+    }
+
+    @Test
+    fun `한도 안의 정상 페이로드는 그대로 왕복한다`() {
+        // MAX_INFLATED_BYTES/MAX_COMPRESSED_BYTES 한도가 실제 세션에는 전혀 걸리지 않음을 확인한다.
+        val restored = WalkSessionJson.decodeFromGzip(WalkSessionJson.encodeToGzip(payload))
+
+        assertEquals(payload, restored)
+    }
+
+    @Test
+    fun `압축 해제 결과가 한도를 넘으면 거부된다`() {
+        // 압축 폭탄 재현: 반복 바이트라 압축은 잘 되지만(수 KB), 풀면 한도(32MB)를 넘는다.
+        // 이 테스트에서 수백 MB를 실제로 할당하지 않도록 한도보다 살짝 큰 크기만 사용한다.
+        val oversizedRepeatingBytes = ByteArray(WalkSessionJson.MAX_INFLATED_BYTES + 1024)
+        val gzippedBytes = ByteArrayOutputStream().also { out ->
+            GZIPOutputStream(out).use { it.write(oversizedRepeatingBytes) }
+        }.toByteArray()
+
+        // 압축은 매우 작으므로 압축 입력 한도에는 걸리지 않는다 — 순수하게 인플레이트 한도만 검증한다.
+        assertTrue(gzippedBytes.size < WalkSessionJson.MAX_COMPRESSED_BYTES)
+
+        assertThrows(WalkSessionPayloadTooLargeException::class.java) {
+            WalkSessionJson.decodeFromGzip(gzippedBytes)
+        }
     }
 }

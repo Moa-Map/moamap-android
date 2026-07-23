@@ -24,9 +24,27 @@ class WalkSessionFileStore(
         // clientSessionId 를 파일명에 넣어야 같은 밀리초에 도착한 두 세션이 서로 덮어쓰지 않는다.
         // 워치 쪽 UUID 이미 안전하지만, 이 값을 만든 쪽을 신뢰하지 않고 방어적으로 걸러낸다.
         val safeClientSessionId = payload.clientSessionId.replace(Regex("[^A-Za-z0-9_-]"), "_")
+
+        // 모호한 실패 뒤 워치가 같은 세션을 재전송하면 두 번째 저장은 여기서 막혀야 한다 -
+        // 그렇지 않으면 같은 산책이 다른 타임스탬프로 두 번 저장되어 목록/업로드에 중복으로 보인다.
+        // 이미 저장된 파일이 있으면 새로 쓰지 않고 원래 파일(원래 receivedAtEpochMillis)을 그대로 돌려준다.
+        existingFileFor(safeClientSessionId)?.let { return it }
+
         val file = File(rootDir, "walk-session-$receivedAtEpochMillis-$safeClientSessionId.json")
         file.writeText(WalkSessionJson.encodeToString(payload))
         return file
+    }
+
+    /**
+     * 파일명 전체를 앵커링해서 비교한다.
+     *
+     * `endsWith("-$id.json")` 로 찾으면 id 가 다른 id 의 하이픈 뒤 접미사와 겹칠 때
+     * (기존 `a-x` 세션이 있는데 새 `x` 세션이 오는 경우) 서로 다른 세션을 같은 것으로 보고
+     * 새 세션을 저장하지 않고 버린다. 중복을 막으려다 데이터를 잃는 셈이라 정규식으로 고정한다.
+     */
+    private fun existingFileFor(safeClientSessionId: String): File? {
+        val pattern = Regex("""^walk-session-\d+-${Regex.escape(safeClientSessionId)}\.json$""")
+        return rootDir.listFiles()?.firstOrNull { pattern.matches(it.name) }
     }
 
     /** 최근에 받은 것부터 돌려준다. 깨진 파일은 조용히 건너뛴다. */

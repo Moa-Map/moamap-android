@@ -56,6 +56,7 @@ class RecordViewModel @Inject constructor(
                     state.onSampleObserved(
                         elapsedMillis = System.currentTimeMillis() - startedAtEpochMillis,
                         heartRate = latest.hr,
+                        sampleCount = samples.size,
                     )
                 }
             }

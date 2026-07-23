@@ -30,13 +30,29 @@ fun RecordUiState.onStartRequested(): RecordUiState = when (this) {
     else -> RecordUiState.Recording()
 }
 
-/** 심박이 null인 샘플(위치만 들어온 경우)은 직전 심박 표시를 지우지 않는다. */
-fun RecordUiState.onSampleObserved(elapsedMillis: Long, heartRate: Double?): RecordUiState =
+/**
+ * 심박이 null인 샘플(위치만 들어온 경우)은 직전 심박 표시를 지우지 않는다.
+ *
+ * [sampleCount] 는 이번 배치까지 누적된 전체 샘플 수(권위값)이며, 배치 수가 아니다 —
+ * ExerciseRecorder.samples 는 매번 "지금까지 전체 목록"을 emit 하므로 호출 1회당
+ * +1 하면 배치 수를 세게 되어 실제 샘플 수를 과소 집계한다. 그래서 여기서는 절대값을
+ * 그대로 대입한다.
+ *
+ * 주의(shadowing): 아래 `copy(...)` 안의 `sampleCount = sampleCount`에서 우변의
+ * `sampleCount`는 Recording.sampleCount 프로퍼티가 아니라 이 함수의 파라미터를
+ * 가리킨다 — Kotlin은 로컬 파라미터를 암시적 리시버 멤버보다 우선 해석하기 때문이다.
+ * 즉 "이전 값 + 1"이 아니라 "이번에 전달된 전체 개수로 교체"가 의도된 동작이다.
+ */
+fun RecordUiState.onSampleObserved(
+    elapsedMillis: Long,
+    heartRate: Double?,
+    sampleCount: Int,
+): RecordUiState =
     when (this) {
         is RecordUiState.Recording -> copy(
             elapsedMillis = elapsedMillis,
             latestHeartRate = heartRate ?: latestHeartRate,
-            sampleCount = sampleCount + 1,
+            sampleCount = sampleCount,
         )
         else -> this
     }
