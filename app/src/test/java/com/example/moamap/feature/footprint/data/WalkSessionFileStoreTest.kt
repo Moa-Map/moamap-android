@@ -144,4 +144,18 @@ class WalkSessionFileStoreTest {
 
         assertEquals(setOf("a/b", "a?b"), ids)
     }
+
+    @Test
+    fun `저장 도중 남은 tmp 파일은 세션으로 읽지 않는다`() {
+        // 저장 중간에 프로세스가 죽으면 반쪽짜리 `.tmp` 파일이 남을 수 있다.
+        // loadAll 이 이걸 깨진 세션으로 집계하면 안 된다.
+        val store = WalkSessionFileStore(tempFolder.root)
+        store.save(payload("real-session", 1_700_000_000_000), receivedAtEpochMillis = 1_000)
+        tempFolder.root.resolve("walk-session-2000-half.json.tmp").writeText("{\"clientSess")
+
+        val loaded = store.loadAll()
+
+        assertEquals(1, loaded.size)
+        assertEquals("real-session", loaded.single().payload.clientSessionId)
+    }
 }

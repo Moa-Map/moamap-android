@@ -38,7 +38,20 @@ class WalkSessionFileStore(
         existingFileFor(payload.clientSessionId, safeClientSessionId)?.let { return it }
 
         val file = File(rootDir, "walk-session-$receivedAtEpochMillis-$safeClientSessionId.json")
-        file.writeText(WalkSessionJson.encodeToString(payload))
+        // 곧바로 최종 파일에 쓰다가 중간에 죽으면 반쪽짜리 JSON 이 남고, loadAll() 이 그걸
+        // 조용히 건너뛰어 세션이 영영 사라진다. 임시 파일에 다 쓴 뒤 원자적으로 rename 해서
+        // 최종 파일은 항상 완전한 상태이거나 아예 없거나 둘 중 하나가 되게 한다.
+        val temp = File(rootDir, "${file.name}.tmp")
+        try {
+            temp.writeText(WalkSessionJson.encodeToString(payload))
+            if (!temp.renameTo(file)) {
+                temp.delete()
+                error("세션 파일 교체 실패: ${file.name}")
+            }
+        } catch (e: Exception) {
+            temp.delete()
+            throw e
+        }
         return file
     }
 
@@ -53,7 +66,7 @@ class WalkSessionFileStore(
     private fun existingFileFor(clientSessionId: String, safeClientSessionId: String): File? {
         val pattern = Regex("""^walk-session-\d+-${Regex.escape(safeClientSessionId)}\.json$""")
         return rootDir.listFiles()
-            ?.filter { pattern.matches(it.name) }
+            ?.filter { pattern.matches(it.name) }  // `.tmp` 는 여기서도 걸러진다
             ?.firstOrNull { file ->
                 val stored = runCatching { WalkSessionJson.decodeFromString(file.readText()) }.getOrNull()
                 stored?.clientSessionId == clientSessionId
@@ -62,7 +75,9 @@ class WalkSessionFileStore(
 
     /** 최근에 받은 것부터 돌려준다. 깨진 파일은 조용히 건너뛴다. */
     fun loadAll(): List<ReceivedWalkSession> {
-        val files = rootDir.listFiles()?.filter { it.name.startsWith("walk-session-") } ?: return emptyList()
+        // 완성된 세션 파일만 읽는다. 저장 도중 남은 `.tmp` 파일은 이 패턴에 걸리지 않으므로,
+        // 반쪽짜리 임시 파일이 깨진 세션으로 잘못 집계되지 않는다.
+        val files = rootDir.listFiles()?.filter { COMPLETED_FILE.matches(it.name) } ?: return emptyList()
 
         return files.mapNotNull { file ->
             val payload = runCatching { WalkSessionJson.decodeFromString(file.readText()) }.getOrNull()
@@ -83,5 +98,10 @@ class WalkSessionFileStore(
         val withoutPrefixAndSuffix = fileName.removePrefix("walk-session-").removeSuffix(".json")
         val timestampSegment = withoutPrefixAndSuffix.substringBefore("-")
         return timestampSegment.toLongOrNull() ?: 0L
+    }
+
+    private companion object {
+        /** 완성된 세션 파일명. 저장 중간의 `.tmp` 파일은 이 패턴에 걸리지 않는다. */
+        val COMPLETED_FILE = Regex("""^walk-session-\d+-.+\.json$""")
     }
 }
