@@ -80,4 +80,16 @@ class WalkSessionJsonTest {
             WalkSessionJson.decodeFromGzip(gzippedBytes)
         }
     }
+
+    @Test
+    fun `압축 입력이 한도를 넘으면 풀기 전에 거부된다`() {
+        // 인플레이트 한도와 별개로, 들어온 압축 바이트 자체가 한도를 넘으면
+        // GZIP 파싱을 시도하기도 전에 막아야 한다. gzip 형식이 아닌 바이트를 쓰는 이유는
+        // 크기 검사가 파싱보다 먼저 일어난다는 것 자체를 드러내기 위해서다.
+        val oversizedInput = ByteArray(WalkSessionJson.MAX_COMPRESSED_BYTES + 1)
+
+        assertThrows(WalkSessionPayloadTooLargeException::class.java) {
+            WalkSessionJson.decodeFromGzip(oversizedInput)
+        }
+    }
 }

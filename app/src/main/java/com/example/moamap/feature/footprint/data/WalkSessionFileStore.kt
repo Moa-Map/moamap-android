@@ -19,16 +19,23 @@ class WalkSessionFileStore(
     private val rootDir: File,
 ) {
 
+    /**
+     * 같은 세션이 두 번 도착해도 파일은 하나만 남긴다.
+     *
+     * 채널이 동시에 두 개 열리면 두 호출이 나란히 중복 검사를 통과해 각자 파일을 쓸 수 있으므로,
+     * 조회와 생성을 한 덩어리로 묶는다. 저장은 세션당 한 번뿐이라 직렬화 비용은 무시할 수 있다.
+     */
+    @Synchronized
     fun save(payload: WalkSessionPayload, receivedAtEpochMillis: Long): File {
         rootDir.mkdirs()
         // clientSessionId 를 파일명에 넣어야 같은 밀리초에 도착한 두 세션이 서로 덮어쓰지 않는다.
-        // 워치 쪽 UUID 이미 안전하지만, 이 값을 만든 쪽을 신뢰하지 않고 방어적으로 걸러낸다.
+        // 워치 쪽 UUID 는 이미 안전하지만, 이 값을 만든 쪽을 신뢰하지 않고 방어적으로 걸러낸다.
         val safeClientSessionId = payload.clientSessionId.replace(Regex("[^A-Za-z0-9_-]"), "_")
 
         // 모호한 실패 뒤 워치가 같은 세션을 재전송하면 두 번째 저장은 여기서 막혀야 한다 -
-        // 그렇지 않으면 같은 산책이 다른 타임스탬프로 두 번 저장되어 목록/업로드에 중복으로 보인다.
+        // 그렇지 않으면 같은 산책이 다른 타임스탬프로 두 번 저장되어 목록에 중복으로 보인다.
         // 이미 저장된 파일이 있으면 새로 쓰지 않고 원래 파일(원래 receivedAtEpochMillis)을 그대로 돌려준다.
-        existingFileFor(safeClientSessionId)?.let { return it }
+        existingFileFor(payload.clientSessionId, safeClientSessionId)?.let { return it }
 
         val file = File(rootDir, "walk-session-$receivedAtEpochMillis-$safeClientSessionId.json")
         file.writeText(WalkSessionJson.encodeToString(payload))
@@ -36,15 +43,21 @@ class WalkSessionFileStore(
     }
 
     /**
-     * 파일명 전체를 앵커링해서 비교한다.
+     * 같은 세션이 이미 저장돼 있으면 그 파일을 돌려준다.
      *
-     * `endsWith("-$id.json")` 로 찾으면 id 가 다른 id 의 하이픈 뒤 접미사와 겹칠 때
-     * (기존 `a-x` 세션이 있는데 새 `x` 세션이 오는 경우) 서로 다른 세션을 같은 것으로 보고
-     * 새 세션을 저장하지 않고 버린다. 중복을 막으려다 데이터를 잃는 셈이라 정규식으로 고정한다.
+     * 파일명은 정규화를 거치므로 신원 판정에 쓸 수 없다 - `a/b` 와 `a?b` 가 똑같이 `a_b` 가 되어
+     * 서로 다른 세션이 하나로 뭉개진다. 파일명은 후보를 좁히는 용도로만 쓰고,
+     * 최종 판정은 저장된 payload 안의 **원본** clientSessionId 로 한다.
+     * 정규화 결과가 겹치는 후보가 여럿이면 원본이 일치하는 것만 같은 세션이다.
      */
-    private fun existingFileFor(safeClientSessionId: String): File? {
+    private fun existingFileFor(clientSessionId: String, safeClientSessionId: String): File? {
         val pattern = Regex("""^walk-session-\d+-${Regex.escape(safeClientSessionId)}\.json$""")
-        return rootDir.listFiles()?.firstOrNull { pattern.matches(it.name) }
+        return rootDir.listFiles()
+            ?.filter { pattern.matches(it.name) }
+            ?.firstOrNull { file ->
+                val stored = runCatching { WalkSessionJson.decodeFromString(file.readText()) }.getOrNull()
+                stored?.clientSessionId == clientSessionId
+            }
     }
 
     /** 최근에 받은 것부터 돌려준다. 깨진 파일은 조용히 건너뛴다. */

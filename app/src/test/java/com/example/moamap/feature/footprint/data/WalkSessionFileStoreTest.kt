@@ -130,4 +130,18 @@ class WalkSessionFileStoreTest {
 
         assertEquals(setOf("a-x", "x"), ids)
     }
+
+    @Test
+    fun `정규화 결과가 같은 서로 다른 세션 id 도 각각 저장된다`() {
+        // 파일명에는 안전한 문자만 남기므로 "a/b" 와 "a?b" 가 똑같이 "a_b" 로 정규화된다.
+        // 정규화된 값으로 같은 세션인지 판정하면 두 번째 세션이 첫 번째로 오인되어 사라진다.
+        val store = WalkSessionFileStore(tempFolder.root)
+
+        store.save(payload("a/b", 1_700_000_000_000), receivedAtEpochMillis = 1_000)
+        store.save(payload("a?b", 1_700_000_100_000), receivedAtEpochMillis = 2_000)
+
+        val ids = store.loadAll().map { it.payload.clientSessionId }.toSet()
+
+        assertEquals(setOf("a/b", "a?b"), ids)
+    }
 }
