@@ -4,9 +4,9 @@ import retrofit2.http.GET
 
 interface FootTrafficService {
 
-    @GET("map/official/foot-traffic/areas")
+    @GET("api/v1/maps/official/foot-traffic/areas")
     suspend fun getAreas(): List<FootTrafficAreaDto>
 
-    @GET("map/official/foot-traffic/congestion")
+    @GET("api/v1/maps/official/foot-traffic/congestion")
     suspend fun getCongestions(): List<CongestionDto>
 }
