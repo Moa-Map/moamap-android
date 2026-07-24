@@ -2,7 +2,10 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- 로컬 백엔드(http://10.0.2.2)는 HTTP라서 debug 빌드에서만 cleartext 허용 -->
+    <!--
+      배포 게이트웨이(http://180.210.81.164)와 로컬 백엔드(http://10.0.2.2)가 모두 평문 HTTP라
+      debug 빌드에서만 cleartext 를 허용한다. release 는 https 전제이므로 열지 않는다.
+    -->
     <application
         android:usesCleartextTraffic="true"
         tools:ignore="UnusedAttribute">

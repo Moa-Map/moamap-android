@@ -35,16 +35,19 @@ android {
         // Kakao 네이티브 앱 키
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"${localProperty("KAKAO_NATIVE_APP_KEY")}\"")
         manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = localProperty("KAKAO_NATIVE_APP_KEY")
+
+        // 배포 게이트웨이. 로컬 백엔드를 보려면 local.properties 에 BASE_URL 을 넣어 덮어쓴다.
+        // 예) BASE_URL=http://10.0.2.2:8083/
+        val baseUrl = localProperty("BASE_URL").ifEmpty { "http://180.210.81.164/" }
+        buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
     }
 
     buildTypes {
         debug {
-            // 로컬 백엔드(map-service). 에뮬레이터에서 호스트 Mac은 10.0.2.2
-            buildConfigField("String", "BASE_URL", "\"http://10.0.2.2:8083/\"")
+            // BASE_URL 은 defaultConfig 에서 주입한다.
         }
         release {
-            // TODO: 인프라 배포 후 실제 운영 URL로 교체
-            buildConfigField("String", "BASE_URL", "\"https://api.moamap.invalid/\"")
+            // TODO: https 도메인 확보 후 local.properties 대신 서명 파이프라인에서 주입
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -79,6 +82,7 @@ dependencies {
     implementation(libs.haze)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.okhttp.mockwebserver)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
