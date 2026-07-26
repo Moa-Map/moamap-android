@@ -36,9 +36,9 @@ android {
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"${localProperty("KAKAO_NATIVE_APP_KEY")}\"")
         manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = localProperty("KAKAO_NATIVE_APP_KEY")
 
-        // 배포 게이트웨이. 로컬 백엔드를 보려면 local.properties 에 BASE_URL 을 넣어 덮어쓴다.
+        // 디버그 게이트웨이. 로컬 백엔드를 보려면 local.properties 에 BASE_URL 을 넣어 덮어쓴다.
         // 예) BASE_URL=http://10.0.2.2:8083/
-        val baseUrl = localProperty("BASE_URL").ifEmpty { "http://180.210.81.164/" }
+        val baseUrl = localProperty("BASE_URL").ifEmpty { "http://125.6.39.211/" }
         buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
     }
 
