@@ -24,6 +24,11 @@ sealed interface MoaMapRoute {
         override val route = "collection"
     }
 
+    /** 인스타그램 URL 로 장소를 가져오는 4단계 흐름을 감싸는 중첩 그래프. */
+    data object PlaceImport : MoaMapRoute {
+        override val route = "place_import"
+    }
+
     data object OfficialMap : MoaMapRoute {
         override val route = "official_map"
     }

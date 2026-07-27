@@ -54,6 +54,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import coil3.compose.AsyncImage
 import com.example.moamap.R
+import com.example.moamap.core.designsystem.component.compatibleShadow
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import java.io.File
