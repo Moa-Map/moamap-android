@@ -1,6 +1,9 @@
 package com.example.moamap.core.network.di
 
+import com.example.moamap.core.auth.FakeAuthTokenStore
+import com.example.moamap.core.auth.FakeTokenRefresher
 import com.example.moamap.core.network.ApiException
+import com.example.moamap.core.network.authenticator.TokenAuthenticator
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.Serializable
 import okhttp3.mockwebserver.MockResponse
@@ -36,13 +39,23 @@ class NetworkModuleTest {
         server.start()
 
         val json = NetworkModule.provideJson()
-        val client = NetworkModule.provideOkHttpClient(json)
-        val retrofit = NetworkModule.provideRetrofit(json, client)
+        val retrofit = NetworkModule.provideRetrofit(json, authenticatedClient(json))
             .newBuilder()
             .baseUrl(server.url("/"))
             .build()
         service = retrofit.create(AreaService::class.java)
     }
+
+    /** 세션이 없는 상태의 인증 클라이언트. 이 테스트가 보는 것은 envelope 과 에러 정규화뿐이다. */
+    private fun authenticatedClient(json: kotlinx.serialization.json.Json) =
+        NetworkModule.provideOkHttpClient(
+            json = json,
+            tokenStore = FakeAuthTokenStore(),
+            tokenAuthenticator = TokenAuthenticator(
+                tokenStore = FakeAuthTokenStore(),
+                tokenRefresher = { FakeTokenRefresher() },
+            ),
+        )
 
     @After
     fun tearDown() {
@@ -78,10 +91,7 @@ class NetworkModuleTest {
     @Test
     fun `기본 Retrofit의 baseUrl은 BuildConfig 값을 쓴다`() {
         val json = NetworkModule.provideJson()
-        val retrofit: Retrofit = NetworkModule.provideRetrofit(
-            json,
-            NetworkModule.provideOkHttpClient(json),
-        )
+        val retrofit: Retrofit = NetworkModule.provideRetrofit(json, authenticatedClient(json))
 
         assertEquals(com.example.moamap.BuildConfig.BASE_URL, retrofit.baseUrl().toString())
     }

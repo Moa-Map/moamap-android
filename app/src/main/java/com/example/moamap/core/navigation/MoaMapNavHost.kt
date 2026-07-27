@@ -9,7 +9,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -22,6 +21,8 @@ import com.example.moamap.feature.mypage.ProfileEditScreen
 import com.example.moamap.feature.mypage.SettingsScreen
 import com.example.moamap.feature.officialmap.OfficialMapScreen
 import com.example.moamap.feature.officialmap.presentation.DensityMapDetailScreen
+import com.example.moamap.feature.onboarding.presentation.LoginScreen
+import com.example.moamap.feature.onboarding.presentation.SplashScreen
 
 @Composable
 fun MoaMapNavHost(
@@ -33,8 +34,25 @@ fun MoaMapNavHost(
     Box(modifier = modifier.fillMaxSize()) {
         NavHost(
             navController = navController,
-            startDestination = MoaMapRoute.Explore.route,
+            startDestination = MoaMapRoute.Splash.route,
         ) {
+            composable(MoaMapRoute.Splash.route) {
+                SplashScreen(
+                    onNavigateToLogin = { navController.replaceSplashWith(MoaMapRoute.Login) },
+                    onNavigateToMain = { navController.replaceSplashWith(MoaMapRoute.Explore) },
+                )
+            }
+            composable(MoaMapRoute.Login.route) {
+                LoginScreen(
+                    onLoginSuccess = {
+                        navController.navigate(MoaMapRoute.Explore.route) {
+                            // 로그인 화면으로 되돌아갈 수 없게 지운다.
+                            popUpTo(MoaMapRoute.Login.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            }
             composable(MoaMapRoute.Explore.route) {
                 ExploreScreen(
                     onProfileEditClick = {
@@ -73,7 +91,10 @@ fun MoaMapNavHost(
                 ProfileEditScreen(onBackClick = navController::popBackStack)
             }
             composable(MoaMapRoute.Settings.route) {
-                SettingsScreen(onBackClick = navController::popBackStack)
+                SettingsScreen(
+                    onBackClick = navController::popBackStack,
+                    onLoggedOut = { navController.navigateToLoginClearingStack() },
+                )
             }
         }
 
@@ -93,13 +114,37 @@ fun MoaMapNavHost(
     }
 }
 
+/** 스플래시는 뒤로가기로 돌아올 곳이 아니므로 백스택에서 지우고 이동한다. */
+private fun NavHostController.replaceSplashWith(destination: MoaMapRoute) {
+    navigate(destination.route) {
+        popUpTo(MoaMapRoute.Splash.route) { inclusive = true }
+        launchSingleTop = true
+    }
+}
+
 /**
- * 탭 전환 시 백스택이 쌓이지 않도록 시작 지점까지 popUp 하고,
+ * 로그아웃 후 로그인 화면으로 보낸다.
+ *
+ * 로그인 이후 화면의 뿌리는 [MoaMapRoute.Explore] 다. 여기까지 inclusive 로 비우면
+ * 뒤로가기로 로그인 전 화면에 접근할 수 없다.
+ */
+private fun NavHostController.navigateToLoginClearingStack() {
+    navigate(MoaMapRoute.Login.route) {
+        popUpTo(MoaMapRoute.Explore.route) { inclusive = true }
+        launchSingleTop = true
+    }
+}
+
+/**
+ * 탭 전환 시 백스택이 쌓이지 않도록 [MoaMapRoute.Explore] 까지 popUp 하고,
  * 이전에 보던 탭 상태는 복원한다.
+ *
+ * 그래프의 시작 지점이 아니라 Explore 를 기준으로 삼는다 - 시작 지점인 스플래시는
+ * 이동 직후 백스택에서 제거되므로 popUpTo 대상이 될 수 없다.
  */
 private fun NavHostController.navigateToTab(route: MoaMapRoute) {
     navigate(route.route) {
-        popUpTo(graph.findStartDestination().id) { saveState = true }
+        popUpTo(MoaMapRoute.Explore.route) { saveState = true }
         launchSingleTop = true
         restoreState = true
     }

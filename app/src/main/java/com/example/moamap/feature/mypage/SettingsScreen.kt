@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -19,8 +20,13 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,9 +35,12 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.moamap.R
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
+import com.example.moamap.feature.mypage.presentation.SettingsViewModel
 
 private val SettingsCardShape = RoundedCornerShape(12.dp)
 private val ToggleShape = RoundedCornerShape(18.dp)
@@ -40,6 +49,43 @@ private val SettingsRowHeight = 47.dp
 @Composable
 internal fun SettingsScreen(
     onBackClick: () -> Unit,
+    onLoggedOut: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: SettingsViewModel = hiltViewModel(),
+) {
+    val loggedOut by viewModel.loggedOut.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(loggedOut) {
+        if (loggedOut) onLoggedOut()
+    }
+
+    LaunchedEffect(errorMessage) {
+        errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.consumeError()
+        }
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        SettingsContent(
+            onBackClick = onBackClick,
+            onLogoutClick = viewModel::logout,
+        )
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding(),
+        )
+    }
+}
+
+@Composable
+private fun SettingsContent(
+    onBackClick: () -> Unit,
+    onLogoutClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -100,7 +146,12 @@ internal fun SettingsScreen(
 
             SettingsSection(title = "계정") {
                 SettingsCard(shadowRadius = 2.5.dp) {
-                    SettingsNavigationRow(label = "로그아웃", showDivider = true)
+                    SettingsNavigationRow(
+                        label = "로그아웃",
+                        showDivider = true,
+                        onClick = onLogoutClick,
+                    )
+                    // 회원탈퇴는 서버 API 가 없어 아직 연결하지 않는다.
                     SettingsNavigationRow(
                         label = "회원탈퇴",
                         labelColor = MoaMapTheme.colors.statusAlert,
@@ -196,11 +247,13 @@ private fun SettingsNavigationRow(
     label: String,
     showDivider: Boolean = false,
     labelColor: Color = MoaMapTheme.colors.textNormal,
+    onClick: () -> Unit = {},
 ) {
     SettingsRow(
         label = label,
         labelColor = labelColor,
         showDivider = showDivider,
+        onClick = onClick,
         trailingContent = {
             Icon(
                 painter = painterResource(R.drawable.ic_arrow_right),
@@ -217,13 +270,14 @@ private fun SettingsRow(
     label: String,
     labelColor: Color = MoaMapTheme.colors.textNormal,
     showDivider: Boolean = false,
+    onClick: () -> Unit = {},
     trailingContent: @Composable () -> Unit,
 ) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .height(SettingsRowHeight)
-            .clickable(onClick = {}),
+            .clickable(onClick = onClick),
     ) {
         Row(
             modifier = Modifier
@@ -273,6 +327,6 @@ private fun SettingsToggle() {
 @Composable
 private fun SettingsScreenPreview() {
     MoaMapTheme {
-        SettingsScreen(onBackClick = {})
+        SettingsContent(onBackClick = {}, onLogoutClick = {})
     }
 }
