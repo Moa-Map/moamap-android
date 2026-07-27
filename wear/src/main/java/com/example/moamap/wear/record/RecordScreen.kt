@@ -29,11 +29,14 @@ fun RecordScreen(viewModel: RecordViewModel = hiltViewModel()) {
         when (val state = uiState) {
             is RecordUiState.Idle -> IdleContent(onStart = viewModel::start)
             is RecordUiState.Recording -> RecordingContent(state = state, onStop = viewModel::stop)
-            is RecordUiState.Finished -> FinishedContent(state = state, onRetry = viewModel::retry)
-            is RecordUiState.PermissionDenied -> Text(
-                text = state.message,
-                textAlign = TextAlign.Center,
-                style = MaterialTheme.typography.bodyMedium,
+            is RecordUiState.Finished -> FinishedContent(
+                state = state,
+                onRetry = viewModel::retry,
+                onReset = viewModel::reset,
+            )
+            is RecordUiState.PermissionDenied -> PermissionDeniedContent(
+                state = state,
+                onReset = viewModel::reset,
             )
         }
     }
@@ -67,7 +70,11 @@ private fun RecordingContent(state: RecordUiState.Recording, onStop: () -> Unit)
 }
 
 @Composable
-private fun FinishedContent(state: RecordUiState.Finished, onRetry: () -> Unit) {
+private fun FinishedContent(
+    state: RecordUiState.Finished,
+    onRetry: () -> Unit,
+    onReset: () -> Unit,
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(6.dp),
@@ -75,7 +82,12 @@ private fun FinishedContent(state: RecordUiState.Finished, onRetry: () -> Unit) 
         Text(text = "샘플 ${state.sampleCount}개", style = MaterialTheme.typography.bodyMedium)
         when (state.transferState) {
             TransferState.SENDING -> Text(text = "폰으로 보내는 중…")
-            TransferState.SUCCESS -> Text(text = "전송 완료")
+            TransferState.SUCCESS -> {
+                Text(text = "전송 완료")
+                Button(onClick = onReset) { Text(text = "새 기록") }
+            }
+            // 전송 실패 화면에는 대기 상태로 나가는 버튼을 두지 않는다.
+            // 못 보낸 세션이 남아 있는 동안에는 새 기록을 시작할 수 없기 때문이다.
             TransferState.FAILED -> {
                 Text(
                     text = "전송 실패. 기록은 워치에 있어요",
@@ -85,6 +97,21 @@ private fun FinishedContent(state: RecordUiState.Finished, onRetry: () -> Unit) 
                 Button(onClick = onRetry) { Text(text = "다시 보내기") }
             }
         }
+    }
+}
+
+@Composable
+private fun PermissionDeniedContent(state: RecordUiState.PermissionDenied, onReset: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Text(
+            text = state.message,
+            textAlign = TextAlign.Center,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Button(onClick = onReset) { Text(text = "다시 시도") }
     }
 }
 

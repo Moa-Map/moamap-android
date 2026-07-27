@@ -77,3 +77,16 @@ fun RecordUiState.onRetryRequested(): RecordUiState = when {
         copy(transferState = TransferState.SENDING)
     else -> this
 }
+
+/**
+ * 새 기록을 받을 수 있는 대기 상태로 되돌린다.
+ *
+ * 전송 실패(FAILED)에서는 되돌리지 않는다 — 아직 폰에 못 보낸 세션이 남아 있고,
+ * [RecordViewModel.start] 가 그 세션을 지키려고 시작 요청을 조용히 무시하기 때문에
+ * 시작 버튼이 먹지 않는 화면이 된다. 재전송을 먼저 끝내야 한다.
+ */
+fun RecordUiState.onResetRequested(): RecordUiState = when {
+    this is RecordUiState.Finished && transferState == TransferState.SUCCESS -> RecordUiState.Idle
+    this is RecordUiState.PermissionDenied -> RecordUiState.Idle
+    else -> this
+}

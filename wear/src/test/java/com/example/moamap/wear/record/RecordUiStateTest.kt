@@ -122,4 +122,47 @@ class RecordUiStateTest {
 
         assertEquals(failed, failed.onTransferResult(success = true))
     }
+
+    @Test
+    fun `전송에 성공한 뒤 되돌리면 대기 상태가 된다`() {
+        val succeeded = RecordUiState.Idle
+            .onStartRequested()
+            .onStopRequested()
+            .onTransferResult(success = true)
+
+        assertEquals(RecordUiState.Idle, succeeded.onResetRequested())
+    }
+
+    @Test
+    fun `전송에 실패한 상태에서는 되돌려도 완료 화면에 머문다`() {
+        // 못 보낸 세션이 남아 있는 동안 Idle 로 보내면 start() 가 조용히 무시되어
+        // 시작 버튼이 먹지 않는 화면이 된다. 재전송을 먼저 끝내야 한다.
+        val failed = RecordUiState.Idle
+            .onStartRequested()
+            .onStopRequested()
+            .onTransferResult(success = false)
+
+        assertEquals(failed, failed.onResetRequested())
+    }
+
+    @Test
+    fun `전송 중에는 되돌려도 완료 화면에 머문다`() {
+        val sending = RecordUiState.Idle.onStartRequested().onStopRequested()
+
+        assertEquals(sending, sending.onResetRequested())
+    }
+
+    @Test
+    fun `권한 거부 상태에서 되돌리면 대기 상태가 된다`() {
+        val denied = RecordUiState.PermissionDenied("위치와 심박 권한이 있어야 기록할 수 있어요")
+
+        assertEquals(RecordUiState.Idle, denied.onResetRequested())
+    }
+
+    @Test
+    fun `기록 중에는 되돌려도 상태가 바뀌지 않는다`() {
+        val recording = RecordUiState.Idle.onStartRequested()
+
+        assertEquals(recording, recording.onResetRequested())
+    }
 }
