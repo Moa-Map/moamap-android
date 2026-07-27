@@ -27,16 +27,6 @@ import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.feature.officialmap.domain.model.CongestionLevel
 import com.example.moamap.feature.officialmap.domain.model.DensityArea
 
-/** 혼잡도 레벨별 표시 색. TODO: 디자인 토큰 확정 시 교체 */
-internal val CongestionLevel.color: Color
-    get() = when (this) {
-        CongestionLevel.RELAXED -> Color(0xFF34C759)
-        CongestionLevel.NORMAL -> Color(0xFFFFCC00)
-        CongestionLevel.SLIGHTLY_BUSY -> Color(0xFFFF9500)
-        CongestionLevel.BUSY -> Color(0xFFFF3B30)
-        CongestionLevel.UNKNOWN -> Color(0xFF8E8E93)
-    }
-
 @Composable
 internal fun DensityMapTopBar(
     mapTitle: String,
