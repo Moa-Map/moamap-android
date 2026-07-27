@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.moamap.R
+import com.example.moamap.core.designsystem.component.ShadowedSurface
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 
@@ -76,14 +77,13 @@ internal fun MapDetailBottomSheet(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        Surface(
+        ShadowedSurface(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(44.dp)
                 .padding(horizontal = 20.dp),
             shape = SearchControlShape,
             color = MoaMapPrimitiveColors.White,
-            shadowElevation = 10.dp,
         ) {
             Row(
                 modifier = Modifier
