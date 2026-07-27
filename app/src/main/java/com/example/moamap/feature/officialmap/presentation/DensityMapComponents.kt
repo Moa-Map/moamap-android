@@ -79,45 +79,6 @@ internal fun DensityMapTopBar(
 }
 
 @Composable
-internal fun CongestionLegend(modifier: Modifier = Modifier) {
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(20.dp),
-        color = MoaMapTheme.colors.backgroundSecondary,
-        shadowElevation = 4.dp,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            listOf(
-                CongestionLevel.RELAXED,
-                CongestionLevel.NORMAL,
-                CongestionLevel.SLIGHTLY_BUSY,
-                CongestionLevel.BUSY,
-            ).forEach { level ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(8.dp)
-                            .background(level.color, CircleShape),
-                    )
-                    Text(
-                        text = level.label,
-                        style = MoaMapTheme.typography.caption0,
-                        color = MoaMapTheme.colors.textNormal,
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 internal fun AreaInfoChip(
     area: DensityArea,
     modifier: Modifier = Modifier,

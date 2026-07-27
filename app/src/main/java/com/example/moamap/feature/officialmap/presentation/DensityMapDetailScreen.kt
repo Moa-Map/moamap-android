@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -85,9 +86,11 @@ fun DensityMapDetailScreen(
 
                 is DensityMapUiState.Success -> {
                     DensityMapContent(
-                        areas = state.areas,
-                        selectedArea = state.areas.firstOrNull { it.code == state.selectedCode },
+                        areas = state.visibleAreas,
+                        selectedArea = state.selectedArea,
+                        filterLevel = state.filterLevel,
                         onAreaClick = viewModel::selectArea,
+                        onLevelClick = viewModel::selectLevel,
                     )
                 }
             }
@@ -100,7 +103,9 @@ fun DensityMapDetailScreen(
 private fun DensityMapContent(
     areas: List<DensityArea>,
     selectedArea: DensityArea?,
+    filterLevel: CongestionLevel?,
     onAreaClick: (String?) -> Unit,
+    onLevelClick: (CongestionLevel?) -> Unit,
 ) {
     val featureCollectionJson = remember(areas) { areas.toFeatureCollectionJson() }
     val selectedFeatureJson = remember(areas, selectedArea) {
@@ -166,10 +171,13 @@ private fun DensityMapContent(
             }
         }
 
-        CongestionLegend(
+        CongestionFilterChips(
+            selectedLevel = filterLevel,
+            onLevelClick = onLevelClick,
             modifier = Modifier
-                .align(Alignment.TopCenter)
-                .padding(top = 16.dp),
+                .align(Alignment.TopStart)
+                .fillMaxWidth()
+                .padding(top = 18.dp),
         )
 
         selectedArea?.let { area ->
