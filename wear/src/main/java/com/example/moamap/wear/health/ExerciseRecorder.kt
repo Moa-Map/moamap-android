@@ -150,18 +150,40 @@ class ExerciseRecorder @Inject constructor(
 
         // endExerciseAsync 의 완료는 "종료 요청이 접수됐다"는 뜻이지 마지막 배치가 콜백에
         // 도착했다는 뜻이 아니다. ENDED 업데이트를 받기 전에 콜백을 해제하면 그 배치를 버리게 된다.
-        endedSignal?.let { signal ->
-            if (withTimeoutOrNull(ENDED_TIMEOUT_MILLIS) { signal.await() } == null) {
-                Log.w(TAG, "종료 업데이트를 기다리다 시간이 초과됨 - 마지막 배치가 빠질 수 있음")
-            }
-        }
+        val signal = endedSignal
+        val confirmedEnded = signal != null &&
+            withTimeoutOrNull(ENDED_TIMEOUT_MILLIS) { signal.await() } != null
         endedSignal = null
+
+        if (!confirmedEnded) {
+            Log.w(TAG, "종료 업데이트를 확인하지 못함 - 종료를 다시 요청한다")
+            ensureExerciseTornDown()
+        }
 
         runCatching { exerciseClient.clearUpdateCallbackAsync(callback).await() }
             .onFailure { Log.w(TAG, "업데이트 콜백 해제 실패 - 다음 세션에 영향을 줄 수 있음", it) }
 
         ExerciseService.stop(context)
+
+        // 정리에 실패했더라도 사용자가 걸으며 모은 샘플은 그대로 돌려준다.
+        // 세션 정리는 우리 사정이고, 그것 때문에 사용자가 걸은 기록을 잃게 만들지 않는다.
         return _samples.value.sortedBy { it.tsEpochMillis }
+    }
+
+    /**
+     * ENDED 를 확인하지 못했을 때 종료를 한 번 더 요청한다.
+     *
+     * 종료가 접수되지 않은 채로 두면 세션이 Health Services 쪽에 살아남아 센서가 계속 돌고,
+     * 다음 [start] 의 startExerciseAsync 가 "이미 진행 중"으로 막혀 사용자가 새 기록을
+     * 영영 시작하지 못하는 상태가 된다. 재요청 한 번이면 일시적 IPC 실패는 대부분 걷힌다.
+     *
+     * 확인까지 기다리지는 않는다 — 종료를 누른 사용자를 몇 초 더 붙잡아 둘 만한 이득이 없다.
+     * getCurrentExerciseInfoAsync 로 실제 상태를 묻는 방법도 있지만, 판정에 필요한
+     * ExerciseTrackedStatus 상수가 라이브러리 내부 전용(@RestrictTo)이라 쓸 수 없다.
+     */
+    private suspend fun ensureExerciseTornDown() {
+        runCatching { exerciseClient.endExerciseAsync().await() }
+            .onFailure { Log.w(TAG, "종료 재요청 실패 - 세션이 남아 다음 기록이 막힐 수 있음", it) }
     }
 
     private companion object {
