@@ -6,6 +6,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.sp
 import com.example.moamap.R
 
@@ -83,6 +84,20 @@ internal val MoaMapTypographyTokens = MoaMapTypography(
         fontSize = 11.sp,
         lineHeight = 14.3.sp,
         letterSpacing = (-0.22).sp,
+    ),
+)
+
+/**
+ * 지정한 line height 여백을 그대로 살린다.
+ *
+ * Compose 기본값([LineHeightStyle.Trim.Both])은 첫 줄 위와 마지막 줄 아래 여백을 잘라내서,
+ * 한 줄짜리 텍스트가 line height 가 아니라 글자 높이만큼만 자리를 차지한다. 그 결과 여러 줄을
+ * 세로로 쌓으면 디자인보다 줄 간격이 좁아진다. 피그마 좌표를 그대로 맞춰야 하는 곳에서 쓴다.
+ */
+fun TextStyle.withDesignLineHeight(): TextStyle = copy(
+    lineHeightStyle = LineHeightStyle(
+        alignment = LineHeightStyle.Alignment.Proportional,
+        trim = LineHeightStyle.Trim.None,
     ),
 )
 

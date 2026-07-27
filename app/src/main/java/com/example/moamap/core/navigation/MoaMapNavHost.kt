@@ -69,7 +69,14 @@ fun MoaMapNavHost(
                     },
                 )
             }
-            composable(MoaMapRoute.Collection.route) { CollectionScreen() }
+            composable(MoaMapRoute.Collection.route) {
+                CollectionScreen(
+                    onInstagramImportClick = {
+                        navController.navigate(MoaMapRoute.PlaceImport.route)
+                    },
+                )
+            }
+            placeImportGraph(navController)
             composable(MoaMapRoute.OfficialMap.route) {
                 OfficialMapScreen(
                     onBackClick = navController::popBackStack,
