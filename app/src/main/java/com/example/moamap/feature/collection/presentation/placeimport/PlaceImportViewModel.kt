@@ -44,32 +44,62 @@ internal class PlaceImportViewModel @Inject constructor() : ViewModel() {
 
     private var extractionJob: Job? = null
 
+    /**
+     * 재시도를 취소했을 때 되돌아갈 직전 결과.
+     *
+     * 재시도는 이미 목록을 보고 있는 상태에서 시작하므로, 취소하면 보던 목록으로 돌아가야 한다.
+     * 그냥 비워버리면 취소한 사용자가 결과를 잃고 URL 입력부터 다시 해야 한다.
+     */
+    private var previousResult: Pair<ExtractionState.Success, Long?>? = null
+
     fun updateUrl(url: String) {
         _uiState.update { state -> state.copy(url = url) }
     }
 
-    /** 검색하기와 재시도가 함께 쓴다. 이전 결과와 선택은 버리고 처음부터 다시 한다. */
+    /** 검색하기와 재시도가 함께 쓴다. */
     fun startExtraction() {
-        if (!_uiState.value.canSearch) return
+        val current = _uiState.value
+        if (!current.canSearch) return
 
         extractionJob?.cancel()
+        previousResult = (current.extraction as? ExtractionState.Success)
+            ?.let { success -> success to current.selectedPlaceId }
+
         _uiState.update { state ->
             state.copy(extraction = ExtractionState.Loading, selectedPlaceId = null)
         }
 
         extractionJob = viewModelScope.launch {
             delay(EXTRACTION_DELAY_MILLIS)
+            // 새 결과가 나왔으니 되돌릴 대상도 사라진다.
+            previousResult = null
             _uiState.update { state ->
                 state.copy(extraction = ExtractionState.Success(SamplePlaces))
             }
         }
     }
 
-    /** 로딩 중 뒤로가기. 진행 중이던 작업을 취소하고 입력 화면 상태로 되돌린다. */
+    /**
+     * 로딩 중 뒤로가기. 진행 중이던 작업을 취소하고 직전 상태로 되돌린다.
+     *
+     * 진행 중이 아닐 때는 아무것도 하지 않는다. 이미 나온 결과를 지워버리면 안 된다.
+     */
     fun cancelExtraction() {
+        if (_uiState.value.extraction !is ExtractionState.Loading) return
+
         extractionJob?.cancel()
         extractionJob = null
-        _uiState.update { state -> state.copy(extraction = ExtractionState.Idle) }
+
+        val restored = previousResult
+        previousResult = null
+
+        _uiState.update { state ->
+            if (restored == null) {
+                state.copy(extraction = ExtractionState.Idle)
+            } else {
+                state.copy(extraction = restored.first, selectedPlaceId = restored.second)
+            }
+        }
     }
 
     /** 장소는 하나만 고른다. */

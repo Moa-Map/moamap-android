@@ -52,10 +52,14 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
 
             // 추출이 끝나면 로딩 화면을 백스택에서 지우고 넘어간다.
             // 남겨두면 장소 선택에서 뒤로갈 때 이미 끝난 로딩 화면이 다시 보인다.
+            //
+            // 재시도로 들어온 경우에는 아래에 이전 장소 화면이 남아 있다. launchSingleTop 으로
+            // 그 화면을 재사용해 재시도를 반복해도 백스택이 자라지 않게 한다.
             LaunchedEffect(uiState.extraction) {
                 if (uiState.extraction is ExtractionState.Success) {
                     navController.navigate(PlaceImportRoute.PLACE) {
                         popUpTo(PlaceImportRoute.LOADING) { inclusive = true }
+                        launchSingleTop = true
                     }
                 }
             }
@@ -78,11 +82,10 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
                 canProceed = uiState.canProceed,
                 onBackClick = navController::popBackStack,
                 onPlaceClick = viewModel::selectPlace,
+                // 장소 화면을 백스택에 남겨둔다. 로딩 중 취소하면 보던 목록으로 돌아와야 한다.
                 onRetryClick = {
                     viewModel.startExtraction()
-                    navController.navigate(PlaceImportRoute.LOADING) {
-                        popUpTo(PlaceImportRoute.PLACE) { inclusive = true }
-                    }
+                    navController.navigate(PlaceImportRoute.LOADING)
                 },
                 onNextClick = { navController.navigate(PlaceImportRoute.MAP) },
             )
@@ -92,7 +95,14 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
             val viewModel = sharedPlaceImportViewModel(navController, entry)
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-            uiState.selectedPlace?.let { place ->
+            val place = uiState.selectedPlace
+            if (place == null) {
+                // 프로세스가 재생성되면 ViewModel 은 비는데 백스택은 복원되어 이 화면부터 살아날 수 있다.
+                // 고른 장소가 없으면 보여줄 것이 없으므로 흐름의 처음으로 돌려보낸다.
+                LaunchedEffect(Unit) {
+                    navController.popBackStack(PlaceImportRoute.URL, inclusive = false)
+                }
+            } else {
                 PlaceImportMapScreen(
                     place = place,
                     maps = uiState.targetMaps,

@@ -61,6 +61,7 @@ internal fun PlaceImportUrlScreen(
 
                 UrlInputField(
                     url = url,
+                    canSearch = canSearch,
                     onUrlChange = onUrlChange,
                     onSearch = onSearchClick,
                 )
@@ -85,6 +86,7 @@ internal fun PlaceImportUrlScreen(
 @Composable
 private fun UrlInputField(
     url: String,
+    canSearch: Boolean,
     onUrlChange: (String) -> Unit,
     onSearch: () -> Unit,
 ) {
@@ -114,7 +116,9 @@ private fun UrlInputField(
                     keyboardType = KeyboardType.Uri,
                     imeAction = ImeAction.Search,
                 ),
-                keyboardActions = KeyboardActions(onSearch = { onSearch() }),
+                // 검색 버튼과 달리 IME 검색키는 비활성화할 수 없다. 빈 URL 로 로딩 화면에
+                // 들어가면 추출이 시작되지 않아 끝나지 않는 로딩에 갇힌다.
+                keyboardActions = KeyboardActions(onSearch = { if (canSearch) onSearch() }),
             )
         }
     }

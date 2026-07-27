@@ -120,6 +120,37 @@ class PlaceImportViewModelTest {
 
         assertNull(viewModel.uiState.value.selectedPlaceId)
         assertEquals(ExtractionState.Loading, viewModel.uiState.value.extraction)
+
+        // 새 추출까지 끝까지 돌려 미완료 코루틴이 남지 않게 한다.
+        advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.extraction is ExtractionState.Success)
+    }
+
+    @Test
+    fun `재시도를 취소하면 보고 있던 목록으로 되돌아간다`() = runTest(dispatcher) {
+        extractSuccessfully()
+        advanceUntilIdle()
+        val places = viewModel.uiState.value.places
+        viewModel.selectPlace(places[1].id)
+
+        viewModel.startExtraction()
+        viewModel.cancelExtraction()
+
+        // 취소한 사용자가 결과를 잃고 URL 입력부터 다시 하게 두면 안 된다.
+        assertEquals(places, viewModel.uiState.value.places)
+        assertEquals(places[1], viewModel.uiState.value.selectedPlace)
+    }
+
+    @Test
+    fun `새 결과가 나온 뒤 취소하면 되돌릴 이전 결과가 없다`() = runTest(dispatcher) {
+        extractSuccessfully()
+        advanceUntilIdle()
+
+        viewModel.startExtraction()
+        advanceUntilIdle()
+        viewModel.cancelExtraction()
+
+        assertTrue(viewModel.uiState.value.extraction is ExtractionState.Success)
     }
 
     @Test
