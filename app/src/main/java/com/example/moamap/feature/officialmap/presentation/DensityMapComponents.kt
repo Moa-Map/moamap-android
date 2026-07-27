@@ -160,8 +160,8 @@ internal fun AreaInfoChip(
             }
             val detail = buildList {
                 congestion?.populationMin?.let { add("약 ${it / 10000}만 명") }
-                congestion?.twentiesRate?.let { add("20대 ${it.toInt()}%") }
-                congestion?.femaleRate?.let { add("여성 ${it.toInt()}%") }
+                congestion?.dominantAge?.let { add("${it.label} ${it.rate.toInt()}%") }
+                congestion?.dominantGender?.let { add("${it.label} ${it.rate.toInt()}%") }
             }
             if (detail.isNotEmpty()) {
                 Text(
