@@ -44,6 +44,10 @@ class RecordViewModel @Inject constructor(
     // 센서 배치가 배터리 절약을 위해 늦게 도착해도 화면 타이머는 벽시계 기준으로 계속 움직인다.
     private var tickerJob: Job? = null
 
+    // 권한 거부 상태에서 돌아오는 정리도 single-flight 로 묶는다. 정리가 두 번 겹치면
+    // 두 번째 clearUpdateCallbackAsync 가 뒤늦게 도착해 새 세션의 콜백을 해제할 수 있다.
+    private var resetJob: Job? = null
+
     init {
         // 샘플·등록오류 구독은 ViewModel 생애주기 동안 딱 한 번만 연다. start()가 호출될 때마다
         // 새로 구독하면 이전 구독이 살아있는 채로 남아 샘플이 중복 집계된다. onSampleObserved는
@@ -103,16 +107,24 @@ class RecordViewModel @Inject constructor(
      * 이 경로가 없으면 두 화면이 막다른 길이 되어 앱을 강제 종료해야만 새 기록을 시작할 수 있다.
      */
     fun reset() {
-        val previous = _uiState.value
-        if (_uiState.updateAndGet { it.onResetRequested() } !is RecordUiState.Idle) return
-
         // 기록 중 등록 오류로 넘어온 경우에는 화면만 Recording 을 벗어났을 뿐,
-        // Health Services 쪽 세션은 열린 채로 남아 다음 start() 를 실패시킬 수 있다.
-        // 티커도 그 경로에서는 취소된 적이 없으므로 여기서 함께 정리한다.
-        if (previous is RecordUiState.PermissionDenied) {
-            tickerJob?.cancel()
-            viewModelScope.launch { recorder.stop() }
+        // Health Services 쪽 세션은 열린 채로 남아 있다. 이 정리가 끝나기 전에 Idle 을 노출하면
+        // 새 start() 의 setUpdateCallback 이 정리의 clearUpdateCallbackAsync 와 경쟁해,
+        // 등록 직후 콜백이 해제되어 샘플이 하나도 들어오지 않는 세션이 만들어진다.
+        // 등록 자체는 성공했으므로 registrationError 도 뜨지 않아 조용히 실패한다.
+        // 그래서 정리를 먼저 끝내고 상태를 바꾼다 - 그동안 화면은 권한 거부에 머물러
+        // 시작 버튼이 노출되지 않는다.
+        if (_uiState.value is RecordUiState.PermissionDenied) {
+            if (resetJob?.isActive == true) return
+            resetJob = viewModelScope.launch {
+                tickerJob?.cancel()
+                recorder.stop()
+                _uiState.update { it.onResetRequested() }
+            }
+            return
         }
+
+        _uiState.update { it.onResetRequested() }
     }
 
     /** 이미 진행 중인 시작 요청이 있으면 무시한다 - 취소하지 않고 그대로 끝까지 진행한다. */
