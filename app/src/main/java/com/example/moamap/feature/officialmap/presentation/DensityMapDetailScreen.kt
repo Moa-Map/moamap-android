@@ -181,12 +181,12 @@ private fun DensityMapContent(
         )
 
         selectedArea?.let { area ->
-            AreaInfoChip(
+            AreaInfoCard(
                 area = area,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(bottom = 24.dp),
+                    .padding(horizontal = 20.dp, vertical = 30.dp),
             )
         }
     }

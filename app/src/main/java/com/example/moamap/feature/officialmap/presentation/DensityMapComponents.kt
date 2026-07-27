@@ -4,16 +4,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -24,8 +21,6 @@ import androidx.compose.ui.unit.dp
 import com.example.moamap.R
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
-import com.example.moamap.feature.officialmap.domain.model.CongestionLevel
-import com.example.moamap.feature.officialmap.domain.model.DensityArea
 
 @Composable
 internal fun DensityMapTopBar(
@@ -72,60 +67,6 @@ internal fun DensityMapTopBar(
                     text = "LIVE",
                     style = MoaMapTheme.typography.caption0,
                     color = Color.White,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-internal fun AreaInfoChip(
-    area: DensityArea,
-    modifier: Modifier = Modifier,
-) {
-    val congestion = area.congestion
-    Surface(
-        modifier = modifier,
-        shape = RoundedCornerShape(14.dp),
-        color = MoaMapTheme.colors.backgroundSecondary,
-        shadowElevation = 6.dp,
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .background((congestion?.level ?: CongestionLevel.UNKNOWN).color, CircleShape),
-                )
-                Text(
-                    text = "${area.name} · ${(congestion?.level ?: CongestionLevel.UNKNOWN).label}",
-                    style = MoaMapTheme.typography.body1,
-                    color = MoaMapTheme.colors.textNormal,
-                )
-            }
-            val detail = buildList {
-                congestion?.populationMin?.let { add("약 ${it / 10000}만 명") }
-                congestion?.dominantAge?.let { add("${it.label} ${it.rate.toInt()}%") }
-                congestion?.dominantGender?.let { add("${it.label} ${it.rate.toInt()}%") }
-            }
-            if (detail.isNotEmpty()) {
-                Text(
-                    text = detail.joinToString(" · "),
-                    style = MoaMapTheme.typography.caption0,
-                    color = MoaMapTheme.colors.textAlternative,
-                )
-            }
-            congestion?.message?.let { message ->
-                Text(
-                    text = message,
-                    style = MoaMapTheme.typography.caption0,
-                    color = MoaMapTheme.colors.textAlternative,
                 )
             }
         }
