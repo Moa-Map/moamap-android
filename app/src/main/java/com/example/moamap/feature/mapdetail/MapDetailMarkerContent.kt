@@ -136,13 +136,15 @@ internal fun PlaceFacepileMarker(
             Box(
                 contentAlignment = Alignment.Center,
                 modifier = Modifier
-                    .zIndex(0f)
+                    // 앞선 아바타들보다 항상 위에 그려지도록, 가장 높은 zIndex보다 크게 준다.
+                    .zIndex((visible.size + 1).toFloat())
                     .size(FacepileAvatarSize)
                     .clip(CircleShape)
                     .background(MoaMapPrimitiveColors.White)
                     .padding(2.dp)
                     .clip(CircleShape)
-                    .background(MoaMapPrimitiveColors.Gray200),
+                    // Gray200+White는 명암비 약 2.3:1로 WCAG AA(4.5:1) 미달이라 Gray500으로 올림.
+                    .background(MoaMapPrimitiveColors.Gray500),
             ) {
                 Text(
                     text = "+$overflow",

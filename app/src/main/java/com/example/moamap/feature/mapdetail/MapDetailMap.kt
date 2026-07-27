@@ -1,6 +1,9 @@
 package com.example.moamap.feature.mapdetail
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -35,14 +38,24 @@ internal fun MapDetailMap(
     onClusterClick: (MarkerCluster) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val rawZoom = mapViewportState.cameraState?.zoom ?: MapDetailDefaultZoom
-    val clusterZoom = floor(rawZoom / ClusterZoomStep) * ClusterZoomStep
-    val clusters = remember(markers, clusterZoom) { clusterMarkers(markers, clusterZoom) }
+    // derivedStateOf 로 감싸야 zoom 이 바뀔 때마다가 아니라 클러스터 결과가 실제로
+    // 달라질 때만 이 컴포저블이 리컴포지션된다. cameraState 를 바디에서 직접 읽으면
+    // 팬/줌/회전 매 프레임마다 리컴포지션된다.
+    val clusters by remember(markers) {
+        derivedStateOf {
+            val rawZoom = mapViewportState.cameraState?.zoom ?: MapDetailDefaultZoom
+            val clusterZoom = floor(rawZoom / ClusterZoomStep) * ClusterZoomStep
+            clusterMarkers(markers, clusterZoom)
+        }
+    }
 
-    // 3D/2D 토글에 반응하도록, 초기화 블록이 아니라 매 리컴포지션마다 값을 반영한다.
-    val standardStyleState = rememberStandardStyleState()
-    standardStyleState.configurationsState.show3dObjects = BooleanValue(is3d)
-    standardStyleState.configurationsState.lightPreset = LightPresetValue.DAY
+    val standardStyleState = rememberStandardStyleState {
+        configurationsState.lightPreset = LightPresetValue.DAY
+        configurationsState.show3dObjects = BooleanValue(is3d)
+    }
+    LaunchedEffect(is3d) {
+        standardStyleState.configurationsState.show3dObjects = BooleanValue(is3d)
+    }
 
     MapboxMap(
         modifier = modifier,
