@@ -25,13 +25,13 @@ class FakeAuthTokenStore(initial: AuthToken? = null) : AuthTokenStore {
 
 /** 정해진 결과만 돌려주고 호출 횟수를 세는 테스트용 갱신기. */
 class FakeTokenRefresher(
-    private val result: AuthToken? = null,
+    private val result: TokenRefreshResult = TokenRefreshResult.Rejected,
 ) : TokenRefresher {
 
     var callCount: Int = 0
         private set
 
-    override suspend fun refresh(refreshToken: String): AuthToken? {
+    override suspend fun refresh(refreshToken: String): TokenRefreshResult {
         callCount++
         return result
     }

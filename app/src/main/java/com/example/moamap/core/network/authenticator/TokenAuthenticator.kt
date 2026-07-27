@@ -1,6 +1,7 @@
 package com.example.moamap.core.network.authenticator
 
 import com.example.moamap.core.auth.AuthTokenStore
+import com.example.moamap.core.auth.TokenRefreshResult
 import com.example.moamap.core.auth.TokenRefresher
 import com.example.moamap.core.network.interceptor.AUTHORIZATION_HEADER
 import com.example.moamap.core.network.interceptor.BEARER_PREFIX
@@ -50,15 +51,22 @@ class TokenAuthenticator @Inject constructor(
                 // 락을 기다리는 사이 다른 요청이 이미 갱신했다면 다시 갱신하지 않고 새 토큰으로 재시도만 한다.
                 if (current.accessToken != failedToken) return@withLock current.accessToken
 
-                val refreshed = tokenRefresher.get().refresh(current.refreshToken)
-                if (refreshed == null) {
-                    // 리프레시 토큰까지 만료됐다. 남겨두면 매 요청마다 갱신을 재시도하게 된다.
-                    tokenStore.clear()
-                    return@withLock null
-                }
+                when (val result = tokenRefresher.get().refresh(current.refreshToken)) {
+                    is TokenRefreshResult.Success -> {
+                        tokenStore.save(result.token)
+                        result.token.accessToken
+                    }
 
-                tokenStore.save(refreshed)
-                refreshed.accessToken
+                    // 서버가 거부했다. 남겨두면 매 요청마다 갱신을 재시도하게 된다.
+                    TokenRefreshResult.Rejected -> {
+                        tokenStore.clear()
+                        null
+                    }
+
+                    // 네트워크 장애 같은 일시적 실패. 세션을 지우면 통신이 잠깐 끊겼다는 이유로
+                    // 재로그인을 강요하게 되므로, 이번 요청만 실패시키고 토큰은 남겨둔다.
+                    TokenRefreshResult.Failed -> null
+                }
             }
         } ?: return null
 

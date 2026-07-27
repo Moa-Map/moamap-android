@@ -1,13 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
+   Android 11 이하의 자동 백업 규칙.
    See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <!-- 인증 토큰은 클라우드 백업으로 빠져나가면 안 된다. -->
+    <exclude
+        domain="file"
+        path="datastore/auth.preferences_pb" />
 </full-backup-content>

@@ -64,6 +64,8 @@ class DataStoreAuthTokenStoreTest {
         }
 
         assertNull(store.load())
+        // 캐시에도 남으면 인터셉터는 헤더를 붙이는데 갱신 경로는 세션이 없다고 보는 모순이 생긴다.
+        assertNull(store.blockingAccessToken())
     }
 
     @Test

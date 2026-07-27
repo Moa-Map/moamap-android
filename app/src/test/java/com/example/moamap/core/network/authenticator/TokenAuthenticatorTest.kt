@@ -3,6 +3,7 @@ package com.example.moamap.core.network.authenticator
 import com.example.moamap.core.auth.AuthToken
 import com.example.moamap.core.auth.FakeAuthTokenStore
 import com.example.moamap.core.auth.FakeTokenRefresher
+import com.example.moamap.core.auth.TokenRefreshResult
 import com.example.moamap.core.network.interceptor.AuthInterceptor
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -46,7 +47,9 @@ class TokenAuthenticatorTest {
         server.enqueue(MockResponse().setResponseCode(200))
 
         val store = FakeAuthTokenStore(AuthToken("old-access", "old-refresh"))
-        val refresher = FakeTokenRefresher(AuthToken("new-access", "new-refresh"))
+        val refresher = FakeTokenRefresher(
+            TokenRefreshResult.Success(AuthToken("new-access", "new-refresh"))
+        )
 
         val response = clientFor(store, refresher).get()
 
@@ -59,11 +62,11 @@ class TokenAuthenticatorTest {
     }
 
     @Test
-    fun `갱신에 실패하면 토큰을 지우고 포기한다`() {
+    fun `서버가 리프레시 토큰을 거부하면 토큰을 지우고 포기한다`() {
         server.enqueue(MockResponse().setResponseCode(401))
 
         val store = FakeAuthTokenStore(AuthToken("old-access", "old-refresh"))
-        val refresher = FakeTokenRefresher(result = null)
+        val refresher = FakeTokenRefresher(TokenRefreshResult.Rejected)
 
         val response = clientFor(store, refresher).get()
 
@@ -76,12 +79,31 @@ class TokenAuthenticatorTest {
     }
 
     @Test
+    fun `일시적인 갱신 실패에는 세션을 지우지 않는다`() {
+        // 통신이 잠깐 끊겼다는 이유로 재로그인을 강요하면 안 된다.
+        server.enqueue(MockResponse().setResponseCode(401))
+
+        val store = FakeAuthTokenStore(AuthToken("old-access", "old-refresh"))
+        val refresher = FakeTokenRefresher(TokenRefreshResult.Failed)
+
+        val response = clientFor(store, refresher).get()
+
+        assertEquals(401, response.code)
+        response.close()
+
+        assertEquals(AuthToken("old-access", "old-refresh"), store.token)
+        assertEquals(0, store.clearCount)
+    }
+
+    @Test
     fun `갱신한 토큰으로도 401이면 무한 재시도하지 않는다`() {
         server.enqueue(MockResponse().setResponseCode(401))
         server.enqueue(MockResponse().setResponseCode(401))
 
         val store = FakeAuthTokenStore(AuthToken("old-access", "old-refresh"))
-        val refresher = FakeTokenRefresher(AuthToken("new-access", "new-refresh"))
+        val refresher = FakeTokenRefresher(
+            TokenRefreshResult.Success(AuthToken("new-access", "new-refresh"))
+        )
 
         val response = clientFor(store, refresher).get()
 
@@ -98,7 +120,9 @@ class TokenAuthenticatorTest {
         server.enqueue(MockResponse().setResponseCode(401))
 
         val store = FakeAuthTokenStore()
-        val refresher = FakeTokenRefresher(AuthToken("new-access", "new-refresh"))
+        val refresher = FakeTokenRefresher(
+            TokenRefreshResult.Success(AuthToken("new-access", "new-refresh"))
+        )
 
         val response = clientFor(store, refresher).get()
 

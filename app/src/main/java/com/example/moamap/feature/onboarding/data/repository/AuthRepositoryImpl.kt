@@ -36,16 +36,20 @@ class AuthRepositoryImpl @Inject constructor(
      * 서버와 카카오 로그아웃을 시도하되, 실패해도 로컬 세션은 반드시 지운다.
      *
      * 네트워크가 끊긴 상태에서 로그아웃이 막히면 사용자가 앱에서 빠져나갈 방법이 없어진다.
+     * 다만 **로컬 삭제 실패는 삼키지 않는다** - 세션이 남은 채로 로그아웃됐다고 알리면
+     * 앱을 다시 켰을 때 로그인 상태로 들어가 사용자를 속이게 된다.
      */
     override suspend fun logout() {
-        val refreshToken = tokenStore.load()?.refreshToken
+        try {
+            val refreshToken = tokenStore.load()?.refreshToken
 
-        if (refreshToken != null) {
-            runIgnoringFailure { authService.logout(LogoutRequestDto(refreshToken)) }
+            if (refreshToken != null) {
+                runIgnoringFailure { authService.logout(LogoutRequestDto(refreshToken)) }
+            }
+            runIgnoringFailure { kakaoAuthClient.logout() }
+        } finally {
+            tokenStore.clear()
         }
-        runIgnoringFailure { kakaoAuthClient.logout() }
-
-        tokenStore.clear()
     }
 
     override suspend fun hasSession(): Boolean = tokenStore.load() != null
