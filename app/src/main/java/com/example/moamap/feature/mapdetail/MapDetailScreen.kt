@@ -16,6 +16,7 @@ import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -25,8 +26,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
-import com.mapbox.geojson.Point
+import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
+import com.mapbox.maps.plugin.animation.MapAnimationOptions
 
 private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
     save = { state ->
@@ -65,10 +67,37 @@ fun MapDetailScreen(
     val closePlaceDetail = { uiState = uiState.closePlaceDetail() }
     val mapViewportState = rememberMapViewportState {
         setCameraOptions {
-            center(Point.fromLngLat(126.9574, 37.4963))
-            zoom(16.5)
-            bearing(0.0)
-            pitch(0.0)
+            center(MapDetailCenter)
+            zoom(MapDetailDefaultZoom)
+            bearing(MapDetailBearing)
+            pitch(MapDetailPitch)
+        }
+    }
+    val onMarkerClick: (Long) -> Unit = remember {
+        { placeId -> uiState = uiState.selectPlace(placeId) }
+    }
+    val onClusterClick: (MarkerCluster) -> Unit = remember(mapViewportState) {
+        { cluster ->
+            mapViewportState.easeTo(
+                cameraOptions {
+                    center(cluster.anchorPoint())
+                    zoom((mapViewportState.cameraState?.zoom ?: MapDetailDefaultZoom) + 1.5)
+                    bearing(MapDetailBearing)
+                    pitch(MapDetailPitch)
+                },
+                MapAnimationOptions.mapAnimationOptions { duration(600L) },
+            )
+        }
+    }
+    var is3d by rememberSaveable { mutableStateOf(true) }
+    val on3dToggleClick: () -> Unit = remember(mapViewportState) {
+        {
+            val next = !is3d
+            is3d = next
+            mapViewportState.easeTo(
+                cameraOptions { pitch(if (next) MapDetailPitch else 0.0) },
+                MapAnimationOptions.mapAnimationOptions { duration(400L) },
+            )
         }
     }
 
@@ -76,9 +105,11 @@ fun MapDetailScreen(
         mapTitle = mapTitle,
         roleLabel = roleLabel,
         bookmarked = bookmarked,
+        is3d = is3d,
         selectedTab = uiState.selectedTab,
         onBackClick = onBackClick,
         onBookmarkClick = onBookmarkClick,
+        on3dToggleClick = on3dToggleClick,
         onTabSelected = { tab -> uiState = uiState.selectTab(tab) },
         places = filterPlaces(SamplePlaces, uiState.selectedCategory),
         selectedCategory = uiState.selectedCategory,
@@ -88,6 +119,10 @@ fun MapDetailScreen(
         mapContent = {
             MapDetailMap(
                 mapViewportState = mapViewportState,
+                markers = SamplePlaceMarkers,
+                is3d = is3d,
+                onMarkerClick = onMarkerClick,
+                onClusterClick = onClusterClick,
                 modifier = Modifier.fillMaxSize(),
             )
         },
@@ -107,9 +142,11 @@ internal fun MapDetailContent(
     mapTitle: String,
     roleLabel: String,
     bookmarked: Boolean,
+    is3d: Boolean,
     selectedTab: MapDetailTab,
     onBackClick: () -> Unit,
     onBookmarkClick: () -> Unit,
+    on3dToggleClick: () -> Unit,
     onTabSelected: (MapDetailTab) -> Unit,
     places: List<PlaceUiModel>,
     selectedCategory: String,
@@ -128,8 +165,10 @@ internal fun MapDetailContent(
             mapTitle = mapTitle,
             roleLabel = roleLabel,
             bookmarked = bookmarked,
+            is3d = is3d,
             onBackClick = onBackClick,
             onBookmarkClick = onBookmarkClick,
+            on3dToggleClick = on3dToggleClick,
         )
 
         Box(
@@ -226,9 +265,11 @@ private fun MapDetailScreenPreview() {
             mapTitle = "서울 데이트 지도",
             roleLabel = "방장",
             bookmarked = true,
+            is3d = true,
             selectedTab = MapDetailTab.Places,
             onBackClick = {},
             onBookmarkClick = {},
+            on3dToggleClick = {},
             onTabSelected = {},
             places = SamplePlaces,
             selectedCategory = "전체",
