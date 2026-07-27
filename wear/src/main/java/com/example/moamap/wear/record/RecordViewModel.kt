@@ -98,6 +98,23 @@ class RecordViewModel @Inject constructor(
         _uiState.value = RecordUiState.PermissionDenied(message)
     }
 
+    /**
+     * 전송을 마친 화면과 권한 거부 화면에서 대기 상태로 돌아온다.
+     * 이 경로가 없으면 두 화면이 막다른 길이 되어 앱을 강제 종료해야만 새 기록을 시작할 수 있다.
+     */
+    fun reset() {
+        val previous = _uiState.value
+        if (_uiState.updateAndGet { it.onResetRequested() } !is RecordUiState.Idle) return
+
+        // 기록 중 등록 오류로 넘어온 경우에는 화면만 Recording 을 벗어났을 뿐,
+        // Health Services 쪽 세션은 열린 채로 남아 다음 start() 를 실패시킬 수 있다.
+        // 티커도 그 경로에서는 취소된 적이 없으므로 여기서 함께 정리한다.
+        if (previous is RecordUiState.PermissionDenied) {
+            tickerJob?.cancel()
+            viewModelScope.launch { recorder.stop() }
+        }
+    }
+
     /** 이미 진행 중인 시작 요청이 있으면 무시한다 - 취소하지 않고 그대로 끝까지 진행한다. */
     fun start() {
         if (startJob?.isActive == true) return
