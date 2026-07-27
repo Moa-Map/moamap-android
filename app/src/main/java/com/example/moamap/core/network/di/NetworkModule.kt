@@ -1,7 +1,10 @@
 package com.example.moamap.core.network.di
 
 import com.example.moamap.BuildConfig
+import com.example.moamap.core.auth.AuthTokenStore
 import com.example.moamap.core.network.EnvelopeConverterFactory
+import com.example.moamap.core.network.authenticator.TokenAuthenticator
+import com.example.moamap.core.network.interceptor.AuthInterceptor
 import com.example.moamap.core.network.interceptor.ErrorInterceptor
 import dagger.Module
 import dagger.Provides
@@ -31,12 +34,49 @@ object NetworkModule {
         coerceInputValues = true
     }
 
+    /**
+     * 갱신 전용 클라이언트. 인증 인터셉터도 Authenticator 도 붙이지 않는다.
+     * 붙이면 갱신 요청이 다시 인증 경로를 타면서 순환한다.
+     */
     @Provides
     @Singleton
-    fun provideOkHttpClient(json: Json): OkHttpClient = OkHttpClient.Builder()
-        // ErrorInterceptor 를 가장 바깥에 둬서 안쪽 인터셉터가 던지는 IOException 까지 감싼다.
+    @TokenRefreshClient
+    fun provideTokenRefreshOkHttpClient(json: Json): OkHttpClient = baseClientBuilder(json).build()
+
+    @Provides
+    @Singleton
+    @TokenRefreshClient
+    fun provideTokenRefreshRetrofit(
+        json: Json,
+        @TokenRefreshClient okHttpClient: OkHttpClient,
+    ): Retrofit = retrofitBuilder(json, okHttpClient)
+
+    @Provides
+    @Singleton
+    fun provideOkHttpClient(
+        json: Json,
+        tokenStore: AuthTokenStore,
+        tokenAuthenticator: TokenAuthenticator,
+    ): OkHttpClient = baseClientBuilder(json)
+        // ErrorInterceptor 다음에 둬야 한다. ErrorInterceptor 가 가장 바깥에서 실패를 정규화한다.
+        .addInterceptor(AuthInterceptor(tokenStore))
+        // 401 을 받으면 여기서 토큰을 갱신하고 원요청을 재시도한다.
+        .authenticator(tokenAuthenticator)
+        .build()
+
+    @Provides
+    @Singleton
+    fun provideRetrofit(json: Json, okHttpClient: OkHttpClient): Retrofit =
+        retrofitBuilder(json, okHttpClient)
+
+    /**
+     * 두 클라이언트가 공유하는 최소 구성.
+     *
+     * ErrorInterceptor 를 가장 바깥에 둬서 안쪽 인터셉터가 던지는 IOException 까지 감싼다.
+     * 로깅은 인증 헤더가 붙은 뒤의 최종 요청을 찍도록 가장 안쪽에 둔다.
+     */
+    private fun baseClientBuilder(json: Json): OkHttpClient.Builder = OkHttpClient.Builder()
         .addInterceptor(ErrorInterceptor(json))
-        // TODO(다음 이슈): 토큰을 싣는 AuthInterceptor 를 여기에 추가한다.
         .addInterceptor(
             HttpLoggingInterceptor().apply {
                 level = if (BuildConfig.DEBUG) {
@@ -49,11 +89,8 @@ object NetworkModule {
         .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .writeTimeout(WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
-        .build()
 
-    @Provides
-    @Singleton
-    fun provideRetrofit(json: Json, okHttpClient: OkHttpClient): Retrofit =
+    private fun retrofitBuilder(json: Json, okHttpClient: OkHttpClient): Retrofit =
         Retrofit.Builder()
             .baseUrl(BuildConfig.BASE_URL)
             .client(okHttpClient)

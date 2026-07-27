@@ -13,6 +13,14 @@
         android:name="android.permission.READ_EXTERNAL_STORAGE"
         android:maxSdkVersion="32" />
 
+    <!--
+      패키지 가시성 제한 때문에 이 선언이 없으면 카카오톡이 설치돼 있어도
+      isKakaoTalkLoginAvailable() 이 false 를 돌려주고 무조건 웹 로그인으로 빠진다.
+    -->
+    <queries>
+        <package android:name="com.kakao.talk" />
+    </queries>
+
     <application
         android:name=".MoaMapApplication"
         android:allowBackup="true"
@@ -54,6 +62,22 @@
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!-- 카카오계정(웹) 로그인이 끝난 뒤 앱으로 돌아오는 리다이렉트 수신처 -->
+        <activity
+            android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="oauth"
+                    android:scheme="kakao${KAKAO_NATIVE_APP_KEY}" />
             </intent-filter>
         </activity>
     </application>

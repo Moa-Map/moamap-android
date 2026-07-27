@@ -7,8 +7,13 @@ package com.example.moamap.core.navigation
 sealed interface MoaMapRoute {
     val route: String
 
-    data object Onboarding : MoaMapRoute {
-        override val route = "onboarding"
+    /** 앱 진입점. 저장된 세션을 확인해 [Login] 또는 [Explore] 로 보낸다. */
+    data object Splash : MoaMapRoute {
+        override val route = "splash"
+    }
+
+    data object Login : MoaMapRoute {
+        override val route = "login"
     }
 
     data object Explore : MoaMapRoute {

@@ -64,6 +64,14 @@ android {
         buildConfig = true
         resValues = true
     }
+    testOptions {
+        unitTests {
+            // 카카오 SDK 가 Activity 컨텍스트를 요구해 ViewModel 시그니처에 Context 가 남는다.
+            // 유닛 테스트에서 형식적인 Context 인스턴스를 만들 수 있도록,
+            // android.jar 스텁이 예외 대신 기본값을 돌려주게 한다.
+            isReturnDefaultValues = true
+        }
+    }
 }
 
 dependencies {
@@ -110,6 +118,9 @@ dependencies {
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.okhttp.logging)
     implementation(libs.kotlinx.serialization.json)
+
+    // 토큰 저장 (DataStore Preferences)
+    implementation(libs.androidx.datastore.preferences)
 
     // Wearable Data Layer (워치 세션 수신)
     implementation(libs.play.services.wearable)
