@@ -26,13 +26,15 @@ class WearMainActivity : ComponentActivity() {
                 val permissionLauncher = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestMultiplePermissions(),
                 ) { results ->
-                    if (results.values.any { granted -> !granted }) {
+                    // 알림 권한이 거부돼도 기록은 그대로 돌아간다. 필수 권한만 보고 막는다 -
+                    // 여기서 전체를 보면 알림을 거절한 사용자가 기록 자체를 못 하게 된다.
+                    if (requiredPermissions().any { results[it] == false }) {
                         viewModel.onPermissionDenied("위치와 심박 권한이 있어야 기록할 수 있어요")
                     }
                 }
 
                 LaunchedEffect(Unit) {
-                    permissionLauncher.launch(requiredPermissions())
+                    permissionLauncher.launch(requiredPermissions() + optionalPermissions())
                 }
 
                 RecordScreen(viewModel = viewModel)
@@ -52,4 +54,15 @@ class WearMainActivity : ComponentActivity() {
         }
         return arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, heartRatePermission)
     }
+
+    /**
+     * 없어도 기록은 되는 권한. 알림이 없으면 기록 중 포그라운드 알림이 보이지 않을 뿐,
+     * 프로세스는 그대로 살아 있어 수집은 계속된다.
+     */
+    private fun optionalPermissions(): Array<String> =
+        if (Build.VERSION.SDK_INT >= 33) {
+            arrayOf(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            emptyArray()
+        }
 }

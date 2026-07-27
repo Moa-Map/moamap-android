@@ -3,4 +3,9 @@
     <string name="wear_app_name">모아 발자취</string>
     <string name="record_start">외출 기록 시작</string>
     <string name="record_stop">기록 종료</string>
+
+    <!-- 기록 중 포그라운드 알림. 화면이 꺼진 동안 수집이 살아 있음을 알리는 유일한 표시다. -->
+    <string name="record_channel_name">외출 기록</string>
+    <string name="record_notification_title">외출을 기록하는 중</string>
+    <string name="record_notification_text">화면을 꺼도 계속 기록돼요</string>
 </resources>
