@@ -1,6 +1,7 @@
 package com.example.moamap.feature.collection
 
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -414,12 +415,14 @@ internal fun CollectionMapCard(
     map: CollectionMapUiModel,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    border: BorderStroke? = null,
     trailingContent: (@Composable () -> Unit)? = null,
 ) {
     ShadowedSurface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         color = MoaMapPrimitiveColors.White,
+        border = border,
         onClick = onClick,
     ) {
         Row(

@@ -67,14 +67,13 @@ internal fun PlaceImportMapScreen(
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     maps.forEach { map ->
+                        // 한 장소를 여러 지도에 넣을 수 있어 체크박스로 복수 선택한다.
+                        val selected = map.id in selectedMapIds
                         CollectionMapCard(
                             map = map,
                             onClick = { onMapClick(map.id) },
-                            trailingContent = {
-                                PlaceImportSelectionIndicator(
-                                    selected = map.id in selectedMapIds,
-                                )
-                            },
+                            border = selectedCardBorder(selected),
+                            trailingContent = { PlaceImportCheckBox(checked = selected) },
                         )
                     }
                 }

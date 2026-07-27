@@ -35,10 +35,14 @@ import com.example.moamap.core.designsystem.component.ShadowedSurface
 import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
+import com.example.moamap.core.designsystem.theme.withDesignLineHeight
 
 internal val PlaceImportCardShape = RoundedCornerShape(12.dp)
 internal val PlaceImportButtonShape = RoundedCornerShape(8.dp)
 private val SelectedPlaceCardShape = RoundedCornerShape(16.dp)
+
+private val CheckBoxSize = 20.dp
+private val CheckBoxShape = RoundedCornerShape(4.dp)
 
 /** 썸네일 크기. 장소 카드와 선택된 장소 카드가 같은 값을 쓴다. */
 private val PlaceThumbnailSize = 64.dp
@@ -186,7 +190,9 @@ private fun PlaceImportButton(
         ) {
             Text(
                 text = text,
-                style = MoaMapTheme.typography.button0,
+                // 버튼 높이는 padding + 글자 line height 로 정해진다. 기본 Trim 을 끄지 않으면
+                // 글자 높이만 잡혀 디자인보다 버튼이 낮아진다.
+                style = MoaMapTheme.typography.button0.withDesignLineHeight(),
                 color = MoaMapTheme.colors.textWhite,
                 maxLines = 1,
             )
@@ -194,34 +200,54 @@ private fun PlaceImportButton(
     }
 }
 
+/** 선택된 카드를 감싸는 파란 테두리. 선택 안 된 카드는 테두리가 없다. */
+@Composable
+internal fun selectedCardBorder(selected: Boolean): BorderStroke? =
+    if (selected) BorderStroke(width = 1.dp, color = MoaMapTheme.colors.primary) else null
+
 /**
- * 선택 표시.
+ * 지도 선택용 체크박스.
  *
- * 장소 선택과 지도 선택이 같은 표시를 쓴다. 장소 쪽은 피그마에 표식이 없어서
- * 지도 선택과 동일한 형태로 맞췄다.
+ * 선택 시 파랑으로 채우고 흰 체크를, 선택 전에는 회색 테두리만 보여준다.
  */
 @Composable
-internal fun PlaceImportSelectionIndicator(
-    selected: Boolean,
+internal fun PlaceImportCheckBox(
+    checked: Boolean,
     modifier: Modifier = Modifier,
 ) {
     Box(
         modifier = modifier
-            .size(20.dp)
-            .border(width = 1.dp, color = MoaMapTheme.colors.primary, shape = CircleShape),
+            .size(CheckBoxSize)
+            .clip(CheckBoxShape)
+            .then(
+                if (checked) {
+                    Modifier.background(MoaMapTheme.colors.primary)
+                } else {
+                    Modifier.border(
+                        width = 1.dp,
+                        color = MoaMapPrimitiveColors.Gray100,
+                        shape = CheckBoxShape,
+                    )
+                },
+            ),
         contentAlignment = Alignment.Center,
     ) {
-        if (selected) {
-            Box(
-                modifier = Modifier
-                    .size(14.dp)
-                    .background(MoaMapTheme.colors.primary, CircleShape),
+        if (checked) {
+            Icon(
+                painter = painterResource(R.drawable.ic_check),
+                contentDescription = null,
+                tint = MoaMapTheme.colors.textWhite,
+                modifier = Modifier.size(CheckBoxSize),
             )
         }
     }
 }
 
-/** 추출된 장소 후보 카드. */
+/**
+ * 추출된 장소 후보 카드.
+ *
+ * 선택 표시는 파란 테두리뿐이다. 장소는 하나만 고를 수 있어 체크박스를 두지 않는다.
+ */
 @Composable
 internal fun ImportedPlaceCard(
     place: ImportedPlaceUiModel,
@@ -233,6 +259,7 @@ internal fun ImportedPlaceCard(
         modifier = modifier.fillMaxWidth(),
         shape = PlaceImportCardShape,
         color = MoaMapPrimitiveColors.White,
+        border = selectedCardBorder(selected),
         onClick = onClick,
     ) {
         Row(
@@ -246,7 +273,6 @@ internal fun ImportedPlaceCard(
                 address = place.address,
                 modifier = Modifier.weight(1f),
             )
-            PlaceImportSelectionIndicator(selected = selected)
         }
     }
 }

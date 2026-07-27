@@ -97,6 +97,9 @@ fun ShadowedSurface(
                 .background(color = color, shape = shape)
                 .let { base -> if (border == null) base else base.border(border, shape) }
                 .let { base -> if (onClick == null) base else base.clickable(onClick = onClick) },
+            // 콘텐츠가 표면 크기를 물려받게 한다. 이게 없으면 가로를 채우는 표면 안에서
+            // 콘텐츠만 제 크기로 줄어들어 왼쪽에 붙는다(예: 버튼 안 글자).
+            propagateMinConstraints = true,
             content = content,
         )
     }
