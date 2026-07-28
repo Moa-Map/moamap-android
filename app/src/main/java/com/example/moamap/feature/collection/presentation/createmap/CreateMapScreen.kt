@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
@@ -29,6 +30,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.moamap.R
 import com.example.moamap.core.common.imagepicker.rememberImagePickerController
 import com.example.moamap.core.common.imagepicker.rememberImagePickerState
@@ -48,6 +51,30 @@ private val ContentBottomSpacing = 90.dp
 
 @Composable
 internal fun CreateMapScreen(
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    viewModel: CreateMapViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    CreateMapContent(
+        uiState = uiState,
+        onBackClick = onBackClick,
+        onImageSelected = viewModel::selectImage,
+        onNameChange = viewModel::updateName,
+        onDescriptionChange = viewModel::updateDescription,
+        onVisibilitySelect = viewModel::selectVisibility,
+        onTagInputChange = viewModel::updateTagInput,
+        onTagCommit = viewModel::commitTag,
+        onTagRemove = viewModel::removeTag,
+        // TODO: POST /api/v1/maps 연결은 다음 이슈에서 붙인다.
+        onSubmitClick = {},
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun CreateMapContent(
     uiState: CreateMapUiState,
     onBackClick: () -> Unit,
     onImageSelected: (String) -> Unit,
@@ -233,7 +260,7 @@ private fun VisibilitySection(
 @Composable
 private fun CreateMapScreenPreview() {
     MoaMapTheme {
-        CreateMapScreen(
+        CreateMapContent(
             uiState = CreateMapUiState(
                 name = "성수 카페 투어",
                 visibility = MapVisibility.Public,
