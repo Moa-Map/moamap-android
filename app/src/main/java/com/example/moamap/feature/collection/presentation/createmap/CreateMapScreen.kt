@@ -5,12 +5,15 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -73,6 +76,7 @@ internal fun CreateMapScreen(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun CreateMapContent(
     uiState: CreateMapUiState,
@@ -87,6 +91,8 @@ private fun CreateMapContent(
     onSubmitClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val isKeyboardVisible = WindowInsets.isImeVisible
+
     val pickerState = rememberImagePickerState()
     val pickerController = rememberImagePickerController(
         state = pickerState,
@@ -95,11 +101,15 @@ private fun CreateMapContent(
         onImageSelected = { uri -> onImageSelected(uri.toString()) },
     )
 
+    // enableEdgeToEdge 라 키보드가 떠도 창이 줄지 않는다. imePadding 을 화면 전체에 걸어야
+    // 스크롤 영역의 뷰포트가 함께 줄어들어, 포커스된 입력창이 키보드 위로 올라온다.
+    // 버튼에만 걸면 버튼 혼자 키보드를 타고 올라가고 입력창은 가려진 채로 남는다.
     Box(
         modifier = modifier
             .fillMaxSize()
             .background(MoaMapTheme.colors.backgroundSecondary)
-            .statusBarsPadding(),
+            .statusBarsPadding()
+            .imePadding(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             CreateMapTopBar(onBackClick = onBackClick)
@@ -179,12 +189,16 @@ private fun CreateMapContent(
             enabled = uiState.canSubmit,
             onClick = onSubmitClick,
             modifier = Modifier
+                // 키보드가 떠 있으면 위에서 ime inset 을 이미 소비해 0 이 되고,
+                // 닫혀 있을 때만 내비게이션 바만큼 띄운다.
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
-                .imePadding()
+                .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding)
                 .padding(
-                    horizontal = MoaMapDimens.ScreenHorizontalPadding,
-                    vertical = SubmitButtonBottomPadding,
+                    top = SubmitButtonBottomPadding,
+                    // 홈 인디케이터와 띄우려는 간격이라, 그 자리에 키보드가 올라와 있으면
+                    // 버튼이 키보드에 붙어야 한다.
+                    bottom = if (isKeyboardVisible) 0.dp else SubmitButtonBottomPadding,
                 ),
         )
     }

@@ -91,9 +91,8 @@ internal fun MapPhotoField(
         ) {
             if (imageUri == null) {
                 Column(
-                    modifier = Modifier.align(Alignment.Center),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
                 ) {
                     Icon(
                         painter = painterResource(R.drawable.ic_add),
@@ -216,9 +215,8 @@ internal fun VisibilityCard(
         onClick = onClick,
     ) {
         Column(
-            modifier = Modifier.align(Alignment.Center),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(11.dp),
+            verticalArrangement = Arrangement.spacedBy(11.dp, Alignment.CenterVertically),
         ) {
             Icon(
                 painter = painterResource(iconRes),

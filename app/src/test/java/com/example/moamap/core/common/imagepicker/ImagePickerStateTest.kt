@@ -1,6 +1,5 @@
 package com.example.moamap.core.common.imagepicker
 
-import android.Manifest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -28,22 +27,4 @@ class ImagePickerStateTest {
         assertFalse(state.isSourceMenuVisible)
     }
 
-    @Test
-    fun `gallery permission follows the Android media permission model`() {
-        assertEquals(
-            listOf(
-                Manifest.permission.READ_MEDIA_IMAGES,
-                Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
-            ),
-            galleryPermissionsFor(sdkInt = 34),
-        )
-        assertEquals(
-            listOf(Manifest.permission.READ_MEDIA_IMAGES),
-            galleryPermissionsFor(sdkInt = 33),
-        )
-        assertEquals(
-            listOf(Manifest.permission.READ_EXTERNAL_STORAGE),
-            galleryPermissionsFor(sdkInt = 32),
-        )
-    }
 }

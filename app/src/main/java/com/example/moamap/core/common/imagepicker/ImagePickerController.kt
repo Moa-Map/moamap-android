@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -86,7 +85,7 @@ internal fun rememberImagePickerController(
     }
 
     val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
+        contract = PersistableOpenDocument,
     ) { uri ->
         uri?.let {
             runCatching {
@@ -96,14 +95,6 @@ internal fun rememberImagePickerController(
                 )
             }
             selectImage(it)
-        }
-    }
-
-    val galleryPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions(),
-    ) { results ->
-        if (results.values.any { it }) {
-            galleryLauncher.launch(arrayOf("image/*"))
         }
     }
 
@@ -119,21 +110,28 @@ internal fun rememberImagePickerController(
                 cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
             }
         },
+        // 문서 선택기(SAF)는 고른 URI 에만 그때그때 읽기 권한을 부여하므로 저장소 권한이
+        // 필요 없다. 권한을 물어보면 거부당했을 때 권한 없이도 동작할 선택기까지 막힌다.
         onRequestGallery = {
             state.dismissSourceMenu()
-            val permissions = galleryPermissionsFor(Build.VERSION.SDK_INT)
-            val hasAccess = permissions.any { permission ->
-                ContextCompat.checkSelfPermission(context, permission) ==
-                    PackageManager.PERMISSION_GRANTED
-            }
-
-            if (hasAccess) {
-                galleryLauncher.launch(arrayOf("image/*"))
-            } else {
-                galleryPermissionLauncher.launch(permissions.toTypedArray())
-            }
+            galleryLauncher.launch(arrayOf("image/*"))
         },
     )
+}
+
+/**
+ * [ActivityResultContracts.OpenDocument] 에 지속 권한 플래그를 더한 계약.
+ *
+ * 기본 계약은 이 플래그를 붙이지 않아서 `takePersistableUriPermission` 이 SecurityException 을
+ * 낸다. 프로세스가 죽었다 살아난 뒤 복원한 URI 를 다시 읽으려면 지속 권한이 필요하다.
+ */
+private object PersistableOpenDocument : ActivityResultContracts.OpenDocument() {
+    override fun createIntent(context: Context, input: Array<String>): Intent =
+        super.createIntent(context, input)
+            .addFlags(
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                    Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION,
+            )
 }
 
 private fun createImageCaptureUri(

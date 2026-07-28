@@ -1,8 +1,6 @@
 package com.example.moamap.core.common.imagepicker
 
-import android.Manifest
 import android.net.Uri
-import android.os.Build
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -67,15 +65,3 @@ internal fun rememberImagePickerState(
     ImagePickerState(initialImageUri = initialImageUri?.toString())
 }
 
-internal fun galleryPermissionsFor(sdkInt: Int): List<String> = when {
-    sdkInt >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE -> listOf(
-        Manifest.permission.READ_MEDIA_IMAGES,
-        Manifest.permission.READ_MEDIA_VISUAL_USER_SELECTED,
-    )
-
-    sdkInt >= Build.VERSION_CODES.TIRAMISU -> listOf(
-        Manifest.permission.READ_MEDIA_IMAGES,
-    )
-
-    else -> listOf(Manifest.permission.READ_EXTERNAL_STORAGE)
-}
