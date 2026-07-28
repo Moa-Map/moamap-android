@@ -7,11 +7,6 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.CAMERA" />
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
 
     <!--
       패키지 가시성 제한 때문에 이 선언이 없으면 카카오톡이 설치돼 있어도
@@ -53,11 +48,17 @@
             </intent-filter>
         </service>
 
+        <!--
+          windowSoftInputMode 를 지정하지 않으면 시스템이 pan 을 골라 창을 통째로 밀어 올린다.
+          그러면 Compose 의 imePadding 과 보정이 겹쳐서, 화면 아래쪽 입력창에 포커스할 때만
+          하단 고정 버튼이 키보드보다 더 위로 뜬다. 창은 그대로 두고 inset 만 받아야 한다.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.MoaMap">
+            android:theme="@style/Theme.MoaMap"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

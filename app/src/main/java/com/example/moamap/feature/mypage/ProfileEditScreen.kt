@@ -1,13 +1,6 @@
 package com.example.moamap.feature.mypage
 
-import android.Manifest
-import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
 import android.net.Uri
-import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,7 +25,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -41,7 +33,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -50,14 +41,18 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
-import androidx.core.content.ContextCompat
-import androidx.core.content.FileProvider
 import coil3.compose.AsyncImage
 import com.example.moamap.R
+import com.example.moamap.core.common.imagepicker.rememberImagePickerController
+import com.example.moamap.core.common.imagepicker.rememberImagePickerState
+import com.example.moamap.core.designsystem.component.ImageSourceMenu
 import com.example.moamap.core.designsystem.component.compatibleShadow
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
-import java.io.File
+
+/** 촬영본이 쌓이는 캐시 위치. `res/xml/profile_image_paths.xml` 의 `cache-path` 와 맞춰야 한다. */
+private const val ProfileImageCacheDirectory = "profile_images"
+private const val ProfileImageFilePrefix = "profile"
 
 private val ProfileFieldShape = RoundedCornerShape(12.dp)
 private val SaveButtonShape = RoundedCornerShape(8.dp)
@@ -70,90 +65,20 @@ internal fun ProfileEditScreen(
     onProfileImageSelected: (Uri) -> Unit = {},
     onSaveClick: () -> Unit = {},
 ) {
-    val context = LocalContext.current
-    val pickerState = rememberProfileImagePickerState(initialProfileImageUri)
-    val currentOnProfileImageSelected by rememberUpdatedState(onProfileImageSelected)
-    var pendingCameraUri by rememberSaveable { mutableStateOf<String?>(null) }
-
-    fun selectImage(uri: Uri) {
-        pickerState.selectImage(uri.toString())
-        currentOnProfileImageSelected(uri)
+    // 이 화면은 ViewModel 이 없어서 고른 사진을 여기서 들고 있는다.
+    var selectedImageUri by rememberSaveable(initialProfileImageUri) {
+        mutableStateOf(initialProfileImageUri?.toString())
     }
-
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicture(),
-    ) { success ->
-        pendingCameraUri?.let(Uri::parse)?.let { uri ->
-            if (success) {
-                selectImage(uri)
-            } else {
-                runCatching { context.contentResolver.delete(uri, null, null) }
-            }
-        }
-        pendingCameraUri = null
-    }
-
-    val launchCamera: () -> Unit = {
-        createProfileImageUri(context)?.let { uri ->
-            pendingCameraUri = uri.toString()
-            cameraLauncher.launch(uri)
-        }
-        Unit
-    }
-
-    val cameraPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        if (granted) launchCamera()
-    }
-
-    val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument(),
-    ) { uri ->
-        uri?.let {
-            runCatching {
-                context.contentResolver.takePersistableUriPermission(
-                    it,
-                    Intent.FLAG_GRANT_READ_URI_PERMISSION,
-                )
-            }
-            selectImage(it)
-        }
-    }
-
-    val galleryPermissionLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.RequestMultiplePermissions(),
-    ) { results ->
-        if (results.values.any { it }) {
-            galleryLauncher.launch(arrayOf("image/*"))
-        }
-    }
-
-    fun requestCamera() {
-        pickerState.dismissSourceMenu()
-        if (
-            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            launchCamera()
-        } else {
-            cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
-        }
-    }
-
-    fun requestGallery() {
-        pickerState.dismissSourceMenu()
-        val permissions = galleryPermissionsFor(Build.VERSION.SDK_INT)
-        val hasAccess = permissions.any {
-            ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
-        }
-
-        if (hasAccess) {
-            galleryLauncher.launch(arrayOf("image/*"))
-        } else {
-            galleryPermissionLauncher.launch(permissions.toTypedArray())
-        }
-    }
+    val pickerState = rememberImagePickerState()
+    val pickerController = rememberImagePickerController(
+        state = pickerState,
+        cacheDirectoryName = ProfileImageCacheDirectory,
+        fileNamePrefix = ProfileImageFilePrefix,
+        onImageSelected = { uri ->
+            selectedImageUri = uri.toString()
+            onProfileImageSelected(uri)
+        },
+    )
 
     Box(
         modifier = modifier
@@ -169,12 +94,12 @@ internal fun ProfileEditScreen(
             ProfileEditTopBar(onBackClick = onBackClick)
             Spacer(Modifier.height(37.dp))
             ProfileImageEditor(
-                selectedImageUri = pickerState.selectedImageUri?.let(Uri::parse),
+                selectedImageUri = selectedImageUri?.let(Uri::parse),
                 isSourceMenuVisible = pickerState.isSourceMenuVisible,
                 onCameraBadgeClick = pickerState::showSourceMenu,
                 onMenuDismissRequest = pickerState::dismissSourceMenu,
-                onCameraClick = ::requestCamera,
-                onGalleryClick = ::requestGallery,
+                onCameraClick = pickerController::requestCamera,
+                onGalleryClick = pickerController::requestGallery,
             )
             Spacer(Modifier.height(26.dp))
             ProfileEditFields()
@@ -289,7 +214,7 @@ private fun ProfileImageEditor(
                 onDismissRequest = onMenuDismissRequest,
                 properties = PopupProperties(focusable = true),
             ) {
-                ProfileImageSourceMenu(
+                ImageSourceMenu(
                     onCameraClick = onCameraClick,
                     onGalleryClick = onGalleryClick,
                 )
@@ -297,20 +222,6 @@ private fun ProfileImageEditor(
         }
     }
 }
-
-private fun createProfileImageUri(context: Context): Uri? = runCatching {
-    val imageDirectory = File(context.cacheDir, "profile_images").apply { mkdirs() }
-    val imageFile = File.createTempFile(
-        "profile_${System.currentTimeMillis()}_",
-        ".jpg",
-        imageDirectory,
-    )
-    FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        imageFile,
-    )
-}.getOrNull()
 
 @Composable
 private fun ProfileEditFields() {

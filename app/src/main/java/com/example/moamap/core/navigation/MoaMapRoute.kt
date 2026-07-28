@@ -31,6 +31,11 @@ sealed interface MoaMapRoute {
         override val route = "place_import"
     }
 
+    /** 모음 탭의 `새 지도` 로 들어가는 지도 생성 화면. */
+    data object CreateMap : MoaMapRoute {
+        override val route = "create_map"
+    }
+
     data object OfficialMap : MoaMapRoute {
         override val route = "official_map"
     }
