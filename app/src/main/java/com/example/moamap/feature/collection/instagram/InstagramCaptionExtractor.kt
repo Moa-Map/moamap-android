@@ -2,6 +2,7 @@ package com.example.moamap.feature.collection.instagram
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
@@ -14,8 +15,15 @@ sealed interface CaptionResult {
     /** 로그인 필요/비공개 등으로 이 방식으로는 캡션을 가져올 수 없는 경우. */
     data object Blocked : CaptionResult
 
-    /** shortcode 파싱 실패, 네트워크 오류 등. */
+    /** shortcode 파싱 실패 등, 링크 자체가 잘못된 경우. */
     data class Error(val message: String) : CaptionResult
+
+    /**
+     * 인스타그램에 닿지 못한 경우(연결 실패·타임아웃).
+     *
+     * 링크가 잘못된 것과 구분해야 사용자에게 엉뚱한 안내를 하지 않는다.
+     */
+    data class NetworkError(val message: String) : CaptionResult
 }
 
 /**
@@ -26,13 +34,13 @@ sealed interface CaptionResult {
  *   `https://www.instagram.com/p/{shortcode}/embed/captioned/`
  * 를 크롤러 User-Agent 로 호출해서 Caption 영역만 파싱한다.
  */
-class InstagramCaptionExtractor {
+class InstagramCaptionExtractor : CaptionExtractor {
 
     /**
      * @param rawUrl 사용자가 붙여넣은 게시물/릴스 URL
      * @return 캡션 추출 결과. 성공 시 [CaptionResult.Success.description] 에 캡션 전체 텍스트가 들어있다.
      */
-    suspend fun extract(rawUrl: String): CaptionResult = withContext(Dispatchers.IO) {
+    override suspend fun extract(rawUrl: String): CaptionResult = withContext(Dispatchers.IO) {
         val shortcode = extractShortcode(rawUrl.trim())
             ?: return@withContext CaptionResult.Error("URL에서 게시물 ID(shortcode)를 찾지 못했습니다.")
 
@@ -66,6 +74,9 @@ class InstagramCaptionExtractor {
                 else ->
                     CaptionResult.Error("캡션을 가져오지 못했습니다. (HTTP $status)")
             }
+        } catch (e: IOException) {
+            // 연결 실패·타임아웃. 링크 문제가 아니다.
+            CaptionResult.NetworkError(e.message ?: e.toString())
         } catch (e: Exception) {
             CaptionResult.Error(e.message ?: e.toString())
         }

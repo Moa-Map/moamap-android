@@ -6,6 +6,7 @@ import com.example.moamap.core.network.EnvelopeConverterFactory
 import com.example.moamap.core.network.authenticator.TokenAuthenticator
 import com.example.moamap.core.network.interceptor.AuthInterceptor
 import com.example.moamap.core.network.interceptor.ErrorInterceptor
+import com.example.moamap.core.network.interceptor.LongRunningTimeoutInterceptor
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -60,6 +61,7 @@ object NetworkModule {
     ): OkHttpClient = baseClientBuilder(json)
         // ErrorInterceptor 다음에 둬야 한다. ErrorInterceptor 가 가장 바깥에서 실패를 정규화한다.
         .addInterceptor(AuthInterceptor(tokenStore))
+        .addInterceptor(LongRunningTimeoutInterceptor())
         // 401 을 받으면 여기서 토큰을 갱신하고 원요청을 재시도한다.
         .authenticator(tokenAuthenticator)
         .build()

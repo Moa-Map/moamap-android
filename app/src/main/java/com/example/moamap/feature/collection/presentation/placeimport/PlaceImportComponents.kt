@@ -14,12 +14,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +41,7 @@ import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.core.designsystem.theme.withDesignLineHeight
+import com.example.moamap.feature.collection.domain.model.ImportedPlace
 
 internal val PlaceImportCardShape = RoundedCornerShape(12.dp)
 internal val PlaceImportButtonShape = RoundedCornerShape(8.dp)
@@ -200,6 +206,40 @@ private fun PlaceImportButton(
     }
 }
 
+/**
+ * 추출 실패 안내.
+ *
+ * 실패하면 로딩 화면을 닫고 직전 화면으로 돌아오므로, 그 화면들이 이 조각을 함께 쓴다.
+ */
+@Composable
+internal fun PlaceImportErrorSnackbar(
+    message: String?,
+    onShown: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val hostState = remember { SnackbarHostState() }
+
+    // 표시가 끝나기를 기다리는 동안 화면이 재구성되면 소비가 누락돼 같은 안내가 다시 뜬다.
+    // 상위 상태는 먼저 비우고, 표시는 이 화면이 들고 있는 값으로 한다.
+    var pending by remember { mutableStateOf<String?>(null) }
+
+    LaunchedEffect(message) {
+        message?.let { arrived ->
+            pending = arrived
+            onShown()
+        }
+    }
+
+    LaunchedEffect(pending) {
+        pending?.let { shown ->
+            hostState.showSnackbar(shown)
+            pending = null
+        }
+    }
+
+    SnackbarHost(hostState = hostState, modifier = modifier)
+}
+
 /** 선택된 카드를 감싸는 파란 테두리. 선택 안 된 카드는 테두리가 없다. */
 @Composable
 internal fun selectedCardBorder(selected: Boolean): BorderStroke? =
@@ -250,7 +290,7 @@ internal fun PlaceImportCheckBox(
  */
 @Composable
 internal fun ImportedPlaceCard(
-    place: ImportedPlaceUiModel,
+    place: ImportedPlace,
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -280,7 +320,7 @@ internal fun ImportedPlaceCard(
 /** 지도 선택 화면 상단에 고정되는, 앞 단계에서 고른 장소 카드. */
 @Composable
 internal fun SelectedPlaceCard(
-    place: ImportedPlaceUiModel,
+    place: ImportedPlace,
     modifier: Modifier = Modifier,
 ) {
     ShadowedSurface(

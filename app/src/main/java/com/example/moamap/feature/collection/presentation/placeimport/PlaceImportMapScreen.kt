@@ -21,13 +21,14 @@ import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.feature.collection.CollectionMapCard
 import com.example.moamap.feature.collection.CollectionMapUiModel
+import com.example.moamap.feature.collection.domain.model.ImportedPlace
 
 /** 하단 버튼에 마지막 카드가 가리지 않도록 확보하는 여백. */
 private val BottomBarClearance = 88.dp
 
 @Composable
 internal fun PlaceImportMapScreen(
-    place: ImportedPlaceUiModel,
+    place: ImportedPlace,
     maps: List<CollectionMapUiModel>,
     selectedMapIds: Set<Long>,
     canSave: Boolean,
@@ -104,7 +105,7 @@ private val PreviewMaps = listOf(
 private fun PlaceImportMapScreenPreview() {
     MoaMapTheme {
         PlaceImportMapScreen(
-            place = ImportedPlaceUiModel(id = 1L, name = "커피나무", address = "서울시 동작구 369"),
+            place = ImportedPlace(id = "1", name = "커피나무", address = "서울시 동작구 369"),
             maps = PreviewMaps,
             selectedMapIds = setOf(12L),
             canSave = true,

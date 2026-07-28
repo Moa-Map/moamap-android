@@ -31,9 +31,11 @@ import com.example.moamap.core.designsystem.theme.MoaMapTheme
 internal fun PlaceImportUrlScreen(
     url: String,
     canSearch: Boolean,
+    errorMessage: String?,
     onUrlChange: (String) -> Unit,
     onBackClick: () -> Unit,
     onSearchClick: () -> Unit,
+    onErrorShown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -68,13 +70,20 @@ internal fun PlaceImportUrlScreen(
             }
         }
 
-        PlaceImportBottomBar(modifier = Modifier.align(Alignment.BottomCenter)) {
-            PlaceImportPrimaryButton(
-                text = "검색하기",
-                enabled = canSearch,
-                onClick = onSearchClick,
-                modifier = Modifier.weight(1f),
+        // 안내가 버튼에 가리지 않도록 버튼 위에 쌓는다.
+        Column(modifier = Modifier.align(Alignment.BottomCenter)) {
+            PlaceImportErrorSnackbar(
+                message = errorMessage,
+                onShown = onErrorShown,
             )
+            PlaceImportBottomBar {
+                PlaceImportPrimaryButton(
+                    text = "검색하기",
+                    enabled = canSearch,
+                    onClick = onSearchClick,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
@@ -131,9 +140,11 @@ private fun PlaceImportUrlScreenEmptyPreview() {
         PlaceImportUrlScreen(
             url = "",
             canSearch = false,
+            errorMessage = null,
             onUrlChange = {},
             onBackClick = {},
             onSearchClick = {},
+            onErrorShown = {},
         )
     }
 }
@@ -145,9 +156,11 @@ private fun PlaceImportUrlScreenFilledPreview() {
         PlaceImportUrlScreen(
             url = "https://www.instagram.com/reel/ABC123/",
             canSearch = true,
+            errorMessage = null,
             onUrlChange = {},
             onBackClick = {},
             onSearchClick = {},
+            onErrorShown = {},
         )
     }
 }

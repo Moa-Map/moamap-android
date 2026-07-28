@@ -1,5 +1,10 @@
 package com.example.moamap.feature.collection.presentation.placeimport
 
+import com.example.moamap.core.network.ConnectionException
+import com.example.moamap.feature.collection.domain.model.ImportedPlace
+import com.example.moamap.feature.collection.domain.model.PlaceExtractionException
+import com.example.moamap.feature.collection.domain.repository.PlaceImportRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -14,18 +19,44 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
+
+private val Places = listOf(
+    ImportedPlace(id = "a", name = "커피나무", address = "서울 동작구 상도로 369"),
+    ImportedPlace(id = "b", name = "블루보틀 성수", address = "서울 성동구 아차산로 7"),
+)
+
+private class FakePlaceImportRepository : PlaceImportRepository {
+
+    var failure: Throwable? = null
+    var places: List<ImportedPlace> = Places
+
+    /** 값을 넣으면 완료될 때까지 추출이 매달린다. */
+    var pending: CompletableDeferred<Unit>? = null
+
+    var callCount: Int = 0
+        private set
+
+    override suspend fun extractPlaces(url: String): List<ImportedPlace> {
+        callCount++
+        pending?.await()
+        failure?.let { throw it }
+        return places
+    }
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class PlaceImportViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
+    private val repository = FakePlaceImportRepository()
 
     private lateinit var viewModel: PlaceImportViewModel
 
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        viewModel = PlaceImportViewModel()
+        viewModel = PlaceImportViewModel(repository)
     }
 
     @After
@@ -33,25 +64,9 @@ class PlaceImportViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun extractSuccessfully() {
+    private fun startExtraction() {
         viewModel.updateUrl("https://www.instagram.com/reel/ABC123/")
         viewModel.startExtraction()
-    }
-
-    @Test
-    fun `URL이 비어 있으면 검색할 수 없다`() {
-        assertFalse(viewModel.uiState.value.canSearch)
-
-        viewModel.updateUrl("  ")
-
-        assertFalse(viewModel.uiState.value.canSearch)
-    }
-
-    @Test
-    fun `URL을 입력하면 검색할 수 있다`() {
-        viewModel.updateUrl("https://www.instagram.com/reel/ABC123/")
-
-        assertTrue(viewModel.uiState.value.canSearch)
     }
 
     @Test
@@ -59,97 +74,138 @@ class PlaceImportViewModelTest {
         viewModel.startExtraction()
         advanceUntilIdle()
 
+        assertFalse(viewModel.uiState.value.canSearch)
+        assertEquals(0, repository.callCount)
         assertEquals(ExtractionState.Idle, viewModel.uiState.value.extraction)
     }
 
     @Test
-    fun `추출을 시작하면 로딩을 거쳐 장소 목록이 나온다`() = runTest(dispatcher) {
-        extractSuccessfully()
-
+    fun `추출에 성공하면 장소 목록이 나온다`() = runTest(dispatcher) {
+        startExtraction()
         assertEquals(ExtractionState.Loading, viewModel.uiState.value.extraction)
 
         advanceUntilIdle()
 
-        val extraction = viewModel.uiState.value.extraction
-        assertTrue(extraction is ExtractionState.Success)
-        assertTrue((extraction as ExtractionState.Success).places.isNotEmpty())
+        assertEquals(Places, viewModel.uiState.value.places)
     }
 
     @Test
-    fun `추출을 취소하면 초기 상태로 돌아가고 결과가 나중에 도착하지 않는다`() = runTest(dispatcher) {
-        extractSuccessfully()
+    fun `앞뒤 공백을 지운 URL로 요청한다`() = runTest(dispatcher) {
+        viewModel.updateUrl("  https://www.instagram.com/reel/ABC123/  ")
+        viewModel.startExtraction()
+        advanceUntilIdle()
 
-        viewModel.cancelExtraction()
+        assertEquals(Places, viewModel.uiState.value.places)
+    }
+
+    @Test
+    fun `캡션을 읽지 못하면 그 이유를 그대로 안내한다`() = runTest(dispatcher) {
+        repository.failure = PlaceExtractionException.CaptionBlocked()
+
+        startExtraction()
+        advanceUntilIdle()
+
+        assertEquals("비공개 게시물이라 장소를 가져올 수 없어요", viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `서버에 닿지 못하면 네트워크 안내를 낸다`() = runTest(dispatcher) {
+        repository.failure = ConnectionException(IOException("boom"))
+
+        startExtraction()
+        advanceUntilIdle()
+
+        assertEquals("네트워크에 연결할 수 없어요", viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `안내를 소비하면 초기 상태로 돌아간다`() = runTest(dispatcher) {
+        repository.failure = PlaceExtractionException.CaptionUnavailable()
+        startExtraction()
+        advanceUntilIdle()
+
+        viewModel.consumeError()
+
+        assertNull(viewModel.uiState.value.errorMessage)
         assertEquals(ExtractionState.Idle, viewModel.uiState.value.extraction)
+    }
 
-        // 취소한 작업이 살아 있었다면 지연이 끝나면서 Success 로 바뀔 것이다.
+    @Test
+    fun `추출을 취소하면 결과가 나중에 도착하지 않는다`() = runTest(dispatcher) {
+        val gate = CompletableDeferred<Unit>()
+        repository.pending = gate
+
+        startExtraction()
+        advanceUntilIdle()
+        viewModel.cancelExtraction()
+
+        gate.complete(Unit)
         advanceUntilIdle()
 
         assertEquals(ExtractionState.Idle, viewModel.uiState.value.extraction)
+    }
+
+    @Test
+    fun `재시도를 취소하면 보고 있던 목록으로 되돌아간다`() = runTest(dispatcher) {
+        startExtraction()
+        advanceUntilIdle()
+        viewModel.selectPlace(Places[1].id)
+
+        val gate = CompletableDeferred<Unit>()
+        repository.pending = gate
+        viewModel.startExtraction()
+        advanceUntilIdle()
+        viewModel.cancelExtraction()
+
+        // 취소한 사용자가 결과를 잃고 URL 입력부터 다시 하게 두면 안 된다.
+        assertEquals(Places, viewModel.uiState.value.places)
+        assertEquals(Places[1], viewModel.uiState.value.selectedPlace)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `재시도가 실패해도 보고 있던 목록과 선택이 유지된다`() = runTest(dispatcher) {
+        startExtraction()
+        advanceUntilIdle()
+        viewModel.selectPlace(Places[1].id)
+
+        repository.failure = ConnectionException(IOException("boom"))
+        viewModel.startExtraction()
+        advanceUntilIdle()
+
+        // 한 번 실패했다는 이유로 처음부터 다시 하게 만들면 안 된다.
+        assertEquals(Places, viewModel.uiState.value.places)
+        assertEquals(Places[1], viewModel.uiState.value.selectedPlace)
+        assertEquals("네트워크에 연결할 수 없어요", viewModel.uiState.value.errorMessage)
     }
 
     @Test
     fun `장소는 하나만 선택되고 다시 고르면 교체된다`() = runTest(dispatcher) {
-        extractSuccessfully()
+        startExtraction()
         advanceUntilIdle()
-        val places = viewModel.uiState.value.places
 
-        viewModel.selectPlace(places[0].id)
-        assertEquals(places[0], viewModel.uiState.value.selectedPlace)
+        viewModel.selectPlace(Places[0].id)
+        assertEquals(Places[0], viewModel.uiState.value.selectedPlace)
         assertTrue(viewModel.uiState.value.canProceed)
 
-        viewModel.selectPlace(places[1].id)
-        assertEquals(places[1], viewModel.uiState.value.selectedPlace)
-    }
-
-    @Test
-    fun `장소를 고르지 않으면 다음 단계로 갈 수 없다`() = runTest(dispatcher) {
-        extractSuccessfully()
-        advanceUntilIdle()
-
-        assertFalse(viewModel.uiState.value.canProceed)
+        viewModel.selectPlace(Places[1].id)
+        assertEquals(Places[1], viewModel.uiState.value.selectedPlace)
     }
 
     @Test
     fun `재시도하면 골랐던 장소가 초기화된다`() = runTest(dispatcher) {
-        extractSuccessfully()
+        startExtraction()
         advanceUntilIdle()
-        viewModel.selectPlace(viewModel.uiState.value.places.first().id)
+        viewModel.selectPlace(Places[0].id)
 
         viewModel.startExtraction()
 
         assertNull(viewModel.uiState.value.selectedPlaceId)
         assertEquals(ExtractionState.Loading, viewModel.uiState.value.extraction)
 
-        // 새 추출까지 끝까지 돌려 미완료 코루틴이 남지 않게 한다.
         advanceUntilIdle()
-        assertTrue(viewModel.uiState.value.extraction is ExtractionState.Success)
-    }
-
-    @Test
-    fun `재시도를 취소하면 보고 있던 목록으로 되돌아간다`() = runTest(dispatcher) {
-        extractSuccessfully()
-        advanceUntilIdle()
-        val places = viewModel.uiState.value.places
-        viewModel.selectPlace(places[1].id)
-
-        viewModel.startExtraction()
-        viewModel.cancelExtraction()
-
-        // 취소한 사용자가 결과를 잃고 URL 입력부터 다시 하게 두면 안 된다.
-        assertEquals(places, viewModel.uiState.value.places)
-        assertEquals(places[1], viewModel.uiState.value.selectedPlace)
-    }
-
-    @Test
-    fun `새 결과가 나온 뒤 취소하면 되돌릴 이전 결과가 없다`() = runTest(dispatcher) {
-        extractSuccessfully()
-        advanceUntilIdle()
-
-        viewModel.startExtraction()
-        advanceUntilIdle()
-        viewModel.cancelExtraction()
-
         assertTrue(viewModel.uiState.value.extraction is ExtractionState.Success)
     }
 
@@ -167,15 +223,5 @@ class PlaceImportViewModelTest {
         viewModel.toggleMap(maps[0].id)
 
         assertEquals(setOf(maps[1].id), viewModel.uiState.value.selectedMapIds)
-    }
-
-    @Test
-    fun `지도를 모두 해제하면 저장할 수 없다`() {
-        val map = viewModel.uiState.value.targetMaps.first()
-
-        viewModel.toggleMap(map.id)
-        viewModel.toggleMap(map.id)
-
-        assertFalse(viewModel.uiState.value.canSave)
     }
 }

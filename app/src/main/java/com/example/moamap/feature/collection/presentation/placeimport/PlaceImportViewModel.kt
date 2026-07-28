@@ -1,11 +1,16 @@
 package com.example.moamap.feature.collection.presentation.placeimport
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.moamap.core.network.ApiException
+import com.example.moamap.core.network.ConnectionException
 import com.example.moamap.feature.collection.CollectionMapUiModel
+import com.example.moamap.feature.collection.domain.model.PlaceExtractionException
+import com.example.moamap.feature.collection.domain.repository.PlaceImportRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,17 +18,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** 실제 추출이 붙기 전까지 로딩 화면을 보여주기 위한 지연. */
-private const val EXTRACTION_DELAY_MILLIS = 2_000L
+private const val TAG = "PlaceImportViewModel"
+private const val DEFAULT_EXTRACTION_ERROR = "장소를 가져오지 못했어요"
 
-// TODO: API 연동 시 InstagramCaptionExtractor + POST /api/v1/places/instagram-extractions 로 교체한다.
-private val SamplePlaces = listOf(
-    ImportedPlaceUiModel(id = 1L, name = "커피나무", address = "서울시 동작구 369"),
-    ImportedPlaceUiModel(id = 2L, name = "블루보틀 성수", address = "서울시 성동구 아차산로 7"),
-    ImportedPlaceUiModel(id = 3L, name = "노티드 도넛", address = "서울시 강남구 압구정로 42길"),
-)
-
-// TODO: API 연동 시 GET /api/v1/maps/me 로 교체한다.
+// TODO: 지도 목록은 지도 API 연동 이슈에서 GET /api/v1/maps/me 로 교체한다.
 private val SampleTargetMaps = listOf(
     CollectionMapUiModel(id = 11L, title = "내 지도", placeCount = "128곳"),
     CollectionMapUiModel(id = 12L, title = "성수 카페 투어", placeCount = "24곳"),
@@ -37,7 +35,9 @@ private val SampleTargetMaps = listOf(
  * 흐름을 벗어나면 함께 정리되므로 다음에 다시 들어와도 이전 입력이 남지 않는다.
  */
 @HiltViewModel
-internal class PlaceImportViewModel @Inject constructor() : ViewModel() {
+internal class PlaceImportViewModel @Inject constructor(
+    private val placeImportRepository: PlaceImportRepository,
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlaceImportUiState(targetMaps = SampleTargetMaps))
     val uiState: StateFlow<PlaceImportUiState> = _uiState.asStateFlow()
@@ -50,7 +50,7 @@ internal class PlaceImportViewModel @Inject constructor() : ViewModel() {
      * 재시도는 이미 목록을 보고 있는 상태에서 시작하므로, 취소하면 보던 목록으로 돌아가야 한다.
      * 그냥 비워버리면 취소한 사용자가 결과를 잃고 URL 입력부터 다시 해야 한다.
      */
-    private var previousResult: Pair<ExtractionState.Success, Long?>? = null
+    private var previousResult: Pair<ExtractionState.Success, String?>? = null
 
     fun updateUrl(url: String) {
         _uiState.update { state -> state.copy(url = url) }
@@ -66,15 +66,28 @@ internal class PlaceImportViewModel @Inject constructor() : ViewModel() {
             ?.let { success -> success to current.selectedPlaceId }
 
         _uiState.update { state ->
-            state.copy(extraction = ExtractionState.Loading, selectedPlaceId = null)
+            state.copy(
+                extraction = ExtractionState.Loading,
+                selectedPlaceId = null,
+                errorMessage = null,
+            )
         }
 
         extractionJob = viewModelScope.launch {
-            delay(EXTRACTION_DELAY_MILLIS)
+            val places = try {
+                placeImportRepository.extractPlaces(current.url)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (throwable: Throwable) {
+                Log.e(TAG, "장소 추출 실패", throwable)
+                failExtraction(throwable.toUserMessage())
+                return@launch
+            }
+
             // 새 결과가 나왔으니 되돌릴 대상도 사라진다.
             previousResult = null
             _uiState.update { state ->
-                state.copy(extraction = ExtractionState.Success(SamplePlaces))
+                state.copy(extraction = ExtractionState.Success(places))
             }
         }
     }
@@ -102,8 +115,31 @@ internal class PlaceImportViewModel @Inject constructor() : ViewModel() {
         }
     }
 
+    /**
+     * 추출에 실패해도 보고 있던 목록은 유지하고 안내만 띄운다.
+     *
+     * 결과를 지워버리면 재시도가 한 번 실패했다는 이유로 사용자가 처음부터 다시 해야 한다.
+     */
+    private fun failExtraction(message: String) {
+        val restored = previousResult
+        previousResult = null
+
+        _uiState.update { state ->
+            state.copy(
+                extraction = restored?.first ?: ExtractionState.Idle,
+                selectedPlaceId = restored?.second,
+                errorMessage = message,
+            )
+        }
+    }
+
+    /** 안내를 보여준 뒤 호출한다. 같은 메시지가 다시 뜨지 않게 한다. */
+    fun consumeError() {
+        _uiState.update { state -> state.copy(errorMessage = null) }
+    }
+
     /** 장소는 하나만 고른다. */
-    fun selectPlace(placeId: Long) {
+    fun selectPlace(placeId: String) {
         _uiState.update { state -> state.copy(selectedPlaceId = placeId) }
     }
 
@@ -118,4 +154,12 @@ internal class PlaceImportViewModel @Inject constructor() : ViewModel() {
             state.copy(selectedMapIds = selected)
         }
     }
+}
+
+private fun Throwable.toUserMessage(): String = when (this) {
+    // 캡션을 못 읽은 이유는 사용자가 조치할 수 있는 내용이라 그대로 노출한다.
+    is PlaceExtractionException -> message ?: DEFAULT_EXTRACTION_ERROR
+    is ApiException -> serverMessage.ifBlank { DEFAULT_EXTRACTION_ERROR }
+    is ConnectionException -> "네트워크에 연결할 수 없어요"
+    else -> DEFAULT_EXTRACTION_ERROR
 }
