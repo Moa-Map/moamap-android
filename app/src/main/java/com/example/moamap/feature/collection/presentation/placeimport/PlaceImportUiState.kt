@@ -2,14 +2,7 @@ package com.example.moamap.feature.collection.presentation.placeimport
 
 import androidx.compose.runtime.Immutable
 import com.example.moamap.feature.collection.CollectionMapUiModel
-
-/** 인스타그램 URL 에서 뽑아낸 장소 후보. */
-@Immutable
-internal data class ImportedPlaceUiModel(
-    val id: Long,
-    val name: String,
-    val address: String,
-)
+import com.example.moamap.feature.collection.domain.model.ImportedPlace
 
 /** 장소 추출 단계. 로딩 화면과 장소 선택 화면이 이 값으로 갈린다. */
 internal sealed interface ExtractionState {
@@ -18,7 +11,7 @@ internal sealed interface ExtractionState {
 
     data object Loading : ExtractionState
 
-    data class Success(val places: List<ImportedPlaceUiModel>) : ExtractionState
+    data class Success(val places: List<ImportedPlace>) : ExtractionState
 
     data class Error(val message: String) : ExtractionState
 }
@@ -32,15 +25,18 @@ internal sealed interface ExtractionState {
 internal data class PlaceImportUiState(
     val url: String = "",
     val extraction: ExtractionState = ExtractionState.Idle,
-    val selectedPlaceId: Long? = null,
+    val selectedPlaceId: String? = null,
     val targetMaps: List<CollectionMapUiModel> = emptyList(),
     val selectedMapIds: Set<Long> = emptySet(),
 ) {
-    val places: List<ImportedPlaceUiModel>
+    val places: List<ImportedPlace>
         get() = (extraction as? ExtractionState.Success)?.places.orEmpty()
 
-    val selectedPlace: ImportedPlaceUiModel?
+    val selectedPlace: ImportedPlace?
         get() = places.firstOrNull { place -> place.id == selectedPlaceId }
+
+    val errorMessage: String?
+        get() = (extraction as? ExtractionState.Error)?.message
 
     /** URL 이 비어 있으면 검색할 것이 없다. */
     val canSearch: Boolean get() = url.isNotBlank()

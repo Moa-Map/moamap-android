@@ -26,13 +26,13 @@ sealed interface CaptionResult {
  *   `https://www.instagram.com/p/{shortcode}/embed/captioned/`
  * 를 크롤러 User-Agent 로 호출해서 Caption 영역만 파싱한다.
  */
-class InstagramCaptionExtractor {
+class InstagramCaptionExtractor : CaptionExtractor {
 
     /**
      * @param rawUrl 사용자가 붙여넣은 게시물/릴스 URL
      * @return 캡션 추출 결과. 성공 시 [CaptionResult.Success.description] 에 캡션 전체 텍스트가 들어있다.
      */
-    suspend fun extract(rawUrl: String): CaptionResult = withContext(Dispatchers.IO) {
+    override suspend fun extract(rawUrl: String): CaptionResult = withContext(Dispatchers.IO) {
         val shortcode = extractShortcode(rawUrl.trim())
             ?: return@withContext CaptionResult.Error("URL에서 게시물 ID(shortcode)를 찾지 못했습니다.")
 

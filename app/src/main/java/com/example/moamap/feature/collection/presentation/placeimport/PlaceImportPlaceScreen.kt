@@ -19,19 +19,22 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
+import com.example.moamap.feature.collection.domain.model.ImportedPlace
 
 /** 하단 버튼에 마지막 카드가 가리지 않도록 확보하는 여백. */
 private val BottomBarClearance = 88.dp
 
 @Composable
 internal fun PlaceImportPlaceScreen(
-    places: List<ImportedPlaceUiModel>,
-    selectedPlaceId: Long?,
+    places: List<ImportedPlace>,
+    selectedPlaceId: String?,
     canProceed: Boolean,
+    errorMessage: String?,
     onBackClick: () -> Unit,
-    onPlaceClick: (Long) -> Unit,
+    onPlaceClick: (String) -> Unit,
     onRetryClick: () -> Unit,
     onNextClick: () -> Unit,
+    onErrorShown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -72,25 +75,32 @@ internal fun PlaceImportPlaceScreen(
             }
         }
 
-        PlaceImportBottomBar(modifier = Modifier.align(Alignment.BottomCenter)) {
-            PlaceImportSecondaryButton(
-                text = "재시도",
-                onClick = onRetryClick,
+        // 안내가 버튼에 가리지 않도록 버튼 위에 쌓는다.
+        Column(modifier = Modifier.align(Alignment.BottomCenter)) {
+            PlaceImportErrorSnackbar(
+                message = errorMessage,
+                onShown = onErrorShown,
             )
-            PlaceImportPrimaryButton(
-                text = "다음으로",
-                enabled = canProceed,
-                onClick = onNextClick,
-                modifier = Modifier.weight(1f),
-            )
+            PlaceImportBottomBar {
+                PlaceImportSecondaryButton(
+                    text = "재시도",
+                    onClick = onRetryClick,
+                )
+                PlaceImportPrimaryButton(
+                    text = "다음으로",
+                    enabled = canProceed,
+                    onClick = onNextClick,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
 
 private val PreviewPlaces = listOf(
-    ImportedPlaceUiModel(id = 1L, name = "커피나무", address = "서울시 동작구 369"),
-    ImportedPlaceUiModel(id = 2L, name = "블루보틀 성수", address = "서울시 성동구 아차산로 7"),
-    ImportedPlaceUiModel(id = 3L, name = "노티드 도넛", address = "서울시 강남구 압구정로 42길"),
+    ImportedPlace(id = "1", name = "커피나무", address = "서울시 동작구 369"),
+    ImportedPlace(id = "2", name = "블루보틀 성수", address = "서울시 성동구 아차산로 7"),
+    ImportedPlace(id = "3", name = "노티드 도넛", address = "서울시 강남구 압구정로 42길"),
 )
 
 @Preview(showBackground = true, widthDp = 393, heightDp = 852)
@@ -99,12 +109,14 @@ private fun PlaceImportPlaceScreenPreview() {
     MoaMapTheme {
         PlaceImportPlaceScreen(
             places = PreviewPlaces,
-            selectedPlaceId = 1L,
+            selectedPlaceId = "1",
             canProceed = true,
+            errorMessage = null,
             onBackClick = {},
             onPlaceClick = {},
             onRetryClick = {},
             onNextClick = {},
+            onErrorShown = {},
         )
     }
 }
