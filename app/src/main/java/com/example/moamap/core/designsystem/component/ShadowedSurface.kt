@@ -33,6 +33,13 @@ val CardShadowColor: Color = MoaMapPrimitiveColors.Black.copy(alpha = 0.04f)
 val ButtonShadowBlurRadius: Dp = 10.dp
 val ButtonShadowColor: Color = MoaMapPrimitiveColors.Black.copy(alpha = 0.1f)
 
+/** 피그마 목록 카드·칩 그림자 `0 0 5 rgba(0,0,0,0.08)`. */
+val ListCardShadowBlurRadius: Dp = 5.dp
+val ListCardShadowColor: Color = MoaMapPrimitiveColors.Black.copy(alpha = 0.08f)
+
+/** 피그마 배너 그림자 `0 0 4 rgba(0,0,0,0.04)`. 알파는 [CardShadowColor] 와 같다. */
+val BannerShadowBlurRadius: Dp = 4.dp
+
 /**
  * 그림자를 콘텐츠 뒤에 따로 깔아 피그마의 blur/알파를 그대로 재현하는 컨테이너.
  *
