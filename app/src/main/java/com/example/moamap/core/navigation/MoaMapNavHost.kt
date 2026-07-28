@@ -88,7 +88,12 @@ fun MoaMapNavHost(
                 )
             }
             composable(MoaMapRoute.CreateMap.route) {
-                CreateMapScreen(onBackClick = navController::popBackStack)
+                CreateMapScreen(
+                    onBackClick = navController::popBackStack,
+                    // 만들기 화면을 백스택에 남기면 뒤로가기로 돌아와 같은 지도를 또 만들 수 있다.
+                    // 만든 지도로 이동하는 건 지도 상세가 실제 데이터를 받은 뒤에 정한다.
+                    onCreated = { navController.popBackStack() },
+                )
             }
             placeImportGraph(navController)
             composable(MoaMapRoute.OfficialMap.route) {

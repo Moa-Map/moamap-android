@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.moamap.core.designsystem.component.ErrorSnackbar
 import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
@@ -77,7 +78,7 @@ internal fun PlaceImportPlaceScreen(
 
         // 안내가 버튼에 가리지 않도록 버튼 위에 쌓는다.
         Column(modifier = Modifier.align(Alignment.BottomCenter)) {
-            PlaceImportErrorSnackbar(
+            ErrorSnackbar(
                 message = errorMessage,
                 onShown = onErrorShown,
             )

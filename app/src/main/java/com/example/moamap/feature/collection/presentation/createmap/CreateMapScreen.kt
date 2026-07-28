@@ -44,9 +44,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.moamap.R
 import com.example.moamap.core.common.imagepicker.rememberImagePickerController
 import com.example.moamap.core.common.imagepicker.rememberImagePickerState
+import com.example.moamap.core.designsystem.component.ErrorSnackbar
 import com.example.moamap.core.designsystem.component.ImageSourceMenu
 import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
+import com.example.moamap.feature.collection.domain.model.MapVisibility
 import kotlinx.coroutines.flow.collectLatest
 
 /** 촬영본이 쌓이는 캐시 위치. `res/xml/profile_image_paths.xml` 의 `cache-path` 와 맞춰야 한다. */
@@ -62,10 +64,16 @@ private val SubmitButtonAreaHeight = 80.dp
 @Composable
 internal fun CreateMapScreen(
     onBackClick: () -> Unit,
+    onCreated: (mapId: Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: CreateMapViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    val submit = uiState.submit
+    LaunchedEffect(submit) {
+        if (submit is SubmitState.Done) onCreated(submit.mapId)
+    }
 
     CreateMapContent(
         uiState = uiState,
@@ -77,8 +85,8 @@ internal fun CreateMapScreen(
         onTagInputChange = viewModel::updateTagInput,
         onTagCommit = viewModel::commitTag,
         onTagRemove = viewModel::removeTag,
-        // TODO: POST /api/v1/maps 연결은 다음 이슈에서 붙인다.
-        onSubmitClick = {},
+        onSubmitClick = viewModel::submit,
+        onErrorShown = viewModel::consumeError,
         modifier = modifier,
     )
 }
@@ -96,6 +104,7 @@ private fun CreateMapContent(
     onTagCommit: () -> Unit,
     onTagRemove: (String) -> Unit,
     onSubmitClick: () -> Unit,
+    onErrorShown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val isKeyboardVisible = WindowInsets.isImeVisible
@@ -207,22 +216,30 @@ private fun CreateMapContent(
             }
         }
 
-        CreateMapSubmitButton(
-            enabled = uiState.canSubmit,
-            onClick = onSubmitClick,
+        // 안내가 버튼에 가리지 않도록 버튼 위에 쌓는다.
+        Column(
             modifier = Modifier
                 // 키보드가 떠 있으면 위에서 ime inset 을 이미 소비해 0 이 되고,
                 // 닫혀 있을 때만 내비게이션 바만큼 띄운다.
                 .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding)
-                .padding(
-                    top = SubmitButtonBottomPadding,
-                    // 홈 인디케이터와 띄우려는 간격이라, 그 자리에 키보드가 올라와 있으면
-                    // 버튼이 키보드에 붙어야 한다.
-                    bottom = if (isKeyboardVisible) 0.dp else SubmitButtonBottomPadding,
-                ),
-        )
+                .navigationBarsPadding(),
+        ) {
+            ErrorSnackbar(message = uiState.errorMessage, onShown = onErrorShown)
+
+            CreateMapSubmitButton(
+                enabled = uiState.canSubmit,
+                submitting = uiState.isSubmitting,
+                onClick = onSubmitClick,
+                modifier = Modifier
+                    .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding)
+                    .padding(
+                        top = SubmitButtonBottomPadding,
+                        // 홈 인디케이터와 띄우려는 간격이라, 그 자리에 키보드가 올라와 있으면
+                        // 버튼이 키보드에 붙어야 한다.
+                        bottom = if (isKeyboardVisible) 0.dp else SubmitButtonBottomPadding,
+                    ),
+            )
+        }
     }
 }
 
@@ -311,6 +328,7 @@ private fun CreateMapScreenPreview() {
             onTagCommit = {},
             onTagRemove = {},
             onSubmitClick = {},
+            onErrorShown = {},
         )
     }
 }
