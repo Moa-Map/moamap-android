@@ -1,8 +1,13 @@
 package com.example.moamap.feature.collection.domain.repository
 
+import com.example.moamap.feature.collection.domain.model.MapType
+import com.example.moamap.feature.collection.domain.model.MyMap
 import com.example.moamap.feature.collection.domain.model.NewMap
 
 interface MapRepository {
+
+    /** 내가 참여한 지도 목록. 모음 화면의 탭 하나가 한 번 호출한다. */
+    suspend fun getMyMaps(type: MapType): List<MyMap>
 
     /**
      * 지도를 만들고 만들어진 지도의 id 를 돌려준다.

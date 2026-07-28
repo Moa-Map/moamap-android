@@ -1,0 +1,62 @@
+package com.example.moamap.feature.collection.data.repository
+
+import com.example.moamap.feature.collection.data.remote.MapSummaryDto
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class MyMapMapperTest {
+
+    private fun dto(
+        id: Long = 1L,
+        name: String? = "성수 카페 투어",
+        imageUrl: String? = "https://cdn.example.com/map.jpg",
+        type: String? = "COMMUNITY",
+        memberCount: Int = 12,
+    ) = MapSummaryDto(
+        id = id,
+        name = name,
+        imageUrl = imageUrl,
+        type = type,
+        memberCount = memberCount,
+    )
+
+    @Test
+    fun `이름이 없으면 자리를 채운다`() {
+        assertEquals("이름 없는 지도", dto(name = null).toMyMap().title)
+    }
+
+    @Test
+    fun `공백뿐인 이름도 자리를 채운다`() {
+        assertEquals("이름 없는 지도", dto(name = "   ").toMyMap().title)
+    }
+
+    @Test
+    fun `공백뿐인 이미지 주소는 없는 것으로 본다`() {
+        assertNull(dto(imageUrl = "  ").toMyMap().imageUrl)
+    }
+
+    @Test
+    fun `이미지 주소가 아예 없어도 그대로 비운다`() {
+        assertNull(dto(imageUrl = null).toMyMap().imageUrl)
+    }
+
+    @Test
+    fun `공식 지도만 인증 배지를 단다`() {
+        assertTrue(dto(type = "OFFICIAL").toMyMap().official)
+        assertFalse(dto(type = "COMMUNITY").toMyMap().official)
+        assertFalse(dto(type = "PRIVATE").toMyMap().official)
+        assertFalse(dto(type = null).toMyMap().official)
+    }
+
+    @Test
+    fun `나머지 값은 그대로 옮긴다`() {
+        val myMap = dto(id = 7L, name = "성수 카페 투어", memberCount = 2312).toMyMap()
+
+        assertEquals(7L, myMap.id)
+        assertEquals("성수 카페 투어", myMap.title)
+        assertEquals(2312, myMap.memberCount)
+    }
+}

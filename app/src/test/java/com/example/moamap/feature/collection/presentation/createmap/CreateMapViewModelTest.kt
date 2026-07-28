@@ -2,6 +2,7 @@ package com.example.moamap.feature.collection.presentation.createmap
 
 import androidx.lifecycle.SavedStateHandle
 import com.example.moamap.core.network.ConnectionException
+import com.example.moamap.feature.collection.domain.model.MapType
 import com.example.moamap.feature.collection.domain.model.MapVisibility
 import com.example.moamap.feature.collection.domain.model.NewMap
 import com.example.moamap.feature.collection.domain.repository.MapRepository
@@ -63,6 +64,8 @@ class CreateMapViewModelTest {
             createdMaps += newMap
             return createResult()
         }
+
+        override suspend fun getMyMaps(type: MapType) = TODO("사용하지 않음")
     }
 
     private companion object {
