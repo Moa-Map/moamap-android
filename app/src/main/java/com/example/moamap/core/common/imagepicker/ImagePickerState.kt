@@ -1,4 +1,4 @@
-package com.example.moamap.feature.mypage
+package com.example.moamap.core.common.imagepicker
 
 import android.Manifest
 import android.net.Uri
@@ -11,8 +11,14 @@ import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 
+/**
+ * 사진 한 장을 고르는 화면이 공유하는 상태.
+ *
+ * 고른 사진과 카메라/갤러리 선택 메뉴의 노출 여부만 들고 있다. 실제 런처와 권한 처리는
+ * [rememberImagePickerController] 가 맡는다.
+ */
 @Stable
-internal class ProfileImagePickerState(
+internal class ImagePickerState(
     initialImageUri: String? = null,
     initiallyVisible: Boolean = false,
 ) {
@@ -36,7 +42,7 @@ internal class ProfileImagePickerState(
     }
 }
 
-private val ProfileImagePickerStateSaver = listSaver<ProfileImagePickerState, Any>(
+private val ImagePickerStateSaver = listSaver<ImagePickerState, Any>(
     save = {
         listOf(
             it.selectedImageUri.orEmpty(),
@@ -44,7 +50,7 @@ private val ProfileImagePickerStateSaver = listSaver<ProfileImagePickerState, An
         )
     },
     restore = {
-        ProfileImagePickerState(
+        ImagePickerState(
             initialImageUri = (it[0] as String).ifEmpty { null },
             initiallyVisible = it[1] as Boolean,
         )
@@ -52,13 +58,13 @@ private val ProfileImagePickerStateSaver = listSaver<ProfileImagePickerState, An
 )
 
 @Composable
-internal fun rememberProfileImagePickerState(
-    initialImageUri: Uri?,
-): ProfileImagePickerState = rememberSaveable(
+internal fun rememberImagePickerState(
+    initialImageUri: Uri? = null,
+): ImagePickerState = rememberSaveable(
     initialImageUri,
-    saver = ProfileImagePickerStateSaver,
+    saver = ImagePickerStateSaver,
 ) {
-    ProfileImagePickerState(initialImageUri = initialImageUri?.toString())
+    ImagePickerState(initialImageUri = initialImageUri?.toString())
 }
 
 internal fun galleryPermissionsFor(sdkInt: Int): List<String> = when {

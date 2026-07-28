@@ -15,6 +15,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.moamap.R
+import com.example.moamap.core.designsystem.component.ActionMenu
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 
 private val ProfileMenuCornerRadius = 16.dp
@@ -57,7 +58,7 @@ private fun ProfileMenuContent(
     onSettingsClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    ProfileActionMenu(
+    ActionMenu(
         firstIconRes = R.drawable.ic_person,
         firstLabel = "프로필",
         onFirstClick = onProfileEditClick,

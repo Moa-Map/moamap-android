@@ -1,4 +1,4 @@
-package com.example.moamap.feature.mypage
+package com.example.moamap.core.designsystem.component
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
@@ -27,7 +27,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.moamap.R
-import com.example.moamap.core.designsystem.component.compatibleShadow
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 
@@ -35,8 +34,9 @@ private val ActionMenuWidth = 172.dp
 private val ActionMenuHeight = 100.dp
 private val ActionMenuRowHeight = 50.dp
 
+/** 두 줄짜리 팝업 메뉴. 프로필 메뉴와 사진 소스 선택이 같은 모양을 쓴다. */
 @Composable
-internal fun ProfileActionMenu(
+internal fun ActionMenu(
     @DrawableRes firstIconRes: Int,
     firstLabel: String,
     onFirstClick: () -> Unit,
@@ -75,12 +75,12 @@ internal fun ProfileActionMenu(
                 )
                 .padding(horizontal = 4.dp),
         ) {
-            ProfileActionMenuRow(
+            ActionMenuRow(
                 iconRes = firstIconRes,
                 label = firstLabel,
                 onClick = onFirstClick,
             )
-            ProfileActionMenuRow(
+            ActionMenuRow(
                 iconRes = secondIconRes,
                 label = secondLabel,
                 onClick = onSecondClick,
@@ -98,7 +98,7 @@ internal fun ProfileActionMenu(
 }
 
 @Composable
-private fun ProfileActionMenuRow(
+private fun ActionMenuRow(
     @DrawableRes iconRes: Int,
     label: String,
     onClick: () -> Unit,
@@ -133,13 +133,14 @@ private fun ProfileActionMenuRow(
     }
 }
 
+/** 사진을 어디서 가져올지 고르는 메뉴. */
 @Composable
-internal fun ProfileImageSourceMenu(
+internal fun ImageSourceMenu(
     onCameraClick: () -> Unit,
     onGalleryClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    ProfileActionMenu(
+    ActionMenu(
         firstIconRes = R.drawable.ic_photo_camera,
         firstLabel = "카메라",
         onFirstClick = onCameraClick,
@@ -153,7 +154,7 @@ internal fun ProfileImageSourceMenu(
 
 @Preview(showBackground = true)
 @Composable
-private fun ProfileImageSourceMenuPreview() {
+private fun ImageSourceMenuPreview() {
     MoaMapTheme {
         Box(
             modifier = Modifier
@@ -161,7 +162,7 @@ private fun ProfileImageSourceMenuPreview() {
                 .background(MoaMapTheme.colors.backgroundSecondary),
             contentAlignment = Alignment.Center,
         ) {
-            ProfileImageSourceMenu(
+            ImageSourceMenu(
                 onCameraClick = {},
                 onGalleryClick = {},
             )

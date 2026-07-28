@@ -1,4 +1,4 @@
-package com.example.moamap.feature.mypage
+package com.example.moamap.core.common.imagepicker
 
 import android.Manifest
 import org.junit.Assert.assertEquals
@@ -6,10 +6,10 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class ProfileImagePickerStateTest {
+class ImagePickerStateTest {
     @Test
     fun `source menu can be shown and dismissed`() {
-        val state = ProfileImagePickerState()
+        val state = ImagePickerState()
 
         state.showSourceMenu()
         assertTrue(state.isSourceMenuVisible)
@@ -20,7 +20,7 @@ class ProfileImagePickerStateTest {
 
     @Test
     fun `selecting an image replaces the preview and closes the menu`() {
-        val state = ProfileImagePickerState(initiallyVisible = true)
+        val state = ImagePickerState(initiallyVisible = true)
 
         state.selectImage("content://profile/selected")
 
