@@ -23,6 +23,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -61,12 +65,19 @@ internal fun ProfileEditScreen(
     onProfileImageSelected: (Uri) -> Unit = {},
     onSaveClick: () -> Unit = {},
 ) {
-    val pickerState = rememberImagePickerState(initialProfileImageUri)
+    // 이 화면은 ViewModel 이 없어서 고른 사진을 여기서 들고 있는다.
+    var selectedImageUri by rememberSaveable(initialProfileImageUri) {
+        mutableStateOf(initialProfileImageUri?.toString())
+    }
+    val pickerState = rememberImagePickerState()
     val pickerController = rememberImagePickerController(
         state = pickerState,
         cacheDirectoryName = ProfileImageCacheDirectory,
         fileNamePrefix = ProfileImageFilePrefix,
-        onImageSelected = onProfileImageSelected,
+        onImageSelected = { uri ->
+            selectedImageUri = uri.toString()
+            onProfileImageSelected(uri)
+        },
     )
 
     Box(
@@ -83,7 +94,7 @@ internal fun ProfileEditScreen(
             ProfileEditTopBar(onBackClick = onBackClick)
             Spacer(Modifier.height(37.dp))
             ProfileImageEditor(
-                selectedImageUri = pickerState.selectedImageUri?.let(Uri::parse),
+                selectedImageUri = selectedImageUri?.let(Uri::parse),
                 isSourceMenuVisible = pickerState.isSourceMenuVisible,
                 onCameraBadgeClick = pickerState::showSourceMenu,
                 onMenuDismissRequest = pickerState::dismissSourceMenu,

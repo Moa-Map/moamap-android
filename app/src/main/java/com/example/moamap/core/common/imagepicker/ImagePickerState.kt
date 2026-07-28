@@ -1,28 +1,24 @@
 package com.example.moamap.core.common.imagepicker
 
-import android.net.Uri
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 
 /**
- * 사진 한 장을 고르는 화면이 공유하는 상태.
+ * 카메라/갤러리 선택 메뉴의 노출 상태.
  *
- * 고른 사진과 카메라/갤러리 선택 메뉴의 노출 여부만 들고 있다. 실제 런처와 권한 처리는
- * [rememberImagePickerController] 가 맡는다.
+ * 고른 사진은 여기에 두지 않는다. 화면마다 사진을 들고 있는 곳(ViewModel 이든 화면 상태든)이
+ * 따로 있어서, 여기에도 두면 같은 값이 두 군데에 생기고 저장 수명이 어긋난다.
+ * 고른 결과는 [rememberImagePickerController] 의 `onImageSelected` 로만 나간다.
  */
 @Stable
 internal class ImagePickerState(
-    initialImageUri: String? = null,
     initiallyVisible: Boolean = false,
 ) {
-    var selectedImageUri by mutableStateOf(initialImageUri)
-        private set
-
     var isSourceMenuVisible by mutableStateOf(initiallyVisible)
         private set
 
@@ -33,35 +29,16 @@ internal class ImagePickerState(
     fun dismissSourceMenu() {
         isSourceMenuVisible = false
     }
-
-    fun selectImage(uri: String) {
-        selectedImageUri = uri
-        isSourceMenuVisible = false
-    }
 }
 
-private val ImagePickerStateSaver = listSaver<ImagePickerState, Any>(
-    save = {
-        listOf(
-            it.selectedImageUri.orEmpty(),
-            it.isSourceMenuVisible,
-        )
-    },
-    restore = {
-        ImagePickerState(
-            initialImageUri = (it[0] as String).ifEmpty { null },
-            initiallyVisible = it[1] as Boolean,
-        )
-    },
+private val ImagePickerStateSaver = Saver<ImagePickerState, Boolean>(
+    save = { it.isSourceMenuVisible },
+    restore = { ImagePickerState(initiallyVisible = it) },
 )
 
 @Composable
-internal fun rememberImagePickerState(
-    initialImageUri: Uri? = null,
-): ImagePickerState = rememberSaveable(
-    initialImageUri,
+internal fun rememberImagePickerState(): ImagePickerState = rememberSaveable(
     saver = ImagePickerStateSaver,
 ) {
-    ImagePickerState(initialImageUri = initialImageUri?.toString())
+    ImagePickerState()
 }
-

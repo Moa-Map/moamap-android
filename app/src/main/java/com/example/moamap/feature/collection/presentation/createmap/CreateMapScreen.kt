@@ -24,9 +24,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
@@ -41,6 +47,7 @@ import com.example.moamap.core.common.imagepicker.rememberImagePickerState
 import com.example.moamap.core.designsystem.component.ImageSourceMenu
 import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
+import kotlinx.coroutines.flow.collectLatest
 
 /** 촬영본이 쌓이는 캐시 위치. `res/xml/profile_image_paths.xml` 의 `cache-path` 와 맞춰야 한다. */
 private const val MapImageCacheDirectory = "map_images"
@@ -50,7 +57,7 @@ private const val MapImageFilePrefix = "map"
 private val SubmitButtonBottomPadding = 13.dp
 
 /** 고정된 버튼에 마지막 입력이 가리지 않도록 확보하는 높이. */
-private val ContentBottomSpacing = 90.dp
+private val SubmitButtonAreaHeight = 80.dp
 
 @Composable
 internal fun CreateMapScreen(
@@ -93,6 +100,16 @@ private fun CreateMapContent(
 ) {
     val isKeyboardVisible = WindowInsets.isImeVisible
 
+    val scrollState = rememberScrollState()
+    var isTagFieldFocused by remember { mutableStateOf(false) }
+
+    LaunchedEffect(isKeyboardVisible, isTagFieldFocused) {
+        if (!isKeyboardVisible || !isTagFieldFocused) return@LaunchedEffect
+
+        snapshotFlow { scrollState.maxValue }
+            .collectLatest { maxValue -> scrollState.animateScrollTo(maxValue) }
+    }
+
     val pickerState = rememberImagePickerState()
     val pickerController = rememberImagePickerController(
         state = pickerState,
@@ -117,7 +134,11 @@ private fun CreateMapContent(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    // 버튼과 같은 여백을 스크롤 영역에서 빼둔다. 키보드가 떠 있으면
+                    // 위에서 ime inset 을 소비해 내비게이션 바 몫은 0 이 된다.
+                    .navigationBarsPadding()
+                    .padding(bottom = SubmitButtonAreaHeight)
+                    .verticalScroll(scrollState)
                     .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
@@ -167,6 +188,7 @@ private fun CreateMapContent(
                     value = uiState.tagInput,
                     onValueChange = onTagInputChange,
                     placeholder = "태그 입력 후 스페이스 또는 엔터",
+                    modifier = Modifier.onFocusChanged { isTagFieldFocused = it.hasFocus },
                     imeAction = ImeAction.Done,
                     keyboardActions = KeyboardActions(onDone = { onTagCommit() }),
                     betweenLabelAndInput = if (uiState.tags.isEmpty()) {
@@ -181,7 +203,7 @@ private fun CreateMapContent(
                     },
                 )
 
-                Spacer(Modifier.height(ContentBottomSpacing))
+                Spacer(Modifier.height(20.dp))
             }
         }
 

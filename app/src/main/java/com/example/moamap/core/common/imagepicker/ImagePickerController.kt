@@ -52,7 +52,7 @@ internal fun rememberImagePickerController(
     var pendingCameraUri by rememberSaveable { mutableStateOf<String?>(null) }
 
     fun selectImage(uri: Uri) {
-        state.selectImage(uri.toString())
+        state.dismissSourceMenu()
         currentOnImageSelected(uri)
     }
 
