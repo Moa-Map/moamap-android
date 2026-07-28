@@ -1,4 +1,4 @@
-﻿package com.example.moamap.feature.collection.presentation
+package com.example.moamap.feature.collection.presentation
 
 import com.example.moamap.feature.collection.domain.model.MapType
 import com.example.moamap.feature.collection.domain.model.MyMap
