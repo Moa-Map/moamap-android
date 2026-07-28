@@ -30,10 +30,21 @@ internal data class AreaStat(val label: String, val value: String)
 internal fun AreaCongestion?.toAreaStats(): List<AreaStat> {
     if (this == null) return emptyList()
     return buildList {
-        populationMin?.let { add(AreaStat("인구", "약 ${it / 10_000}만 명")) }
+        populationMin?.let { add(AreaStat("인구", formatPopulation(it))) }
         dominantAge?.let { add(AreaStat("${it.label} 비율", "${it.rate.roundToInt()}%")) }
         dominantGender?.let { add(AreaStat("${it.label} 비율", "${it.rate.roundToInt()}%")) }
     }
+}
+
+/**
+ * 실제 API는 100명대 지역도 내려주므로 만 단위로 나눠 버리면 대부분이 "약 0만 명"이 된다.
+ * 1만 미만은 명 단위로, 그 이상은 만 단위로 쓰되 자투리를 소수 한 자리까지 남긴다.
+ */
+private fun formatPopulation(population: Long): String {
+    if (population < 10_000) return "약 %,d명".format(population)
+    val tenThousands = population / 10_000.0
+    return if (tenThousands % 1.0 == 0.0) "약 ${tenThousands.toInt()}만 명"
+    else "약 ${"%.1f".format(tenThousands)}만 명"
 }
 
 @Composable

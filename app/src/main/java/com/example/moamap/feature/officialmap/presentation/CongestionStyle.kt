@@ -27,6 +27,14 @@ private const val TAG_CONTENT_LIGHTNESS = 0.251f
 
 internal val CongestionLevel.tagColors: CongestionTagColors
     get() {
+        // 회색은 색상 성분이 거의 없어 규칙을 먹이면 엉뚱한 색이 나온다. 중립 토큰을 그대로 쓴다.
+        if (this == CongestionLevel.UNKNOWN) {
+            return CongestionTagColors(
+                background = MoaMapPrimitiveColors.Gray50,
+                border = MoaMapPrimitiveColors.Gray200,
+                content = MoaMapPrimitiveColors.Gray500,
+            )
+        }
         val hue = color.hue()
         return CongestionTagColors(
             background = Color.hsl(hue, TAG_BACKGROUND_SATURATION, TAG_BACKGROUND_LIGHTNESS),

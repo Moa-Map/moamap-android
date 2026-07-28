@@ -44,6 +44,19 @@ class AreaStatsTest {
     }
 
     @Test
+    fun `1만 명 미만은 만 단위로 뭉개지 않는다`() {
+        // 실제 API 121개 지역 중 79개가 1만 미만이고 최소는 100명이다.
+        assertEquals("약 9,500명", congestion(populationMin = 9_500).toAreaStats().single().value)
+        assertEquals("약 100명", congestion(populationMin = 100).toAreaStats().single().value)
+    }
+
+    @Test
+    fun `1만 명 이상은 만 단위로 줄이되 자투리를 남긴다`() {
+        assertEquals("약 1.6만 명", congestion(populationMin = 16_000).toAreaStats().single().value)
+        assertEquals("약 12만 명", congestion(populationMin = 120_000).toAreaStats().single().value)
+    }
+
+    @Test
     fun `값이 없는 칸은 빠진다`() {
         val stats = congestion(femaleRate = 56.0).toAreaStats()
 

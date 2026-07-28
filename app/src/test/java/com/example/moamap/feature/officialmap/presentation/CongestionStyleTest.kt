@@ -28,6 +28,16 @@ class CongestionStyleTest {
     }
 
     @Test
+    fun `정보 없음 태그는 무채색을 유지한다`() {
+        // 회색은 hue가 0이라 채도를 그대로 먹이면 빨강 계열이 되어 경고처럼 보인다.
+        val unknown = CongestionLevel.UNKNOWN.tagColors
+
+        assertEquals("#ECEDED", unknown.background.hex())
+        assertEquals("#A9ABAC", unknown.border.hex())
+        assertEquals("#4A4F52", unknown.content.hex())
+    }
+
+    @Test
     fun `나머지 레벨 태그 색이 같은 규칙으로 파생된다`() {
         val busy = CongestionLevel.BUSY.tagColors
         assertEquals("#FFEAEB", busy.background.hex())

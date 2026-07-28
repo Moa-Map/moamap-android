@@ -53,6 +53,9 @@ CLAUDE.md
 .superpowers/
 docs/superpowers/
 
+# 로컬 참고용 문서 (커밋 대상 아님)
+docs/walk-session-backend-guide.md
+
 # Mapbox secret download token (never commit)
 mapbox.properties
 # Playwright MCP 산출물
