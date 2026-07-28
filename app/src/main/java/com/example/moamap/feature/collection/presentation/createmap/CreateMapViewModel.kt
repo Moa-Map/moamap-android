@@ -100,9 +100,13 @@ internal class CreateMapViewModel @Inject constructor(
      * 고른 사진은 함께 보내지 않는다 - 서버에 커버 이미지 업로드 창구가 없다.
      */
     fun submit() {
-        val current = _uiState.value
-        if (!current.canSubmit) return
+        if (!_uiState.value.canSubmit) return
 
+        // 구분자 없이 입력만 해두고 바로 누른 태그도 확정한다. 그냥 두면 tagInput 에만 남아
+        // 요청에서 조용히 빠진다. 화면의 칩과 보내는 값을 어긋나지 않게 상태부터 확정한다.
+        commitTag()
+
+        val current = _uiState.value
         val visibility = current.visibility ?: return
         val newMap = NewMap(
             name = current.name,

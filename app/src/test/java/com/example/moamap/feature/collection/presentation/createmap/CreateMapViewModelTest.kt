@@ -235,6 +235,34 @@ class CreateMapViewModelTest {
     }
 
     @Test
+    fun `구분자 없이 입력만 해둔 태그도 함께 저장된다`() = runTest(dispatcher) {
+        fillRequiredInput()
+        viewModel.updateTagInput("카페 ")
+        // 스페이스도 엔터도 누르지 않고 바로 만들기를 누르는 경우.
+        viewModel.updateTagInput("성수")
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertEquals(listOf("카페", "성수"), repository.createdMaps.single().tags)
+        // 화면에 보이는 칩과 보낸 값이 같아야 한다.
+        assertEquals(listOf("카페", "성수"), state.tags)
+        assertEquals("", state.tagInput)
+    }
+
+    @Test
+    fun `이미 담긴 태그를 다시 입력한 채 저장해도 중복되지 않는다`() = runTest(dispatcher) {
+        fillRequiredInput()
+        viewModel.updateTagInput("카페 ")
+        viewModel.updateTagInput("카페")
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertEquals(listOf("카페"), repository.createdMaps.single().tags)
+    }
+
+    @Test
     fun `사진을 골라도 지도 생성 요청에는 담기지 않는다`() = runTest(dispatcher) {
         fillRequiredInput()
         viewModel.selectImage("content://map/photo")
