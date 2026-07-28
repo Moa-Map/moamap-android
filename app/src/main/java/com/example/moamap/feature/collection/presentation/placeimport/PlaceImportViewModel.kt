@@ -66,22 +66,29 @@ internal class PlaceImportViewModel @Inject constructor(
             ?.let { success -> success to current.selectedPlaceId }
 
         _uiState.update { state ->
-            state.copy(extraction = ExtractionState.Loading, selectedPlaceId = null)
+            state.copy(
+                extraction = ExtractionState.Loading,
+                selectedPlaceId = null,
+                errorMessage = null,
+            )
         }
 
         extractionJob = viewModelScope.launch {
-            val extraction = try {
-                ExtractionState.Success(placeImportRepository.extractPlaces(current.url.trim()))
+            val places = try {
+                placeImportRepository.extractPlaces(current.url)
             } catch (e: CancellationException) {
                 throw e
             } catch (throwable: Throwable) {
                 Log.e(TAG, "장소 추출 실패", throwable)
-                ExtractionState.Error(throwable.toUserMessage())
+                failExtraction(throwable.toUserMessage())
+                return@launch
             }
 
             // 새 결과가 나왔으니 되돌릴 대상도 사라진다.
             previousResult = null
-            _uiState.update { state -> state.copy(extraction = extraction) }
+            _uiState.update { state ->
+                state.copy(extraction = ExtractionState.Success(places))
+            }
         }
     }
 
@@ -108,15 +115,27 @@ internal class PlaceImportViewModel @Inject constructor(
         }
     }
 
-    /** 안내를 보여준 뒤 호출한다. 화면 회전 시 같은 메시지가 다시 뜨지 않게 한다. */
-    fun consumeError() {
+    /**
+     * 추출에 실패해도 보고 있던 목록은 유지하고 안내만 띄운다.
+     *
+     * 결과를 지워버리면 재시도가 한 번 실패했다는 이유로 사용자가 처음부터 다시 해야 한다.
+     */
+    private fun failExtraction(message: String) {
+        val restored = previousResult
+        previousResult = null
+
         _uiState.update { state ->
-            if (state.extraction is ExtractionState.Error) {
-                state.copy(extraction = ExtractionState.Idle)
-            } else {
-                state
-            }
+            state.copy(
+                extraction = restored?.first ?: ExtractionState.Idle,
+                selectedPlaceId = restored?.second,
+                errorMessage = message,
+            )
         }
+    }
+
+    /** 안내를 보여준 뒤 호출한다. 같은 메시지가 다시 뜨지 않게 한다. */
+    fun consumeError() {
+        _uiState.update { state -> state.copy(errorMessage = null) }
     }
 
     /** 장소는 하나만 고른다. */

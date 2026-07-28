@@ -17,7 +17,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 private class FakeCaptionExtractor(private val result: CaptionResult) : CaptionExtractor {
-    override suspend fun extract(rawUrl: String): CaptionResult = result
+
+    var lastUrl: String? = null
+        private set
+
+    override suspend fun extract(rawUrl: String): CaptionResult {
+        lastUrl = rawUrl
+        return result
+    }
 }
 
 /** 추출 API 외의 메서드는 이 테스트에서 쓰지 않는다. */
@@ -66,7 +73,8 @@ class PlaceImportRepositoryImplTest {
     private fun repository(
         caption: CaptionResult = CaptionResult.Success("캡션 전문"),
         service: FakePlaceService = FakePlaceService(),
-    ) = PlaceImportRepositoryImpl(FakeCaptionExtractor(caption), service)
+        extractor: FakeCaptionExtractor = FakeCaptionExtractor(caption),
+    ) = PlaceImportRepositoryImpl(extractor, service)
 
     @Test
     fun `비공개 게시물이면 서버를 호출하지 않고 실패한다`() = runTest {
@@ -87,6 +95,28 @@ class PlaceImportRepositoryImplTest {
         val error = runCatching { repository.extractPlaces("url") }.exceptionOrNull()
 
         assertTrue(error is PlaceExtractionException.CaptionUnavailable)
+    }
+
+    @Test
+    fun `인스타그램에 닿지 못하면 네트워크 안내로 실패한다`() = runTest {
+        // 링크가 잘못된 것과 구분하지 않으면 통신 장애에 링크를 확인하라고 안내하게 된다.
+        val repository = repository(caption = CaptionResult.NetworkError("timeout"))
+
+        val error = runCatching { repository.extractPlaces("url") }.exceptionOrNull()
+
+        assertTrue(error is PlaceExtractionException.CaptionNetworkError)
+    }
+
+    @Test
+    fun `캡션 추출과 서버 요청이 같은 URL을 쓴다`() = runTest {
+        val extractor = FakeCaptionExtractor(CaptionResult.Success("캡션"))
+        val service = FakePlaceService(listOf(candidate()))
+
+        repository(service = service, extractor = extractor)
+            .extractPlaces("  https://www.instagram.com/reel/ABC/  ")
+
+        assertEquals("https://www.instagram.com/reel/ABC/", extractor.lastUrl)
+        assertEquals("https://www.instagram.com/reel/ABC/", service.lastRequest?.url)
     }
 
     @Test

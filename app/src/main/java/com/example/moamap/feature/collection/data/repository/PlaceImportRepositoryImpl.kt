@@ -24,14 +24,19 @@ class PlaceImportRepositoryImpl @Inject constructor(
 ) : PlaceImportRepository {
 
     override suspend fun extractPlaces(url: String): List<ImportedPlace> {
-        val caption = when (val result = captionExtractor.extract(url)) {
+        // 캡션을 읽을 때와 서버에 보낼 때가 같은 URL 이어야 한다.
+        // 다른 값을 쓰면 앱은 캡션을 읽었는데 서버는 링크를 거부하는 상황이 생긴다.
+        val normalizedUrl = url.trim()
+
+        val caption = when (val result = captionExtractor.extract(normalizedUrl)) {
             is CaptionResult.Success -> result.description
             CaptionResult.Blocked -> throw PlaceExtractionException.CaptionBlocked()
+            is CaptionResult.NetworkError -> throw PlaceExtractionException.CaptionNetworkError()
             is CaptionResult.Error -> throw PlaceExtractionException.CaptionUnavailable()
         }
 
         val candidates = placeService.extractFromInstagram(
-            InstagramExtractRequestDto(url = url, description = caption),
+            InstagramExtractRequestDto(url = normalizedUrl, description = caption),
         )
 
         return candidates

@@ -23,6 +23,7 @@ class InstagramCaptionExtractorTest {
                 println(result.description)
             }
             CaptionResult.Blocked -> println("=== 🔒 BLOCKED (로그인 필요/비공개) ===")
+            is CaptionResult.NetworkError -> println("=== 📡 NETWORK: ${result.message} ===")
             is CaptionResult.Error -> println("=== ❌ ERROR: ${result.message} ===")
         }
     }

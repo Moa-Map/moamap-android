@@ -21,7 +21,10 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -216,10 +219,21 @@ internal fun PlaceImportErrorSnackbar(
 ) {
     val hostState = remember { SnackbarHostState() }
 
+    // 표시가 끝나기를 기다리는 동안 화면이 재구성되면 소비가 누락돼 같은 안내가 다시 뜬다.
+    // 상위 상태는 먼저 비우고, 표시는 이 화면이 들고 있는 값으로 한다.
+    var pending by remember { mutableStateOf<String?>(null) }
+
     LaunchedEffect(message) {
-        message?.let { shown ->
-            hostState.showSnackbar(shown)
+        message?.let { arrived ->
+            pending = arrived
             onShown()
+        }
+    }
+
+    LaunchedEffect(pending) {
+        pending?.let { shown ->
+            hostState.showSnackbar(shown)
+            pending = null
         }
     }
 

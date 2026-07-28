@@ -57,17 +57,16 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
             //
             // 재시도로 들어온 경우에는 아래에 이전 장소 화면이 남아 있다. launchSingleTop 으로
             // 그 화면을 재사용해 재시도를 반복해도 백스택이 자라지 않게 한다.
-            LaunchedEffect(uiState.extraction) {
-                when (uiState.extraction) {
-                    is ExtractionState.Success -> navController.navigate(PlaceImportRoute.PLACE) {
-                        popUpTo(PlaceImportRoute.LOADING) { inclusive = true }
-                        launchSingleTop = true
-                    }
-
+            LaunchedEffect(uiState.extraction, uiState.errorMessage) {
+                when {
                     // 실패하면 직전 화면으로 돌아가고, 그 화면이 안내를 띄운다.
-                    is ExtractionState.Error -> navController.popBackStack()
+                    uiState.errorMessage != null -> navController.popBackStack()
 
-                    else -> Unit
+                    uiState.extraction is ExtractionState.Success ->
+                        navController.navigate(PlaceImportRoute.PLACE) {
+                            popUpTo(PlaceImportRoute.LOADING) { inclusive = true }
+                            launchSingleTop = true
+                        }
                 }
             }
 

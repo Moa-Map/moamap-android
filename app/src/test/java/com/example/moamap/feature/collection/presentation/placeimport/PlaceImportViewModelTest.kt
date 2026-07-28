@@ -166,6 +166,22 @@ class PlaceImportViewModelTest {
     }
 
     @Test
+    fun `재시도가 실패해도 보고 있던 목록과 선택이 유지된다`() = runTest(dispatcher) {
+        startExtraction()
+        advanceUntilIdle()
+        viewModel.selectPlace(Places[1].id)
+
+        repository.failure = ConnectionException(IOException("boom"))
+        viewModel.startExtraction()
+        advanceUntilIdle()
+
+        // 한 번 실패했다는 이유로 처음부터 다시 하게 만들면 안 된다.
+        assertEquals(Places, viewModel.uiState.value.places)
+        assertEquals(Places[1], viewModel.uiState.value.selectedPlace)
+        assertEquals("네트워크에 연결할 수 없어요", viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
     fun `장소는 하나만 선택되고 다시 고르면 교체된다`() = runTest(dispatcher) {
         startExtraction()
         advanceUntilIdle()

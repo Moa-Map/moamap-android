@@ -2,6 +2,7 @@ package com.example.moamap.feature.collection.instagram
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URI
 import java.net.URL
@@ -14,8 +15,15 @@ sealed interface CaptionResult {
     /** 로그인 필요/비공개 등으로 이 방식으로는 캡션을 가져올 수 없는 경우. */
     data object Blocked : CaptionResult
 
-    /** shortcode 파싱 실패, 네트워크 오류 등. */
+    /** shortcode 파싱 실패 등, 링크 자체가 잘못된 경우. */
     data class Error(val message: String) : CaptionResult
+
+    /**
+     * 인스타그램에 닿지 못한 경우(연결 실패·타임아웃).
+     *
+     * 링크가 잘못된 것과 구분해야 사용자에게 엉뚱한 안내를 하지 않는다.
+     */
+    data class NetworkError(val message: String) : CaptionResult
 }
 
 /**
@@ -66,6 +74,9 @@ class InstagramCaptionExtractor : CaptionExtractor {
                 else ->
                     CaptionResult.Error("캡션을 가져오지 못했습니다. (HTTP $status)")
             }
+        } catch (e: IOException) {
+            // 연결 실패·타임아웃. 링크 문제가 아니다.
+            CaptionResult.NetworkError(e.message ?: e.toString())
         } catch (e: Exception) {
             CaptionResult.Error(e.message ?: e.toString())
         }
