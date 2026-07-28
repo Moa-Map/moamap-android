@@ -10,10 +10,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.example.moamap.feature.collection.CollectionScreen
 import com.example.moamap.feature.explore.ExploreScreen
 import com.example.moamap.feature.mapdetail.MapDetailScreen
@@ -64,8 +66,13 @@ fun MoaMapNavHost(
                     onOfficialMapClick = {
                         navController.navigate(MoaMapRoute.OfficialMap.route)
                     },
-                    onFirstCommunityMapClick = {
-                        navController.navigate(MoaMapRoute.MapDetail.route)
+                    onCommunityMapClick = { map ->
+                        navController.navigate(
+                            MoaMapRoute.MapDetail.createRoute(
+                                mapId = map.id,
+                                mapTitle = map.title,
+                            )
+                        )
                     },
                 )
             }
@@ -88,9 +95,17 @@ fun MoaMapNavHost(
             composable(MoaMapRoute.DensityMapDetail.route) {
                 DensityMapDetailScreen(onBackClick = navController::popBackStack)
             }
-            composable(MoaMapRoute.MapDetail.route) {
+            composable(
+                route = MoaMapRoute.MapDetail.route,
+                arguments = listOf(
+                    navArgument(MoaMapRoute.MapDetail.ARG_MAP_ID) { type = NavType.LongType },
+                    navArgument(MoaMapRoute.MapDetail.ARG_MAP_TITLE) { type = NavType.StringType },
+                ),
+            ) { backStackEntry ->
                 MapDetailScreen(
-                    mapTitle = "서울 팝업스토어 맵",
+                    mapTitle = backStackEntry.arguments
+                        ?.getString(MoaMapRoute.MapDetail.ARG_MAP_TITLE)
+                        .orEmpty(),
                     onBackClick = navController::popBackStack,
                 )
             }
