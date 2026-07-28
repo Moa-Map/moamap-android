@@ -18,7 +18,15 @@ class DensityFeatureCollectionTest {
         code = code, name = "지역$code", lat = 37.5, lng = 126.9,
         boundaryGeoJson = boundary,
         congestion = level?.let {
-            AreaCongestion(it, null, null, null, null, null)
+            AreaCongestion(
+                level = it,
+                message = null,
+                populationMin = null,
+                populationMax = null,
+                ageRates = emptyMap(),
+                maleRate = null,
+                femaleRate = null,
+            )
         },
     )
 

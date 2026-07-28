@@ -3,6 +3,9 @@
     <cache-path
         name="profile_images"
         path="profile_images/" />
+    <cache-path
+        name="map_images"
+        path="map_images/" />
     <files-path
         name="walk_sessions"
         path="walk-sessions/" />
