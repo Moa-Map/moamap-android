@@ -51,6 +51,8 @@ import com.example.moamap.feature.collection.domain.model.MapType
 import com.example.moamap.feature.collection.domain.model.MyMap
 import com.example.moamap.feature.collection.presentation.CollectionUiState
 import com.example.moamap.feature.collection.presentation.CollectionViewModel
+import com.example.moamap.feature.collection.presentation.JoinMapDialog
+import com.example.moamap.feature.collection.presentation.JoinState
 import com.example.moamap.feature.collection.presentation.MyMapsState
 import com.example.moamap.feature.explore.presentation.formatMemberCount
 
@@ -107,7 +109,6 @@ private fun MyMap.toPrivateUiModel() = CollectionMapUiModel(
 
 @Composable
 fun CollectionScreen(
-    onInviteCodeClick: () -> Unit = {},
     onNewMapClick: () -> Unit = {},
     onInstagramImportClick: () -> Unit = {},
     onMapClick: (MyMap) -> Unit = {},
@@ -122,11 +123,21 @@ fun CollectionScreen(
         onPauseOrDispose {}
     }
 
+    val join = uiState.join
+    if (join is JoinState.Editing) {
+        JoinMapDialog(
+            state = join,
+            onCodeChange = viewModel::updateInviteCode,
+            onSubmit = viewModel::join,
+            onDismiss = viewModel::closeJoinDialog,
+        )
+    }
+
     CollectionContent(
         uiState = uiState,
         onTabClick = viewModel::selectTab,
         onRetryClick = viewModel::retry,
-        onInviteCodeClick = onInviteCodeClick,
+        onInviteCodeClick = viewModel::openJoinDialog,
         onNewMapClick = onNewMapClick,
         onInstagramImportClick = onInstagramImportClick,
         onMapClick = onMapClick,

@@ -1,5 +1,6 @@
 package com.example.moamap.feature.collection.presentation
 
+import com.example.moamap.core.network.ApiException
 import com.example.moamap.feature.collection.domain.model.MapType
 import com.example.moamap.feature.collection.domain.model.MyMap
 import com.example.moamap.feature.collection.domain.model.NewMap
@@ -16,6 +17,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -66,9 +68,11 @@ class CollectionViewModelTest {
     private class FakeMapRepository(
         var delayMillis: Long = 0L,
         var result: (MapType) -> List<MyMap> = { emptyList() },
+        var joinResult: (String) -> Long = { JOINED_MAP_ID },
     ) : MapRepository {
 
         val calls = mutableListOf<MapType>()
+        val joinedCodes = mutableListOf<String>()
 
         override suspend fun getMyMaps(type: MapType): List<MyMap> {
             calls += type
@@ -76,7 +80,17 @@ class CollectionViewModelTest {
             return result(type)
         }
 
-        override suspend fun createMap(newMap: NewMap): Long = TODO("사용하지 않음")
+        override suspend fun joinByInviteCode(inviteCode: String): Long {
+            joinedCodes += inviteCode
+            delay(delayMillis)
+            return joinResult(inviteCode)
+        }
+
+        override suspend fun createMap(newMap: NewMap) = TODO("사용하지 않음")
+    }
+
+    private companion object {
+        const val JOINED_MAP_ID = 77L
     }
 
     @Test
@@ -229,6 +243,130 @@ class CollectionViewModelTest {
 
         // 보여줄 목록이 없으면 실패를 숨기지 않는다.
         assertTrue(viewModel.uiState.value.community is MyMapsState.Error)
+    }
+
+    // ---------- 초대 코드로 합류 ----------
+
+    @Test
+    fun `초대 코드 입력은 영문 대문자와 숫자만 남긴다`() = runTest(dispatcher) {
+        val viewModel = startedViewModel()
+        viewModel.openJoinDialog()
+
+        viewModel.updateInviteCode("#a1 b2-c3")
+
+        assertEquals("A1B2C3", (viewModel.uiState.value.join as JoinState.Editing).code)
+    }
+
+    @Test
+    fun `한글은 초대 코드로 받지 않는다`() = runTest(dispatcher) {
+        val viewModel = startedViewModel()
+        viewModel.openJoinDialog()
+
+        // Char.isLetterOrDigit() 은 한글도 문자로 본다. 서버 코드는 ASCII 영숫자다.
+        viewModel.updateInviteCode("ㅇㅇ가나다")
+
+        assertEquals("", (viewModel.uiState.value.join as JoinState.Editing).code)
+    }
+
+    @Test
+    fun `없는 초대 코드는 코드를 확인하라고 안내한다`() = runTest(dispatcher) {
+        repository.joinResult = {
+            throw ApiException(code = "MAP_007", status = 404, serverMessage = "유효하지 않은 초대 코드입니다.")
+        }
+        val viewModel = startedViewModel()
+        viewModel.openJoinDialog()
+        viewModel.updateInviteCode("ZZZZZZ")
+
+        viewModel.join()
+        advanceUntilIdle()
+
+        val join = viewModel.uiState.value.join as JoinState.Editing
+        assertEquals("코드를 다시 확인해주세요", join.errorMessage)
+    }
+
+    @Test
+    fun `코드가 비어 있으면 제출할 수 없다`() = runTest(dispatcher) {
+        val viewModel = startedViewModel()
+        viewModel.openJoinDialog()
+
+        viewModel.join()
+        advanceUntilIdle()
+
+        assertTrue(repository.joinedCodes.isEmpty())
+    }
+
+    @Test
+    fun `합류에 성공하면 프라이빗 탭으로 옮기고 목록을 다시 읽는다`() = runTest(dispatcher) {
+        val viewModel = startedViewModel()
+        viewModel.openJoinDialog()
+        viewModel.updateInviteCode("A1B2C3")
+        repository.calls.clear()
+
+        viewModel.join()
+        advanceUntilIdle()
+
+        assertEquals(listOf("A1B2C3"), repository.joinedCodes)
+        assertEquals(JoinState.Hidden, viewModel.uiState.value.join)
+        assertEquals(MapType.Private, viewModel.uiState.value.selectedTab)
+        assertEquals(listOf(MapType.Private), repository.calls)
+    }
+
+    @Test
+    fun `이미 참여한 지도는 그렇다고 안내한다`() = runTest(dispatcher) {
+        repository.joinResult = {
+            throw ApiException(code = "MAP_005", status = 409, serverMessage = "이미 참여한 지도입니다.")
+        }
+        val viewModel = startedViewModel()
+        viewModel.openJoinDialog()
+        viewModel.updateInviteCode("VH4YXZ")
+
+        viewModel.join()
+        advanceUntilIdle()
+
+        val join = viewModel.uiState.value.join as JoinState.Editing
+        assertEquals("이미 참여 중인 지도예요", join.errorMessage)
+    }
+
+    @Test
+    fun `합류에 실패하면 모달을 열어둔 채 입력값을 남긴다`() = runTest(dispatcher) {
+        repository.joinResult = { throw IOException("잘못된 코드") }
+        val viewModel = startedViewModel()
+        viewModel.openJoinDialog()
+        viewModel.updateInviteCode("A1B2C3")
+
+        viewModel.join()
+        advanceUntilIdle()
+
+        val join = viewModel.uiState.value.join
+        assertTrue(join is JoinState.Editing)
+        assertEquals("A1B2C3", (join as JoinState.Editing).code)
+        assertEquals("지도에 참여하지 못했어요", join.errorMessage)
+        assertFalse(join.submitting)
+    }
+
+    @Test
+    fun `합류 중에는 다시 제출되지 않는다`() = runTest(dispatcher) {
+        repository.delayMillis = 1_000
+        val viewModel = startedViewModel()
+        viewModel.openJoinDialog()
+        viewModel.updateInviteCode("A1B2C3")
+
+        viewModel.join()
+        viewModel.join()
+        advanceUntilIdle()
+
+        assertEquals(1, repository.joinedCodes.size)
+    }
+
+    @Test
+    fun `모달을 닫으면 상태가 사라진다`() = runTest(dispatcher) {
+        val viewModel = startedViewModel()
+        viewModel.openJoinDialog()
+        viewModel.updateInviteCode("A1B2C3")
+
+        viewModel.closeJoinDialog()
+
+        assertEquals(JoinState.Hidden, viewModel.uiState.value.join)
     }
 
     @Test

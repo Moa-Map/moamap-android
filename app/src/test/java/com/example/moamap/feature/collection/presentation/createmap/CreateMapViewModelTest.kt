@@ -2,6 +2,7 @@ package com.example.moamap.feature.collection.presentation.createmap
 
 import androidx.lifecycle.SavedStateHandle
 import com.example.moamap.core.network.ConnectionException
+import com.example.moamap.feature.collection.domain.model.CreatedMap
 import com.example.moamap.feature.collection.domain.model.MapType
 import com.example.moamap.feature.collection.domain.model.MapVisibility
 import com.example.moamap.feature.collection.domain.model.NewMap
@@ -55,17 +56,18 @@ class CreateMapViewModelTest {
     }
 
     private class FakeMapRepository(
-        var createResult: () -> Long = { CREATED_MAP_ID },
+        var createResult: () -> CreatedMap = { CreatedMap(CREATED_MAP_ID, inviteCode = null) },
     ) : MapRepository {
 
         val createdMaps = mutableListOf<NewMap>()
 
-        override suspend fun createMap(newMap: NewMap): Long {
+        override suspend fun createMap(newMap: NewMap): CreatedMap {
             createdMaps += newMap
             return createResult()
         }
 
         override suspend fun getMyMaps(type: MapType) = TODO("사용하지 않음")
+        override suspend fun joinByInviteCode(inviteCode: String) = TODO("사용하지 않음")
     }
 
     private companion object {
@@ -293,6 +295,62 @@ class CreateMapViewModelTest {
         advanceUntilIdle()
 
         assertEquals(1, repository.createdMaps.size)
+    }
+
+    @Test
+    fun `프라이빗 지도를 만들면 초대 코드를 보여준다`() = runTest(dispatcher) {
+        repository.createResult = { CreatedMap(CREATED_MAP_ID, inviteCode = "A1B2C3") }
+        viewModel.updateName("우리끼리 지도")
+        viewModel.selectVisibility(MapVisibility.Private)
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertEquals(
+            SubmitState.ShowingInviteCode(CREATED_MAP_ID, "A1B2C3"),
+            state.submit,
+        )
+    }
+
+    @Test
+    fun `초대 코드를 닫으면 화면을 빠져나간다`() = runTest(dispatcher) {
+        repository.createResult = { CreatedMap(CREATED_MAP_ID, inviteCode = "A1B2C3") }
+        viewModel.updateName("우리끼리 지도")
+        viewModel.selectVisibility(MapVisibility.Private)
+        viewModel.submit()
+        advanceUntilIdle()
+
+        viewModel.dismissInviteCode()
+
+        assertEquals(SubmitState.Done(CREATED_MAP_ID), state.submit)
+    }
+
+    @Test
+    fun `초대 코드가 없으면 모달 없이 바로 끝난다`() = runTest(dispatcher) {
+        repository.createResult = { CreatedMap(CREATED_MAP_ID, inviteCode = null) }
+        fillRequiredInput()
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertEquals(SubmitState.Done(CREATED_MAP_ID), state.submit)
+    }
+
+    @Test
+    fun `초대 코드는 프로세스가 죽었다 살아나도 남는다`() = runTest(dispatcher) {
+        repository.createResult = { CreatedMap(CREATED_MAP_ID, inviteCode = "A1B2C3") }
+        viewModel.updateName("우리끼리 지도")
+        viewModel.selectVisibility(MapVisibility.Private)
+        viewModel.submit()
+        advanceUntilIdle()
+
+        // 이 화면을 벗어나면 코드를 다시 볼 방법이 없다.
+        val restored = recreateViewModel().uiState.value
+
+        assertEquals(
+            SubmitState.ShowingInviteCode(CREATED_MAP_ID, "A1B2C3"),
+            restored.submit,
+        )
     }
 
     @Test

@@ -75,6 +75,14 @@ internal fun CreateMapScreen(
         if (submit is SubmitState.Done) onCreated(submit.mapId)
     }
 
+    if (submit is SubmitState.ShowingInviteCode) {
+        InviteCodeDialog(
+            mapName = uiState.name,
+            inviteCode = submit.inviteCode,
+            onDismiss = viewModel::dismissInviteCode,
+        )
+    }
+
     CreateMapContent(
         uiState = uiState,
         onBackClick = onBackClick,
