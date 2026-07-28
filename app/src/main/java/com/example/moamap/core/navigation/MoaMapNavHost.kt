@@ -85,6 +85,14 @@ fun MoaMapNavHost(
                     onInstagramImportClick = {
                         navController.navigate(MoaMapRoute.PlaceImport.route)
                     },
+                    onMapClick = { map ->
+                        navController.navigate(
+                            MoaMapRoute.MapDetail.createRoute(
+                                mapId = map.id,
+                                mapTitle = map.title,
+                            )
+                        )
+                    },
                 )
             }
             composable(MoaMapRoute.CreateMap.route) {

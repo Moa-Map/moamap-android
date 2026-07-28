@@ -21,15 +21,13 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,12 +38,21 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.moamap.R
 import com.example.moamap.core.designsystem.component.ShadowedSurface
 import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.core.designsystem.theme.withDesignLineHeight
+import com.example.moamap.feature.collection.domain.model.MapType
+import com.example.moamap.feature.collection.domain.model.MyMap
+import com.example.moamap.feature.collection.presentation.CollectionUiState
+import com.example.moamap.feature.collection.presentation.CollectionViewModel
+import com.example.moamap.feature.collection.presentation.MyMapsState
+import com.example.moamap.feature.explore.presentation.formatMemberCount
 
 /** 카드 썸네일과 같은 높이를 유지해 제목/메타가 위아래로 벌어지도록 한다. */
 private val CardThumbnailSize = 64.dp
@@ -57,53 +64,95 @@ private val InstagramCardTitle = Color(0xFFAF0069)
 /** 프라이빗 탭 상단 액션 카드 높이. */
 private val ActionCardHeight = 72.dp
 
-private enum class CollectionTab(val label: String) {
-    Community("커뮤니티"),
-    Private("프라이빗"),
-}
+/** 목록 자리에 로딩·오류·빈 상태를 같은 높이로 앉혀 화면이 튀지 않게 한다. */
+private val ListPlaceholderHeight = 200.dp
+
+private val MapType.label: String
+    get() = when (this) {
+        MapType.Community -> "커뮤니티"
+        MapType.Private -> "프라이빗"
+    }
 
 @Immutable
 internal data class CollectionMapUiModel(
     val id: Long,
     val title: String,
-    val placeCount: String,
+    /**
+     * 등록 장소 수.
+     *
+     * 서버 목록 응답에 해당 필드가 없어 지금은 채우지 않는다. null 이면 표시하지 않는다.
+     */
+    val placeCount: String? = null,
     val verified: Boolean = false,
     /** null 이면 인원 수를 노출하지 않는다. */
     val memberCount: String? = null,
 )
 
-// TODO: ViewModel 연결 전까지 사용하는 임시 데이터
-private val sampleCommunityMaps = listOf(
-    CollectionMapUiModel(id = 1L, title = "화장실", placeCount = "128곳", verified = true),
-    CollectionMapUiModel(id = 2L, title = "서울 팝업스토어 맵", placeCount = "128곳", memberCount = "2.3천명"),
-    CollectionMapUiModel(id = 3L, title = "화장실", placeCount = "128곳", verified = true),
-    CollectionMapUiModel(id = 4L, title = "서울 팝업스토어 맵", placeCount = "128곳", memberCount = "2.3천명"),
-    CollectionMapUiModel(id = 5L, title = "서울 팝업스토어 맵", placeCount = "128곳", memberCount = "2.3천명"),
+private fun MyMap.toCommunityUiModel() = CollectionMapUiModel(
+    id = id,
+    title = title,
+    verified = official,
+    memberCount = formatMemberCount(memberCount),
 )
 
-private val sampleMyMaps = listOf(
-    CollectionMapUiModel(id = 11L, title = "내 지도", placeCount = "128곳"),
+/**
+ * 프라이빗 카드는 원래 장소 수만 보여주는 자리다. 서버가 장소 수를 주지 않는 동안에는
+ * 인원 수로 대신 채우지 않고 그 자리를 비워 둔다.
+ */
+private fun MyMap.toPrivateUiModel() = CollectionMapUiModel(
+    id = id,
+    title = title,
+    verified = official,
 )
-
-private val sampleAllPrivateMaps = List(3) { index ->
-    CollectionMapUiModel(id = 21L + index, title = "내 지도", placeCount = "128곳")
-}
 
 @Composable
 fun CollectionScreen(
     onInviteCodeClick: () -> Unit = {},
     onNewMapClick: () -> Unit = {},
     onInstagramImportClick: () -> Unit = {},
+    onMapClick: (MyMap) -> Unit = {},
+    modifier: Modifier = Modifier,
+    viewModel: CollectionViewModel = hiltViewModel(),
+) {
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // 지도를 만들고 돌아오면 목록이 만들기 전 그대로다. 화면이 다시 보일 때 현재 탭을 다시 읽는다.
+    LifecycleResumeEffect(Unit) {
+        viewModel.refresh()
+        onPauseOrDispose {}
+    }
+
+    CollectionContent(
+        uiState = uiState,
+        onTabClick = viewModel::selectTab,
+        onRetryClick = viewModel::retry,
+        onInviteCodeClick = onInviteCodeClick,
+        onNewMapClick = onNewMapClick,
+        onInstagramImportClick = onInstagramImportClick,
+        onMapClick = onMapClick,
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun CollectionContent(
+    uiState: CollectionUiState,
+    onTabClick: (MapType) -> Unit,
+    onRetryClick: () -> Unit,
+    onInviteCodeClick: () -> Unit,
+    onNewMapClick: () -> Unit,
+    onInstagramImportClick: () -> Unit,
+    onMapClick: (MyMap) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var selectedTab by rememberSaveable { mutableStateOf(CollectionTab.Community) }
+    val selectedTab = uiState.selectedTab
 
     // 탭마다 스크롤 위치를 따로 기억해, 탭을 오갈 때 보던 자리로 돌아온다.
     val communityScrollState = rememberScrollState()
     val privateScrollState = rememberScrollState()
     val scrollState = when (selectedTab) {
-        CollectionTab.Community -> communityScrollState
-        CollectionTab.Private -> privateScrollState
+        MapType.Community -> communityScrollState
+        MapType.Private -> privateScrollState
     }
 
     Column(
@@ -128,13 +177,21 @@ fun CollectionScreen(
 
             CollectionTabRow(
                 selectedTab = selectedTab,
-                onTabClick = { selectedTab = it },
+                onTabClick = onTabClick,
             )
 
             when (selectedTab) {
-                CollectionTab.Community -> CommunityTabContent()
-                CollectionTab.Private -> PrivateTabContent(
+                MapType.Community -> CommunityTabContent(
+                    state = uiState.community,
+                    onRetryClick = onRetryClick,
+                    onMapClick = onMapClick,
+                )
+
+                MapType.Private -> PrivateTabContent(
+                    state = uiState.private,
+                    onRetryClick = onRetryClick,
                     onInstagramImportClick = onInstagramImportClick,
+                    onMapClick = onMapClick,
                 )
             }
 
@@ -217,8 +274,8 @@ private fun CollectionTopBar(
 
 @Composable
 private fun CollectionTabRow(
-    selectedTab: CollectionTab,
-    onTabClick: (CollectionTab) -> Unit,
+    selectedTab: MapType,
+    onTabClick: (MapType) -> Unit,
 ) {
     Row(
         modifier = Modifier
@@ -229,7 +286,7 @@ private fun CollectionTabRow(
             .selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        CollectionTab.entries.forEach { tab ->
+        MapType.entries.forEach { tab ->
             val isSelected = tab == selectedTab
             Box(
                 modifier = Modifier
@@ -270,25 +327,118 @@ private fun CollectionTabRow(
 }
 
 @Composable
-private fun CommunityTabContent() {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // TODO: 실제 목록은 ViewModel 연결 시 교체한다.
-        sampleCommunityMaps.forEach { map ->
-            CollectionMapCard(map = map, onClick = {})
+private fun CommunityTabContent(
+    state: MyMapsState,
+    onRetryClick: () -> Unit,
+    onMapClick: (MyMap) -> Unit,
+) {
+    MapsStateContent(
+        state = state,
+        emptyMessage = "아직 참여한 지도가 없어요",
+        onRetryClick = onRetryClick,
+    ) { maps ->
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            maps.forEach { map ->
+                CollectionMapCard(
+                    map = map.toCommunityUiModel(),
+                    onClick = { onMapClick(map) },
+                )
+            }
         }
     }
 }
 
 @Composable
 private fun PrivateTabContent(
+    state: MyMapsState,
+    onRetryClick: () -> Unit,
     onInstagramImportClick: () -> Unit,
+    onMapClick: (MyMap) -> Unit,
 ) {
+    // 액션 카드는 목록 상태와 무관하게 늘 보인다. 목록이 비었을 때야말로 만들 진입점이 필요하다.
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
         PrivateActionCards(onInstagramImportClick = onInstagramImportClick)
 
-        // TODO: 실제 목록은 ViewModel 연결 시 교체한다.
-        PrivateMapSection(title = "나만의 지도", maps = sampleMyMaps)
-        PrivateMapSection(title = "전체", maps = sampleAllPrivateMaps)
+        MapsStateContent(
+            state = state,
+            emptyMessage = "아직 만든 지도가 없어요",
+            onRetryClick = onRetryClick,
+        ) { maps ->
+            Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
+                // 로그인하면 기본으로 있는 개인 지도. 서버 목록 응답에 이를 가려낼 수단이
+                // 없어 지금은 늘 비어 있다. type=PERSONAL 이 생기면 그 목록을 넣는다.
+                PrivateMapSection(title = "나만의 지도", maps = emptyList(), onMapClick = onMapClick)
+                PrivateMapSection(title = "전체", maps = maps, onMapClick = onMapClick)
+            }
+        }
+    }
+}
+
+/**
+ * 목록 자리의 로딩·오류·빈 상태를 한곳에서 그린다.
+ *
+ * 세 상태 모두 같은 높이를 차지해, 상태가 바뀔 때 화면이 튀지 않는다.
+ */
+@Composable
+private fun MapsStateContent(
+    state: MyMapsState,
+    emptyMessage: String,
+    onRetryClick: () -> Unit,
+    content: @Composable (List<MyMap>) -> Unit,
+) {
+    when (state) {
+        MyMapsState.Loading -> ListPlaceholder { CircularProgressIndicator() }
+
+        is MyMapsState.Error -> ListPlaceholder {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = state.message,
+                    style = MoaMapTheme.typography.body2,
+                    color = MoaMapTheme.colors.textAssistive,
+                )
+                Surface(
+                    shape = RoundedCornerShape(8.dp),
+                    color = MoaMapPrimitiveColors.Blue500,
+                    onClick = onRetryClick,
+                ) {
+                    Text(
+                        text = "다시 시도",
+                        style = MoaMapTheme.typography.button2,
+                        color = MoaMapTheme.colors.textWhite,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    )
+                }
+            }
+        }
+
+        is MyMapsState.Success -> {
+            if (state.maps.isEmpty()) {
+                ListPlaceholder {
+                    Text(
+                        text = emptyMessage,
+                        style = MoaMapTheme.typography.body2,
+                        color = MoaMapTheme.colors.textAssistive,
+                    )
+                }
+            } else {
+                content(state.maps)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ListPlaceholder(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(ListPlaceholderHeight),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
     }
 }
 
@@ -384,10 +534,12 @@ private fun PrivateActionCard(
     }
 }
 
+/** 목록이 비어도 제목은 남긴다. 자리가 사라졌다 나타나면 화면 구성이 바뀌어 보인다. */
 @Composable
 private fun PrivateMapSection(
     title: String,
-    maps: List<CollectionMapUiModel>,
+    maps: List<MyMap>,
+    onMapClick: (MyMap) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
@@ -398,7 +550,10 @@ private fun PrivateMapSection(
         )
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             maps.forEach { map ->
-                CollectionMapCard(map = map, onClick = {})
+                CollectionMapCard(
+                    map = map.toPrivateUiModel(),
+                    onClick = { onMapClick(map) },
+                )
             }
         }
     }
@@ -465,6 +620,8 @@ internal fun CollectionMapCard(
                         )
                     }
                 }
+                // 인원 수가 있는 카드와 없는 카드가 아이콘 크기·간격이 다르다.
+                // 둘 다 없으면 메타 줄을 그리지 않고 자리를 비워 둔다.
                 if (map.memberCount != null) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -477,15 +634,17 @@ internal fun CollectionMapCard(
                             iconSize = 14.dp,
                             gap = 2.dp,
                         )
-                        CollectionMapMeta(
-                            iconRes = R.drawable.ic_location,
-                            text = map.placeCount,
-                            contentDescription = "등록 장소",
-                            iconSize = 14.dp,
-                            gap = 2.dp,
-                        )
+                        if (map.placeCount != null) {
+                            CollectionMapMeta(
+                                iconRes = R.drawable.ic_location,
+                                text = map.placeCount,
+                                contentDescription = "등록 장소",
+                                iconSize = 14.dp,
+                                gap = 2.dp,
+                            )
+                        }
                     }
-                } else {
+                } else if (map.placeCount != null) {
                     CollectionMapMeta(
                         iconRes = R.drawable.ic_location,
                         text = map.placeCount,
@@ -532,6 +691,21 @@ private fun CollectionMapMeta(
 @Composable
 private fun CollectionScreenPreview() {
     MoaMapTheme {
-        CollectionScreen()
+        CollectionContent(
+            uiState = CollectionUiState(
+                community = MyMapsState.Success(
+                    listOf(
+                        MyMap(1L, "서울 팝업스토어 맵", null, 2312, official = false),
+                        MyMap(2L, "성수 카페 투어", null, 24, official = false),
+                    ),
+                ),
+            ),
+            onTabClick = {},
+            onRetryClick = {},
+            onInviteCodeClick = {},
+            onNewMapClick = {},
+            onInstagramImportClick = {},
+            onMapClick = {},
+        )
     }
 }
