@@ -5,6 +5,7 @@ import com.example.moamap.feature.explore.domain.model.CommunityMapSort
 import com.example.moamap.feature.explore.domain.repository.CommunityMapRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -39,8 +40,14 @@ class ExploreViewModelTest {
         joined = false,
     )
 
-    /** 호출될 때마다 (tag, sort) 를 기록하고 [result] 가 만든 값을 돌려준다. */
+    /**
+     * 호출될 때마다 (tag, sort) 를 기록하고 [result] 가 만든 값을 돌려준다.
+     *
+     * [responseDelayMillis] 를 두면 요청이 진행 중인 상태를 만들 수 있다. 취소를 검증하려면
+     * 앞선 요청이 실제로 시작해 매달려 있어야 한다.
+     */
     private class FakeRepository(
+        val responseDelayMillis: Long = 0L,
         var result: () -> List<CommunityMap> = { emptyList() },
     ) : CommunityMapRepository {
         val calls = mutableListOf<Pair<String?, CommunityMapSort>>()
@@ -50,6 +57,7 @@ class ExploreViewModelTest {
             sort: CommunityMapSort,
         ): List<CommunityMap> {
             calls += tag to sort
+            delay(responseDelayMillis)
             return result()
         }
     }
@@ -138,18 +146,33 @@ class ExploreViewModelTest {
     }
 
     @Test
-    fun `칩을 연달아 누르면 마지막 선택 결과만 남는다`() = runTest {
-        val repository = FakeRepository { listOf(sampleMap(1L)) }
+    fun `진행 중인 요청이 취소돼도 오류로 새지 않고 마지막 선택 결과만 남는다`() = runTest {
+        val repository = FakeRepository(responseDelayMillis = 100L) { listOf(sampleMap(1L)) }
         val viewModel = ExploreViewModel(repository)
         dispatcher.scheduler.advanceUntilIdle()
 
-        // 앞선 요청이 취소되며 CancellationException 이 나도 Error 로 새지 않아야 한다.
         viewModel.selectCategory("카페")
+        // 응답을 기다리는 지점까지만 진행시켜 "카페" 요청을 실제로 매달아 둔다.
+        dispatcher.scheduler.advanceTimeBy(50L)
+        assertEquals("카페" to CommunityMapSort.POPULAR, repository.calls.last())
+
         viewModel.selectCategory("데이트")
+        // 가상 시간을 넘기지 않고 지금 큐에 있는 것만 실행한다. 취소된 "카페" 는 여기서 깨어나고,
+        // "데이트" 는 아직 응답을 기다리는 중이다. 취소가 Error 로 새면 이 시점에 드러난다.
+        dispatcher.scheduler.runCurrent()
+        assertEquals(CommunityMapsState.Loading, viewModel.uiState.value.communityMaps)
+
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals("데이트", viewModel.uiState.value.selectedCategory)
         assertTrue(viewModel.uiState.value.communityMaps is CommunityMapsState.Success)
-        assertEquals("데이트" to CommunityMapSort.POPULAR, repository.calls.last())
+        assertEquals(
+            listOf(
+                null to CommunityMapSort.POPULAR,
+                "카페" to CommunityMapSort.POPULAR,
+                "데이트" to CommunityMapSort.POPULAR,
+            ),
+            repository.calls,
+        )
     }
 }

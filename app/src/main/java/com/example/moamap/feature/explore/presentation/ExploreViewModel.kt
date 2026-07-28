@@ -1,5 +1,6 @@
 package com.example.moamap.feature.explore.presentation
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.moamap.feature.explore.domain.model.CommunityMap
@@ -50,6 +51,11 @@ class ExploreViewModel @Inject constructor(
     /** 칩을 연달아 누르면 이전 요청은 버린다. 늦게 도착한 응답이 최신 선택을 덮지 않게 한다. */
     private var loadJob: Job? = null
 
+    private companion object {
+        const val TAG = "ExploreViewModel"
+        const val LOAD_FAILED_MESSAGE = "지도 목록을 불러오지 못했어요"
+    }
+
     init {
         load()
     }
@@ -82,12 +88,11 @@ class ExploreViewModel @Inject constructor(
                 // 다음 선택이 이미 로딩을 시작했다. 이 요청의 결과로 상태를 건드리면 안 된다.
                 throw e
             } catch (e: Exception) {
+                // 예외 메시지는 그대로 노출하지 않는다. ApiException 은 "[500] COMMON_005: ..."
+                // 처럼 사용자에게 보여줄 수 없는 형태다.
+                Log.w(TAG, "커뮤니티 지도 목록 조회 실패 (tag=$tag, sort=$sort)", e)
                 _uiState.update {
-                    it.copy(
-                        communityMaps = CommunityMapsState.Error(
-                            e.message ?: "지도 목록을 불러오지 못했어요"
-                        )
-                    )
+                    it.copy(communityMaps = CommunityMapsState.Error(LOAD_FAILED_MESSAGE))
                 }
             }
         }

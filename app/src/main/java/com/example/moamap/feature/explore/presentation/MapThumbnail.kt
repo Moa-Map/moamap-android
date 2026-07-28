@@ -28,6 +28,9 @@ private const val PLACEHOLDER_LOGO_WIDTH_RATIO = 0.47f
  * 지도 카드의 대표 이미지.
  *
  * `imageUrl` 이 없으면 Blue50 바탕에 모아맵 로고를 얹은 기본 이미지를 그린다.
+ *
+ * 로고는 항상 바닥에 깔고 그 위에 대표 이미지를 덮는다. 이렇게 하면 로드가 실패하거나
+ * 아직 끝나지 않았을 때 자연스럽게 기본 이미지가 드러나, 빈 배경만 남지 않는다.
  */
 @Composable
 fun MapThumbnail(
@@ -43,16 +46,15 @@ fun MapThumbnail(
             .border(1.dp, Color.Black.copy(alpha = 0.2f), RoundedCornerShape(12.dp)),
         contentAlignment = Alignment.Center,
     ) {
-        if (imageUrl == null) {
-            Image(
-                painter = painterResource(R.drawable.img_moa_logo),
-                contentDescription = null,
-                contentScale = ContentScale.Fit,
-                modifier = Modifier
-                    .fillMaxWidth(PLACEHOLDER_LOGO_WIDTH_RATIO)
-                    .padding(vertical = 4.dp),
-            )
-        } else {
+        Image(
+            painter = painterResource(R.drawable.img_moa_logo),
+            contentDescription = null,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier
+                .fillMaxWidth(PLACEHOLDER_LOGO_WIDTH_RATIO)
+                .padding(vertical = 4.dp),
+        )
+        if (imageUrl != null) {
             AsyncImage(
                 model = imageUrl,
                 contentDescription = null,
