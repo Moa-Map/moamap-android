@@ -1,6 +1,8 @@
 package com.example.moamap.feature.collection.data.repository
 
 import com.example.moamap.feature.collection.data.remote.MapCreateRequestDto
+import com.example.moamap.feature.collection.data.remote.MapDetailDto
+import com.example.moamap.feature.collection.domain.model.CreatedMap
 import com.example.moamap.feature.collection.domain.model.MapVisibility
 import com.example.moamap.feature.collection.domain.model.NewMap
 
@@ -16,6 +18,16 @@ fun NewMap.toCreateRequest() = MapCreateRequestDto(
     imageUrl = null,
     visibility = visibility.toRequestValue(),
     tags = tags.normalized(),
+)
+
+/**
+ * 생성 응답.
+ *
+ * 초대 코드는 프라이빗 지도에만 발급된다. 공개 지도에는 빈 문자열이 올 수 있어 함께 접는다.
+ */
+fun MapDetailDto.toCreatedMap() = CreatedMap(
+    id = id,
+    inviteCode = inviteCode?.takeIf { it.isNotBlank() },
 )
 
 private fun MapVisibility.toRequestValue(): String = when (this) {

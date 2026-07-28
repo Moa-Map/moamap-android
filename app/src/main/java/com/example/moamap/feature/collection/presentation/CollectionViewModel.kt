@@ -3,6 +3,8 @@ package com.example.moamap.feature.collection.presentation
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.moamap.core.network.ApiException
+import com.example.moamap.core.network.ConnectionException
 import com.example.moamap.feature.collection.domain.model.MapType
 import com.example.moamap.feature.collection.domain.repository.MapRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -17,6 +19,33 @@ import javax.inject.Inject
 
 private const val TAG = "CollectionViewModel"
 private const val LOAD_FAILED_MESSAGE = "지도 목록을 불러오지 못했어요"
+private const val INVALID_CODE_MESSAGE = "코드를 다시 확인해주세요"
+private const val ALREADY_JOINED_MESSAGE = "이미 참여 중인 지도예요"
+private const val JOIN_FAILED_MESSAGE = "지도에 참여하지 못했어요"
+private const val NETWORK_ERROR_MESSAGE = "네트워크에 연결할 수 없어요"
+
+/** `[404] MAP_007: 유효하지 않은 초대 코드입니다.` */
+private const val INVALID_INVITE_CODE = "MAP_007"
+
+/** `[409] MAP_005: 이미 참여한 지도입니다.` */
+private const val ALREADY_JOINED = "MAP_005"
+
+/**
+ * 합류 실패 안내.
+ *
+ * 서버 메시지를 그대로 노출하지 않고 에러 코드로 가른다. 두 코드는 실제 응답으로 확인했고,
+ * 그 밖의 경우는 원인을 단정하지 않는다.
+ */
+private fun Throwable.toJoinMessage(): String = when {
+    this is ConnectionException -> NETWORK_ERROR_MESSAGE
+    this !is ApiException -> JOIN_FAILED_MESSAGE
+    code == INVALID_INVITE_CODE -> INVALID_CODE_MESSAGE
+    code == ALREADY_JOINED -> ALREADY_JOINED_MESSAGE
+    else -> JOIN_FAILED_MESSAGE
+}
+
+private fun Char.isAsciiAlphanumeric(): Boolean =
+    this in 'A'..'Z' || this in 'a'..'z' || this in '0'..'9'
 
 @HiltViewModel
 class CollectionViewModel @Inject constructor(
@@ -57,6 +86,69 @@ class CollectionViewModel @Inject constructor(
         val current = _uiState.value.selectedTab
         requestedTabs.retainAll { tab -> tab == current }
         load(current, keepCurrent = true)
+    }
+
+    // ---------- 초대 코드로 합류 ----------
+
+    fun openJoinDialog() {
+        _uiState.update { state -> state.copy(join = JoinState.Editing()) }
+    }
+
+    fun closeJoinDialog() {
+        _uiState.update { state -> state.copy(join = JoinState.Hidden) }
+    }
+
+    /**
+     * 코드는 영문 대문자와 숫자만 남긴다. 화면의 `#` 은 장식이라 값에 넣지 않는다.
+     *
+     * `Char.isLetterOrDigit()` 은 한글도 문자로 보기 때문에 쓸 수 없다. 서버가 발급하는
+     * 코드는 `VH4YXZ` 같은 ASCII 영숫자다.
+     */
+    fun updateInviteCode(input: String) {
+        val editing = _uiState.value.join as? JoinState.Editing ?: return
+        if (editing.submitting) return
+
+        val normalized = input.filter { char -> char.isAsciiAlphanumeric() }.uppercase()
+        _uiState.update { state ->
+            state.copy(join = editing.copy(code = normalized, errorMessage = null))
+        }
+    }
+
+    /**
+     * 초대 코드로 합류한다.
+     *
+     * 성공하면 결과가 보이는 곳으로 데려간다 - 커뮤니티 탭에서 코드를 넣었어도
+     * 프라이빗 탭으로 옮기고 그 목록을 다시 읽는다.
+     */
+    fun join() {
+        val editing = _uiState.value.join as? JoinState.Editing ?: return
+        if (!editing.canSubmit) return
+
+        // 코루틴 시작을 기다리지 않고 여기서 잠근다.
+        _uiState.update { state ->
+            state.copy(join = editing.copy(submitting = true, errorMessage = null))
+        }
+
+        viewModelScope.launch {
+            try {
+                repository.joinByInviteCode(editing.code)
+                _uiState.update { state ->
+                    state.copy(join = JoinState.Hidden, selectedTab = MapType.Private)
+                }
+                // 합류한 지도가 보이도록 프라이빗 목록을 다시 읽는다.
+                requestedTabs -= MapType.Private
+                load(MapType.Private)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "초대 코드 합류 실패", e)
+                _uiState.update { state ->
+                    state.copy(
+                        join = editing.copy(submitting = false, errorMessage = e.toJoinMessage()),
+                    )
+                }
+            }
+        }
     }
 
     /**

@@ -12,6 +12,10 @@ internal const val TAG_MAX_LENGTH = 30
 internal sealed interface SubmitState {
     data object Idle : SubmitState
     data object Submitting : SubmitState
+
+    /** 프라이빗 지도라 초대 코드를 보여줄 차례다. 지도는 이미 만들어졌다. */
+    data class ShowingInviteCode(val mapId: Long, val inviteCode: String) : SubmitState
+
     data class Done(val mapId: Long) : SubmitState
 }
 

@@ -123,8 +123,12 @@ internal class CreateMapViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                val mapId = mapRepository.createMap(newMap)
-                updateState { state -> state.copy(submit = SubmitState.Done(mapId)) }
+                val created = mapRepository.createMap(newMap)
+                // 프라이빗 지도는 초대 코드를 먼저 보여주고, 닫을 때 화면을 뺀다.
+                val next = created.inviteCode
+                    ?.let { code -> SubmitState.ShowingInviteCode(created.id, code) }
+                    ?: SubmitState.Done(created.id)
+                updateState { state -> state.copy(submit = next) }
             } catch (e: CancellationException) {
                 throw e
             } catch (throwable: Throwable) {
@@ -138,6 +142,12 @@ internal class CreateMapViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /** 초대 코드를 다 본 뒤. 지도는 이미 만들어졌으므로 그대로 화면을 뺀다. */
+    fun dismissInviteCode() {
+        val showing = _uiState.value.submit as? SubmitState.ShowingInviteCode ?: return
+        updateState { state -> state.copy(submit = SubmitState.Done(showing.mapId)) }
     }
 
     /** 안내를 보여준 뒤 호출한다. 같은 메시지가 다시 뜨지 않게 한다. */
@@ -159,6 +169,8 @@ private const val KEY_DESCRIPTION = "createMap.description"
 private const val KEY_VISIBILITY = "createMap.visibility"
 private const val KEY_TAGS = "createMap.tags"
 private const val KEY_TAG_INPUT = "createMap.tagInput"
+private const val KEY_CREATED_MAP_ID = "createMap.createdMapId"
+private const val KEY_INVITE_CODE = "createMap.inviteCode"
 
 /**
  * 저장된 값에서 상태를 되살린다.
@@ -175,10 +187,20 @@ private fun SavedStateHandle.toCreateMapUiState() = CreateMapUiState(
         MapVisibility.entries.firstOrNull { it.name == saved }
     },
     tags = get<ArrayList<String>>(KEY_TAGS).orEmpty(),
+    tagInput = get<String>(KEY_TAG_INPUT).orEmpty(),
     // 진행 중 상태는 복원하지 않는다. 요청은 프로세스와 함께 사라졌는데 "만드는 중" 으로
     // 되살아나면 버튼이 영영 잠긴다.
-    tagInput = get<String>(KEY_TAG_INPUT).orEmpty(),
+    //
+    // 초대 코드는 되살린다. 지도는 이미 만들어졌고, 이 화면을 벗어나면 코드를 다시 볼
+    // 방법이 없다.
+    submit = restoreInviteCode() ?: SubmitState.Idle,
 )
+
+private fun SavedStateHandle.restoreInviteCode(): SubmitState.ShowingInviteCode? {
+    val mapId = get<Long>(KEY_CREATED_MAP_ID) ?: return null
+    val code = get<String>(KEY_INVITE_CODE)?.takeIf { it.isNotBlank() } ?: return null
+    return SubmitState.ShowingInviteCode(mapId, code)
+}
 
 private fun SavedStateHandle.save(state: CreateMapUiState) {
     this[KEY_IMAGE_URI] = state.imageUri
@@ -188,6 +210,10 @@ private fun SavedStateHandle.save(state: CreateMapUiState) {
     // Bundle 이 담을 수 있는 형태여야 해서 ArrayList 로 넘긴다.
     this[KEY_TAGS] = ArrayList(state.tags)
     this[KEY_TAG_INPUT] = state.tagInput
+
+    val showing = state.submit as? SubmitState.ShowingInviteCode
+    this[KEY_CREATED_MAP_ID] = showing?.mapId
+    this[KEY_INVITE_CODE] = showing?.inviteCode
 }
 
 /** 빈 값과 이미 담긴 태그는 걸러낸다. 한 번에 들어온 값들 사이의 중복도 마찬가지다. */

@@ -4,6 +4,19 @@ import androidx.compose.runtime.Immutable
 import com.example.moamap.feature.collection.domain.model.MapType
 import com.example.moamap.feature.collection.domain.model.MyMap
 
+/** 초대 코드 입력 모달. */
+sealed interface JoinState {
+    data object Hidden : JoinState
+
+    data class Editing(
+        val code: String = "",
+        val submitting: Boolean = false,
+        val errorMessage: String? = null,
+    ) : JoinState {
+        val canSubmit: Boolean get() = code.isNotBlank() && !submitting
+    }
+}
+
 /** 목록 영역의 상태. 탭 전환은 목록 바깥이므로 바뀜 상태와 분리한다. */
 sealed interface MyMapsState {
     data object Loading : MyMapsState
@@ -22,6 +35,7 @@ data class CollectionUiState(
     val selectedTab: MapType = MapType.Community,
     val community: MyMapsState = MyMapsState.Loading,
     val private: MyMapsState = MyMapsState.Loading,
+    val join: JoinState = JoinState.Hidden,
 ) {
     val currentMaps: MyMapsState
         get() = stateOf(selectedTab)
