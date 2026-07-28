@@ -1,22 +1,75 @@
 package com.example.moamap.feature.collection.presentation.createmap
 
 import androidx.lifecycle.SavedStateHandle
+import com.example.moamap.core.network.ConnectionException
+import com.example.moamap.feature.collection.domain.model.MapVisibility
+import com.example.moamap.feature.collection.domain.model.NewMap
+import com.example.moamap.feature.collection.domain.repository.MapRepository
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class CreateMapViewModelTest {
+
+    private val dispatcher = StandardTestDispatcher()
 
     private val savedStateHandle = SavedStateHandle()
 
-    private val viewModel = CreateMapViewModel(savedStateHandle)
+    private val repository = FakeMapRepository()
+
+    private val viewModel = CreateMapViewModel(savedStateHandle, repository)
 
     private val state get() = viewModel.uiState.value
 
+    @Before
+    fun setUp() {
+        Dispatchers.setMain(dispatcher)
+    }
+
+    @After
+    fun tearDown() {
+        Dispatchers.resetMain()
+    }
+
     /** 프로세스가 죽었다 살아나는 상황. 저장된 값만 들고 ViewModel 을 새로 만든다. */
-    private fun recreateViewModel() = CreateMapViewModel(savedStateHandle)
+    private fun recreateViewModel() = CreateMapViewModel(savedStateHandle, repository)
+
+    /** 만들 수 있는 최소 입력을 채운다. */
+    private fun fillRequiredInput() {
+        viewModel.updateName("성수 카페 투어")
+        viewModel.selectVisibility(MapVisibility.Public)
+    }
+
+    private class FakeMapRepository(
+        var createResult: () -> Long = { CREATED_MAP_ID },
+    ) : MapRepository {
+
+        val createdMaps = mutableListOf<NewMap>()
+
+        override suspend fun createMap(newMap: NewMap): Long {
+            createdMaps += newMap
+            return createResult()
+        }
+    }
+
+    private companion object {
+        const val CREATED_MAP_ID = 42L
+    }
+
+    // ---------- 입력 ----------
 
     @Test
     fun `이름과 공개 범위가 모두 채워져야 지도를 만들 수 있다`() {
@@ -156,5 +209,110 @@ class CreateMapViewModelTest {
         viewModel.updateTagInput("카페 ")
 
         assertEquals(listOf("카페"), state.tags)
+    }
+
+    // ---------- 제출 ----------
+
+    @Test
+    fun `입력한 값 그대로 지도를 만든다`() = runTest(dispatcher) {
+        fillRequiredInput()
+        viewModel.updateDescription("주말에 다녀온 곳")
+        viewModel.updateTagInput("카페 ")
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertEquals(
+            NewMap(
+                name = "성수 카페 투어",
+                description = "주말에 다녀온 곳",
+                visibility = MapVisibility.Public,
+                tags = listOf("카페"),
+            ),
+            repository.createdMaps.single(),
+        )
+        assertEquals(SubmitState.Done(CREATED_MAP_ID), state.submit)
+    }
+
+    @Test
+    fun `사진을 골라도 지도 생성 요청에는 담기지 않는다`() = runTest(dispatcher) {
+        fillRequiredInput()
+        viewModel.selectImage("content://map/photo")
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        // 서버에 커버 이미지 업로드 창구가 없어 미리보기로만 남는다.
+        assertEquals(MapVisibility.Public, repository.createdMaps.single().visibility)
+        assertEquals("content://map/photo", state.imageUri)
+        assertEquals(SubmitState.Done(CREATED_MAP_ID), state.submit)
+    }
+
+    @Test
+    fun `제출하는 동안에는 다시 누를 수 없다`() = runTest(dispatcher) {
+        fillRequiredInput()
+
+        viewModel.submit()
+
+        assertFalse(state.canSubmit)
+        assertTrue(state.isSubmitting)
+
+        // 코루틴이 시작되기 전에 한 번 더 눌러도 지도가 두 개 만들어지면 안 된다.
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertEquals(1, repository.createdMaps.size)
+    }
+
+    @Test
+    fun `지도 생성에 실패하면 입력값을 남긴 채 되돌아온다`() = runTest(dispatcher) {
+        repository.createResult = { throw IOException("서버 오류") }
+        fillRequiredInput()
+        viewModel.updateTagInput("카페 ")
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertEquals(SubmitState.Idle, state.submit)
+        assertEquals("지도를 만들지 못했어요", state.errorMessage)
+        // 다시 칠 필요 없이 그대로 재시도할 수 있어야 한다.
+        assertEquals("성수 카페 투어", state.name)
+        assertEquals(listOf("카페"), state.tags)
+        assertTrue(state.canSubmit)
+    }
+
+    @Test
+    fun `연결에 실패하면 네트워크 안내를 보여준다`() = runTest(dispatcher) {
+        repository.createResult = { throw ConnectionException(IOException()) }
+        fillRequiredInput()
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertEquals("네트워크에 연결할 수 없어요", state.errorMessage)
+    }
+
+    @Test
+    fun `진행 중이던 상태는 프로세스가 죽으면 되살리지 않는다`() = runTest(dispatcher) {
+        fillRequiredInput()
+        viewModel.submit()
+
+        // 요청은 프로세스와 함께 사라졌다. "만드는 중" 으로 되살아나면 버튼이 영영 잠긴다.
+        val restored = recreateViewModel().uiState.value
+
+        assertEquals(SubmitState.Idle, restored.submit)
+        assertTrue(restored.canSubmit)
+    }
+
+    @Test
+    fun `안내를 한 번 보여준 뒤에는 지운다`() = runTest(dispatcher) {
+        repository.createResult = { throw IOException("서버 오류") }
+        fillRequiredInput()
+        viewModel.submit()
+        advanceUntilIdle()
+
+        viewModel.consumeError()
+
+        assertNull(state.errorMessage)
     }
 }

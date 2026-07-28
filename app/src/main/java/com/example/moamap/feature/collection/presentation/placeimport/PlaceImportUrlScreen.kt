@@ -22,6 +22,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.moamap.core.designsystem.component.ErrorSnackbar
 import com.example.moamap.core.designsystem.component.ShadowedSurface
 import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
@@ -72,7 +73,7 @@ internal fun PlaceImportUrlScreen(
 
         // 안내가 버튼에 가리지 않도록 버튼 위에 쌓는다.
         Column(modifier = Modifier.align(Alignment.BottomCenter)) {
-            PlaceImportErrorSnackbar(
+            ErrorSnackbar(
                 message = errorMessage,
                 onShown = onErrorShown,
             )

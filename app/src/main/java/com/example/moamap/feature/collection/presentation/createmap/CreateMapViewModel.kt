@@ -1,13 +1,24 @@
 package com.example.moamap.feature.collection.presentation.createmap
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.moamap.core.network.ConnectionException
+import com.example.moamap.feature.collection.domain.model.MapVisibility
+import com.example.moamap.feature.collection.domain.model.NewMap
+import com.example.moamap.feature.collection.domain.repository.MapRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+private const val TAG = "CreateMapViewModel"
+private const val CREATE_FAILED_MESSAGE = "지도를 만들지 못했어요"
+private const val NETWORK_ERROR_MESSAGE = "네트워크에 연결할 수 없어요"
 
 /** 태그를 확정하는 구분자. 플레이스홀더가 안내하는 "스페이스 또는 엔터" 와 같다. */
 private val TAG_SEPARATORS = charArrayOf(' ', '\n')
@@ -15,12 +26,13 @@ private val TAG_SEPARATORS = charArrayOf(' ', '\n')
 /**
  * 새 지도 만들기 화면 ViewModel.
  *
- * 아직 `POST /api/v1/maps` 를 붙이지 않아 입력 상태만 다룬다. 입력 도중 프로세스가 죽어도
- * 돌아왔을 때 이어서 쓸 수 있도록 모든 값을 [SavedStateHandle] 에 함께 남긴다.
+ * 입력 도중 프로세스가 죽어도 돌아왔을 때 이어서 쓸 수 있도록 모든 값을 [SavedStateHandle] 에
+ * 함께 남긴다.
  */
 @HiltViewModel
 internal class CreateMapViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
+    private val mapRepository: MapRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(savedStateHandle.toCreateMapUiState())
@@ -82,6 +94,53 @@ internal class CreateMapViewModel @Inject constructor(
         updateState { state -> state.copy(tags = state.tags - tag) }
     }
 
+    /**
+     * 지도를 만든다.
+     *
+     * 고른 사진은 함께 보내지 않는다 - 서버에 커버 이미지 업로드 창구가 없다.
+     */
+    fun submit() {
+        val current = _uiState.value
+        if (!current.canSubmit) return
+
+        val visibility = current.visibility ?: return
+        val newMap = NewMap(
+            name = current.name,
+            description = current.description,
+            visibility = visibility,
+            tags = current.tags,
+        )
+
+        // 코루틴이 시작되기를 기다리지 않고 여기서 잠근다. 시작 시점에 잠그면 그 전에
+        // 들어온 두 번째 탭이 가드를 그대로 통과해 지도가 두 개 만들어진다.
+        updateState { state ->
+            state.copy(submit = SubmitState.Submitting, errorMessage = null)
+        }
+
+        viewModelScope.launch {
+            try {
+                val mapId = mapRepository.createMap(newMap)
+                updateState { state -> state.copy(submit = SubmitState.Done(mapId)) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (throwable: Throwable) {
+                Log.e(TAG, "지도 생성 실패", throwable)
+                // 입력값은 그대로 둔다. 이름·설명·태그를 다시 치게 만들면 안 된다.
+                updateState { state ->
+                    state.copy(
+                        submit = SubmitState.Idle,
+                        errorMessage = throwable.toUserMessage(),
+                    )
+                }
+            }
+        }
+    }
+
+    /** 안내를 보여준 뒤 호출한다. 같은 메시지가 다시 뜨지 않게 한다. */
+    fun consumeError() {
+        updateState { state -> state.copy(errorMessage = null) }
+    }
+
     /** 상태 변경과 저장을 한 자리에 묶어, 저장을 빠뜨린 경로가 생기지 않게 한다. */
     private fun updateState(transform: (CreateMapUiState) -> CreateMapUiState) {
         val next = transform(_uiState.value)
@@ -112,6 +171,8 @@ private fun SavedStateHandle.toCreateMapUiState() = CreateMapUiState(
         MapVisibility.entries.firstOrNull { it.name == saved }
     },
     tags = get<ArrayList<String>>(KEY_TAGS).orEmpty(),
+    // 진행 중 상태는 복원하지 않는다. 요청은 프로세스와 함께 사라졌는데 "만드는 중" 으로
+    // 되살아나면 버튼이 영영 잠긴다.
     tagInput = get<String>(KEY_TAG_INPUT).orEmpty(),
 )
 
@@ -132,4 +193,10 @@ private fun List<String>.plusTags(candidates: List<String>): List<String> {
         .filter { candidate -> candidate.isNotEmpty() }
 
     return (this + added).distinct()
+}
+
+private fun Throwable.toUserMessage(): String = when (this) {
+    // 서버 메시지는 "[500] COMMON_005: ..." 처럼 사용자에게 보여줄 형태가 아니다.
+    is ConnectionException -> NETWORK_ERROR_MESSAGE
+    else -> CREATE_FAILED_MESSAGE
 }

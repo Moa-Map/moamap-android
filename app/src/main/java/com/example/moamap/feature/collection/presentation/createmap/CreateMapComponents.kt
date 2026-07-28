@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -295,9 +296,13 @@ private fun TagChip(
     }
 }
 
+/** 진행 표시 크기. 버튼 높이 안에 들어가면서 글자와 비슷한 무게로 보이는 값. */
+private val SubmitProgressSize = 20.dp
+
 @Composable
 internal fun CreateMapSubmitButton(
     enabled: Boolean,
+    submitting: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -312,11 +317,19 @@ internal fun CreateMapSubmitButton(
         onClick = if (enabled) onClick else null,
     ) {
         Box(contentAlignment = Alignment.Center) {
-            Text(
-                text = "지도 만들기",
-                style = MoaMapTheme.typography.button0,
-                color = MoaMapTheme.colors.textWhite,
-            )
+            if (submitting) {
+                CircularProgressIndicator(
+                    color = MoaMapTheme.colors.textWhite,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(SubmitProgressSize),
+                )
+            } else {
+                Text(
+                    text = "지도 만들기",
+                    style = MoaMapTheme.typography.button0,
+                    color = MoaMapTheme.colors.textWhite,
+                )
+            }
         }
     }
 }
