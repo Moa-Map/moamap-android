@@ -3,8 +3,12 @@ package com.example.moamap.feature.mapdetail.data.repository
 import android.net.Uri
 import com.example.moamap.core.network.model.PageResponse
 import com.example.moamap.feature.explore.data.remote.InstagramExtractRequestDto
-import com.example.moamap.feature.explore.data.remote.PhotoUploadUrlRequestDto
+import com.example.moamap.feature.explore.data.remote.MapShareExtractRequestDto
+import com.example.moamap.feature.explore.data.remote.MapShareExtractResponseDto
 import com.example.moamap.feature.explore.data.remote.PhotoUploadUrlDto
+import com.example.moamap.feature.explore.data.remote.PhotoUploadUrlRequestDto
+import com.example.moamap.feature.explore.data.remote.PlaceBulkCreateRequestDto
+import com.example.moamap.feature.explore.data.remote.PlaceBulkCreateResponseDto
 import com.example.moamap.feature.explore.data.remote.PlaceCandidateDto
 import com.example.moamap.feature.explore.data.remote.PlaceCreateRequestDto
 import com.example.moamap.feature.explore.data.remote.PlaceDto
@@ -53,6 +57,14 @@ private class RecordingPlaceService : PlaceService {
     override suspend fun extractFromInstagram(
         request: InstagramExtractRequestDto,
     ): List<PlaceCandidateDto> = TODO("사용하지 않음")
+
+    override suspend fun createPlacesBulk(
+        request: PlaceBulkCreateRequestDto,
+    ): PlaceBulkCreateResponseDto = TODO("사용하지 않음")
+
+    override suspend fun extractFromMapShare(
+        request: MapShareExtractRequestDto,
+    ): MapShareExtractResponseDto = TODO("사용하지 않음")
 }
 
 /**
