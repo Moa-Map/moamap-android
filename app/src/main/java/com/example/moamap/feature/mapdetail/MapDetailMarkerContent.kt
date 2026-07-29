@@ -1,6 +1,5 @@
 package com.example.moamap.feature.mapdetail
 
-import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,8 +23,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.compose.foundation.Image
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
+import coil3.compose.AsyncImage
+import com.example.moamap.R
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 
@@ -37,9 +38,28 @@ private val MarkerElevation = 6.dp
 private val FacepileAvatarSize = 40.dp
 private val FacepileOverlap = 14.dp
 
+/** 사진 자리를 채우는 대체 그림. 로드 전·실패·URL 없음을 한 모양으로 다룬다. */
+@Composable
+private fun AvatarPlaceholder() {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(CircleShape)
+            .background(MoaMapPrimitiveColors.Yellow50),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_photo_camera),
+            contentDescription = null,
+            tint = MoaMapPrimitiveColors.Gray500,
+            modifier = Modifier.size(20.dp),
+        )
+    }
+}
+
 @Composable
 private fun AvatarCircle(
-    @DrawableRes imageRes: Int,
+    photoUrl: String?,
     contentDescription: String?,
     size: Dp,
     ringWidth: Dp,
@@ -52,8 +72,12 @@ private fun AvatarCircle(
             .background(MoaMapPrimitiveColors.White)
             .padding(ringWidth),
     ) {
-        Image(
-            painter = painterResource(imageRes),
+        // 항상 뒤에 깔아 둔다. URL 이 없을 때, 받는 중일 때, 실패했을 때를 한 번에 덮는다.
+        // AsyncImage 는 세 경우 모두 아무것도 그리지 않아, 없으면 흰 원만 남는다.
+        AvatarPlaceholder()
+
+        AsyncImage(
+            model = photoUrl,
             contentDescription = contentDescription,
             contentScale = ContentScale.Crop,
             modifier = Modifier
@@ -74,7 +98,7 @@ internal fun PlacePhotoMarker(
         modifier = modifier.clickable(onClick = onClick),
     ) {
         AvatarCircle(
-            imageRes = marker.thumbnailRes,
+            photoUrl = marker.photoUrl,
             contentDescription = marker.name,
             size = MarkerPhotoSize,
             ringWidth = MarkerRingWidth,
@@ -124,7 +148,7 @@ internal fun PlaceFacepileMarker(
     ) {
         visible.forEachIndexed { index, member ->
             AvatarCircle(
-                imageRes = member.thumbnailRes,
+                photoUrl = member.photoUrl,
                 contentDescription = member.name,
                 size = FacepileAvatarSize,
                 ringWidth = 2.dp,
@@ -161,7 +185,7 @@ internal fun PlaceFacepileMarker(
 @Composable
 private fun PlacePhotoMarkerPreview() {
     MoaMapTheme {
-        PlacePhotoMarker(marker = SamplePlaceMarkers[0], onClick = {})
+        PlacePhotoMarker(marker = PreviewPlaceMarkers[0], onClick = {})
     }
 }
 
@@ -170,7 +194,7 @@ private fun PlacePhotoMarkerPreview() {
 private fun PlaceFacepileMarkerTwoPreview() {
     MoaMapTheme {
         PlaceFacepileMarker(
-            cluster = MarkerCluster(members = SamplePlaceMarkers),
+            cluster = MarkerCluster(members = PreviewPlaceMarkers),
             onClick = {},
         )
     }
@@ -182,7 +206,7 @@ private fun PlaceFacepileMarkerOverflowPreview() {
     MoaMapTheme {
         PlaceFacepileMarker(
             cluster = MarkerCluster(
-                members = SamplePlaceMarkers + SamplePlaceMarkers.map { marker ->
+                members = PreviewPlaceMarkers + PreviewPlaceMarkers.map { marker ->
                     marker.copy(placeId = marker.placeId + 10L)
                 },
             ),

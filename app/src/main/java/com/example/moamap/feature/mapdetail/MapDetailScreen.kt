@@ -94,8 +94,6 @@ fun MapDetailScreen(
         setCameraOptions {
             center(MapDetailCenter)
             zoom(MapDetailDefaultZoom)
-            bearing(MapDetailBearing)
-            pitch(MapDetailPitch)
         }
     }
     val onMarkerClick: (Long) -> Unit = remember {
@@ -103,12 +101,12 @@ fun MapDetailScreen(
     }
     val onClusterClick: (MarkerCluster) -> Unit = remember(mapViewportState) {
         { cluster ->
+            // 중심과 줌만 건드린다. 여기서 pitch 를 걸면 2D 로 보던 사람이 클러스터를
+            // 누를 때마다 지도가 기울어진다.
             mapViewportState.easeTo(
                 cameraOptions {
                     center(cluster.anchorPoint())
                     zoom((mapViewportState.cameraState?.zoom ?: MapDetailDefaultZoom) + 1.5)
-                    bearing(MapDetailBearing)
-                    pitch(MapDetailPitch)
                 },
                 MapAnimationOptions.mapAnimationOptions { duration(600L) },
             )
@@ -155,7 +153,7 @@ fun MapDetailScreen(
             mapContent = {
                 MapDetailMap(
                     mapViewportState = mapViewportState,
-                    markers = SamplePlaceMarkers,
+                    markers = screenState.places.map { place -> place.toPlaceMarker() },
                     is3d = is3d,
                     onMarkerClick = onMarkerClick,
                     onClusterClick = onClusterClick,

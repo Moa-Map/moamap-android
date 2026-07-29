@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.moamap.core.navigation.MoaMapRoute
 import com.example.moamap.feature.mapdetail.domain.model.MapDetailAction
+import com.example.moamap.feature.mapdetail.domain.model.MapPlace
 import com.example.moamap.feature.mapdetail.domain.model.leavingDeletesMap
 import com.example.moamap.feature.mapdetail.domain.model.roleBadge
 import com.example.moamap.feature.mapdetail.domain.model.topBarAction
@@ -14,6 +15,8 @@ import com.example.moamap.feature.mapdetail.domain.repository.MapDetailRepositor
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -26,12 +29,14 @@ private const val TAG = "MapDetailViewModel"
 /**
  * 지도 상세 화면 상태.
  *
- * 장소 목록·마커·로그는 아직 목데이터라 여기에 담기지 않는다. 서버에서 받아오는 건
- * 지도 한 건([map])과 참여·나가기 진행 상황뿐이다.
+ * 바텀시트 목록과 로그는 아직 목데이터다. 서버에서 받아오는 건 지도 한 건([map]),
+ * 마커로 그릴 장소([places]), 참여·나가기 진행 상황이다.
  */
 @Immutable
 data class MapDetailScreenState(
     val map: MapLoadState = MapLoadState.Loading,
+    /** 지도 위 마커로 그릴 장소. 조회에 실패하면 비어 있다. */
+    val places: List<MapPlace> = emptyList(),
     /** 참여·나가기 요청이 진행 중. 버튼을 두 번 누르지 못하게 막는다. */
     val actionInProgress: Boolean = false,
     /** 한 번 보여주고 지우는 실패 안내. */
@@ -131,12 +136,18 @@ class MapDetailViewModel @Inject constructor(
     }
 
     /**
-     * 조회 결과를 [MapDetailScreenState.map] 에만 얹는다.
+     * 조회 결과를 [MapDetailScreenState.map] 과 [MapDetailScreenState.places] 에만 얹는다.
      *
      * 상태 전체를 갈아끼우면 조회가 도는 동안 일어난 변경이 되돌아간다. 예를 들어 이미
      * 지워진 [MapDetailScreenState.errorMessage] 가 되살아나 스낵바가 다시 뜬다.
+     *
+     * 지도와 장소는 서로를 기다릴 이유가 없어 나란히 부른다. 한쪽이 실패해도 다른 쪽은
+     * 살린다 - 마커가 없다고 화면을 못 열거나, 지도를 못 읽었다고 받아 둔 마커를 버리는
+     * 건 둘 다 손해다.
      */
-    private suspend fun loadMap() {
+    private suspend fun loadMap() = coroutineScope {
+        val placesDeferred = async { loadPlaces() }
+
         val mapState = try {
             MapLoadState.Success(repository.getMapDetail(mapId))
         } catch (e: CancellationException) {
@@ -145,7 +156,21 @@ class MapDetailViewModel @Inject constructor(
             Log.w(TAG, "지도 상세 조회 실패 (mapId=$mapId)", e)
             MapLoadState.Error(e.toUserMessage(MAP_LOAD_FAILED_MESSAGE))
         }
-        _uiState.update { state -> state.copy(map = mapState) }
+
+        val places = placesDeferred.await()
+        _uiState.update { state ->
+            state.copy(map = mapState, places = places ?: state.places)
+        }
+    }
+
+    /** 실패를 삼키고 null 을 돌려준다. 호출부가 직전 목록을 그대로 둘 수 있게 한다. */
+    private suspend fun loadPlaces(): List<MapPlace>? = try {
+        repository.getPlaces(mapId)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.w(TAG, "지도 장소 조회 실패 (mapId=$mapId)", e)
+        null
     }
 
     /** 진행 중이면 무시하고, 아니면 잠근 채 [block] 을 돌린다. */
