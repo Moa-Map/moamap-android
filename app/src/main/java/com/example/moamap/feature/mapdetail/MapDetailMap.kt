@@ -1,5 +1,6 @@
 package com.example.moamap.feature.mapdetail
 
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -29,6 +30,14 @@ import kotlin.math.floor
  */
 private const val ClusterZoomStep = 0.25
 
+/**
+ * 경계를 다시 계산하는 좌표 간격(도).
+ *
+ * 줌과 같은 이유로 양자화한다. 약 100m 로, 컬링 마진([ViewportCullMargin])이 이보다
+ * 훨씬 넓어 잘린 마커가 튀어나오지 않는다.
+ */
+private const val CenterStep = 0.001
+
 @Composable
 internal fun MapDetailMap(
     mapViewportState: MapViewportState,
@@ -38,52 +47,78 @@ internal fun MapDetailMap(
     onClusterClick: (MarkerCluster) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // derivedStateOf 로 감싸야 zoom 이 바뀔 때마다가 아니라 클러스터 결과가 실제로
-    // 달라질 때만 이 컴포저블이 리컴포지션된다. cameraState 를 바디에서 직접 읽으면
-    // 팬/줌/회전 매 프레임마다 리컴포지션된다.
-    val clusters by remember(markers) {
-        derivedStateOf {
-            val rawZoom = mapViewportState.cameraState?.zoom ?: MapDetailDefaultZoom
-            val clusterZoom = floor(rawZoom / ClusterZoomStep) * ClusterZoomStep
-            clusterMarkers(markers, clusterZoom)
+    BoxWithConstraints(modifier = modifier) {
+        val widthDp = maxWidth.value.toDouble()
+        val heightDp = maxHeight.value.toDouble()
+
+        // derivedStateOf 로 감싸야 카메라가 바뀔 때마다가 아니라 결과가 실제로 달라질 때만
+        // 이 컴포저블이 리컴포지션된다. cameraState 를 바디에서 직접 읽으면 팬/줌/회전 매
+        // 프레임마다 리컴포지션된다.
+        val clusters by remember(markers, widthDp, heightDp) {
+            derivedStateOf {
+                val camera = mapViewportState.cameraState
+                val rawZoom = camera?.zoom ?: MapDetailDefaultZoom
+                val zoom = floor(rawZoom / ClusterZoomStep) * ClusterZoomStep
+
+                val center = camera?.center
+                val visible = if (center == null) {
+                    markers
+                } else {
+                    cullToViewport(
+                        markers = markers,
+                        bounds = viewportBounds(
+                            centerLongitude = floor(center.longitude() / CenterStep) * CenterStep,
+                            centerLatitude = floor(center.latitude() / CenterStep) * CenterStep,
+                            zoom = zoom,
+                            widthDp = widthDp,
+                            heightDp = heightDp,
+                        ),
+                    )
+                }
+
+                clusterMarkers(visible, zoom)
+            }
         }
-    }
 
-    val standardStyleState = rememberStandardStyleState {
-        configurationsState.lightPreset = LightPresetValue.DAY
-        configurationsState.show3dObjects = BooleanValue(is3d)
-    }
-    LaunchedEffect(is3d) {
-        standardStyleState.configurationsState.show3dObjects = BooleanValue(is3d)
-    }
+        val standardStyleState = rememberStandardStyleState {
+            configurationsState.lightPreset = LightPresetValue.DAY
+            configurationsState.show3dObjects = BooleanValue(is3d)
+        }
+        LaunchedEffect(is3d) {
+            standardStyleState.configurationsState.show3dObjects = BooleanValue(is3d)
+        }
 
-    MapboxMap(
-        modifier = modifier,
-        mapViewportState = mapViewportState,
-        style = {
-            MapboxStandardStyle(standardStyleState = standardStyleState)
-        },
-    ) {
-        clusters.forEach { cluster ->
-            key(cluster.id) {
-                ViewAnnotation(
-                    options = viewAnnotationOptions {
-                        geometry(cluster.anchorPoint())
-                        allowOverlap(true)
-                        annotationAnchor { anchor(ViewAnnotationAnchor.BOTTOM) }
-                    },
-                ) {
-                    if (cluster.isSingle) {
-                        val marker = cluster.members.first()
-                        PlacePhotoMarker(
-                            marker = marker,
-                            onClick = { onMarkerClick(marker.placeId) },
-                        )
-                    } else {
-                        PlaceFacepileMarker(
-                            cluster = cluster,
-                            onClick = { onClusterClick(cluster) },
-                        )
+        MapboxMap(
+            modifier = Modifier.matchParentSize(),
+            mapViewportState = mapViewportState,
+            // 축척과 나침반을 띄우지 않는다. 로고와 저작권 표시는 약관상 남긴다.
+            compass = {},
+            scaleBar = {},
+            style = {
+                MapboxStandardStyle(standardStyleState = standardStyleState)
+            },
+        ) {
+            clusters.forEach { cluster ->
+                key(cluster.id) {
+                    ViewAnnotation(
+                        options = viewAnnotationOptions {
+                            geometry(cluster.anchorPoint())
+                            allowOverlap(true)
+                            annotationAnchor { anchor(ViewAnnotationAnchor.BOTTOM) }
+                        },
+                    ) {
+                        if (cluster.isSingle) {
+                            val marker = cluster.members.first()
+                            PlacePhotoMarker(
+                                marker = marker,
+                                onClick = { onMarkerClick(marker.placeId) },
+                            )
+                        } else {
+                            PlaceFacepileMarker(
+                                cluster = cluster,
+                                onClick = { onClusterClick(cluster) },
+                            )
+                        }
                     }
                 }
             }

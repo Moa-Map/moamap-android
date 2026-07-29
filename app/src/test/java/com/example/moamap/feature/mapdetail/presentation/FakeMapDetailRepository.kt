@@ -48,6 +48,7 @@ internal open class FakeMapDetailRepository(
     private val responseDelayMillis: Long = 0L,
     var map: () -> MapDetail = { testMap() },
     var places: () -> MapPlacePreview = { MapPlacePreview() },
+    var allPlaces: () -> List<MapPlace> = { emptyList() },
 ) : MapDetailRepository {
 
     val calls = mutableListOf<String>()
@@ -62,6 +63,12 @@ internal open class FakeMapDetailRepository(
         calls += "getPlacePreview($visibleCount)"
         delay(responseDelayMillis)
         return places()
+    }
+
+    override suspend fun getPlaces(mapId: Long): List<MapPlace> {
+        calls += "getPlaces"
+        delay(responseDelayMillis)
+        return allPlaces()
     }
 
     override suspend fun joinMap(mapId: Long) {

@@ -41,15 +41,17 @@ class MapDetailViewModelTest {
     )
 
     @Test
-    fun `열면 지도를 한 번 읽는다`() = runTest {
+    fun `열면 지도와 장소를 한 번씩 읽는다`() = runTest {
         val repository = FakeMapDetailRepository(
             map = { testMap(joined = true, role = MapRole.Member, placeCount = 32) },
+            allPlaces = { listOf(testPlace(1L), testPlace(2L)) },
         )
 
         val viewModel = viewModel(repository)
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(listOf("getMapDetail"), repository.calls)
+        assertEquals(listOf("getMapDetail", "getPlaces"), repository.calls)
+        assertEquals(listOf(1L, 2L), viewModel.uiState.value.places.map { place -> place.id })
         assertEquals("지도1", viewModel.uiState.value.title)
         assertEquals("멤버", viewModel.uiState.value.roleBadge)
         assertEquals(MapDetailAction.Leave, viewModel.uiState.value.action)
@@ -90,7 +92,10 @@ class MapDetailViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         // 참여 뒤에는 역할과 인원이 함께 바뀌므로 상세를 다시 읽는다.
-        assertEquals(listOf("getMapDetail", "joinMap", "getMapDetail"), repository.calls)
+        assertEquals(
+            listOf("getMapDetail", "getPlaces", "joinMap", "getMapDetail", "getPlaces"),
+            repository.calls,
+        )
         assertEquals(MapDetailAction.Leave, viewModel.uiState.value.action)
         assertTrue(viewModel.uiState.value.canAddPlace)
         assertFalse(viewModel.uiState.value.left)
@@ -107,7 +112,7 @@ class MapDetailViewModelTest {
         viewModel.leave()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(listOf("getMapDetail", "leaveMap"), repository.calls)
+        assertEquals(listOf("getMapDetail", "getPlaces", "leaveMap"), repository.calls)
         assertTrue(viewModel.uiState.value.left)
     }
 
@@ -130,7 +135,7 @@ class MapDetailViewModelTest {
         viewModel.leave()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(listOf("getMapDetail", "deleteMap"), repository.calls)
+        assertEquals(listOf("getMapDetail", "getPlaces", "deleteMap"), repository.calls)
         assertTrue(viewModel.uiState.value.left)
     }
 
@@ -178,7 +183,7 @@ class MapDetailViewModelTest {
         viewModel.leave()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(listOf("getMapDetail"), repository.calls)
+        assertEquals(listOf("getMapDetail", "getPlaces"), repository.calls)
         assertFalse(viewModel.uiState.value.left)
     }
 
@@ -237,5 +242,40 @@ class MapDetailViewModelTest {
 
         assertNotNull(viewModel.uiState.value.errorMessage)
         assertFalse(viewModel.uiState.value.left)
+    }
+
+    @Test
+    fun `장소 조회가 실패해도 지도는 뜬다`() = runTest {
+        val repository = FakeMapDetailRepository(
+            map = { testMap(joined = true, role = MapRole.Member) },
+            allPlaces = { error("장소 조회 실패") },
+        )
+
+        val viewModel = viewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        // 마커 한 겹 때문에 화면 전체를 못 여는 게 더 나쁘다.
+        assertTrue(viewModel.uiState.value.map is MapLoadState.Success)
+        assertNull(viewModel.uiState.value.errorMessage)
+        assertTrue(viewModel.uiState.value.places.isEmpty())
+    }
+
+    @Test
+    fun `지도 조회가 실패해도 받아 둔 장소는 남는다`() = runTest {
+        var failMap = false
+        val repository = FakeMapDetailRepository(
+            map = { if (failMap) error("지도 조회 실패") else testMap(joined = true) },
+            allPlaces = { listOf(testPlace(1L)) },
+        )
+
+        val viewModel = viewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        failMap = true
+        viewModel.retry()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.map is MapLoadState.Error)
+        assertEquals(1, viewModel.uiState.value.places.size)
     }
 }

@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.moamap.feature.collection.data.remote.MapService
 import com.example.moamap.feature.explore.data.remote.PlaceService
 import com.example.moamap.feature.mapdetail.domain.model.MapDetail
+import com.example.moamap.feature.mapdetail.domain.model.MapPlace
 import com.example.moamap.feature.mapdetail.domain.model.MapPlacePreview
 import com.example.moamap.feature.mapdetail.domain.repository.MapDetailRepository
 import com.example.moamap.feature.mypage.data.remote.UserService
@@ -42,6 +43,10 @@ class MapDetailRepositoryImpl @Inject constructor(
             hasMore = places.size > visibleCount,
         )
     }
+
+    override suspend fun getPlaces(mapId: Long): List<MapPlace> = collectAllPages { page ->
+        placeService.getPlaces(mapId = mapId, page = page, size = PLACE_PAGE_SIZE)
+    }.map { dto -> dto.toMapPlace() }
 
     override suspend fun joinMap(mapId: Long) {
         mapService.joinMap(mapId)

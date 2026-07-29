@@ -3,6 +3,8 @@ package com.example.moamap.feature.mapdetail
 import androidx.compose.runtime.Immutable
 import com.mapbox.geojson.Point
 import kotlin.math.PI
+import kotlin.math.atan
+import kotlin.math.exp
 import kotlin.math.hypot
 import kotlin.math.ln
 import kotlin.math.pow
@@ -27,6 +29,16 @@ internal fun worldPixelY(latitude: Double, zoom: Double): Double {
     val radians = clamped * PI / 180.0
     val mercator = ln(tan(PI / 4.0 + radians / 2.0))
     return (1.0 - mercator / PI) / 2.0 * TileSizeDp * 2.0.pow(zoom)
+}
+
+/** [worldPixelX] 의 역. 화면 모서리 픽셀을 경도로 되돌릴 때 쓴다. */
+internal fun longitudeAtWorldPixelX(x: Double, zoom: Double): Double =
+    x / (TileSizeDp * 2.0.pow(zoom)) * 360.0 - 180.0
+
+/** [worldPixelY] 의 역. 화면 모서리 픽셀을 위도로 되돌릴 때 쓴다. */
+internal fun latitudeAtWorldPixelY(y: Double, zoom: Double): Double {
+    val mercator = (1.0 - 2.0 * y / (TileSizeDp * 2.0.pow(zoom))) * PI
+    return (2.0 * atan(exp(mercator)) - PI / 2.0) * 180.0 / PI
 }
 
 /** 두 마커가 화면에서 얼마나 떨어져 보이는지(dp). */
