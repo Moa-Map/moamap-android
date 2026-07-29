@@ -56,9 +56,16 @@ class ExploreViewModel @Inject constructor(
         const val LOAD_FAILED_MESSAGE = "지도 목록을 불러오지 못했어요"
     }
 
-    init {
-        load()
-    }
+    /**
+     * 화면이 보일 때 목록을 읽는다. 첫 조회도 이 경로가 겸한다.
+     *
+     * 지도에 참여하거나 나가고 돌아오는 경로가 여기다. 탭 전환이 상태를 복원하므로 이
+     * ViewModel 은 살아남고, 다시 읽지 않으면 카드의 참여 여부가 낡아 진입 분기가 틀어진다.
+     *
+     * `init` 에서 첫 조회를 하지 않는 이유는, 화면이 처음 뜰 때 이 함수도 함께 불려
+     * 같은 요청이 두 번 나가기 때문이다.
+     */
+    fun refresh() = load(keepCurrent = _uiState.value.communityMaps is CommunityMapsState.Success)
 
     fun retry() = load()
 
@@ -74,12 +81,18 @@ class ExploreViewModel @Inject constructor(
         load()
     }
 
-    private fun load() {
+    /**
+     * @param keepCurrent true 면 보고 있던 목록을 지우지 않는다. 돌아올 때마다 목록이
+     *  사라졌다 나타나면 화면이 깜빡인다.
+     */
+    private fun load(keepCurrent: Boolean = false) {
         val (category, sort) = _uiState.value.let { it.selectedCategory to it.sort }
         val tag = category.takeIf { it != ALL_CATEGORY }
 
         loadJob?.cancel()
-        _uiState.update { it.copy(communityMaps = CommunityMapsState.Loading) }
+        if (!keepCurrent) {
+            _uiState.update { it.copy(communityMaps = CommunityMapsState.Loading) }
+        }
         loadJob = viewModelScope.launch {
             try {
                 val maps = repository.getCommunityMaps(tag = tag, sort = sort)
@@ -91,6 +104,8 @@ class ExploreViewModel @Inject constructor(
                 // 예외 메시지는 그대로 노출하지 않는다. ApiException 은 "[500] COMMON_005: ..."
                 // 처럼 사용자에게 보여줄 수 없는 형태다.
                 Log.w(TAG, "커뮤니티 지도 목록 조회 실패 (tag=$tag, sort=$sort)", e)
+                // 새로고침이 실패했는데 이미 보여줄 목록이 있으면 지우지 않는다.
+                if (keepCurrent) return@launch
                 _uiState.update {
                     it.copy(communityMaps = CommunityMapsState.Error(LOAD_FAILED_MESSAGE))
                 }

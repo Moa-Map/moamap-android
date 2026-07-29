@@ -39,6 +39,7 @@ data class MapSummaryDto(
     val type: String? = null,
     val tags: List<String> = emptyList(),
     val memberCount: Int = 0,
+    val placeCount: Int = 0,
     val joined: Boolean = false,
 )
 
@@ -54,6 +55,7 @@ data class MapDetailDto(
     val ownerId: Long = 0,
     val tags: List<String> = emptyList(),
     val memberCount: Int = 0,
+    val placeCount: Int = 0,
     val joined: Boolean = false,
     // OWNER, ADMIN, MEMBER, NONE
     val myRole: String? = null,

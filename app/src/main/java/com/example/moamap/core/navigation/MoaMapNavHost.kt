@@ -20,6 +20,7 @@ import com.example.moamap.feature.collection.CollectionScreen
 import com.example.moamap.feature.collection.presentation.createmap.CreateMapScreen
 import com.example.moamap.feature.explore.ExploreScreen
 import com.example.moamap.feature.mapdetail.MapDetailScreen
+import com.example.moamap.feature.mapdetail.presentation.intro.MapIntroScreen
 import com.example.moamap.feature.mypage.ProfileEditScreen
 import com.example.moamap.feature.mypage.SettingsScreen
 import com.example.moamap.feature.officialmap.OfficialMapScreen
@@ -67,13 +68,17 @@ fun MoaMapNavHost(
                     onOfficialMapClick = {
                         navController.navigate(MoaMapRoute.OfficialMap.route)
                     },
+                    // 참여 중인 지도는 소개를 다시 볼 이유가 없다. 바로 상세로 보낸다.
                     onCommunityMapClick = { map ->
-                        navController.navigate(
+                        val route = if (map.joined) {
                             MoaMapRoute.MapDetail.createRoute(
                                 mapId = map.id,
                                 mapTitle = map.title,
                             )
-                        )
+                        } else {
+                            MoaMapRoute.MapIntro.createRoute(mapId = map.id)
+                        }
+                        navController.navigate(route)
                     },
                 )
             }
@@ -116,17 +121,43 @@ fun MoaMapNavHost(
                 DensityMapDetailScreen(onBackClick = navController::popBackStack)
             }
             composable(
+                route = MoaMapRoute.MapIntro.route,
+                arguments = listOf(
+                    navArgument(MoaMapRoute.MapIntro.ARG_MAP_ID) { type = NavType.LongType },
+                ),
+            ) { backStackEntry ->
+                val mapId = backStackEntry.arguments
+                    ?.getLong(MoaMapRoute.MapIntro.ARG_MAP_ID) ?: 0L
+
+                MapIntroScreen(
+                    onBackClick = navController::popBackStack,
+                    // 미리보기는 소개 화면을 백스택에 남긴다. 뒤로가면 다시 소개로 돌아온다.
+                    onPreviewClick = {
+                        navController.navigate(MoaMapRoute.MapDetail.createRoute(mapId))
+                    },
+                    // 참여하고 나면 소개 화면은 볼 일이 없다. 뒤로가기가 탐색 탭으로 가게 지운다.
+                    onJoined = {
+                        navController.navigate(MoaMapRoute.MapDetail.createRoute(mapId)) {
+                            popUpTo(MoaMapRoute.MapIntro.route) { inclusive = true }
+                        }
+                    },
+                )
+            }
+            composable(
                 route = MoaMapRoute.MapDetail.route,
                 arguments = listOf(
                     navArgument(MoaMapRoute.MapDetail.ARG_MAP_ID) { type = NavType.LongType },
-                    navArgument(MoaMapRoute.MapDetail.ARG_MAP_TITLE) { type = NavType.StringType },
+                    navArgument(MoaMapRoute.MapDetail.ARG_MAP_TITLE) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
                 ),
             ) { backStackEntry ->
                 MapDetailScreen(
-                    mapTitle = backStackEntry.arguments
+                    onBackClick = navController::popBackStack,
+                    initialTitle = backStackEntry.arguments
                         ?.getString(MoaMapRoute.MapDetail.ARG_MAP_TITLE)
                         .orEmpty(),
-                    onBackClick = navController::popBackStack,
                 )
             }
             composable(MoaMapRoute.ProfileEdit.route) {
