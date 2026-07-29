@@ -4,6 +4,7 @@ import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,14 +16,18 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -38,7 +43,16 @@ import com.example.moamap.feature.collection.domain.model.ImportedPlace
 
 internal val PlaceImportCardShape = RoundedCornerShape(12.dp)
 internal val PlaceImportButtonShape = RoundedCornerShape(8.dp)
-private val SelectedPlaceCardShape = RoundedCornerShape(16.dp)
+private val SelectedPlacesCardShape = RoundedCornerShape(12.dp)
+
+/** 고른 장소 카드의 안쪽 여백과 장소 사이 간격. */
+private val SelectedPlacesCardPadding = 16.dp
+private val SelectedPlacesRowSpacing = 12.dp
+
+private val ExpandIconSize = 14.dp
+
+/** 편집하기 글자 위아래로 더 두는 터치 여백. */
+private val EditLinkTouchPadding = 12.dp
 
 private val CheckBoxSize = 20.dp
 private val CheckBoxShape = RoundedCornerShape(4.dp)
@@ -205,7 +219,7 @@ internal fun selectedCardBorder(selected: Boolean): BorderStroke? =
     if (selected) BorderStroke(width = 1.dp, color = MoaMapTheme.colors.primary) else null
 
 /**
- * 지도 선택용 체크박스.
+ * 장소와 지도 선택에 함께 쓰는 체크박스.
  *
  * 선택 시 파랑으로 채우고 흰 체크를, 선택 전에는 회색 테두리만 보여준다.
  */
@@ -245,7 +259,7 @@ internal fun PlaceImportCheckBox(
 /**
  * 추출된 장소 후보 카드.
  *
- * 선택 표시는 파란 테두리뿐이다. 장소는 하나만 고를 수 있어 체크박스를 두지 않는다.
+ * 장소를 여러 개 고를 수 있어 지도 카드와 같이 파란 테두리 + 체크박스로 표시한다.
  */
 @Composable
 internal fun ImportedPlaceCard(
@@ -272,40 +286,165 @@ internal fun ImportedPlaceCard(
                 address = place.address,
                 modifier = Modifier.weight(1f),
             )
+            PlaceImportCheckBox(checked = selected)
         }
     }
 }
 
-/** 지도 선택 화면 상단에 고정되는, 앞 단계에서 고른 장소 카드. */
+/**
+ * 편집 단계에 나열되는 장소 카드.
+ *
+ * 이미 고른 장소를 다시 보여주는 것이라 카드 자체는 눌리지 않고 편집하기만 눌린다.
+ */
 @Composable
-internal fun SelectedPlaceCard(
+internal fun EditablePlaceCard(
     place: ImportedPlace,
+    onEditClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     ShadowedSurface(
         modifier = modifier.fillMaxWidth(),
-        shape = SelectedPlaceCardShape,
-        color = MoaMapPrimitiveColors.Yellow50,
-        // 이 카드만 그림자가 8% 다.
-        shadowColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.08f),
-        border = BorderStroke(width = 1.dp, color = MoaMapPrimitiveColors.Yellow500),
+        shape = PlaceImportCardShape,
+        color = MoaMapPrimitiveColors.White,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PlaceThumbnail(
-                cornerRadius = 12.dp,
-                backgroundColor = MoaMapPrimitiveColors.Blue50,
-                borderColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.2f),
-            )
+            PlaceThumbnail(cornerRadius = 4.dp)
             PlaceLabels(
                 name = place.name,
                 address = place.address,
                 modifier = Modifier.weight(1f),
             )
+            Text(
+                text = "편집하기",
+                style = MoaMapTheme.typography.button4,
+                color = MoaMapTheme.colors.statusAlert,
+                textDecoration = TextDecoration.Underline,
+                maxLines = 1,
+                modifier = Modifier
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = onEditClick,
+                    )
+                    .padding(vertical = EditLinkTouchPadding),
+            )
         }
+    }
+}
+
+/**
+ * 지도 선택 화면 상단에 고정되는, 앞 단계에서 고른 장소 카드.
+ *
+ * 장소를 여러 개 고를 수 있어 접었을 때는 첫 장소만 보여주고 나머지는 개수로 알린다.
+ * 펼치면 고른 장소를 모두 나열한다. 하나만 골랐으면 펼칠 것이 없어 토글을 내보내지 않는다.
+ */
+@Composable
+internal fun SelectedPlacesCard(
+    places: List<ImportedPlace>,
+    expanded: Boolean,
+    onToggleExpand: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val first = places.firstOrNull() ?: return
+    val rest = places.drop(1)
+
+    ShadowedSurface(
+        modifier = modifier.fillMaxWidth(),
+        shape = SelectedPlacesCardShape,
+        color = MoaMapPrimitiveColors.Yellow50,
+        // 이 카드만 그림자가 8% 다.
+        shadowColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.08f),
+        border = BorderStroke(width = 1.dp, color = MoaMapPrimitiveColors.Yellow500),
+    ) {
+        Column(
+            modifier = Modifier
+                .then(
+                    if (rest.isEmpty()) {
+                        Modifier
+                    } else {
+                        Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = onToggleExpand,
+                        )
+                    },
+                )
+                .padding(
+                horizontal = SelectedPlacesCardPadding,
+                // 펼치면 구분선 위아래 간격이 붙어 위아래 여백을 그만큼 줄인다.
+                vertical = if (expanded) SelectedPlacesRowSpacing else SelectedPlacesCardPadding,
+            ),
+            verticalArrangement = Arrangement.spacedBy(SelectedPlacesRowSpacing),
+        ) {
+            SelectedPlaceRow(place = first) {
+                if (rest.isNotEmpty()) {
+                    SelectedPlacesToggle(expanded = expanded, remainingCount = rest.size)
+                }
+            }
+
+            if (expanded) {
+                rest.forEach { place ->
+                    HorizontalDivider(
+                        thickness = 1.dp,
+                        color = MoaMapPrimitiveColors.Yellow200,
+                    )
+                    SelectedPlaceRow(place = place)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SelectedPlaceRow(
+    place: ImportedPlace,
+    modifier: Modifier = Modifier,
+    trailingContent: @Composable () -> Unit = {},
+) {
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        PlaceThumbnail(
+            cornerRadius = 4.dp,
+            backgroundColor = MoaMapPrimitiveColors.Blue50,
+            borderColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.2f),
+        )
+        PlaceLabels(
+            name = place.name,
+            address = place.address,
+            modifier = Modifier.weight(1f),
+        )
+        trailingContent()
+    }
+}
+
+/** 첫 장소 오른쪽에 붙는 `외 n개의 장소` 접기/펼치기. */
+@Composable
+private fun SelectedPlacesToggle(
+    expanded: Boolean,
+    remainingCount: Int,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(
+            text = "외 ${remainingCount}개의 장소",
+            style = MoaMapTheme.typography.caption0,
+            color = MoaMapTheme.colors.textAssistive,
+            maxLines = 1,
+        )
+        Icon(
+            painter = painterResource(R.drawable.ic_arrow_right),
+            contentDescription = if (expanded) "고른 장소 접기" else "고른 장소 모두 보기",
+            tint = MoaMapTheme.colors.textAssistive,
+            modifier = Modifier
+                .size(ExpandIconSize)
+                .rotate(if (expanded) -90f else 90f),
+        )
     }
 }
 

@@ -50,7 +50,7 @@ internal class PlaceImportViewModel @Inject constructor(
      * 재시도는 이미 목록을 보고 있는 상태에서 시작하므로, 취소하면 보던 목록으로 돌아가야 한다.
      * 그냥 비워버리면 취소한 사용자가 결과를 잃고 URL 입력부터 다시 해야 한다.
      */
-    private var previousResult: Pair<ExtractionState.Success, String?>? = null
+    private var previousResult: Pair<ExtractionState.Success, Set<String>>? = null
 
     fun updateUrl(url: String) {
         _uiState.update { state -> state.copy(url = url) }
@@ -63,12 +63,12 @@ internal class PlaceImportViewModel @Inject constructor(
 
         extractionJob?.cancel()
         previousResult = (current.extraction as? ExtractionState.Success)
-            ?.let { success -> success to current.selectedPlaceId }
+            ?.let { success -> success to current.selectedPlaceIds }
 
         _uiState.update { state ->
             state.copy(
                 extraction = ExtractionState.Loading,
-                selectedPlaceId = null,
+                selectedPlaceIds = emptySet(),
                 errorMessage = null,
             )
         }
@@ -110,7 +110,7 @@ internal class PlaceImportViewModel @Inject constructor(
             if (restored == null) {
                 state.copy(extraction = ExtractionState.Idle)
             } else {
-                state.copy(extraction = restored.first, selectedPlaceId = restored.second)
+                state.copy(extraction = restored.first, selectedPlaceIds = restored.second)
             }
         }
     }
@@ -127,7 +127,7 @@ internal class PlaceImportViewModel @Inject constructor(
         _uiState.update { state ->
             state.copy(
                 extraction = restored?.first ?: ExtractionState.Idle,
-                selectedPlaceId = restored?.second,
+                selectedPlaceIds = restored?.second.orEmpty(),
                 errorMessage = message,
             )
         }
@@ -138,9 +138,16 @@ internal class PlaceImportViewModel @Inject constructor(
         _uiState.update { state -> state.copy(errorMessage = null) }
     }
 
-    /** 장소는 하나만 고른다. */
-    fun selectPlace(placeId: String) {
-        _uiState.update { state -> state.copy(selectedPlaceId = placeId) }
+    /** 한 링크에서 나온 장소를 여러 개 가져갈 수 있으므로 장소도 토글이다. */
+    fun togglePlace(placeId: String) {
+        _uiState.update { state ->
+            val selected = if (placeId in state.selectedPlaceIds) {
+                state.selectedPlaceIds - placeId
+            } else {
+                state.selectedPlaceIds + placeId
+            }
+            state.copy(selectedPlaceIds = selected)
+        }
     }
 
     /** 한 장소를 여러 지도에 넣을 수 있으므로 지도는 토글이다. */

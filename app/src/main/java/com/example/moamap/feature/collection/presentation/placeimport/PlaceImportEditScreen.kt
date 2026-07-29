@@ -17,7 +17,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.example.moamap.core.designsystem.component.ErrorSnackbar
 import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
@@ -25,17 +24,17 @@ import com.example.moamap.feature.collection.domain.model.ImportedPlace
 /** 하단 버튼에 마지막 카드가 가리지 않도록 확보하는 여백. */
 private val BottomBarClearance = 88.dp
 
+/**
+ * 앞 단계에서 고른 장소의 정보를 고칠 기회를 주는 화면.
+ *
+ * 편집은 선택 사항이라 아무것도 고치지 않고 그대로 넘어갈 수 있다.
+ */
 @Composable
-internal fun PlaceImportPlaceScreen(
+internal fun PlaceImportEditScreen(
     places: List<ImportedPlace>,
-    selectedPlaceIds: Set<String>,
-    canProceed: Boolean,
-    errorMessage: String?,
     onBackClick: () -> Unit,
-    onPlaceClick: (String) -> Unit,
-    onRetryClick: () -> Unit,
+    onEditClick: (String) -> Unit,
     onNextClick: () -> Unit,
-    onErrorShown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -56,18 +55,17 @@ internal fun PlaceImportPlaceScreen(
                 Spacer(Modifier.height(PlaceImportContentTopSpacing))
 
                 PlaceImportHeader(
-                    title = "이 장소가 맞나요?",
-                    description = "영상에서 ${places.size}곳을 찾았어요!\n맞는 곳을 골라주세요.",
+                    title = "장소를 편집하시겠어요?",
+                    description = "정보를 수정할 장소를 편집해보세요",
                 )
 
                 Spacer(Modifier.height(PlaceImportSectionSpacing))
 
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     places.forEach { place ->
-                        ImportedPlaceCard(
+                        EditablePlaceCard(
                             place = place,
-                            selected = place.id in selectedPlaceIds,
-                            onClick = { onPlaceClick(place.id) },
+                            onEditClick = { onEditClick(place.id) },
                         )
                     }
                 }
@@ -76,24 +74,13 @@ internal fun PlaceImportPlaceScreen(
             }
         }
 
-        // 안내가 버튼에 가리지 않도록 버튼 위에 쌓는다.
-        Column(modifier = Modifier.align(Alignment.BottomCenter)) {
-            ErrorSnackbar(
-                message = errorMessage,
-                onShown = onErrorShown,
+        PlaceImportBottomBar(modifier = Modifier.align(Alignment.BottomCenter)) {
+            PlaceImportPrimaryButton(
+                text = "다음으로",
+                enabled = true,
+                onClick = onNextClick,
+                modifier = Modifier.weight(1f),
             )
-            PlaceImportBottomBar {
-                PlaceImportSecondaryButton(
-                    text = "재시도",
-                    onClick = onRetryClick,
-                )
-                PlaceImportPrimaryButton(
-                    text = "다음으로",
-                    enabled = canProceed,
-                    onClick = onNextClick,
-                    modifier = Modifier.weight(1f),
-                )
-            }
         }
     }
 }
@@ -106,18 +93,13 @@ private val PreviewPlaces = listOf(
 
 @Preview(showBackground = true, widthDp = 393, heightDp = 852)
 @Composable
-private fun PlaceImportPlaceScreenPreview() {
+private fun PlaceImportEditScreenPreview() {
     MoaMapTheme {
-        PlaceImportPlaceScreen(
+        PlaceImportEditScreen(
             places = PreviewPlaces,
-            selectedPlaceIds = setOf("1", "3"),
-            canProceed = true,
-            errorMessage = null,
             onBackClick = {},
-            onPlaceClick = {},
-            onRetryClick = {},
+            onEditClick = {},
             onNextClick = {},
-            onErrorShown = {},
         )
     }
 }

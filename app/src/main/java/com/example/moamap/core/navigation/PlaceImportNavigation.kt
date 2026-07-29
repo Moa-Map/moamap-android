@@ -12,6 +12,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import com.example.moamap.feature.collection.presentation.placeimport.ExtractionState
+import com.example.moamap.feature.collection.presentation.placeimport.PlaceImportEditScreen
 import com.example.moamap.feature.collection.presentation.placeimport.PlaceImportLoadingScreen
 import com.example.moamap.feature.collection.presentation.placeimport.PlaceImportMapScreen
 import com.example.moamap.feature.collection.presentation.placeimport.PlaceImportPlaceScreen
@@ -20,9 +21,9 @@ import com.example.moamap.feature.collection.presentation.placeimport.PlaceImpor
 import com.example.moamap.feature.collection.presentation.placeimport.PlaceImportViewModel
 
 /**
- * 인스타그램 URL 로 장소를 가져오는 4단계 흐름.
+ * 링크로 장소를 가져오는 5단계 흐름. URL 입력 → 로딩 → 장소 선택 → 편집 → 지도 선택.
  *
- * 네 화면이 그래프 back stack entry 에 스코프한 [PlaceImportViewModel] 하나를 공유한다.
+ * 다섯 화면이 그래프 back stack entry 에 스코프한 [PlaceImportViewModel] 하나를 공유한다.
  * 흐름을 벗어나면 ViewModel 이 함께 정리되므로 다음에 다시 들어와도 이전 입력이 남지 않는다.
  */
 internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) {
@@ -84,27 +85,47 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
 
             PlaceImportPlaceScreen(
                 places = uiState.places,
-                selectedPlaceId = uiState.selectedPlaceId,
+                selectedPlaceIds = uiState.selectedPlaceIds,
                 canProceed = uiState.canProceed,
                 errorMessage = uiState.errorMessage,
                 onBackClick = navController::popBackStack,
                 onErrorShown = viewModel::consumeError,
-                onPlaceClick = viewModel::selectPlace,
+                onPlaceClick = viewModel::togglePlace,
                 // 장소 화면을 백스택에 남겨둔다. 로딩 중 취소하면 보던 목록으로 돌아와야 한다.
                 onRetryClick = {
                     viewModel.startExtraction()
                     navController.navigate(PlaceImportRoute.LOADING)
                 },
-                onNextClick = { navController.navigate(PlaceImportRoute.MAP) },
+                onNextClick = { navController.navigate(PlaceImportRoute.EDIT) },
             )
+        }
+
+        composable(PlaceImportRoute.EDIT) { entry ->
+            val viewModel = sharedPlaceImportViewModel(navController, entry)
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+            val places = uiState.selectedPlaces
+            if (places.isEmpty()) {
+                LaunchedEffect(Unit) {
+                    navController.popBackStack(PlaceImportRoute.URL, inclusive = false)
+                }
+            } else {
+                PlaceImportEditScreen(
+                    places = places,
+                    onBackClick = navController::popBackStack,
+                    // TODO: 장소 편집 화면은 다음 이슈에서 연결한다.
+                    onEditClick = {},
+                    onNextClick = { navController.navigate(PlaceImportRoute.MAP) },
+                )
+            }
         }
 
         composable(PlaceImportRoute.MAP) { entry ->
             val viewModel = sharedPlaceImportViewModel(navController, entry)
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
-            val place = uiState.selectedPlace
-            if (place == null) {
+            val places = uiState.selectedPlaces
+            if (places.isEmpty()) {
                 // 프로세스가 재생성되면 ViewModel 은 비는데 백스택은 복원되어 이 화면부터 살아날 수 있다.
                 // 고른 장소가 없으면 보여줄 것이 없으므로 흐름의 처음으로 돌려보낸다.
                 LaunchedEffect(Unit) {
@@ -112,7 +133,7 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
                 }
             } else {
                 PlaceImportMapScreen(
-                    place = place,
+                    places = places,
                     maps = uiState.targetMaps,
                     selectedMapIds = uiState.selectedMapIds,
                     canSave = uiState.canSave,

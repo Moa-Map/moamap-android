@@ -28,7 +28,7 @@ internal sealed interface ExtractionState {
 internal data class PlaceImportUiState(
     val url: String = "",
     val extraction: ExtractionState = ExtractionState.Idle,
-    val selectedPlaceId: String? = null,
+    val selectedPlaceIds: Set<String> = emptySet(),
     val targetMaps: List<CollectionMapUiModel> = emptyList(),
     val selectedMapIds: Set<Long> = emptySet(),
     /** 한 번 보여주고 소비하는 실패 안내. 추출 결과와 독립적이다. */
@@ -37,14 +37,20 @@ internal data class PlaceImportUiState(
     val places: List<ImportedPlace>
         get() = (extraction as? ExtractionState.Success)?.places.orEmpty()
 
-    val selectedPlace: ImportedPlace?
-        get() = places.firstOrNull { place -> place.id == selectedPlaceId }
+    /**
+     * 고른 장소들. 고른 순서가 아니라 목록에 나온 순서로 준다.
+     *
+     * 지도 선택 화면이 이 목록을 그대로 나열하므로, 체크한 순서대로 섞이면
+     * 앞 화면에서 보던 배열과 어긋난다. 목록에 없는 id 는 자연히 걸러진다.
+     */
+    val selectedPlaces: List<ImportedPlace>
+        get() = places.filter { place -> place.id in selectedPlaceIds }
 
     /** URL 이 비어 있으면 검색할 것이 없다. */
     val canSearch: Boolean get() = url.isNotBlank()
 
-    /** 장소를 골라야 다음 단계로 넘어갈 수 있다. */
-    val canProceed: Boolean get() = selectedPlace != null
+    /** 장소를 하나 이상 골라야 다음 단계로 넘어갈 수 있다. */
+    val canProceed: Boolean get() = selectedPlaces.isNotEmpty()
 
     /** 지도를 하나도 고르지 않으면 저장할 곳이 없다. */
     val canSave: Boolean get() = selectedMapIds.isNotEmpty()
