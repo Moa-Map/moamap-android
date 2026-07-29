@@ -18,6 +18,8 @@ data class PlaceCreateRequestDto(
     val description: String? = null,
     val mapId: Long,
     val tags: List<String>? = null,
+    /** 서버가 최대 5장으로 제한한다. presigned URL 로 올린 뒤의 접근 주소다. */
+    val photoUrls: List<String>? = null,
 )
 
 /** 서버가 한 번에 받는 장소 수. 이보다 많으면 나눠 보내야 한다. */
@@ -82,6 +84,38 @@ data class PlaceUpdateRequestDto(
     val category: String? = null,
     val description: String? = null,
     val tags: List<String>? = null,
+)
+
+/**
+ * POST api/v1/places/photo-upload-url 요청.
+ *
+ * 발급 권한은 장소 등록 권한과 같아 [mapId] 가 필요하다. 한 번에 최대 5장.
+ */
+@Serializable
+data class PhotoUploadUrlRequestDto(
+    val mapId: Long,
+    val files: List<PhotoFileSpecDto>,
+)
+
+@Serializable
+data class PhotoFileSpecDto(
+    val contentType: String,
+    val fileSize: Long,
+)
+
+/**
+ * POST api/v1/places/photo-upload-url 응답 항목.
+ *
+ * [uploadUrl] 로 직접 PUT 한 뒤 [fileUrl] 을 장소 등록 요청의 `photoUrls` 에 담는다.
+ */
+@Serializable
+data class PhotoUploadUrlDto(
+    // 기본값을 두지 않는다. 빈 주소가 흘러들어가면 업로드 직전에 알 수 없는 예외로 터진다.
+    // 없는 채로 오면 역직렬화 단계에서 바로 걸리는 편이 낫다.
+    val uploadUrl: String,
+    val fileUrl: String,
+    val objectKey: String? = null,
+    val expiresInSeconds: Long = 0,
 )
 
 /** POST api/v1/places/instagram-extractions 요청 */

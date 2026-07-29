@@ -28,6 +28,11 @@ object NetworkModule {
     private const val READ_TIMEOUT_SECONDS = 15L
     private const val WRITE_TIMEOUT_SECONDS = 15L
 
+    /** 사진 한 장이 몇 MB 라 기본 쓰기 제한으로는 모자란다. */
+    private const val UPLOAD_WRITE_TIMEOUT_SECONDS = 60L
+
+    private const val KAKAO_LOCAL_BASE_URL = "https://dapi.kakao.com/"
+
     @Provides
     @Singleton
     fun provideJson(): Json = Json {
@@ -70,6 +75,53 @@ object NetworkModule {
     @Singleton
     fun provideRetrofit(json: Json, okHttpClient: OkHttpClient): Retrofit =
         retrofitBuilder(json, okHttpClient)
+
+    /** 카카오 로컬 API 는 우리 토큰이 아니라 REST 키를 헤더로 받는다. */
+    @Provides
+    @Singleton
+    @KakaoLocalClient
+    fun provideKakaoLocalOkHttpClient(json: Json): OkHttpClient = baseClientBuilder(json)
+        .addInterceptor { chain ->
+            chain.proceed(
+                chain.request().newBuilder()
+                    .header("Authorization", "KakaoAK ${BuildConfig.KAKAO_REST_API_KEY}")
+                    .build(),
+            )
+        }
+        .build()
+
+    /**
+     * 봉투 변환기를 붙이지 않는다. 카카오는 `{documents, meta}` 를 그대로 주므로
+     * `{success, data, error}` 를 벗기려 들면 역직렬화가 깨진다.
+     */
+    @Provides
+    @Singleton
+    @KakaoLocalClient
+    fun provideKakaoLocalRetrofit(
+        json: Json,
+        @KakaoLocalClient okHttpClient: OkHttpClient,
+    ): Retrofit = Retrofit.Builder()
+        .baseUrl(KAKAO_LOCAL_BASE_URL)
+        .client(okHttpClient)
+        .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+        .build()
+
+    /**
+     * 로깅을 붙이지 않는다.
+     *
+     * OkHttp 의 로깅 인터셉터는 바이너리 본문을 찍지는 않지만, 그걸 판별하려고 본문을
+     * 버퍼로 한 번 복사한다. 사진을 스트리밍으로 흘려보내는 의미가 없어지고 메모리도
+     * 그만큼 더 든다.
+     */
+    @Provides
+    @Singleton
+    @PresignedUploadClient
+    fun providePresignedUploadOkHttpClient(json: Json): OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor(ErrorInterceptor(json))
+        .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .writeTimeout(UPLOAD_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .build()
 
     /**
      * 두 클라이언트가 공유하는 최소 구성.

@@ -63,4 +63,15 @@ interface PlaceService {
     suspend fun extractFromMapShare(
         @Body request: MapShareExtractRequestDto,
     ): MapShareExtractResponseDto
+
+    /**
+     * 장소 사진 업로드용 presigned PUT URL 을 최대 5장 일괄 발급받는다.
+     *
+     * 사진은 우리 서버로 올리지 않는다. 여기서 받은 주소로 앱이 직접 올리고, 응답의
+     * `fileUrl` 을 장소 등록 요청의 `photoUrls` 에 담는다.
+     */
+    @POST("api/v1/places/photo-upload-url")
+    suspend fun createPhotoUploadUrls(
+        @Body request: PhotoUploadUrlRequestDto,
+    ): List<PhotoUploadUrlDto>
 }
