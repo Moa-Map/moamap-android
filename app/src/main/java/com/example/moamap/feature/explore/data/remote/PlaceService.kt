@@ -51,4 +51,10 @@ interface PlaceService {
     suspend fun extractFromInstagram(
         @Body request: InstagramExtractRequestDto,
     ): List<PlaceCandidateDto>
+
+    /** 네이버·카카오·구글 지도 공유 리스트에서 장소를 뽑는다. */
+    @POST("api/v1/places/map-share-extractions")
+    suspend fun extractFromMapShare(
+        @Body request: MapShareExtractRequestDto,
+    ): MapShareExtractResponseDto
 }

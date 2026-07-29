@@ -6,6 +6,8 @@ import com.example.moamap.feature.collection.domain.repository.PlaceImportReposi
 import com.example.moamap.feature.collection.instagram.CaptionExtractor
 import com.example.moamap.feature.collection.instagram.CaptionResult
 import com.example.moamap.feature.explore.data.remote.InstagramExtractRequestDto
+import com.example.moamap.feature.explore.data.remote.MapShareExtractRequestDto
+import com.example.moamap.feature.explore.data.remote.MapSharePlaceCandidateDto
 import com.example.moamap.feature.explore.data.remote.PlaceCandidateDto
 import com.example.moamap.feature.explore.data.remote.PlaceService
 import javax.inject.Inject
@@ -44,11 +46,28 @@ class PlaceImportRepositoryImpl @Inject constructor(
             .filter { candidate -> !candidate.name.isNullOrBlank() }
             .mapIndexed { index, candidate -> candidate.toImportedPlace(index) }
     }
+
+    override suspend fun extractMapSharePlaces(url: String): List<ImportedPlace> {
+        val response = placeService.extractFromMapShare(
+            MapShareExtractRequestDto(url = url.trim()),
+        )
+
+        // 재매칭에 실패한 unmatched 는 등록까지 갈 수 없어 목록에 올리지 않는다.
+        return response.matched
+            .filter { candidate -> !candidate.name.isNullOrBlank() }
+            .mapIndexed { index, candidate -> candidate.toImportedPlace(index) }
+    }
 }
 
 private fun PlaceCandidateDto.toImportedPlace(index: Int) = ImportedPlace(
     id = kakaoPlaceId?.takeIf { it.isNotBlank() } ?: "candidate-$index",
     name = name.orEmpty(),
     // 도로명이 사용자에게 익숙하다. 없으면 지번으로 대체한다.
+    address = roadAddress?.takeIf { it.isNotBlank() } ?: address.orEmpty(),
+)
+
+private fun MapSharePlaceCandidateDto.toImportedPlace(index: Int) = ImportedPlace(
+    id = kakaoPlaceId?.takeIf { it.isNotBlank() } ?: "candidate-$index",
+    name = name.orEmpty(),
     address = roadAddress?.takeIf { it.isNotBlank() } ?: address.orEmpty(),
 )

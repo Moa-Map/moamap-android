@@ -1,12 +1,16 @@
 package com.example.moamap.feature.collection.presentation.placeimport
 
 import android.util.Log
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.moamap.core.navigation.MoaMapRoute
 import com.example.moamap.core.network.ApiException
 import com.example.moamap.core.network.ConnectionException
 import com.example.moamap.feature.collection.CollectionMapUiModel
+import com.example.moamap.feature.collection.domain.model.ImportedPlace
 import com.example.moamap.feature.collection.domain.model.PlaceExtractionException
+import com.example.moamap.feature.collection.domain.model.PlaceImportSource
 import com.example.moamap.feature.collection.domain.repository.PlaceImportRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -36,10 +40,17 @@ private val SampleTargetMaps = listOf(
  */
 @HiltViewModel
 internal class PlaceImportViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val placeImportRepository: PlaceImportRepository,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow(PlaceImportUiState(targetMaps = SampleTargetMaps))
+    private val source: PlaceImportSource = PlaceImportSource.valueOf(
+        requireNotNull(savedStateHandle[MoaMapRoute.PlaceImport.ARG_SOURCE]),
+    )
+
+    private val _uiState = MutableStateFlow(
+        PlaceImportUiState(source = source, targetMaps = SampleTargetMaps),
+    )
     val uiState: StateFlow<PlaceImportUiState> = _uiState.asStateFlow()
 
     private var extractionJob: Job? = null
@@ -75,7 +86,13 @@ internal class PlaceImportViewModel @Inject constructor(
 
         extractionJob = viewModelScope.launch {
             val places = try {
-                placeImportRepository.extractPlaces(current.url)
+                when (source) {
+                    PlaceImportSource.Instagram ->
+                        placeImportRepository.extractPlaces(current.url)
+
+                    PlaceImportSource.MapShare ->
+                        placeImportRepository.extractMapSharePlaces(current.url)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (throwable: Throwable) {
@@ -87,7 +104,10 @@ internal class PlaceImportViewModel @Inject constructor(
             // 새 결과가 나왔으니 되돌릴 대상도 사라진다.
             previousResult = null
             _uiState.update { state ->
-                state.copy(extraction = ExtractionState.Success(places))
+                state.copy(
+                    extraction = ExtractionState.Success(places),
+                    selectedPlaceIds = initialSelection(places),
+                )
             }
         }
     }
@@ -131,6 +151,17 @@ internal class PlaceImportViewModel @Inject constructor(
                 errorMessage = message,
             )
         }
+    }
+
+    /**
+     * 목록이 막 나왔을 때의 선택 상태.
+     *
+     * 외부 지도는 리스트를 통째로 가져오는 것이라 전부 고른 채로 시작하고 뺄 것만 해제하게 한다.
+     * 인스타그램은 영상에서 찾은 후보라 사용자가 맞는 곳을 직접 고른다.
+     */
+    private fun initialSelection(places: List<ImportedPlace>): Set<String> = when (source) {
+        PlaceImportSource.Instagram -> emptySet()
+        PlaceImportSource.MapShare -> places.mapTo(mutableSetOf()) { place -> place.id }
     }
 
     /** 안내를 보여준 뒤 호출한다. 같은 메시지가 다시 뜨지 않게 한다. */
