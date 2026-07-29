@@ -3,14 +3,18 @@ package com.example.moamap.core.navigation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
+import androidx.navigation.navArgument
 import com.example.moamap.feature.collection.presentation.placeimport.ExtractionState
 import com.example.moamap.feature.collection.presentation.placeimport.PlaceImportEditScreen
 import com.example.moamap.feature.collection.presentation.placeimport.PlaceImportLoadingScreen
@@ -30,6 +34,9 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
     navigation(
         route = MoaMapRoute.PlaceImport.route,
         startDestination = PlaceImportRoute.URL,
+        arguments = listOf(
+            navArgument(MoaMapRoute.PlaceImport.ARG_SOURCE) { type = NavType.StringType },
+        ),
     ) {
         composable(PlaceImportRoute.URL) { entry ->
             val viewModel = sharedPlaceImportViewModel(navController, entry)
@@ -72,6 +79,7 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
             }
 
             PlaceImportLoadingScreen(
+                source = uiState.source,
                 onCancel = {
                     viewModel.cancelExtraction()
                     navController.popBackStack()
@@ -84,6 +92,7 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
             PlaceImportPlaceScreen(
+                source = uiState.source,
                 places = uiState.places,
                 selectedPlaceIds = uiState.selectedPlaceIds,
                 canProceed = uiState.canProceed,
@@ -124,8 +133,28 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
             val viewModel = sharedPlaceImportViewModel(navController, entry)
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+            /**
+             * 흐름을 떠나기로 했는지. 아래 빈 목록 가드를 잠그는 용도다.
+             *
+             * 그래프를 pop 하면 거기 스코프한 ViewModel 이 비워지는데, 이 화면은 종료 애니메이션
+             * 동안 컴포지션에 남아 재구성된다. 그때 빈 ViewModel 이 새로 만들어져 고른 장소가
+             * 사라진 것처럼 보이고, 가드가 그걸 복원으로 오해해 URL 입력으로 되돌려버린다.
+             *
+             * 프로세스가 재생성되면 이 값도 함께 사라져야 가드가 제 일을 하므로 저장하지 않는다.
+             */
+            var leaving by remember { mutableStateOf(false) }
+
+            // 한 곳이라도 등록됐으면 흐름을 끝내고 모음 화면으로 돌려보낸다.
+            // 하나도 못 넣은 경우에는 결과가 채워지지 않아 이 화면에 남고 안내만 뜬다.
+            LaunchedEffect(uiState.saveResult) {
+                if (uiState.saveResult != null) {
+                    leaving = true
+                    navController.popBackStack(MoaMapRoute.PlaceImport.route, inclusive = true)
+                }
+            }
+
             val places = uiState.selectedPlaces
-            if (places.isEmpty()) {
+            if (places.isEmpty() && !leaving) {
                 // 프로세스가 재생성되면 ViewModel 은 비는데 백스택은 복원되어 이 화면부터 살아날 수 있다.
                 // 고른 장소가 없으면 보여줄 것이 없으므로 흐름의 처음으로 돌려보낸다.
                 LaunchedEffect(Unit) {
@@ -134,13 +163,16 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
             } else {
                 PlaceImportMapScreen(
                     places = places,
-                    maps = uiState.targetMaps,
+                    mapsState = uiState.targetMaps,
                     selectedMapIds = uiState.selectedMapIds,
                     canSave = uiState.canSave,
+                    saving = uiState.saving,
+                    errorMessage = uiState.errorMessage,
                     onBackClick = navController::popBackStack,
                     onMapClick = viewModel::toggleMap,
-                    // TODO: 저장 동작과 이후 이동은 다음 작업에서 연결한다.
-                    onSaveClick = {},
+                    onRetryMapsClick = viewModel::retryLoadMaps,
+                    onSaveClick = viewModel::savePlaces,
+                    onErrorShown = viewModel::consumeError,
                 )
             }
         }

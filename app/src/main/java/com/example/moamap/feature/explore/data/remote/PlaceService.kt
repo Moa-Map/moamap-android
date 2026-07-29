@@ -22,6 +22,12 @@ interface PlaceService {
     @POST("api/v1/places")
     suspend fun createPlace(@Body request: PlaceCreateRequestDto): PlaceDto
 
+    /** 지도 하나에 장소를 한꺼번에 등록한다. 건별로 부분 성공한다. */
+    @POST("api/v1/places/bulk")
+    suspend fun createPlacesBulk(
+        @Body request: PlaceBulkCreateRequestDto,
+    ): PlaceBulkCreateResponseDto
+
     @GET("api/v1/places/pending")
     suspend fun getPendingPlaces(
         @Query("page") page: Int? = null,
@@ -51,6 +57,12 @@ interface PlaceService {
     suspend fun extractFromInstagram(
         @Body request: InstagramExtractRequestDto,
     ): List<PlaceCandidateDto>
+
+    /** 네이버·카카오·구글 지도 공유 리스트에서 장소를 뽑는다. */
+    @POST("api/v1/places/map-share-extractions")
+    suspend fun extractFromMapShare(
+        @Body request: MapShareExtractRequestDto,
+    ): MapShareExtractResponseDto
 
     /**
      * 장소 사진 업로드용 presigned PUT URL 을 최대 5장 일괄 발급받는다.

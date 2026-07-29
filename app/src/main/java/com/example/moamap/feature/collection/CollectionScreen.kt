@@ -101,7 +101,7 @@ private fun MyMap.toCommunityUiModel() = CollectionMapUiModel(
  * 프라이빗 카드는 원래 장소 수만 보여주는 자리다. 서버가 장소 수를 주지 않는 동안에는
  * 인원 수로 대신 채우지 않고 그 자리를 비워 둔다.
  */
-private fun MyMap.toPrivateUiModel() = CollectionMapUiModel(
+internal fun MyMap.toPrivateUiModel() = CollectionMapUiModel(
     id = id,
     title = title,
     verified = official,
@@ -111,6 +111,7 @@ private fun MyMap.toPrivateUiModel() = CollectionMapUiModel(
 fun CollectionScreen(
     onNewMapClick: () -> Unit = {},
     onInstagramImportClick: () -> Unit = {},
+    onMapShareImportClick: () -> Unit = {},
     onMapClick: (MyMap) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: CollectionViewModel = hiltViewModel(),
@@ -140,6 +141,7 @@ fun CollectionScreen(
         onInviteCodeClick = viewModel::openJoinDialog,
         onNewMapClick = onNewMapClick,
         onInstagramImportClick = onInstagramImportClick,
+        onMapShareImportClick = onMapShareImportClick,
         onMapClick = onMapClick,
         modifier = modifier,
     )
@@ -153,6 +155,7 @@ private fun CollectionContent(
     onInviteCodeClick: () -> Unit,
     onNewMapClick: () -> Unit,
     onInstagramImportClick: () -> Unit,
+    onMapShareImportClick: () -> Unit,
     onMapClick: (MyMap) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -202,6 +205,7 @@ private fun CollectionContent(
                     state = uiState.private,
                     onRetryClick = onRetryClick,
                     onInstagramImportClick = onInstagramImportClick,
+                    onMapShareImportClick = onMapShareImportClick,
                     onMapClick = onMapClick,
                 )
             }
@@ -364,11 +368,15 @@ private fun PrivateTabContent(
     state: MyMapsState,
     onRetryClick: () -> Unit,
     onInstagramImportClick: () -> Unit,
+    onMapShareImportClick: () -> Unit,
     onMapClick: (MyMap) -> Unit,
 ) {
     // 액션 카드는 목록 상태와 무관하게 늘 보인다. 목록이 비었을 때야말로 만들 진입점이 필요하다.
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-        PrivateActionCards(onInstagramImportClick = onInstagramImportClick)
+        PrivateActionCards(
+            onInstagramImportClick = onInstagramImportClick,
+            onMapShareImportClick = onMapShareImportClick,
+        )
 
         MapsStateContent(
             state = state,
@@ -391,7 +399,7 @@ private fun PrivateTabContent(
  * 세 상태 모두 같은 높이를 차지해, 상태가 바뀔 때 화면이 튀지 않는다.
  */
 @Composable
-private fun MapsStateContent(
+internal fun MapsStateContent(
     state: MyMapsState,
     emptyMessage: String,
     onRetryClick: () -> Unit,
@@ -456,6 +464,7 @@ private fun ListPlaceholder(content: @Composable () -> Unit) {
 @Composable
 private fun PrivateActionCards(
     onInstagramImportClick: () -> Unit,
+    onMapShareImportClick: () -> Unit,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -472,7 +481,6 @@ private fun PrivateActionCards(
             onClick = onInstagramImportClick,
             modifier = Modifier.weight(1f),
         )
-        // TODO: 외부 지도 불러오기는 다음 이슈에서 연결한다.
         PrivateActionCard(
             iconRes = R.drawable.ic_map,
             title = "외부 지도",
@@ -480,7 +488,7 @@ private fun PrivateActionCards(
             backgroundColor = MoaMapPrimitiveColors.Yellow50,
             titleColor = MoaMapPrimitiveColors.Yellow800,
             iconTint = MoaMapPrimitiveColors.Yellow500,
-            onClick = {},
+            onClick = onMapShareImportClick,
             modifier = Modifier.weight(1f),
         )
     }
@@ -716,6 +724,7 @@ private fun CollectionScreenPreview() {
             onInviteCodeClick = {},
             onNewMapClick = {},
             onInstagramImportClick = {},
+            onMapShareImportClick = {},
             onMapClick = {},
         )
     }
