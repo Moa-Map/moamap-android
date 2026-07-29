@@ -54,10 +54,14 @@ import com.example.moamap.feature.collection.presentation.CollectionViewModel
 import com.example.moamap.feature.collection.presentation.JoinMapDialog
 import com.example.moamap.feature.collection.presentation.JoinState
 import com.example.moamap.feature.collection.presentation.MyMapsState
+import com.example.moamap.feature.explore.presentation.MapThumbnail
 import com.example.moamap.feature.explore.presentation.formatMemberCount
 
 /** 카드 썸네일과 같은 높이를 유지해 제목/메타가 위아래로 벌어지도록 한다. */
 private val CardThumbnailSize = 64.dp
+
+/** 시안의 "장소 이미지" 프레임과 같은 값. */
+private val CardThumbnailShape = RoundedCornerShape(4.dp)
 
 /** 인스타그램 브랜드 색. 디자인 시스템 팔레트가 아니라서 토큰으로 승격하지 않는다. */
 private val InstagramCardBackground = Color(0xFFFFF5FB)
@@ -79,6 +83,8 @@ private val MapType.label: String
 internal data class CollectionMapUiModel(
     val id: Long,
     val title: String,
+    /** 커버 이미지 주소. null 이면 [MapThumbnail] 이 기본 이미지를 그린다. */
+    val imageUrl: String? = null,
     /**
      * 등록 장소 수.
      *
@@ -93,6 +99,7 @@ internal data class CollectionMapUiModel(
 private fun MyMap.toCommunityUiModel() = CollectionMapUiModel(
     id = id,
     title = title,
+    imageUrl = imageUrl,
     verified = official,
     memberCount = formatMemberCount(memberCount),
 )
@@ -104,6 +111,7 @@ private fun MyMap.toCommunityUiModel() = CollectionMapUiModel(
 internal fun MyMap.toPrivateUiModel() = CollectionMapUiModel(
     id = id,
     title = title,
+    imageUrl = imageUrl,
     verified = official,
 )
 
@@ -604,12 +612,10 @@ internal fun CollectionMapCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // TODO: 지도 썸네일 이미지는 데이터 연결 시 채운다.
-            Box(
-                modifier = Modifier
-                    .size(CardThumbnailSize)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(MoaMapPrimitiveColors.Yellow50),
+            MapThumbnail(
+                imageUrl = map.imageUrl,
+                size = CardThumbnailSize,
+                shape = CardThumbnailShape,
             )
             Column(
                 modifier = Modifier

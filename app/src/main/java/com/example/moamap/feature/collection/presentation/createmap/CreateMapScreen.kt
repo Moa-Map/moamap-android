@@ -48,12 +48,21 @@ import com.example.moamap.core.designsystem.component.ErrorSnackbar
 import com.example.moamap.core.designsystem.component.ImageSourceMenu
 import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
+import com.example.moamap.feature.collection.domain.model.ALLOWED_COVER_CONTENT_TYPES
 import com.example.moamap.feature.collection.domain.model.MapVisibility
 import kotlinx.coroutines.flow.collectLatest
 
 /** 촬영본이 쌓이는 캐시 위치. `res/xml/profile_image_paths.xml` 의 `cache-path` 와 맞춰야 한다. */
 private const val MapImageCacheDirectory = "map_images"
 private const val MapImageFilePrefix = "map"
+
+/**
+ * 갤러리에 보일 형식.
+ *
+ * 발급 전에 거르는 형식과 같은 값을 써야 한다. 고르고 나서 거절당하지 않도록 선택기에서
+ * 미리 좁히는 것뿐이라, 목록을 따로 두면 서버 계약이 바뀔 때 조용히 어긋난다.
+ */
+private val CoverImageMimeTypes = ALLOWED_COVER_CONTENT_TYPES.toTypedArray()
 
 /** 버튼과 홈 인디케이터 사이 간격. */
 private val SubmitButtonBottomPadding = 13.dp
@@ -132,6 +141,7 @@ private fun CreateMapContent(
         state = pickerState,
         cacheDirectoryName = MapImageCacheDirectory,
         fileNamePrefix = MapImageFilePrefix,
+        mimeTypes = CoverImageMimeTypes,
         onImageSelected = { uri -> onImageSelected(uri.toString()) },
     )
 
@@ -164,7 +174,11 @@ private fun CreateMapContent(
                 Box {
                     MapPhotoField(
                         imageUri = uiState.imageUri,
-                        onClick = pickerState::showSourceMenu,
+                        // 올리는 중에는 잠근다. 선택기를 띄워놓고 고른 값을 버리면
+                        // 왜 안 바뀌는지 알 수 없다.
+                        onClick = {
+                            if (!uiState.isSubmitting) pickerState.showSourceMenu()
+                        },
                     )
 
                     if (pickerState.isSourceMenuVisible) {

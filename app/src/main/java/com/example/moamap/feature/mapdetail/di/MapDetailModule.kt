@@ -4,9 +4,7 @@ import com.example.moamap.core.network.di.KakaoLocalClient
 import com.example.moamap.feature.mapdetail.data.remote.KakaoLocalService
 import com.example.moamap.feature.mapdetail.data.repository.KakaoPlaceSearchRepository
 import com.example.moamap.feature.mapdetail.data.repository.MapDetailRepositoryImpl
-import com.example.moamap.feature.mapdetail.data.repository.PhotoUploader
 import com.example.moamap.feature.mapdetail.data.repository.PlaceAddRepositoryImpl
-import com.example.moamap.feature.mapdetail.data.repository.PresignedPhotoUploader
 import com.example.moamap.feature.mapdetail.domain.repository.MapDetailRepository
 import com.example.moamap.feature.mapdetail.domain.repository.PlaceAddRepository
 import com.example.moamap.feature.mapdetail.domain.repository.PlaceSearchRepository
@@ -41,10 +39,6 @@ internal abstract class MapDetailModule {
     @Binds
     @Singleton
     abstract fun bindPlaceAddRepository(impl: PlaceAddRepositoryImpl): PlaceAddRepository
-
-    @Binds
-    @Singleton
-    abstract fun bindPhotoUploader(impl: PresignedPhotoUploader): PhotoUploader
 
     companion object {
         @Provides

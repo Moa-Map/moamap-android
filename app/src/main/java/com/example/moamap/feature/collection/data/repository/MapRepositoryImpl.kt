@@ -1,5 +1,8 @@
 package com.example.moamap.feature.collection.data.repository
 
+import android.net.Uri
+import com.example.moamap.core.common.upload.PhotoUploader
+import com.example.moamap.feature.collection.data.remote.CoverUploadUrlRequestDto
 import com.example.moamap.feature.collection.data.remote.JoinByInviteCodeRequestDto
 import com.example.moamap.feature.collection.data.remote.MapService
 import com.example.moamap.feature.collection.domain.model.CreatedMap
@@ -11,14 +14,36 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class MapRepositoryImpl @Inject constructor(
+// PhotoUploader 가 internal 이라 함께 internal 이다. PlaceAddRepositoryImpl 도 같다.
+internal class MapRepositoryImpl @Inject constructor(
     private val mapService: MapService,
+    private val uploader: PhotoUploader,
 ) : MapRepository {
 
     override suspend fun getMyMaps(type: MapType): List<MyMap> = mapService
         .getMyMaps(type = type.requestValue, size = PAGE_SIZE)
         .content
         .map { dto -> dto.toMyMap() }
+
+    /**
+     * 살펴보기 → 검증 → 발급 → 업로드 순으로 간다.
+     *
+     * 내용은 살펴볼 때 읽지 않는다. 올리는 순간 URI 에서 곧바로 흘려보낸다.
+     */
+    override suspend fun uploadCoverImage(imageUri: String): String {
+        val photo = uploader.inspect(Uri.parse(imageUri))
+        validateCoverImage(contentType = photo.contentType, fileSize = photo.size)
+
+        val issued = mapService.createCoverUploadUrl(
+            CoverUploadUrlRequestDto(contentType = photo.contentType, fileSize = photo.size),
+        )
+        require(issued.uploadUrl.isNotBlank() && issued.fileUrl.isNotBlank()) {
+            "커버 이미지 업로드 주소가 비어 있습니다"
+        }
+
+        uploader.upload(uploadUrl = issued.uploadUrl, photo = photo)
+        return issued.fileUrl
+    }
 
     override suspend fun createMap(newMap: NewMap): CreatedMap =
         mapService.createMap(newMap.toCreateRequest()).toCreatedMap()

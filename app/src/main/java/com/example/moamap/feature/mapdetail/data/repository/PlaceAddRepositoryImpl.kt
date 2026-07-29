@@ -1,6 +1,7 @@
 package com.example.moamap.feature.mapdetail.data.repository
 
 import android.net.Uri
+import com.example.moamap.core.common.upload.PhotoUploader
 import com.example.moamap.feature.explore.data.remote.PhotoFileSpecDto
 import com.example.moamap.feature.explore.data.remote.PhotoUploadUrlRequestDto
 import com.example.moamap.feature.explore.data.remote.PlaceCreateRequestDto

@@ -13,7 +13,14 @@ class MapRequestMapperTest {
         description: String? = "주말에 다녀온 곳",
         visibility: MapVisibility = MapVisibility.Public,
         tags: List<String> = listOf("카페"),
-    ) = NewMap(name = name, description = description, visibility = visibility, tags = tags)
+        imageUrl: String? = null,
+    ) = NewMap(
+        name = name,
+        description = description,
+        visibility = visibility,
+        tags = tags,
+        imageUrl = imageUrl,
+    )
 
     @Test
     fun `공개 지도는 PUBLIC 으로 보낸다`() {
@@ -30,8 +37,21 @@ class MapRequestMapperTest {
     }
 
     @Test
-    fun `커버 이미지는 생성 요청에 싣지 않는다`() {
-        assertNull(newMap().toCreateRequest().imageUrl)
+    fun `올려둔 커버 주소를 생성 요청에 그대로 싣는다`() {
+        val request = newMap(imageUrl = "https://cdn/cover.jpg").toCreateRequest()
+
+        assertEquals("https://cdn/cover.jpg", request.imageUrl)
+    }
+
+    @Test
+    fun `사진을 안 골랐으면 커버를 비운다`() {
+        assertNull(newMap(imageUrl = null).toCreateRequest().imageUrl)
+    }
+
+    /** 빈 문자열이 흘러들어가면 서버가 빈 imageUrl 을 저장한다. */
+    @Test
+    fun `공백뿐인 커버 주소는 안 쓴 것으로 본다`() {
+        assertNull(newMap(imageUrl = "  ").toCreateRequest().imageUrl)
     }
 
     @Test

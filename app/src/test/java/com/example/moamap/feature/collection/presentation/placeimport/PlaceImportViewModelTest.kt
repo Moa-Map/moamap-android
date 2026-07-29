@@ -61,6 +61,8 @@ private class FakeMapRepository : MapRepository {
         return maps
     }
 
+    override suspend fun uploadCoverImage(imageUri: String) = TODO("사용하지 않음")
+
     override suspend fun createMap(newMap: NewMap) = TODO("사용하지 않음")
 
     override suspend fun joinByInviteCode(inviteCode: String) = TODO("사용하지 않음")

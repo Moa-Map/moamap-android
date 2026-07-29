@@ -11,11 +11,19 @@ interface MapRepository {
     suspend fun getMyMaps(type: MapType): List<MyMap>
 
     /**
-     * 지도를 만든다.
+     * 커버 이미지를 올리고 저장된 주소를 돌려준다.
      *
-     * 커버 이미지는 포함하지 않는다. 서버가 `imageUrl` 로 URL 문자열을 받는데, 기기 안의
-     * 사진을 URL 로 바꿔줄 엔드포인트가 아직 없다. 발급 API 가 생기면 여기에 붙인다.
+     * 지도를 만들기 전에 부를 수 있다 - 발급 API 가 `mapId` 를 받지 않는다.
+     *
+     * @param imageUri 사용자가 고른 사진의 `content://` URI 문자열. 화면 상태가 들고 있는
+     *  형태 그대로 받는다.
+     * @return 지도 생성 요청의 `imageUrl` 에 담을 주소
+     * @throws com.example.moamap.feature.collection.domain.model.CoverImageException
+     *  형식이나 크기가 서버 허용 범위를 벗어날 때
      */
+    suspend fun uploadCoverImage(imageUri: String): String
+
+    /** 지도를 만든다. 커버는 [uploadCoverImage] 로 먼저 올려 [NewMap.imageUrl] 에 담아 넘긴다. */
     suspend fun createMap(newMap: NewMap): CreatedMap
 
     /** 초대 코드로 프라이빗 지도에 합류하고, 합류한 지도의 id 를 돌려준다. */

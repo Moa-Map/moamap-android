@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.moamap.core.network.ConnectionException
+import com.example.moamap.feature.collection.domain.model.CoverImageException
 import com.example.moamap.feature.collection.domain.model.MapVisibility
 import com.example.moamap.feature.collection.domain.model.NewMap
 import com.example.moamap.feature.collection.domain.repository.MapRepository
@@ -18,6 +19,7 @@ import javax.inject.Inject
 
 private const val TAG = "CreateMapViewModel"
 private const val CREATE_FAILED_MESSAGE = "지도를 만들지 못했어요"
+private const val COVER_UPLOAD_FAILED_MESSAGE = "사진을 올리지 못했어요"
 private const val NETWORK_ERROR_MESSAGE = "네트워크에 연결할 수 없어요"
 
 /** 태그를 확정하는 구분자. 플레이스홀더가 안내하는 "스페이스 또는 엔터" 와 같다. */
@@ -38,7 +40,14 @@ internal class CreateMapViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(savedStateHandle.toCreateMapUiState())
     val uiState: StateFlow<CreateMapUiState> = _uiState.asStateFlow()
 
+    /**
+     * 커버 사진을 고른다.
+     *
+     * 올리는 중에는 받지 않는다. 이미 시작한 업로드는 그대로 끝나므로, 바꾸게 두면 미리보기에는
+     * 새 사진이 뜨는데 지도에는 앞의 사진이 저장된다.
+     */
     fun selectImage(uri: String) {
+        if (_uiState.value.isSubmitting) return
         updateState { state -> state.copy(imageUri = uri) }
     }
 
@@ -95,9 +104,11 @@ internal class CreateMapViewModel @Inject constructor(
     }
 
     /**
-     * 지도를 만든다.
+     * 커버를 올리고 지도를 만든다.
      *
-     * 고른 사진은 함께 보내지 않는다 - 서버에 커버 이미지 업로드 창구가 없다.
+     * 사진은 **여기서** 올린다. 고를 때마다 올리면 만들기를 그만둔 사용자의 사진이 스토리지에
+     * 남는데 지울 방법이 없다. 업로드가 실패하면 지도도 만들지 않는다 - 커버 없이 만들어지면
+     * 사용자는 성공한 줄 알고 나가고, 지도 수정 화면이 없어 나중에 붙일 방법도 없다.
      */
     fun submit() {
         if (!_uiState.value.canSubmit) return
@@ -122,8 +133,24 @@ internal class CreateMapViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
+            val imageUrl = try {
+                current.imageUri?.let { uri -> uploadCover(uri) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (throwable: Throwable) {
+                Log.w(TAG, "커버 이미지 업로드 실패", throwable)
+                // 지도를 만들지 않고 멈춘다. 입력값은 그대로 둔다.
+                updateState { state ->
+                    state.copy(
+                        submit = SubmitState.Idle,
+                        errorMessage = throwable.toCoverMessage(),
+                    )
+                }
+                return@launch
+            }
+
             try {
-                val created = mapRepository.createMap(newMap)
+                val created = mapRepository.createMap(newMap.copy(imageUrl = imageUrl))
                 // 프라이빗 지도는 초대 코드를 먼저 보여주고, 닫을 때 화면을 뺀다.
                 val next = created.inviteCode
                     ?.let { code -> SubmitState.ShowingInviteCode(created.id, code) }
@@ -143,6 +170,17 @@ internal class CreateMapViewModel @Inject constructor(
             }
         }
     }
+
+    /**
+     * 커버를 올리고 주소를 기억한다.
+     *
+     * 앞선 시도에서 같은 사진을 이미 올렸으면 그 주소를 그대로 쓴다. 생성만 실패해 다시 눌렀을
+     * 때 매번 새로 올리면 지울 수 없는 사진이 시도할 때마다 쌓인다.
+     */
+    private suspend fun uploadCover(uri: String): String =
+        _uiState.value.reusableCoverUrl ?: mapRepository.uploadCoverImage(uri).also { fileUrl ->
+            updateState { state -> state.copy(uploadedCover = UploadedCover(uri, fileUrl)) }
+        }
 
     /** 초대 코드를 다 본 뒤. 지도는 이미 만들어졌으므로 그대로 화면을 뺀다. */
     fun dismissInviteCode() {
@@ -164,6 +202,8 @@ internal class CreateMapViewModel @Inject constructor(
 }
 
 private const val KEY_IMAGE_URI = "createMap.imageUri"
+private const val KEY_COVER_SOURCE_URI = "createMap.coverSourceUri"
+private const val KEY_COVER_FILE_URL = "createMap.coverFileUrl"
 private const val KEY_NAME = "createMap.name"
 private const val KEY_DESCRIPTION = "createMap.description"
 private const val KEY_VISIBILITY = "createMap.visibility"
@@ -180,6 +220,9 @@ private const val KEY_INVITE_CODE = "createMap.inviteCode"
  */
 private fun SavedStateHandle.toCreateMapUiState() = CreateMapUiState(
     imageUri = get<String>(KEY_IMAGE_URI),
+    // 올려둔 커버는 되살린다. 스토리지에 이미 올라간 사진이라, 잊어버리면 같은 사진이 하나 더
+    // 올라가고 앞의 것은 지울 방법이 없다.
+    uploadedCover = restoreUploadedCover(),
     name = get<String>(KEY_NAME).orEmpty(),
     description = get<String>(KEY_DESCRIPTION).orEmpty(),
     // 저장한 뒤 enum 이 바뀌었을 수 있으니 모르는 값은 고르지 않은 것으로 본다.
@@ -196,6 +239,12 @@ private fun SavedStateHandle.toCreateMapUiState() = CreateMapUiState(
     submit = restoreInviteCode() ?: SubmitState.Idle,
 )
 
+private fun SavedStateHandle.restoreUploadedCover(): UploadedCover? {
+    val sourceUri = get<String>(KEY_COVER_SOURCE_URI)?.takeIf { it.isNotBlank() } ?: return null
+    val fileUrl = get<String>(KEY_COVER_FILE_URL)?.takeIf { it.isNotBlank() } ?: return null
+    return UploadedCover(sourceUri, fileUrl)
+}
+
 private fun SavedStateHandle.restoreInviteCode(): SubmitState.ShowingInviteCode? {
     val mapId = get<Long>(KEY_CREATED_MAP_ID) ?: return null
     val code = get<String>(KEY_INVITE_CODE)?.takeIf { it.isNotBlank() } ?: return null
@@ -204,6 +253,8 @@ private fun SavedStateHandle.restoreInviteCode(): SubmitState.ShowingInviteCode?
 
 private fun SavedStateHandle.save(state: CreateMapUiState) {
     this[KEY_IMAGE_URI] = state.imageUri
+    this[KEY_COVER_SOURCE_URI] = state.uploadedCover?.sourceUri
+    this[KEY_COVER_FILE_URL] = state.uploadedCover?.fileUrl
     this[KEY_NAME] = state.name
     this[KEY_DESCRIPTION] = state.description
     this[KEY_VISIBILITY] = state.visibility?.name
@@ -229,4 +280,17 @@ private fun Throwable.toUserMessage(): String = when (this) {
     // 서버 메시지는 "[500] COMMON_005: ..." 처럼 사용자에게 보여줄 형태가 아니다.
     is ConnectionException -> NETWORK_ERROR_MESSAGE
     else -> CREATE_FAILED_MESSAGE
+}
+
+/**
+ * 업로드 실패는 생성 실패와 다르게 안내한다.
+ *
+ * 둘 다 "지도를 만들지 못했어요" 로 뭉개면 사용자가 할 조치를 알 수 없다 - 사진을 바꿔야 하는
+ * 경우와 그냥 다시 눌러야 하는 경우가 다르다.
+ */
+private fun Throwable.toCoverMessage(): String = when (this) {
+    // 무엇이 문제인지는 예외가 이미 문구로 들고 있다.
+    is CoverImageException -> message ?: COVER_UPLOAD_FAILED_MESSAGE
+    is ConnectionException -> NETWORK_ERROR_MESSAGE
+    else -> COVER_UPLOAD_FAILED_MESSAGE
 }

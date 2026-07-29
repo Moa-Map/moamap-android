@@ -36,6 +36,9 @@ internal class ImagePickerController(
  * 촬영본은 [cacheDirectoryName] 아래에 만들어 [FileProvider] 로 넘긴다. 새 디렉터리를 쓰려면
  * `res/xml/profile_image_paths.xml` 에 `cache-path` 를 함께 추가해야 한다.
  *
+ * [mimeTypes] 로 갤러리에 보일 형식을 좁힐 수 있다. 서버가 받는 형식이 정해져 있으면 고르고
+ * 나서 거절당하는 것보다 애초에 안 보이는 편이 낫다. 촬영본은 항상 JPEG 라 영향이 없다.
+ *
  * 컨트롤러는 recomposition 마다 새로 만든다 - 붙잡고 있는 런처들은 이미 remember 된 값이라
  * 새로 만들어도 같은 대상을 가리키고, 클릭 시점에 최신 [onImageSelected] 를 보게 하려면
  * 오히려 붙잡아두지 않는 편이 안전하다.
@@ -45,6 +48,7 @@ internal fun rememberImagePickerController(
     state: ImagePickerState,
     cacheDirectoryName: String,
     fileNamePrefix: String,
+    mimeTypes: Array<String> = arrayOf("image/*"),
     onImageSelected: (Uri) -> Unit = {},
 ): ImagePickerController {
     val context = LocalContext.current
@@ -114,7 +118,7 @@ internal fun rememberImagePickerController(
         // 필요 없다. 권한을 물어보면 거부당했을 때 권한 없이도 동작할 선택기까지 막힌다.
         onRequestGallery = {
             state.dismissSourceMenu()
-            galleryLauncher.launch(arrayOf("image/*"))
+            galleryLauncher.launch(mimeTypes)
         },
     )
 }
