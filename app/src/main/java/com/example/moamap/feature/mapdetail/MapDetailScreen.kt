@@ -1,5 +1,10 @@
 package com.example.moamap.feature.mapdetail
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,8 +28,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.moamap.core.designsystem.component.ErrorSnackbar
@@ -34,7 +42,9 @@ import com.example.moamap.feature.mapdetail.domain.model.MapDetailAction
 import com.example.moamap.feature.mapdetail.presentation.MapDetailViewModel
 import com.example.moamap.feature.mapdetail.presentation.addplace.AddPlaceSheet
 import com.example.moamap.feature.mapdetail.presentation.addplace.AddPlaceViewModel
+import com.example.moamap.feature.mapdetail.presentation.MapLoadState
 import com.example.moamap.feature.mapdetail.presentation.mapOrNull
+import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
 import com.mapbox.maps.plugin.animation.MapAnimationOptions
@@ -43,6 +53,16 @@ import com.mapbox.maps.plugin.animation.MapAnimationOptions
 private val MapControlsBottomGap = 16.dp
 
 private val SheetPeekHeight = 283.dp
+
+private val LocationPermissions = arrayOf(
+    Manifest.permission.ACCESS_FINE_LOCATION,
+    Manifest.permission.ACCESS_COARSE_LOCATION,
+)
+
+private fun hasLocationPermission(context: Context): Boolean =
+    LocationPermissions.any { permission ->
+        ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+    }
 
 private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
     save = { state ->
@@ -79,6 +99,30 @@ fun MapDetailScreen(
         if (screenState.left) onBackClick()
     }
 
+    val context = LocalContext.current
+    val granted = hasLocationPermission(context)
+
+    var locationGranted by remember { mutableStateOf(granted) }
+
+    /**
+     * 권한 요청에 답이 왔는지.
+     * 답을 기다리지 않고 카메라를 정하면, 장소가 없는 지도에서 현재 위치를 놓치고
+     */
+    var permissionAnswered by remember { mutableStateOf(granted) }
+
+    val permissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions(),
+    ) { result ->
+        locationGranted = result.values.any { isGranted -> isGranted }
+        permissionAnswered = true
+    }
+
+    // 들어올 때마다 묻는다. 안드로이드가 두 번 거절 이후로는 다이얼로그 없이 즉시
+    // 거절하므로, 그때부터는 콜백만 돌아오고 조용히 폴백으로 넘어간다.
+    LaunchedEffect(Unit) {
+        if (!locationGranted) permissionLauncher.launch(LocationPermissions)
+    }
+
     // 등록 완료 안내. 시트가 닫힌 뒤 상세 화면에서 띄운다.
     var addPlaceNotice by remember { mutableStateOf<String?>(null) }
     var addPlaceSheetVisible by rememberSaveable { mutableStateOf(false) }
@@ -90,11 +134,63 @@ fun MapDetailScreen(
         place.id == uiState.selectedPlaceId
     }
     val closePlaceDetail = { uiState = uiState.closePlaceDetail() }
+
+    val markers = remember(screenState.places) {
+        screenState.places.map { place -> place.toPlaceMarker() }
+    }
     val mapViewportState = rememberMapViewportState {
         setCameraOptions {
             center(MapDetailCenter)
             zoom(MapDetailDefaultZoom)
         }
+    }
+
+    /**
+     * 초기 카메라를 한 번만 맞춘다.
+     * 잠그지 않으면 그때마다 사용자가 옮겨 둔 카메라가 튄다.
+     */
+    var cameraSettled by rememberSaveable { mutableStateOf(false) }
+
+    /** 첫 조회가 끝났는지. 지도와 장소는 같은 갱신으로 함께 들어온다. */
+    val loadFinished = screenState.map !is MapLoadState.Loading
+
+    /**
+     * 마커를 화면에 맞출 때 가장자리에 두는 여백.
+     */
+    val fitPadding = with(LocalDensity.current) {
+        EdgeInsets(
+            80.dp.toPx().toDouble(),
+            40.dp.toPx().toDouble(),
+            (SheetPeekHeight + 40.dp).toPx().toDouble(),
+            40.dp.toPx().toDouble(),
+        )
+    }
+
+    LaunchedEffect(loadFinished, permissionAnswered, cameraSettled) {
+        if (cameraSettled || !loadFinished) return@LaunchedEffect
+
+        val places = screenState.places
+        // 장소가 있으면 위치를 기다릴 이유가 없다. 없을 때만 권한 답을 기다린다.
+        if (places.isEmpty() && !permissionAnswered) return@LaunchedEffect
+
+        val location = if (places.isEmpty() && locationGranted) lastKnownLocation() else null
+
+        when (val camera = initialCamera(places, location)) {
+            // cameraForCoordinates 는 지도가 붙은 뒤에야 답한다. 로그 탭을 복원한 채로
+            // 들어오면 장소 탭으로 옮길 때까지 여기서 매달린다 - 화면은 폴백 좌표로 떠 있다.
+            is InitialCamera.Fit -> mapViewportState.setCameraOptions(
+                mapViewportState.cameraForCoordinates(
+                    coordinates = camera.points,
+                    coordinatesPadding = fitPadding,
+                    maxZoom = MapDetailDefaultZoom,
+                ),
+            )
+            is InitialCamera.Center -> mapViewportState.setCameraOptions {
+                center(camera.point)
+                zoom(MapDetailDefaultZoom)
+            }
+        }
+        cameraSettled = true
     }
     val onMarkerClick: (Long) -> Unit = remember {
         { placeId -> uiState = uiState.selectPlace(placeId) }
@@ -112,7 +208,7 @@ fun MapDetailScreen(
             )
         }
     }
-    var is3d by rememberSaveable { mutableStateOf(true) }
+    var is3d by rememberSaveable { mutableStateOf(false) }
     val on3dToggleClick: () -> Unit = remember(mapViewportState) {
         {
             val next = !is3d
@@ -153,7 +249,7 @@ fun MapDetailScreen(
             mapContent = {
                 MapDetailMap(
                     mapViewportState = mapViewportState,
-                    markers = screenState.places.map { place -> place.toPlaceMarker() },
+                    markers = markers,
                     is3d = is3d,
                     onMarkerClick = onMarkerClick,
                     onClusterClick = onClusterClick,
