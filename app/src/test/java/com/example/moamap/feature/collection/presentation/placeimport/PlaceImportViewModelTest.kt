@@ -149,7 +149,7 @@ class PlaceImportViewModelTest {
     fun `재시도를 취소하면 보고 있던 목록으로 되돌아간다`() = runTest(dispatcher) {
         startExtraction()
         advanceUntilIdle()
-        viewModel.selectPlace(Places[1].id)
+        viewModel.togglePlace(Places[1].id)
 
         val gate = CompletableDeferred<Unit>()
         repository.pending = gate
@@ -159,7 +159,7 @@ class PlaceImportViewModelTest {
 
         // 취소한 사용자가 결과를 잃고 URL 입력부터 다시 하게 두면 안 된다.
         assertEquals(Places, viewModel.uiState.value.places)
-        assertEquals(Places[1], viewModel.uiState.value.selectedPlace)
+        assertEquals(listOf(Places[1]), viewModel.uiState.value.selectedPlaces)
 
         gate.complete(Unit)
         advanceUntilIdle()
@@ -169,7 +169,7 @@ class PlaceImportViewModelTest {
     fun `재시도가 실패해도 보고 있던 목록과 선택이 유지된다`() = runTest(dispatcher) {
         startExtraction()
         advanceUntilIdle()
-        viewModel.selectPlace(Places[1].id)
+        viewModel.togglePlace(Places[1].id)
 
         repository.failure = ConnectionException(IOException("boom"))
         viewModel.startExtraction()
@@ -177,32 +177,49 @@ class PlaceImportViewModelTest {
 
         // 한 번 실패했다는 이유로 처음부터 다시 하게 만들면 안 된다.
         assertEquals(Places, viewModel.uiState.value.places)
-        assertEquals(Places[1], viewModel.uiState.value.selectedPlace)
+        assertEquals(listOf(Places[1]), viewModel.uiState.value.selectedPlaces)
         assertEquals("네트워크에 연결할 수 없어요", viewModel.uiState.value.errorMessage)
     }
 
     @Test
-    fun `장소는 하나만 선택되고 다시 고르면 교체된다`() = runTest(dispatcher) {
+    fun `장소는 여러 개 선택할 수 있고 다시 누르면 해제된다`() = runTest(dispatcher) {
         startExtraction()
         advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.canProceed)
 
-        viewModel.selectPlace(Places[0].id)
-        assertEquals(Places[0], viewModel.uiState.value.selectedPlace)
+        viewModel.togglePlace(Places[0].id)
+        viewModel.togglePlace(Places[1].id)
+
+        assertEquals(Places, viewModel.uiState.value.selectedPlaces)
         assertTrue(viewModel.uiState.value.canProceed)
 
-        viewModel.selectPlace(Places[1].id)
-        assertEquals(Places[1], viewModel.uiState.value.selectedPlace)
+        viewModel.togglePlace(Places[0].id)
+
+        assertEquals(listOf(Places[1]), viewModel.uiState.value.selectedPlaces)
     }
 
     @Test
-    fun `재시도하면 골랐던 장소가 초기화된다`() = runTest(dispatcher) {
+    fun `선택한 장소는 고른 순서가 아니라 목록 순서로 나온다`() = runTest(dispatcher) {
         startExtraction()
         advanceUntilIdle()
-        viewModel.selectPlace(Places[0].id)
+
+        viewModel.togglePlace(Places[1].id)
+        viewModel.togglePlace(Places[0].id)
+
+        // 지도 선택 화면이 이 순서 그대로 노란 카드에 나열한다.
+        assertEquals(Places, viewModel.uiState.value.selectedPlaces)
+    }
+
+    @Test
+    fun `재시도하면 골랐던 장소가 모두 초기화된다`() = runTest(dispatcher) {
+        startExtraction()
+        advanceUntilIdle()
+        viewModel.togglePlace(Places[0].id)
+        viewModel.togglePlace(Places[1].id)
 
         viewModel.startExtraction()
 
-        assertNull(viewModel.uiState.value.selectedPlaceId)
+        assertEquals(emptySet<String>(), viewModel.uiState.value.selectedPlaceIds)
         assertEquals(ExtractionState.Loading, viewModel.uiState.value.extraction)
 
         advanceUntilIdle()

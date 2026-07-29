@@ -13,6 +13,10 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
@@ -28,7 +32,7 @@ private val BottomBarClearance = 88.dp
 
 @Composable
 internal fun PlaceImportMapScreen(
-    place: ImportedPlace,
+    places: List<ImportedPlace>,
     maps: List<CollectionMapUiModel>,
     selectedMapIds: Set<Long>,
     canSave: Boolean,
@@ -37,6 +41,9 @@ internal fun PlaceImportMapScreen(
     onSaveClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // 고른 장소를 펼쳐 봤는지는 이 화면에서만 쓰고 끝나므로 ViewModel 까지 올리지 않는다.
+    var placesExpanded by rememberSaveable { mutableStateOf(false) }
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -62,7 +69,11 @@ internal fun PlaceImportMapScreen(
                 Spacer(Modifier.height(PlaceImportSectionSpacing))
 
                 // 앞 단계에서 고른 장소를 다시 보여준다.
-                SelectedPlaceCard(place = place)
+                SelectedPlacesCard(
+                    places = places,
+                    expanded = placesExpanded,
+                    onToggleExpand = { placesExpanded = !placesExpanded },
+                )
 
                 Spacer(Modifier.height(PlaceImportSectionSpacing))
 
@@ -105,7 +116,10 @@ private val PreviewMaps = listOf(
 private fun PlaceImportMapScreenPreview() {
     MoaMapTheme {
         PlaceImportMapScreen(
-            place = ImportedPlace(id = "1", name = "커피나무", address = "서울시 동작구 369"),
+            places = listOf(
+                ImportedPlace(id = "1", name = "커피나무", address = "서울시 동작구 369"),
+                ImportedPlace(id = "2", name = "블루보틀 성수", address = "서울시 성동구 아차산로 7"),
+            ),
             maps = PreviewMaps,
             selectedMapIds = setOf(12L),
             canSave = true,

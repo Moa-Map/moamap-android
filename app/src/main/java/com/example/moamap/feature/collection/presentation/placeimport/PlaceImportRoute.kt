@@ -10,5 +10,6 @@ internal object PlaceImportRoute {
     const val URL = "place_import/url"
     const val LOADING = "place_import/loading"
     const val PLACE = "place_import/place"
+    const val EDIT = "place_import/edit"
     const val MAP = "place_import/map"
 }
