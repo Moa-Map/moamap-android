@@ -1,8 +1,11 @@
 package com.example.moamap.feature.officialmap.di
 
 import com.example.moamap.feature.officialmap.data.remote.FootTrafficService
+import com.example.moamap.feature.officialmap.data.remote.OfficialMapService
 import com.example.moamap.feature.officialmap.data.repository.FootTrafficRepositoryImpl
+import com.example.moamap.feature.officialmap.data.repository.OfficialMapRepositoryImpl
 import com.example.moamap.feature.officialmap.domain.repository.FootTrafficRepository
+import com.example.moamap.feature.officialmap.domain.repository.OfficialMapRepository
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -19,10 +22,19 @@ internal abstract class OfficialMapModule {
     @Singleton
     abstract fun bindFootTrafficRepository(impl: FootTrafficRepositoryImpl): FootTrafficRepository
 
+    @Binds
+    @Singleton
+    abstract fun bindOfficialMapRepository(impl: OfficialMapRepositoryImpl): OfficialMapRepository
+
     companion object {
         @Provides
         @Singleton
         fun provideFootTrafficService(retrofit: Retrofit): FootTrafficService =
             retrofit.create(FootTrafficService::class.java)
+
+        @Provides
+        @Singleton
+        fun provideOfficialMapService(retrofit: Retrofit): OfficialMapService =
+            retrofit.create(OfficialMapService::class.java)
     }
 }
