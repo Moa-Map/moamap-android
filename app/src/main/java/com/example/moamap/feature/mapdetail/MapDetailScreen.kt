@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberBottomSheetScaffoldState
 import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -24,11 +25,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.moamap.core.designsystem.component.ErrorSnackbar
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
+import com.example.moamap.feature.mapdetail.domain.model.MapDetailAction
+import com.example.moamap.feature.mapdetail.presentation.MapDetailScreenState
+import com.example.moamap.feature.mapdetail.presentation.MapDetailViewModel
 import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
 import com.mapbox.maps.plugin.animation.MapAnimationOptions
+
+/** 시트가 가리지 않도록 지도 컨트롤을 시트 위로 띄우는 여백. */
+private val MapControlsBottomGap = 16.dp
+
+private val SheetPeekHeight = 283.dp
 
 private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
     save = { state ->
@@ -51,13 +63,19 @@ private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
 
 @Composable
 fun MapDetailScreen(
-    mapTitle: String,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
-    roleLabel: String = "방장",
-    bookmarked: Boolean = true,
-    onBookmarkClick: () -> Unit = {},
+    /** 서버 응답이 오기 전 상단바를 채우는 초기값. 응답이 도착하면 덮어쓴다. */
+    initialTitle: String = "",
+    viewModel: MapDetailViewModel = hiltViewModel(),
 ) {
+    val screenState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // 나가기가 끝나면 왔던 곳(탐색 또는 모음)으로 돌아간다.
+    LaunchedEffect(screenState.left) {
+        if (screenState.left) onBackClick()
+    }
+
     var uiState by rememberSaveable(stateSaver = MapDetailUiStateSaver) {
         mutableStateOf(MapDetailUiState())
     }
@@ -101,32 +119,46 @@ fun MapDetailScreen(
         }
     }
 
-    MapDetailContent(
-        mapTitle = mapTitle,
-        roleLabel = roleLabel,
-        bookmarked = bookmarked,
-        is3d = is3d,
-        selectedTab = uiState.selectedTab,
-        onBackClick = onBackClick,
-        onBookmarkClick = onBookmarkClick,
-        on3dToggleClick = on3dToggleClick,
-        onTabSelected = { tab -> uiState = uiState.selectTab(tab) },
-        places = filterPlaces(SamplePlaces, uiState.selectedCategory),
-        selectedCategory = uiState.selectedCategory,
-        onCategorySelected = { category -> uiState = uiState.selectCategory(category) },
-        onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
-        modifier = modifier,
-        mapContent = {
-            MapDetailMap(
-                mapViewportState = mapViewportState,
-                markers = SamplePlaceMarkers,
-                is3d = is3d,
-                onMarkerClick = onMarkerClick,
-                onClusterClick = onClusterClick,
-                modifier = Modifier.fillMaxSize(),
-            )
-        },
-    )
+    Box(modifier = modifier.fillMaxSize()) {
+        MapDetailContent(
+            mapTitle = screenState.title ?: initialTitle,
+            roleBadge = screenState.roleBadge,
+            action = screenState.action,
+            actionEnabled = !screenState.actionInProgress,
+            placeCount = screenState.placeCount,
+            is3d = is3d,
+            canAddPlace = screenState.canAddPlace,
+            selectedTab = uiState.selectedTab,
+            onBackClick = onBackClick,
+            onActionClick = {
+                if (screenState.action == MapDetailAction.Join) viewModel.join() else viewModel.leave()
+            },
+            on3dToggleClick = on3dToggleClick,
+            // TODO: 장소 추가 플로우는 다음 이슈에서 연결한다. 지금은 활성/비활성만 만든다.
+            onAddPlaceClick = {},
+            onTabSelected = { tab -> uiState = uiState.selectTab(tab) },
+            places = filterPlaces(SamplePlaces, uiState.selectedCategory),
+            selectedCategory = uiState.selectedCategory,
+            onCategorySelected = { category -> uiState = uiState.selectCategory(category) },
+            onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
+            mapContent = {
+                MapDetailMap(
+                    mapViewportState = mapViewportState,
+                    markers = SamplePlaceMarkers,
+                    is3d = is3d,
+                    onMarkerClick = onMarkerClick,
+                    onClusterClick = onClusterClick,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            },
+        )
+
+        ErrorSnackbar(
+            message = screenState.errorMessage,
+            onShown = viewModel::consumeErrorMessage,
+            modifier = Modifier.align(Alignment.BottomCenter),
+        )
+    }
 
     selectedPlace?.let { place ->
         PlaceDetailSheet(
@@ -140,13 +172,17 @@ fun MapDetailScreen(
 @Composable
 internal fun MapDetailContent(
     mapTitle: String,
-    roleLabel: String,
-    bookmarked: Boolean,
+    roleBadge: String?,
+    action: MapDetailAction,
+    actionEnabled: Boolean,
+    placeCount: Int?,
     is3d: Boolean,
+    canAddPlace: Boolean,
     selectedTab: MapDetailTab,
     onBackClick: () -> Unit,
-    onBookmarkClick: () -> Unit,
+    onActionClick: () -> Unit,
     on3dToggleClick: () -> Unit,
+    onAddPlaceClick: () -> Unit,
     onTabSelected: (MapDetailTab) -> Unit,
     places: List<PlaceUiModel>,
     selectedCategory: String,
@@ -163,12 +199,11 @@ internal fun MapDetailContent(
     ) {
         MapDetailTopBar(
             mapTitle = mapTitle,
-            roleLabel = roleLabel,
-            bookmarked = bookmarked,
-            is3d = is3d,
+            roleBadge = roleBadge,
+            action = action,
+            actionEnabled = actionEnabled,
             onBackClick = onBackClick,
-            onBookmarkClick = onBookmarkClick,
-            on3dToggleClick = on3dToggleClick,
+            onActionClick = onActionClick,
         )
 
         Box(
@@ -180,10 +215,15 @@ internal fun MapDetailContent(
                 MapDetailTab.Places -> {
                     MapDetailPlacesContent(
                         places = places,
+                        placeCount = placeCount,
                         selectedCategory = selectedCategory,
+                        is3d = is3d,
+                        canAddPlace = canAddPlace,
                         onCategorySelected = onCategorySelected,
                         onPlaceClick = onPlaceClick,
                         onTabSelected = onTabSelected,
+                        on3dToggleClick = on3dToggleClick,
+                        onAddPlaceClick = onAddPlaceClick,
                         mapContent = mapContent,
                     )
                 }
@@ -213,10 +253,15 @@ internal fun MapDetailContent(
 @Composable
 private fun MapDetailPlacesContent(
     places: List<PlaceUiModel>,
+    placeCount: Int?,
     selectedCategory: String,
+    is3d: Boolean,
+    canAddPlace: Boolean,
     onCategorySelected: (String) -> Unit,
     onPlaceClick: (Long) -> Unit,
     onTabSelected: (MapDetailTab) -> Unit,
+    on3dToggleClick: () -> Unit,
+    onAddPlaceClick: () -> Unit,
     mapContent: @Composable () -> Unit,
 ) {
     val scaffoldState = rememberBottomSheetScaffoldState(
@@ -231,12 +276,13 @@ private fun MapDetailPlacesContent(
         sheetContent = {
             MapDetailBottomSheet(
                 places = places,
+                placeCount = placeCount,
                 selectedCategory = selectedCategory,
                 onCategorySelected = onCategorySelected,
                 onPlaceClick = onPlaceClick,
             )
         },
-        sheetPeekHeight = 283.dp,
+        sheetPeekHeight = SheetPeekHeight,
         sheetShape = RoundedCornerShape(topStart = 38.dp, topEnd = 38.dp),
         sheetContainerColor = MoaMapTheme.colors.backgroundSecondary,
         sheetTonalElevation = 0.dp,
@@ -253,6 +299,15 @@ private fun MapDetailPlacesContent(
                     .align(Alignment.TopCenter)
                     .padding(start = 20.dp, top = 16.dp, end = 20.dp),
             )
+            MapDetailMapControls(
+                is3d = is3d,
+                canAddPlace = canAddPlace,
+                on3dToggleClick = on3dToggleClick,
+                onAddPlaceClick = onAddPlaceClick,
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = SheetPeekHeight + MapControlsBottomGap),
+            )
         }
     }
 }
@@ -263,13 +318,51 @@ private fun MapDetailScreenPreview() {
     MoaMapTheme {
         MapDetailContent(
             mapTitle = "서울 데이트 지도",
-            roleLabel = "방장",
-            bookmarked = true,
+            roleBadge = "방장",
+            action = MapDetailAction.Leave,
+            actionEnabled = true,
+            placeCount = 32,
             is3d = true,
+            canAddPlace = true,
             selectedTab = MapDetailTab.Places,
             onBackClick = {},
-            onBookmarkClick = {},
+            onActionClick = {},
             on3dToggleClick = {},
+            onAddPlaceClick = {},
+            onTabSelected = {},
+            places = SamplePlaces,
+            selectedCategory = "전체",
+            onCategorySelected = {},
+            onPlaceClick = {},
+            mapContent = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MoaMapPrimitiveColors.Blue50),
+                )
+            },
+        )
+    }
+}
+
+/** 미리보기로 들어온 상태. 참여하기가 뜨고 장소 추가는 잠겨 있다. */
+@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Composable
+private fun MapDetailScreenNotJoinedPreview() {
+    MoaMapTheme {
+        MapDetailContent(
+            mapTitle = "성수 카페 투어",
+            roleBadge = null,
+            action = MapDetailAction.Join,
+            actionEnabled = true,
+            placeCount = 12,
+            is3d = false,
+            canAddPlace = false,
+            selectedTab = MapDetailTab.Places,
+            onBackClick = {},
+            onActionClick = {},
+            on3dToggleClick = {},
+            onAddPlaceClick = {},
             onTabSelected = {},
             places = SamplePlaces,
             selectedCategory = "전체",

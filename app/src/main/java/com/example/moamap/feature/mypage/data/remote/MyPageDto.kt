@@ -25,3 +25,15 @@ data class MyPageDto(
     val createdAt: String? = null,
     val introduction: String? = null,
 )
+
+/**
+ * GET api/v1/users/profiles 응답 항목.
+ *
+ * 탈퇴했거나 없는 사용자는 응답에서 빠진다. 요청한 id 개수와 항목 수가 다를 수 있다.
+ */
+@Serializable
+data class UserProfileDto(
+    val id: Long = 0,
+    val nickname: String? = null,
+    val profileImageUrl: String? = null,
+)

@@ -66,7 +66,7 @@ class ExploreViewModelTest {
     fun `첫 로드는 전체 태그와 인기순으로 조회한다`() = runTest {
         val repository = FakeRepository { listOf(sampleMap(1L)) }
 
-        val viewModel = ExploreViewModel(repository)
+        val viewModel = ExploreViewModel(repository).apply { refresh() }
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(listOf(null to CommunityMapSort.POPULAR), repository.calls)
@@ -76,9 +76,49 @@ class ExploreViewModelTest {
     }
 
     @Test
+    fun `만들어지기만 하면 조회하지 않는다`() = runTest {
+        val repository = FakeRepository()
+
+        ExploreViewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        // 화면이 보일 때 refresh 가 첫 조회를 겸한다. init 에서도 읽으면 요청이 두 번 나간다.
+        assertTrue(repository.calls.isEmpty())
+    }
+
+    @Test
+    fun `돌아와서 다시 읽는 동안에는 보던 목록이 남는다`() = runTest {
+        val repository = FakeRepository(responseDelayMillis = 100L) { listOf(sampleMap(1L)) }
+        val viewModel = ExploreViewModel(repository).apply { refresh() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.refresh()
+        dispatcher.scheduler.runCurrent()
+
+        // Loading 으로 되돌리면 돌아올 때마다 목록이 사라졌다 나타난다.
+        assertTrue(viewModel.uiState.value.communityMaps is CommunityMapsState.Success)
+    }
+
+    @Test
+    fun `새로고침이 실패해도 보던 목록을 지우지 않는다`() = runTest {
+        var fail = false
+        val repository = FakeRepository {
+            if (fail) throw RuntimeException("boom") else listOf(sampleMap(1L))
+        }
+        val viewModel = ExploreViewModel(repository).apply { refresh() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        fail = true
+        viewModel.refresh()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.communityMaps is CommunityMapsState.Success)
+    }
+
+    @Test
     fun `전체가 아닌 카테고리는 태그로 넘어간다`() = runTest {
         val repository = FakeRepository()
-        val viewModel = ExploreViewModel(repository)
+        val viewModel = ExploreViewModel(repository).apply { refresh() }
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.selectCategory("카페")
@@ -91,7 +131,7 @@ class ExploreViewModelTest {
     @Test
     fun `전체를 고르면 태그 없이 조회한다`() = runTest {
         val repository = FakeRepository()
-        val viewModel = ExploreViewModel(repository)
+        val viewModel = ExploreViewModel(repository).apply { refresh() }
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.selectCategory("카페")
@@ -105,7 +145,7 @@ class ExploreViewModelTest {
     @Test
     fun `같은 선택을 다시 누르면 재조회하지 않는다`() = runTest {
         val repository = FakeRepository()
-        val viewModel = ExploreViewModel(repository)
+        val viewModel = ExploreViewModel(repository).apply { refresh() }
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.selectCategory(ALL_CATEGORY)
@@ -118,7 +158,7 @@ class ExploreViewModelTest {
     @Test
     fun `정렬을 바꾸면 해당 정렬로 재조회한다`() = runTest {
         val repository = FakeRepository()
-        val viewModel = ExploreViewModel(repository)
+        val viewModel = ExploreViewModel(repository).apply { refresh() }
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.selectSort(CommunityMapSort.LATEST)
@@ -134,7 +174,7 @@ class ExploreViewModelTest {
         val repository = FakeRepository {
             if (fail) throw RuntimeException("boom") else listOf(sampleMap(1L))
         }
-        val viewModel = ExploreViewModel(repository)
+        val viewModel = ExploreViewModel(repository).apply { refresh() }
         dispatcher.scheduler.advanceUntilIdle()
         assertTrue(viewModel.uiState.value.communityMaps is CommunityMapsState.Error)
 
@@ -148,7 +188,7 @@ class ExploreViewModelTest {
     @Test
     fun `진행 중인 요청이 취소돼도 오류로 새지 않고 마지막 선택 결과만 남는다`() = runTest {
         val repository = FakeRepository(responseDelayMillis = 100L) { listOf(sampleMap(1L)) }
-        val viewModel = ExploreViewModel(repository)
+        val viewModel = ExploreViewModel(repository).apply { refresh() }
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.selectCategory("카페")

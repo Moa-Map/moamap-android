@@ -45,6 +45,8 @@ internal fun MapDetailBottomSheet(
     onCategorySelected: (String) -> Unit,
     onPlaceClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
+    /** 서버가 세어 준 등록 장소 수. 응답이 오기 전에는 null 이라 개수를 감춘다. */
+    placeCount: Int? = null,
 ) {
     Column(
         modifier = modifier
@@ -69,7 +71,7 @@ internal fun MapDetailBottomSheet(
         }
 
         Text(
-            text = "장소 32곳",
+            text = placeCount?.let { count -> "장소 ${count}곳" } ?: "장소",
             style = MoaMapTheme.typography.title3,
             color = MoaMapTheme.colors.textNormal,
             modifier = Modifier.padding(horizontal = 20.dp),
@@ -174,6 +176,7 @@ private fun MapDetailBottomSheetPreview() {
             onCategorySelected = {},
             onPlaceClick = {},
             modifier = Modifier.fillMaxSize(),
+            placeCount = 32,
         )
     }
 }

@@ -66,6 +66,7 @@ data class PlaceDto(
     val createdAt: String? = null,
     val updatedAt: String? = null,
     val tags: List<String> = emptyList(),
+    val photoUrls: List<String> = emptyList(),
 )
 
 /** POST api/v1/places/instagram-extractions 응답 항목 (장소 후보) */

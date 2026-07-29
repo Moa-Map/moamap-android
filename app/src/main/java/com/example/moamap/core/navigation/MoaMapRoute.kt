@@ -45,20 +45,40 @@ sealed interface MoaMapRoute {
     }
 
     /**
+     * 지도 설명.
+     *
+     * 아직 참여하지 않은 공개 지도를 탐색 탭에서 눌렀을 때 거치는 소개 화면이다.
+     * 참여 중인 지도는 이 화면을 건너뛰고 [MapDetail] 로 바로 간다.
+     */
+    data object MapIntro : MoaMapRoute {
+        const val ARG_MAP_ID = "mapId"
+
+        override val route = "map_intro/{$ARG_MAP_ID}"
+
+        fun createRoute(mapId: Long): String = "map_intro/$mapId"
+    }
+
+    /**
      * 지도 상세.
      *
-     * 상세 내용은 아직 목데이터라 [ARG_MAP_TITLE] 만 화면에 쓰인다. [ARG_MAP_ID] 는
-     * `GET /api/v1/maps/{mapId}` 를 붙일 때 그대로 쓰려고 함께 넘긴다.
+     * [ARG_MAP_TITLE] 은 `GET /api/v1/maps/{mapId}` 응답이 오기 전까지 상단바를 채우는
+     * 초기값이다. 응답이 도착하면 서버 이름으로 덮어쓴다.
      */
     data object MapDetail : MoaMapRoute {
         const val ARG_MAP_ID = "mapId"
         const val ARG_MAP_TITLE = "mapTitle"
 
-        override val route = "map_detail/{$ARG_MAP_ID}/{$ARG_MAP_TITLE}"
+        override val route = "map_detail/{$ARG_MAP_ID}?$ARG_MAP_TITLE={$ARG_MAP_TITLE}"
 
-        /** 지도 이름에 `/` 가 들어가면 경로가 끊기므로 인코딩해서 넘긴다. */
-        fun createRoute(mapId: Long, mapTitle: String): String =
-            "map_detail/$mapId/${Uri.encode(mapTitle)}"
+        /**
+         * 이름은 선택값이라 경로 조각이 아니라 질의 문자열에 싣는다. 설명 화면처럼 넘길
+         * 이름이 없는 경로에서는 경로 조각이 비어 route 와 맞지 않고, 그러면 이동 자체가
+         * 실패한다.
+         *
+         * 이름에 `/` 나 `&` 가 들어가면 주소가 끊기므로 인코딩해서 넘긴다.
+         */
+        fun createRoute(mapId: Long, mapTitle: String = ""): String =
+            "map_detail/$mapId?$ARG_MAP_TITLE=${Uri.encode(mapTitle)}"
     }
 
     data object Notification : MoaMapRoute {
