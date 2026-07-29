@@ -11,6 +11,7 @@ import com.example.moamap.feature.collection.domain.model.ImportedPlace
 import com.example.moamap.feature.collection.domain.model.MapType
 import com.example.moamap.feature.collection.domain.model.PlaceExtractionException
 import com.example.moamap.feature.collection.domain.model.PlaceImportSource
+import com.example.moamap.feature.collection.domain.model.PlaceSaveResult
 import com.example.moamap.feature.collection.domain.repository.MapRepository
 import com.example.moamap.feature.collection.domain.repository.PlaceImportRepository
 import com.example.moamap.feature.collection.presentation.MyMapsState
@@ -27,6 +28,8 @@ import javax.inject.Inject
 private const val TAG = "PlaceImportViewModel"
 private const val DEFAULT_EXTRACTION_ERROR = "장소를 가져오지 못했어요"
 private const val MAPS_LOAD_FAILED_MESSAGE = "지도 목록을 불러오지 못했어요"
+private const val DEFAULT_SAVE_ERROR = "장소를 저장하지 못했어요"
+private const val NETWORK_ERROR_MESSAGE = "네트워크에 연결할 수 없어요"
 
 /**
  * 장소 가져오기 4단계가 공유하는 ViewModel.
@@ -162,7 +165,9 @@ internal class PlaceImportViewModel @Inject constructor(
      */
     private fun initialSelection(places: List<ImportedPlace>): Set<String> = when (source) {
         PlaceImportSource.Instagram -> emptySet()
-        PlaceImportSource.MapShare -> places.mapTo(mutableSetOf()) { place -> place.id }
+        PlaceImportSource.MapShare -> places
+            .filter { place -> place.savable }
+            .mapTo(mutableSetOf()) { place -> place.id }
     }
 
     /** 안내를 보여준 뒤 호출한다. 같은 메시지가 다시 뜨지 않게 한다. */
@@ -173,6 +178,11 @@ internal class PlaceImportViewModel @Inject constructor(
     /** 한 링크에서 나온 장소를 여러 개 가져갈 수 있으므로 장소도 토글이다. */
     fun togglePlace(placeId: String) {
         _uiState.update { state ->
+            // 등록 키가 없는 후보는 골라도 서버가 거절한다. 아예 선택되지 않게 둔다.
+            if (state.places.none { place -> place.id == placeId && place.savable }) {
+                return@update state
+            }
+
             val selected = if (placeId in state.selectedPlaceIds) {
                 state.selectedPlaceIds - placeId
             } else {
@@ -206,6 +216,42 @@ internal class PlaceImportViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 고른 장소를 고른 지도에 등록한다.
+     *
+     * 성공하면 [PlaceImportUiState.saveResult] 가 채워지고, 그 값을 보고 흐름을 빠져나간다.
+     * 실패하면 고른 것을 그대로 둔 채 안내만 띄워 같은 자리에서 다시 누를 수 있게 한다.
+     */
+    fun savePlaces() {
+        val current = _uiState.value
+        if (!current.canSave || current.selectedPlaces.isEmpty()) return
+
+        _uiState.update { state -> state.copy(saving = true, errorMessage = null) }
+
+        viewModelScope.launch {
+            val result = try {
+                placeImportRepository.savePlaces(current.selectedMapIds, current.selectedPlaces)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (throwable: Throwable) {
+                Log.e(TAG, "장소 저장 실패", throwable)
+                _uiState.update { state ->
+                    state.copy(saving = false, errorMessage = throwable.toSaveMessage())
+                }
+                return@launch
+            }
+
+            _uiState.update { state ->
+                // 한 곳도 들어가지 않았는데 저장된 것처럼 흐름을 닫으면 안 된다.
+                if (result.created == 0) {
+                    state.copy(saving = false, errorMessage = result.toEmptyMessage())
+                } else {
+                    state.copy(saving = false, saveResult = result)
+                }
+            }
+        }
+    }
+
     /** 한 장소를 여러 지도에 넣을 수 있으므로 지도는 토글이다. */
     fun toggleMap(mapId: Long) {
         _uiState.update { state ->
@@ -219,10 +265,21 @@ internal class PlaceImportViewModel @Inject constructor(
     }
 }
 
+/** 등록된 것이 하나도 없을 때의 안내. 전부 중복인 경우와 진짜 실패를 구분한다. */
+private fun PlaceSaveResult.toEmptyMessage(): String =
+    if (failed == 0) "이미 저장되어 있는 장소예요" else DEFAULT_SAVE_ERROR
+
+private fun Throwable.toSaveMessage(): String = when (this) {
+    // 권한이나 정원 같은 등록 거절 사유는 사용자가 조치할 수 있어 그대로 노출한다.
+    is ApiException -> serverMessage.ifBlank { DEFAULT_SAVE_ERROR }
+    is ConnectionException -> NETWORK_ERROR_MESSAGE
+    else -> DEFAULT_SAVE_ERROR
+}
+
 private fun Throwable.toUserMessage(): String = when (this) {
     // 캡션을 못 읽은 이유는 사용자가 조치할 수 있는 내용이라 그대로 노출한다.
     is PlaceExtractionException -> message ?: DEFAULT_EXTRACTION_ERROR
     is ApiException -> serverMessage.ifBlank { DEFAULT_EXTRACTION_ERROR }
-    is ConnectionException -> "네트워크에 연결할 수 없어요"
+    is ConnectionException -> NETWORK_ERROR_MESSAGE
     else -> DEFAULT_EXTRACTION_ERROR
 }

@@ -1,6 +1,7 @@
 package com.example.moamap.feature.collection.domain.repository
 
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
+import com.example.moamap.feature.collection.domain.model.PlaceSaveResult
 
 interface PlaceImportRepository {
 
@@ -20,4 +21,14 @@ interface PlaceImportRepository {
      * @throws com.example.moamap.core.network.NetworkException 서버 호출이 실패한 경우
      */
     suspend fun extractMapSharePlaces(url: String): List<ImportedPlace>
+
+    /**
+     * 고른 장소를 고른 지도에 모두 등록한다.
+     *
+     * 서버가 요청 하나에 지도 하나만 받으므로 지도 수만큼 호출한다. 건별로 부분 성공하니
+     * 결과는 통과·중복·실패를 합산해 돌려준다.
+     *
+     * @throws com.example.moamap.core.network.NetworkException 서버 호출이 실패한 경우
+     */
+    suspend fun savePlaces(mapIds: Set<Long>, places: List<ImportedPlace>): PlaceSaveResult
 }

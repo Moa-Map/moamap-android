@@ -9,6 +9,7 @@ import com.example.moamap.feature.collection.domain.model.MyMap
 import com.example.moamap.feature.collection.domain.model.NewMap
 import com.example.moamap.feature.collection.domain.model.PlaceExtractionException
 import com.example.moamap.feature.collection.domain.model.PlaceImportSource
+import com.example.moamap.feature.collection.domain.model.PlaceSaveResult
 import com.example.moamap.feature.collection.domain.repository.MapRepository
 import com.example.moamap.feature.collection.domain.repository.PlaceImportRepository
 import com.example.moamap.feature.collection.presentation.MyMapsState
@@ -29,9 +30,17 @@ import org.junit.Before
 import org.junit.Test
 import java.io.IOException
 
+private fun place(id: String, name: String, kakaoPlaceId: String? = id) = ImportedPlace(
+    id = id,
+    name = name,
+    roadAddress = "서울 동작구 상도로 369",
+    kakaoPlaceId = kakaoPlaceId,
+    sourceType = "INSTAGRAM",
+)
+
 private val Places = listOf(
-    ImportedPlace(id = "a", name = "커피나무", address = "서울 동작구 상도로 369"),
-    ImportedPlace(id = "b", name = "블루보틀 성수", address = "서울 성동구 아차산로 7"),
+    place(id = "a", name = "커피나무"),
+    place(id = "b", name = "블루보틀 성수"),
 )
 
 private val MyMaps = listOf(
@@ -70,6 +79,29 @@ private class FakePlaceImportRepository : PlaceImportRepository {
 
     var mapShareCallCount: Int = 0
         private set
+
+    var saveFailure: Throwable? = null
+    var saveResult = PlaceSaveResult(created = 2, duplicate = 0, failed = 0)
+
+    /** 값을 넣으면 완료될 때까지 저장이 매달린다. */
+    var savePending: CompletableDeferred<Unit>? = null
+
+    var savedMapIds: Set<Long>? = null
+        private set
+
+    var savedPlaces: List<ImportedPlace>? = null
+        private set
+
+    override suspend fun savePlaces(
+        mapIds: Set<Long>,
+        places: List<ImportedPlace>,
+    ): PlaceSaveResult {
+        savedMapIds = mapIds
+        savedPlaces = places
+        savePending?.await()
+        saveFailure?.let { throw it }
+        return saveResult
+    }
 
     override suspend fun extractPlaces(url: String): List<ImportedPlace> {
         callCount++
@@ -331,6 +363,126 @@ class PlaceImportViewModelTest {
         viewModel.toggleMap(MyMaps[0].id)
 
         assertEquals(setOf(MyMaps[1].id), viewModel.uiState.value.selectedMapIds)
+    }
+
+    @Test
+    fun `등록에 필요한 값이 없는 후보는 고를 수 없다`() = runTest(dispatcher) {
+        // 서버가 kakaoPlaceId 를 등록 키로 요구해서, 없는 후보는 저장까지 갈 수 없다.
+        repository.places = listOf(place(id = "candidate-0", name = "이름만 있는 곳", kakaoPlaceId = null))
+        startExtraction()
+        advanceUntilIdle()
+
+        viewModel.togglePlace("candidate-0")
+
+        assertEquals(emptySet<String>(), viewModel.uiState.value.selectedPlaceIds)
+        assertFalse(viewModel.uiState.value.canProceed)
+    }
+
+    @Test
+    fun `외부 지도를 전부 고를 때도 등록할 수 없는 후보는 빼둔다`() = runTest(dispatcher) {
+        repository.places = listOf(Places[0], place(id = "candidate-1", name = "미매칭", kakaoPlaceId = null))
+        viewModel = viewModel(PlaceImportSource.MapShare)
+
+        startExtraction()
+        advanceUntilIdle()
+
+        assertEquals(setOf("a"), viewModel.uiState.value.selectedPlaceIds)
+    }
+
+    @Test
+    fun `저장하면 고른 지도와 장소를 넘긴다`() = runTest(dispatcher) {
+        startExtraction()
+        advanceUntilIdle()
+        viewModel.togglePlace(Places[1].id)
+        viewModel.toggleMap(MyMaps[0].id)
+
+        viewModel.savePlaces()
+        advanceUntilIdle()
+
+        assertEquals(setOf(MyMaps[0].id), repository.savedMapIds)
+        assertEquals(listOf(Places[1]), repository.savedPlaces)
+    }
+
+    @Test
+    fun `저장에 성공하면 결과가 상태에 남는다`() = runTest(dispatcher) {
+        repository.saveResult = PlaceSaveResult(created = 1, duplicate = 1, failed = 0)
+        startExtraction()
+        advanceUntilIdle()
+        viewModel.togglePlace(Places[0].id)
+        viewModel.toggleMap(MyMaps[0].id)
+
+        viewModel.savePlaces()
+        advanceUntilIdle()
+
+        assertEquals(
+            PlaceSaveResult(created = 1, duplicate = 1, failed = 0),
+            viewModel.uiState.value.saveResult,
+        )
+        assertFalse(viewModel.uiState.value.saving)
+    }
+
+    @Test
+    fun `한 곳도 등록되지 않으면 흐름을 닫지 않고 안내한다`() = runTest(dispatcher) {
+        repository.saveResult = PlaceSaveResult(created = 0, duplicate = 2, failed = 0)
+        startExtraction()
+        advanceUntilIdle()
+        viewModel.togglePlace(Places[0].id)
+        viewModel.toggleMap(MyMaps[0].id)
+
+        viewModel.savePlaces()
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.saveResult)
+        assertEquals("이미 저장되어 있는 장소예요", viewModel.uiState.value.errorMessage)
+    }
+
+    @Test
+    fun `저장하는 동안에는 다시 저장하지 않는다`() = runTest(dispatcher) {
+        val gate = CompletableDeferred<Unit>()
+        repository.savePending = gate
+        startExtraction()
+        advanceUntilIdle()
+        viewModel.togglePlace(Places[0].id)
+        viewModel.toggleMap(MyMaps[0].id)
+
+        viewModel.savePlaces()
+        advanceUntilIdle()
+
+        // 두 번 눌러 같은 장소가 두 번 등록되면 안 된다.
+        assertTrue(viewModel.uiState.value.saving)
+        assertFalse(viewModel.uiState.value.canSave)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+    }
+
+    @Test
+    fun `저장에 실패하면 안내를 내고 다시 시도할 수 있다`() = runTest(dispatcher) {
+        repository.saveFailure = ConnectionException(IOException("boom"))
+        startExtraction()
+        advanceUntilIdle()
+        viewModel.togglePlace(Places[0].id)
+        viewModel.toggleMap(MyMaps[0].id)
+
+        viewModel.savePlaces()
+        advanceUntilIdle()
+
+        assertEquals("네트워크에 연결할 수 없어요", viewModel.uiState.value.errorMessage)
+        assertNull(viewModel.uiState.value.saveResult)
+        assertFalse(viewModel.uiState.value.saving)
+        assertTrue(viewModel.uiState.value.canSave)
+    }
+
+    @Test
+    fun `고른 지도가 없으면 저장하지 않는다`() = runTest(dispatcher) {
+        startExtraction()
+        advanceUntilIdle()
+        viewModel.togglePlace(Places[0].id)
+
+        viewModel.savePlaces()
+        advanceUntilIdle()
+
+        assertNull(repository.savedMapIds)
     }
 
     @Test

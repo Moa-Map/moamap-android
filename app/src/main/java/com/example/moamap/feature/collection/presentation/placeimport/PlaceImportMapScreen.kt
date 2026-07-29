@@ -21,6 +21,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.example.moamap.core.designsystem.component.ErrorSnackbar
 import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.feature.collection.CollectionMapCard
@@ -39,10 +40,13 @@ internal fun PlaceImportMapScreen(
     mapsState: MyMapsState,
     selectedMapIds: Set<Long>,
     canSave: Boolean,
+    saving: Boolean,
+    errorMessage: String?,
     onBackClick: () -> Unit,
     onMapClick: (Long) -> Unit,
     onRetryMapsClick: () -> Unit,
     onSaveClick: () -> Unit,
+    onErrorShown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // 고른 장소를 펼쳐 봤는지는 이 화면에서만 쓰고 끝나므로 ViewModel 까지 올리지 않는다.
@@ -104,13 +108,20 @@ internal fun PlaceImportMapScreen(
             }
         }
 
-        PlaceImportBottomBar(modifier = Modifier.align(Alignment.BottomCenter)) {
-            PlaceImportPrimaryButton(
-                text = "저장하기",
-                enabled = canSave,
-                onClick = onSaveClick,
-                modifier = Modifier.weight(1f),
+        // 안내가 버튼에 가리지 않도록 버튼 위에 쌓는다.
+        Column(modifier = Modifier.align(Alignment.BottomCenter)) {
+            ErrorSnackbar(
+                message = errorMessage,
+                onShown = onErrorShown,
             )
+            PlaceImportBottomBar {
+                PlaceImportPrimaryButton(
+                    text = if (saving) "저장하는 중.." else "저장하기",
+                    enabled = canSave,
+                    onClick = onSaveClick,
+                    modifier = Modifier.weight(1f),
+                )
+            }
         }
     }
 }
@@ -133,10 +144,13 @@ private fun PlaceImportMapScreenPreview() {
             mapsState = MyMapsState.Success(PreviewMaps),
             selectedMapIds = setOf(12L),
             canSave = true,
+            saving = false,
+            errorMessage = null,
             onBackClick = {},
             onMapClick = {},
             onRetryMapsClick = {},
             onSaveClick = {},
+            onErrorShown = {},
         )
     }
 }
