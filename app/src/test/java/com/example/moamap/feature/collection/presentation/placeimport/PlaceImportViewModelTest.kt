@@ -135,8 +135,13 @@ class PlaceImportViewModelTest {
         viewModel = viewModel(PlaceImportSource.Instagram)
     }
 
-    private fun viewModel(source: PlaceImportSource) = PlaceImportViewModel(
-        SavedStateHandle(mapOf(MoaMapRoute.PlaceImport.ARG_SOURCE to source.name)),
+    private fun viewModel(source: PlaceImportSource, url: String = "") = PlaceImportViewModel(
+        SavedStateHandle(
+            mapOf(
+                MoaMapRoute.PlaceImport.ARG_SOURCE to source.name,
+                MoaMapRoute.PlaceImport.ARG_URL to url,
+            ),
+        ),
         repository,
         mapRepository,
     )
@@ -149,6 +154,26 @@ class PlaceImportViewModelTest {
     private fun startExtraction() {
         viewModel.updateUrl("https://www.instagram.com/reel/ABC123/")
         viewModel.startExtraction()
+    }
+
+    @Test
+    fun `공유로 들어오면 URL이 채워진 채로 시작한다`() = runTest(dispatcher) {
+        val shared = viewModel(PlaceImportSource.MapShare, "https://naver.me/xAbCdEf")
+        advanceUntilIdle()
+
+        assertEquals("https://naver.me/xAbCdEf", shared.uiState.value.url)
+        assertTrue(shared.uiState.value.canSearch)
+        // 채우기만 한다. 검색은 사용자가 누른다.
+        assertEquals(ExtractionState.Idle, shared.uiState.value.extraction)
+        assertEquals(0, repository.mapShareCallCount)
+    }
+
+    @Test
+    fun `모음 탭으로 들어오면 URL이 비어 있다`() = runTest(dispatcher) {
+        advanceUntilIdle()
+
+        assertEquals("", viewModel.uiState.value.url)
+        assertFalse(viewModel.uiState.value.canSearch)
     }
 
     @Test

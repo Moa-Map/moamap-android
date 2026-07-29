@@ -36,6 +36,10 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
         startDestination = PlaceImportRoute.URL,
         arguments = listOf(
             navArgument(MoaMapRoute.PlaceImport.ARG_SOURCE) { type = NavType.StringType },
+            navArgument(MoaMapRoute.PlaceImport.ARG_URL) {
+                type = NavType.StringType
+                defaultValue = ""
+            },
         ),
     ) {
         composable(PlaceImportRoute.URL) { entry ->

@@ -1,11 +1,16 @@
 package com.example.moamap.core.navigation
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -16,8 +21,10 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.example.moamap.core.designsystem.component.ErrorSnackbar
 import com.example.moamap.feature.collection.CollectionScreen
 import com.example.moamap.feature.collection.domain.model.PlaceImportSource
+import com.example.moamap.feature.collection.share.SharedLink
 import com.example.moamap.feature.collection.presentation.createmap.CreateMapScreen
 import com.example.moamap.feature.explore.ExploreScreen
 import com.example.moamap.feature.mapdetail.MapDetailScreen
@@ -29,12 +36,53 @@ import com.example.moamap.feature.officialmap.presentation.DensityMapDetailScree
 import com.example.moamap.feature.onboarding.presentation.LoginScreen
 import com.example.moamap.feature.onboarding.presentation.SplashScreen
 
+/**
+ * @param pendingShare 다른 앱이 공유해 온 링크. 소비할 수 있을 때까지 상위가 들고 있는다.
+ * @param onShareHandled [pendingShare] 를 처리했음을 알린다. 같은 링크로 두 번 들어가지 않게 한다.
+ */
 @Composable
-fun MoaMapNavHost(
+internal fun MoaMapNavHost(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
+    pendingShare: SharedLink? = null,
+    onShareHandled: () -> Unit = {},
 ) {
     val currentRoute by navController.currentBackStackEntryAsState()
+    val destination = currentRoute?.destination?.route
+
+    /** 공유가 지원하지 않는 링크였을 때의 안내. 어느 화면에도 매이지 않아 여기서 든다. */
+    var shareError by remember { mutableStateOf<String?>(null) }
+
+    /**
+     * 공유로 들어온 링크를 장소 가져오기 흐름으로 넘긴다.
+     *
+     * 로그인 전에는 소비하지 않고 그대로 둔다. 로그인이 끝나 [MoaMapRoute.Explore] 로
+     * 넘어오면 목적지가 바뀌면서 이 효과가 다시 돌아 그때 진입한다. 덕분에 "로그인
+     * 끝나면 이어서" 를 위한 대기 상태를 따로 두지 않아도 된다.
+     */
+    LaunchedEffect(pendingShare, destination) {
+        val share = pendingShare ?: return@LaunchedEffect
+        if (
+            destination == null ||
+            destination == MoaMapRoute.Splash.route ||
+            destination == MoaMapRoute.Login.route
+        ) {
+            return@LaunchedEffect
+        }
+
+        when (share) {
+            is SharedLink.Supported -> navController.navigate(
+                MoaMapRoute.PlaceImport.createRoute(share.source.name, share.url),
+            )
+
+            // 흐름을 열어봐야 할 수 있는 것이 없다. 모음 탭에서 이유만 알린다.
+            SharedLink.Unsupported -> {
+                navController.navigateToTab(MoaMapRoute.Collection)
+                shareError = UNSUPPORTED_SHARE_MESSAGE
+            }
+        }
+        onShareHandled()
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         NavHost(
@@ -179,21 +227,32 @@ fun MoaMapNavHost(
             }
         }
 
-        if (
-            currentRoute?.destination?.route == MoaMapRoute.Explore.route ||
-            currentRoute?.destination?.route == MoaMapRoute.Collection.route
+        // 안내가 하단바에 가리지 않도록 위에 쌓는다. 띄울 것이 없으면 높이를 차지하지 않는다.
+        Column(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 12.dp),
         ) {
-            MoaMapBottomBar(
-                currentRoute = currentRoute?.destination?.route,
-                onItemClick = { route -> navController.navigateToTab(route) },
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .navigationBarsPadding()
-                    .padding(bottom = 12.dp),
+            ErrorSnackbar(
+                message = shareError,
+                onShown = { shareError = null },
             )
+
+            if (
+                destination == MoaMapRoute.Explore.route ||
+                destination == MoaMapRoute.Collection.route
+            ) {
+                MoaMapBottomBar(
+                    currentRoute = destination,
+                    onItemClick = { route -> navController.navigateToTab(route) },
+                )
+            }
         }
     }
 }
+
+private const val UNSUPPORTED_SHARE_MESSAGE = "인스타그램과 네이버·카카오·구글 지도 링크만 가져올 수 있어요"
 
 /** 스플래시는 뒤로가기로 돌아올 곳이 아니므로 백스택에서 지우고 이동한다. */
 private fun NavHostController.replaceSplashWith(destination: MoaMapRoute) {

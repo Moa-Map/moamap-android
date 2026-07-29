@@ -4,7 +4,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
 import java.net.HttpURLConnection
-import java.net.URI
 import java.net.URL
 
 /** 캡션 추출 결과. UI/전송 계층에서 분기하기 쉽도록 성공/막힘/오류를 구분한다. */
@@ -41,7 +40,7 @@ class InstagramCaptionExtractor : CaptionExtractor {
      * @return 캡션 추출 결과. 성공 시 [CaptionResult.Success.description] 에 캡션 전체 텍스트가 들어있다.
      */
     override suspend fun extract(rawUrl: String): CaptionResult = withContext(Dispatchers.IO) {
-        val shortcode = extractShortcode(rawUrl.trim())
+        val shortcode = InstagramUrl.shortcodeOf(rawUrl)
             ?: return@withContext CaptionResult.Error("URL에서 게시물 ID(shortcode)를 찾지 못했습니다.")
 
         val embedUrl = "https://www.instagram.com/p/$shortcode/embed/captioned/"
@@ -81,28 +80,6 @@ class InstagramCaptionExtractor : CaptionExtractor {
             CaptionResult.Error(e.message ?: e.toString())
         }
     }
-
-    /**
-     * 인스타 URL에서 shortcode 추출 (/p/, /reel/, /reels/, /tv/).
-     *
-     * 호스트가 인스타그램인지 먼저 확인하고 경로 전체를 매칭해,
-     * 비-인스타 호스트나 쿼리스트링 안에 섞인 문자열이 잘못 매칭되지 않게 한다.
-     */
-    private fun extractShortcode(url: String): String? =
-        runCatching { URI(url) }.getOrNull()?.let { uri ->
-            val host = uri.host?.lowercase()
-            if (
-                uri.scheme?.lowercase() !in setOf("http", "https") ||
-                host !in setOf("instagram.com", "www.instagram.com", "m.instagram.com")
-            ) {
-                return null
-            }
-
-            Regex("""^/(?:p|reel|reels|tv)/([A-Za-z0-9_-]+)/?$""")
-                .find(uri.rawPath ?: return null)
-                ?.groupValues
-                ?.get(1)
-        }
 
     /** `<div class="Caption"> ... </div>` 블록에서 본문 캡션 영역만 잘라낸다. */
     private fun extractCaptionBlock(html: String): String? {
