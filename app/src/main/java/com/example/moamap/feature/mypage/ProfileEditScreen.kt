@@ -1,6 +1,5 @@
 package com.example.moamap.feature.mypage
 
-import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -20,11 +19,17 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -32,6 +37,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -41,6 +47,8 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import com.example.moamap.R
 import com.example.moamap.core.common.imagepicker.rememberImagePickerController
@@ -49,6 +57,9 @@ import com.example.moamap.core.designsystem.component.ImageSourceMenu
 import com.example.moamap.core.designsystem.component.compatibleShadow
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
+import com.example.moamap.feature.mypage.presentation.ProfileEditUiState
+import com.example.moamap.feature.mypage.presentation.ProfileEditViewModel
+import com.example.moamap.feature.mypage.presentation.ProfileLoadState
 
 /** 촬영본이 쌓이는 캐시 위치. `res/xml/profile_image_paths.xml` 의 `cache-path` 와 맞춰야 한다. */
 private const val ProfileImageCacheDirectory = "profile_images"
@@ -61,24 +72,59 @@ private val SaveButtonShape = RoundedCornerShape(8.dp)
 internal fun ProfileEditScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
-    initialProfileImageUri: Uri? = null,
-    onProfileImageSelected: (Uri) -> Unit = {},
-    onSaveClick: () -> Unit = {},
+    viewModel: ProfileEditViewModel = hiltViewModel(),
 ) {
-    // 이 화면은 ViewModel 이 없어서 고른 사진을 여기서 들고 있는다.
-    var selectedImageUri by rememberSaveable(initialProfileImageUri) {
-        mutableStateOf(initialProfileImageUri?.toString())
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.saved) {
+        if (uiState.saved) onBackClick()
     }
+
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.consumeError()
+        }
+    }
+
+    Box(modifier = modifier.fillMaxSize()) {
+        ProfileEditContent(
+            uiState = uiState,
+            onBackClick = onBackClick,
+            onNicknameChange = viewModel::onNicknameChange,
+            onIntroductionChange = viewModel::onIntroductionChange,
+            onRetryClick = viewModel::load,
+            onSaveClick = viewModel::save,
+        )
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding(),
+        )
+    }
+}
+
+@Composable
+private fun ProfileEditContent(
+    uiState: ProfileEditUiState,
+    onBackClick: () -> Unit,
+    onNicknameChange: (String) -> Unit,
+    onIntroductionChange: (String) -> Unit,
+    onRetryClick: () -> Unit,
+    onSaveClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    var selectedImageUri by rememberSaveable { mutableStateOf<String?>(null) }
     val pickerState = rememberImagePickerState()
     val pickerController = rememberImagePickerController(
         state = pickerState,
         cacheDirectoryName = ProfileImageCacheDirectory,
         fileNamePrefix = ProfileImageFilePrefix,
-        onImageSelected = { uri ->
-            selectedImageUri = uri.toString()
-            onProfileImageSelected(uri)
-        },
+        onImageSelected = { uri -> selectedImageUri = uri.toString() },
     )
+    val serverImageUrl = (uiState.load as? ProfileLoadState.Success)?.profileImageUrl
 
     Box(
         modifier = modifier
@@ -94,7 +140,7 @@ internal fun ProfileEditScreen(
             ProfileEditTopBar(onBackClick = onBackClick)
             Spacer(Modifier.height(37.dp))
             ProfileImageEditor(
-                selectedImageUri = selectedImageUri?.let(Uri::parse),
+                imageModel = selectedImageUri ?: serverImageUrl,
                 isSourceMenuVisible = pickerState.isSourceMenuVisible,
                 onCameraBadgeClick = pickerState::showSourceMenu,
                 onMenuDismissRequest = pickerState::dismissSourceMenu,
@@ -102,10 +148,48 @@ internal fun ProfileEditScreen(
                 onGalleryClick = pickerController::requestGallery,
             )
             Spacer(Modifier.height(26.dp))
-            ProfileEditFields()
+
+            when (val load = uiState.load) {
+                ProfileLoadState.Loading -> ProfileEditPlaceholder {
+                    CircularProgressIndicator(
+                        color = MoaMapTheme.colors.primary,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+
+                is ProfileLoadState.Error -> ProfileEditPlaceholder {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text(
+                            text = load.message,
+                            style = MoaMapTheme.typography.body2,
+                            color = MoaMapTheme.colors.textAlternative,
+                        )
+                        Text(
+                            text = "다시 시도",
+                            style = MoaMapTheme.typography.subtitle2,
+                            color = MoaMapTheme.colors.primary,
+                            modifier = Modifier.clickable(onClick = onRetryClick),
+                        )
+                    }
+                }
+
+                is ProfileLoadState.Success -> ProfileEditFields(
+                    nickname = uiState.nickname,
+                    introduction = uiState.introduction,
+                    // 카카오 로그인에서 이메일 동의 항목을 못 받고 있어 보여줄 값이 없다.
+                    // 권한이 풀리면 아래 인자와 ProfileEditFields 의 이메일 칸을 되살린다.
+                    // email = load.email,
+                    onNicknameChange = onNicknameChange,
+                    onIntroductionChange = onIntroductionChange,
+                )
+            }
         }
 
         ProfileSaveButton(
+            enabled = uiState.canSave,
             onClick = onSaveClick,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -113,6 +197,18 @@ internal fun ProfileEditScreen(
                 .padding(horizontal = 20.dp, vertical = 12.dp),
         )
     }
+}
+
+/** 조회가 끝나기 전/실패했을 때 입력 필드 자리를 채운다. */
+@Composable
+private fun ProfileEditPlaceholder(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp),
+        contentAlignment = Alignment.Center,
+        content = { content() },
+    )
 }
 
 @Composable
@@ -151,7 +247,8 @@ private fun ProfileEditTopBar(
 
 @Composable
 private fun ProfileImageEditor(
-    selectedImageUri: Uri?,
+    /** 고른 사진의 `Uri` 문자열이거나 서버가 준 URL. AsyncImage 가 둘 다 받는다. */
+    imageModel: String?,
     isSourceMenuVisible: Boolean,
     onCameraBadgeClick: () -> Unit,
     onMenuDismissRequest: () -> Unit,
@@ -178,10 +275,10 @@ private fun ProfileImageEditor(
             shadowRadius = 5.dp,
             shadowColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.08f),
         ) {
-            selectedImageUri?.let { uri ->
+            imageModel?.let { model ->
                 AsyncImage(
-                    model = uri,
-                    contentDescription = "선택한 프로필 이미지",
+                    model = model,
+                    contentDescription = "프로필 이미지",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .matchParentSize()
@@ -224,7 +321,13 @@ private fun ProfileImageEditor(
 }
 
 @Composable
-private fun ProfileEditFields() {
+private fun ProfileEditFields(
+    nickname: String,
+    introduction: String,
+    // email: String,
+    onNicknameChange: (String) -> Unit,
+    onIntroductionChange: (String) -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -235,10 +338,11 @@ private fun ProfileEditFields() {
             label = "이름",
             height = 45.dp,
         ) {
-            Text(
-                text = "이름을 작성해주세요",
-                style = MoaMapTheme.typography.body2,
-                color = MoaMapTheme.colors.textAssistive,
+            ProfileTextField(
+                value = nickname,
+                onValueChange = onNicknameChange,
+                placeholder = "이름을 작성해주세요",
+                singleLine = true,
             )
         }
 
@@ -248,40 +352,78 @@ private fun ProfileEditFields() {
             height = 88.dp,
             contentAlignment = Alignment.TopStart,
         ) {
-            Text(
-                text = "나를 소개하는 한마디를 입력해보세요",
-                style = MoaMapTheme.typography.body2,
-                color = MoaMapTheme.colors.textAssistive,
+            ProfileTextField(
+                value = introduction,
+                onValueChange = onIntroductionChange,
+                placeholder = "나를 소개하는 한마디를 입력해보세요",
+                singleLine = false,
             )
         }
 
-        ProfileField(
-            label = "이메일",
-            height = 45.dp,
-            backgroundColor = MoaMapPrimitiveColors.Yellow50,
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "user@example.com",
-                    style = MoaMapTheme.typography.body2,
-                    color = MoaMapTheme.colors.textAssistive,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = "소셜 연동",
-                    style = MoaMapTheme.typography.caption2,
-                    color = MoaMapPrimitiveColors.Blue700,
-                    modifier = Modifier
-                        .clip(CircleShape)
-                        .background(MoaMapPrimitiveColors.Blue100)
-                        .padding(horizontal = 8.dp, vertical = 4.dp),
-                )
-            }
-        }
+        // 카카오 로그인이 이메일 동의 항목을 못 받아와 서버가 빈 값을 준다. 빈 칸만 덩그러니
+        // 보이느니 칸째로 숨긴다. 동의 항목이 풀리면 이 블록과 위의 email 인자를 되살린다.
+        // 이메일은 소셜 로그인이 정하는 값이라 되살릴 때도 읽기 전용이어야 하고,
+        // "소셜 연동" 배지는 안내일 뿐 누를 수 없다.
+        //
+        // ProfileField(
+        //     label = "이메일",
+        //     height = 45.dp,
+        //     backgroundColor = MoaMapPrimitiveColors.Yellow50,
+        // ) {
+        //     Row(
+        //         modifier = Modifier.fillMaxWidth(),
+        //         verticalAlignment = Alignment.CenterVertically,
+        //     ) {
+        //         Text(
+        //             text = email,
+        //             style = MoaMapTheme.typography.body2,
+        //             color = MoaMapTheme.colors.textAlternative,
+        //             modifier = Modifier.weight(1f),
+        //         )
+        //         Text(
+        //             text = "소셜 연동",
+        //             style = MoaMapTheme.typography.caption2,
+        //             color = MoaMapPrimitiveColors.Blue700,
+        //             modifier = Modifier
+        //                 .clip(CircleShape)
+        //                 .background(MoaMapPrimitiveColors.Blue100)
+        //                 .padding(horizontal = 8.dp, vertical = 4.dp),
+        //         )
+        //     }
+        // }
     }
+}
+
+/** [ProfileField] 안에 들어가는 입력칸. 바깥 상자가 배경·그림자·여백을 이미 그린다. */
+@Composable
+private fun ProfileTextField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    placeholder: String,
+    singleLine: Boolean,
+) {
+    BasicTextField(
+        value = value,
+        onValueChange = onValueChange,
+        textStyle = MoaMapTheme.typography.body2.copy(
+            color = MoaMapTheme.colors.textNormal,
+        ),
+        cursorBrush = SolidColor(MoaMapTheme.colors.primary),
+        singleLine = singleLine,
+        modifier = Modifier.fillMaxWidth(),
+        decorationBox = { innerTextField ->
+            Box {
+                if (value.isEmpty()) {
+                    Text(
+                        text = placeholder,
+                        style = MoaMapTheme.typography.body2,
+                        color = MoaMapTheme.colors.textAssistive,
+                    )
+                }
+                innerTextField()
+            }
+        },
+    )
 }
 
 @Composable
@@ -331,6 +473,7 @@ private fun ProfileField(
 
 @Composable
 private fun ProfileSaveButton(
+    enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -338,9 +481,13 @@ private fun ProfileSaveButton(
         modifier = modifier
             .fillMaxWidth()
             .height(49.dp)
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         shape = SaveButtonShape,
-        backgroundColor = MoaMapTheme.colors.primary,
+        backgroundColor = if (enabled) {
+            MoaMapTheme.colors.primary
+        } else {
+            MoaMapPrimitiveColors.Gray100
+        },
         shadowRadius = 2.5.dp,
         shadowColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.1f),
         contentAlignment = Alignment.Center,
@@ -394,6 +541,20 @@ private fun ShadowedContainer(
 @Composable
 private fun ProfileEditScreenPreview() {
     MoaMapTheme {
-        ProfileEditScreen(onBackClick = {})
+        ProfileEditContent(
+            uiState = ProfileEditUiState(
+                load = ProfileLoadState.Success(
+                    email = "moa@example.com",
+                    profileImageUrl = null,
+                ),
+                nickname = "모아맵",
+                introduction = "지도 모으는 사람",
+            ),
+            onBackClick = {},
+            onNicknameChange = {},
+            onIntroductionChange = {},
+            onRetryClick = {},
+            onSaveClick = {},
+        )
     }
 }
