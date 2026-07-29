@@ -101,7 +101,7 @@ private fun MyMap.toCommunityUiModel() = CollectionMapUiModel(
  * 프라이빗 카드는 원래 장소 수만 보여주는 자리다. 서버가 장소 수를 주지 않는 동안에는
  * 인원 수로 대신 채우지 않고 그 자리를 비워 둔다.
  */
-private fun MyMap.toPrivateUiModel() = CollectionMapUiModel(
+internal fun MyMap.toPrivateUiModel() = CollectionMapUiModel(
     id = id,
     title = title,
     verified = official,
@@ -399,7 +399,7 @@ private fun PrivateTabContent(
  * 세 상태 모두 같은 높이를 차지해, 상태가 바뀔 때 화면이 튀지 않는다.
  */
 @Composable
-private fun MapsStateContent(
+internal fun MapsStateContent(
     state: MyMapsState,
     emptyMessage: String,
     onRetryClick: () -> Unit,

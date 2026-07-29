@@ -273,7 +273,8 @@ internal fun ImportedPlaceCard(
         shape = PlaceImportCardShape,
         color = MoaMapPrimitiveColors.White,
         border = selectedCardBorder(selected),
-        onClick = onClick,
+        // 등록 키가 없는 후보는 눌러도 선택되지 않는다. 눌리는 것처럼 보이지 않게 클릭 자체를 뗀다.
+        onClick = onClick.takeIf { place.savable },
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
@@ -283,7 +284,7 @@ internal fun ImportedPlaceCard(
             PlaceThumbnail(cornerRadius = 4.dp)
             PlaceLabels(
                 name = place.name,
-                address = place.address,
+                address = place.displayAddress,
                 modifier = Modifier.weight(1f),
             )
             PlaceImportCheckBox(checked = selected)
@@ -315,7 +316,7 @@ internal fun EditablePlaceCard(
             PlaceThumbnail(cornerRadius = 4.dp)
             PlaceLabels(
                 name = place.name,
-                address = place.address,
+                address = place.displayAddress,
                 modifier = Modifier.weight(1f),
             )
             Text(
@@ -417,7 +418,7 @@ private fun SelectedPlaceRow(
         )
         PlaceLabels(
             name = place.name,
-            address = place.address,
+            address = place.displayAddress,
             modifier = Modifier.weight(1f),
         )
         trailingContent()

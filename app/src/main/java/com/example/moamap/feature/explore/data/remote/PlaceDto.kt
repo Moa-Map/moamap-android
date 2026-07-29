@@ -20,6 +20,57 @@ data class PlaceCreateRequestDto(
     val tags: List<String>? = null,
 )
 
+/** 서버가 한 번에 받는 장소 수. 이보다 많으면 나눠 보내야 한다. */
+const val MAX_BULK_PLACES = 100
+
+/**
+ * POST api/v1/places/bulk 요청.
+ *
+ * 요청 하나가 지도 하나를 대상으로 한다. 여러 지도에 넣으려면 지도 수만큼 호출한다.
+ * 서버가 한 요청당 [MAX_BULK_PLACES] 개로 제한한다.
+ */
+@Serializable
+data class PlaceBulkCreateRequestDto(
+    val mapId: Long,
+    val places: List<PlaceBulkItemDto>,
+)
+
+/** 단건 등록 요청에서 `mapId` 만 뺀 모양. */
+@Serializable
+data class PlaceBulkItemDto(
+    val name: String,
+    val address: String? = null,
+    val roadAddress: String? = null,
+    val lat: Double,
+    val lng: Double,
+    val category: String? = null,
+    val kakaoPlaceId: String,
+    // KAKAO_SEARCH, INSTAGRAM, NAVER_MAP, KAKAO_MAP, GOOGLE_MAP
+    val sourceType: String,
+    val sourceUrl: String? = null,
+    val description: String? = null,
+    val tags: List<String>? = null,
+)
+
+/** 일괄 등록 응답. 건별 부분 성공이라 실패한 건도 사유와 함께 온다. */
+@Serializable
+data class PlaceBulkCreateResponseDto(
+    val requested: Int = 0,
+    val created: Int = 0,
+    val skipped: Int = 0,
+    val results: List<PlaceBulkResultDto> = emptyList(),
+)
+
+@Serializable
+data class PlaceBulkResultDto(
+    val index: Int = 0,
+    val name: String? = null,
+    // CREATED, DUPLICATE, FAILED
+    val status: String? = null,
+    val placeId: Long? = null,
+    val reason: String? = null,
+)
+
 /** PATCH api/v1/places/{id} 요청. 변경할 필드만 채운다. */
 @Serializable
 data class PlaceUpdateRequestDto(

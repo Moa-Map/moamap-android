@@ -2,12 +2,16 @@ package com.example.moamap.feature.collection.data.repository
 
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
 import com.example.moamap.feature.collection.domain.model.PlaceExtractionException
+import com.example.moamap.feature.collection.domain.model.PlaceSaveResult
 import com.example.moamap.feature.collection.domain.repository.PlaceImportRepository
 import com.example.moamap.feature.collection.instagram.CaptionExtractor
 import com.example.moamap.feature.collection.instagram.CaptionResult
 import com.example.moamap.feature.explore.data.remote.InstagramExtractRequestDto
+import com.example.moamap.feature.explore.data.remote.MAX_BULK_PLACES
 import com.example.moamap.feature.explore.data.remote.MapShareExtractRequestDto
 import com.example.moamap.feature.explore.data.remote.MapSharePlaceCandidateDto
+import com.example.moamap.feature.explore.data.remote.PlaceBulkCreateRequestDto
+import com.example.moamap.feature.explore.data.remote.PlaceBulkItemDto
 import com.example.moamap.feature.explore.data.remote.PlaceCandidateDto
 import com.example.moamap.feature.explore.data.remote.PlaceService
 import javax.inject.Inject
@@ -55,19 +59,95 @@ class PlaceImportRepositoryImpl @Inject constructor(
         // 재매칭에 실패한 unmatched 는 등록까지 갈 수 없어 목록에 올리지 않는다.
         return response.matched
             .filter { candidate -> !candidate.name.isNullOrBlank() }
-            .mapIndexed { index, candidate -> candidate.toImportedPlace(index) }
+            .mapIndexed { index, candidate ->
+                // 후보마다 붙는 값이지만 리스트 전체가 한 지도에서 나온 것이라
+                // 비어 있으면 응답 최상단의 출처로 채운다.
+                candidate.toImportedPlace(index, candidate.sourceType ?: response.source)
+            }
+    }
+
+    /**
+     * 서버가 요청 하나에 지도 하나만 받아서, 고른 지도마다 따로 부른다.
+     *
+     * 하나라도 실패하면 그대로 던진다. 일부 지도만 저장된 채 성공했다고 알리면
+     * 사용자가 나머지 지도를 다시 시도할 방법이 없다.
+     */
+    override suspend fun savePlaces(
+        mapIds: Set<Long>,
+        places: List<ImportedPlace>,
+    ): PlaceSaveResult {
+        var created = 0
+        var duplicate = 0
+        var failed = 0
+
+        for (mapId in mapIds) {
+            for (chunk in places.chunked(MAX_BULK_PLACES)) {
+                val response = placeService.createPlacesBulk(
+                    PlaceBulkCreateRequestDto(
+                        mapId = mapId,
+                        places = chunk.map { place -> place.toBulkItem() },
+                    ),
+                )
+                for (result in response.results) {
+                    when (result.status) {
+                        CREATED -> created++
+                        DUPLICATE -> duplicate++
+                        else -> failed++
+                    }
+                }
+            }
+        }
+
+        return PlaceSaveResult(created = created, duplicate = duplicate, failed = failed)
+    }
+
+    private companion object {
+        const val CREATED = "CREATED"
+        const val DUPLICATE = "DUPLICATE"
     }
 }
+
+private fun ImportedPlace.toBulkItem() = PlaceBulkItemDto(
+    name = name,
+    address = address,
+    roadAddress = roadAddress,
+    lat = lat,
+    lng = lng,
+    category = category,
+    // 고를 수 있었던 장소는 이 값을 갖고 있다. 없는 후보는 선택 단계에서 걸러진다.
+    kakaoPlaceId = kakaoPlaceId.orEmpty(),
+    sourceType = sourceType,
+    sourceUrl = sourceUrl,
+    description = description,
+)
 
 private fun PlaceCandidateDto.toImportedPlace(index: Int) = ImportedPlace(
     id = kakaoPlaceId?.takeIf { it.isNotBlank() } ?: "candidate-$index",
     name = name.orEmpty(),
-    // 도로명이 사용자에게 익숙하다. 없으면 지번으로 대체한다.
-    address = roadAddress?.takeIf { it.isNotBlank() } ?: address.orEmpty(),
+    address = address,
+    roadAddress = roadAddress,
+    lat = lat,
+    lng = lng,
+    category = category,
+    kakaoPlaceId = kakaoPlaceId,
+    sourceType = INSTAGRAM_SOURCE_TYPE,
+    sourceUrl = sourceUrl,
 )
 
-private fun MapSharePlaceCandidateDto.toImportedPlace(index: Int) = ImportedPlace(
-    id = kakaoPlaceId?.takeIf { it.isNotBlank() } ?: "candidate-$index",
-    name = name.orEmpty(),
-    address = roadAddress?.takeIf { it.isNotBlank() } ?: address.orEmpty(),
-)
+private fun MapSharePlaceCandidateDto.toImportedPlace(index: Int, sourceType: String?) =
+    ImportedPlace(
+        id = kakaoPlaceId?.takeIf { it.isNotBlank() } ?: "candidate-$index",
+        name = name.orEmpty(),
+        address = address,
+        roadAddress = roadAddress,
+        lat = lat,
+        lng = lng,
+        category = category,
+        description = description,
+        kakaoPlaceId = kakaoPlaceId,
+        sourceType = sourceType.orEmpty(),
+        sourceUrl = sourceUrl,
+    )
+
+/** 인스타그램 추출 응답에는 출처가 없다. 이 경로로 들어온 후보는 전부 릴스에서 나온 것이다. */
+private const val INSTAGRAM_SOURCE_TYPE = "INSTAGRAM"
