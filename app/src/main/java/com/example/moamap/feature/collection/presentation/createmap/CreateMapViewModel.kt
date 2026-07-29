@@ -40,7 +40,14 @@ internal class CreateMapViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(savedStateHandle.toCreateMapUiState())
     val uiState: StateFlow<CreateMapUiState> = _uiState.asStateFlow()
 
+    /**
+     * 커버 사진을 고른다.
+     *
+     * 올리는 중에는 받지 않는다. 이미 시작한 업로드는 그대로 끝나므로, 바꾸게 두면 미리보기에는
+     * 새 사진이 뜨는데 지도에는 앞의 사진이 저장된다.
+     */
     fun selectImage(uri: String) {
+        if (_uiState.value.isSubmitting) return
         updateState { state -> state.copy(imageUri = uri) }
     }
 

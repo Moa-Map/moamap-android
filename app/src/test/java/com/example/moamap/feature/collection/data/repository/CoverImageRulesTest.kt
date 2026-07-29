@@ -1,10 +1,22 @@
 package com.example.moamap.feature.collection.data.repository
 
+import com.example.moamap.feature.collection.domain.model.ALLOWED_COVER_CONTENT_TYPES
 import com.example.moamap.feature.collection.domain.model.CoverImageException
+import com.example.moamap.feature.collection.domain.model.MAX_COVER_FILE_SIZE
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class CoverImageRulesTest {
+
+    /** 갤러리 선택기가 이 목록을 그대로 파생해 쓴다. 한쪽만 바뀌면 조용히 어긋난다. */
+    @Test
+    fun `허용 형식은 서버 계약 세 가지다`() {
+        assertEquals(
+            setOf("image/jpeg", "image/png", "image/webp"),
+            ALLOWED_COVER_CONTENT_TYPES,
+        )
+    }
 
     @Test
     fun `서버가 받는 세 형식은 통과한다`() {

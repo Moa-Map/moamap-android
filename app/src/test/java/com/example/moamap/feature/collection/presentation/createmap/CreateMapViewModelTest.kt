@@ -526,6 +526,25 @@ class CreateMapViewModelTest {
         assertEquals(listOf(PICKED_IMAGE_URI, changed), repository.uploadedUris)
     }
 
+    /**
+     * 이미 시작한 업로드는 그대로 끝난다. 바꾸게 두면 미리보기에는 새 사진이 뜨는데 지도에는
+     * 앞의 사진이 저장된다.
+     */
+    @Test
+    fun `올리는 중에는 사진을 바꿀 수 없다`() = runTest(dispatcher) {
+        fillRequiredInput()
+        viewModel.selectImage(PICKED_IMAGE_URI)
+        viewModel.submit()
+
+        viewModel.selectImage("content://media/another.jpg")
+
+        assertEquals(PICKED_IMAGE_URI, state.imageUri)
+
+        advanceUntilIdle()
+        assertEquals(listOf(PICKED_IMAGE_URI), repository.uploadedUris)
+        assertEquals(UPLOADED_COVER_URL, repository.createdMaps.single().imageUrl)
+    }
+
     /** 스토리지에 이미 올라간 사진이다. 잊어버리면 같은 사진이 하나 더 올라간다. */
     @Test
     fun `프로세스가 죽었다 살아나도 올려둔 사진을 다시 올리지 않는다`() = runTest(dispatcher) {

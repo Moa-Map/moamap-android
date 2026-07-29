@@ -1,14 +1,8 @@
 package com.example.moamap.feature.collection.data.repository
 
+import com.example.moamap.feature.collection.domain.model.ALLOWED_COVER_CONTENT_TYPES
 import com.example.moamap.feature.collection.domain.model.CoverImageException
-
-/**
- * 서버가 커버 업로드 주소를 발급해 주는 범위.
- *
- * `/map-service/v3/api-docs` 의 `POST /api/v1/maps/cover-upload-url` 설명에 적힌 값이다.
- */
-internal val ALLOWED_COVER_CONTENT_TYPES = setOf("image/jpeg", "image/png", "image/webp")
-internal const val MAX_COVER_FILE_SIZE = 10L * 1024 * 1024
+import com.example.moamap.feature.collection.domain.model.MAX_COVER_FILE_SIZE
 
 /**
  * 발급을 요청하기 전에 거른다.
