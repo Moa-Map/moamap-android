@@ -86,6 +86,7 @@ class CollectionViewModelTest {
             return joinResult(inviteCode)
         }
 
+        override suspend fun uploadCoverImage(imageUri: String) = TODO("사용하지 않음")
         override suspend fun createMap(newMap: NewMap) = TODO("사용하지 않음")
     }
 

@@ -1,4 +1,4 @@
-package com.example.moamap.feature.mapdetail.data.repository
+package com.example.moamap.core.common.upload
 
 import android.content.ContentResolver
 import android.content.Context

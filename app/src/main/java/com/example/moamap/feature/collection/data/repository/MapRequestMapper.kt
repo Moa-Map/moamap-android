@@ -9,13 +9,12 @@ import com.example.moamap.feature.collection.domain.model.NewMap
 /**
  * 생성 요청.
  *
- * `imageUrl` 은 항상 비운다. 서버는 URL 문자열만 받는데 사용자가 고른 사진을 URL 로
- * 바꿔줄 업로드 엔드포인트가 아직 없다.
+ * `imageUrl` 은 커버 업로드를 마치고 받은 주소다. 사진을 안 골랐으면 비운다.
  */
 fun NewMap.toCreateRequest() = MapCreateRequestDto(
     name = name.trim(),
     description = description.normalized(),
-    imageUrl = null,
+    imageUrl = imageUrl.normalized(),
     visibility = visibility.toRequestValue(),
     tags = tags.normalized(),
 )
@@ -35,7 +34,7 @@ private fun MapVisibility.toRequestValue(): String = when (this) {
     MapVisibility.Private -> "PRIVATE"
 }
 
-/** 공백뿐인 설명은 안 쓴 것과 같다. */
+/** 공백뿐인 값은 안 쓴 것과 같다. 빈 문자열이 그대로 저장되지 않게 접는다. */
 private fun String?.normalized(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
 
 /** 빈 목록과 "태그 없음" 을 서버가 다르게 저장하지 않도록 아예 보내지 않는다. */

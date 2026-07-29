@@ -20,14 +20,20 @@ internal sealed interface SubmitState {
 }
 
 /**
- * 새 지도 만들기 화면 상태.
+ * 올려둔 커버.
  *
- * TODO: [imageUri] 는 미리보기에만 쓰고 서버로 보내지 않는다. 지도 커버 이미지 업로드
- *  엔드포인트가 서버에 없어서 넣을 URL 을 만들 수 없다. 생기면 여기서 함께 올린다.
+ * [sourceUri] 를 함께 들고 있어야 사진을 바꿔 고른 뒤에도 옛 주소를 쓰는 일이 없다.
  */
 @Immutable
+internal data class UploadedCover(val sourceUri: String, val fileUrl: String)
+
+/** 새 지도 만들기 화면 상태. */
+@Immutable
 internal data class CreateMapUiState(
+    /** 고른 사진의 `content://` URI. 미리보기에 쓰고, 제출할 때 이 사진을 올린다. */
     val imageUri: String? = null,
+    /** 이미 올려둔 커버. 재시도할 때 다시 올리지 않으려고 붙잡는다. */
+    val uploadedCover: UploadedCover? = null,
     val name: String = "",
     val description: String = "",
     val visibility: MapVisibility? = null,
@@ -37,6 +43,10 @@ internal data class CreateMapUiState(
     val submit: SubmitState = SubmitState.Idle,
     val errorMessage: String? = null,
 ) {
+    /** 지금 고른 사진에 대해 이미 받아둔 주소. 사진을 바꿨으면 쓰지 않는다. */
+    val reusableCoverUrl: String?
+        get() = uploadedCover?.takeIf { it.sourceUri == imageUri }?.fileUrl
+
     val isSubmitting: Boolean
         get() = submit is SubmitState.Submitting
 

@@ -1,6 +1,8 @@
 package com.example.moamap.feature.mapdetail.data.repository
 
 import android.net.Uri
+import com.example.moamap.core.common.upload.PhotoSpec
+import com.example.moamap.core.common.upload.PhotoUploader
 import com.example.moamap.core.network.model.PageResponse
 import com.example.moamap.feature.explore.data.remote.InstagramExtractRequestDto
 import com.example.moamap.feature.explore.data.remote.MapShareExtractRequestDto

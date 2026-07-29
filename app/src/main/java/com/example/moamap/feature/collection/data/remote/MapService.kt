@@ -22,6 +22,19 @@ interface MapService {
     suspend fun createMap(@Body request: MapCreateRequestDto): MapDetailDto
 
     /**
+     * 지도 커버 이미지 업로드용 presigned PUT URL 을 발급받는다.
+     *
+     * 커버는 우리 서버로 올리지 않는다. 여기서 받은 주소로 앱이 직접 올리고, 응답의 `fileUrl`
+     * 을 지도 생성 요청의 `imageUrl` 에 담는다.
+     *
+     * 지도를 만들기 전에 부르므로 `mapId` 를 넘기지 않는다. 허용 형식은 jpeg/png/webp, 최대 10MB.
+     */
+    @POST("api/v1/maps/cover-upload-url")
+    suspend fun createCoverUploadUrl(
+        @Body request: CoverUploadUrlRequestDto,
+    ): CoverUploadUrlDto
+
+    /**
      * 내가 참여한 지도 목록. 모음 화면이 쓴다.
      *
      * @param type OFFICIAL, COMMUNITY, PRIVATE 중 하나. 서버 필수값이라 빠뜨리면 400 이 난다.

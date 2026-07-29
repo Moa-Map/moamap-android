@@ -94,6 +94,8 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
     implementation(libs.coil.compose)
+    // 이게 없으면 AsyncImage 가 content:// 만 그리고 http(s) 주소는 조용히 실패한다.
+    implementation(libs.coil.network.okhttp)
     implementation(libs.haze)
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

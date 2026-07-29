@@ -55,6 +55,14 @@ import kotlinx.coroutines.flow.collectLatest
 private const val MapImageCacheDirectory = "map_images"
 private const val MapImageFilePrefix = "map"
 
+/**
+ * 커버 업로드 주소를 발급받을 수 있는 형식.
+ *
+ * `POST /api/v1/maps/cover-upload-url` 이 받는 값과 같다. 고르고 나서 거절당하지 않도록
+ * 선택기에서 미리 좁힌다.
+ */
+private val CoverImageMimeTypes = arrayOf("image/jpeg", "image/png", "image/webp")
+
 /** 버튼과 홈 인디케이터 사이 간격. */
 private val SubmitButtonBottomPadding = 13.dp
 
@@ -132,6 +140,7 @@ private fun CreateMapContent(
         state = pickerState,
         cacheDirectoryName = MapImageCacheDirectory,
         fileNamePrefix = MapImageFilePrefix,
+        mimeTypes = CoverImageMimeTypes,
         onImageSelected = { uri -> onImageSelected(uri.toString()) },
     )
 

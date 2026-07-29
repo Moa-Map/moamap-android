@@ -67,6 +67,8 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutinesTest" }
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
+# Coil 3 는 네트워크 로딩이 별도 아티팩트다. 없으면 http(s) 주소를 아예 못 가져온다.
+coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
 # Wear OS
 androidx-compose-bom-wear = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBomWear" }
 androidx-activity-compose-wear = { group = "androidx.activity", name = "activity-compose", version.ref = "activityComposeWear" }
