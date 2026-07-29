@@ -6,6 +6,9 @@
     <cache-path
         name="map_images"
         path="map_images/" />
+    <cache-path
+        name="place_photos"
+        path="place_photos/" />
     <files-path
         name="walk_sessions"
         path="walk-sessions/" />

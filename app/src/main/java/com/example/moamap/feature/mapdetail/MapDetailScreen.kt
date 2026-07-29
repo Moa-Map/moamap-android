@@ -31,8 +31,9 @@ import com.example.moamap.core.designsystem.component.ErrorSnackbar
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.feature.mapdetail.domain.model.MapDetailAction
-import com.example.moamap.feature.mapdetail.presentation.MapDetailScreenState
 import com.example.moamap.feature.mapdetail.presentation.MapDetailViewModel
+import com.example.moamap.feature.mapdetail.presentation.addplace.AddPlaceSheet
+import com.example.moamap.feature.mapdetail.presentation.mapOrNull
 import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
 import com.mapbox.maps.plugin.animation.MapAnimationOptions
@@ -41,9 +42,6 @@ import com.mapbox.maps.plugin.animation.MapAnimationOptions
 private val MapControlsBottomGap = 16.dp
 
 private val SheetPeekHeight = 283.dp
-
-/** 장소 추가가 아직 연결되지 않았다는 임시 안내. 플로우가 붙으면 지운다. */
-private const val ADD_PLACE_NOT_READY_MESSAGE = "장소 추가는 곧 열려요"
 
 private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
     save = { state ->
@@ -79,7 +77,9 @@ fun MapDetailScreen(
         if (screenState.left) onBackClick()
     }
 
+    // 등록 완료 안내. 시트가 닫힌 뒤 상세 화면에서 띄운다.
     var addPlaceNotice by remember { mutableStateOf<String?>(null) }
+    var addPlaceSheetVisible by rememberSaveable { mutableStateOf(false) }
 
     var uiState by rememberSaveable(stateSaver = MapDetailUiStateSaver) {
         mutableStateOf(MapDetailUiState())
@@ -139,9 +139,7 @@ fun MapDetailScreen(
                 if (screenState.action == MapDetailAction.Join) viewModel.join() else viewModel.leave()
             },
             on3dToggleClick = on3dToggleClick,
-            // TODO: 장소 추가 플로우는 다음 이슈에서 연결한다. 그때까지는 아무 일도 하지 않는
-            //  버튼이 고장 난 것처럼 보이지 않게 안내만 띄운다.
-            onAddPlaceClick = { addPlaceNotice = ADD_PLACE_NOT_READY_MESSAGE },
+            onAddPlaceClick = { addPlaceSheetVisible = true },
             onTabSelected = { tab -> uiState = uiState.selectTab(tab) },
             places = filterPlaces(SamplePlaces, uiState.selectedCategory),
             selectedCategory = uiState.selectedCategory,
@@ -178,6 +176,21 @@ fun MapDetailScreen(
             place = place,
             reviews = SamplePlaceReviews,
             onDismiss = closePlaceDetail,
+        )
+    }
+
+    // 지도를 아직 못 읽었으면 열지 않는다. 버튼 글씨와 mapId 가 지도 정보에 달려 있다.
+    val map = screenState.map.mapOrNull
+    if (addPlaceSheetVisible && map != null) {
+        AddPlaceSheet(
+            map = map,
+            onDismiss = { addPlaceSheetVisible = false },
+            onAdded = { message ->
+                addPlaceSheetVisible = false
+                addPlaceNotice = message
+                // 장소 수가 늘었다. 상단과 시트 제목이 옛 값을 들고 있으면 안 된다.
+                viewModel.retry()
+            },
         )
     }
 }

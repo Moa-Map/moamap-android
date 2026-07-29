@@ -36,6 +36,13 @@ android {
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"${localProperty("KAKAO_NATIVE_APP_KEY")}\"")
         manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = localProperty("KAKAO_NATIVE_APP_KEY")
 
+        // Kakao REST API 키. 장소 검색(로컬 API)에 쓴다.
+        //
+        // 이 키는 APK 에서 뽑아낼 수 있고 플랫폼 제한으로 막히지 않는다. 네이티브 앱 키와 달리
+        // 패키지명·키 해시를 검증하지 않아서다. 서버가 검색을 대신하는 엔드포인트가 생기면
+        // 앱에서 걷어낸다 - 검색은 PlaceSearchRepository 뒤에 있어 구현체만 바꾸면 된다.
+        buildConfigField("String", "KAKAO_REST_API_KEY", "\"${localProperty("KAKAO_REST_API_KEY")}\"")
+
         // 디버그 게이트웨이. 로컬 백엔드를 보려면 local.properties 에 BASE_URL 을 넣어 덮어쓴다.
         // 예) BASE_URL=http://10.0.2.2:8083/
         val baseUrl = localProperty("BASE_URL").ifEmpty { "http://125.6.39.211/" }

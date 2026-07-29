@@ -5,6 +5,8 @@ import com.example.moamap.feature.collection.domain.model.PlaceExtractionExcepti
 import com.example.moamap.feature.collection.instagram.CaptionExtractor
 import com.example.moamap.feature.collection.instagram.CaptionResult
 import com.example.moamap.feature.explore.data.remote.InstagramExtractRequestDto
+import com.example.moamap.feature.explore.data.remote.PhotoUploadUrlDto
+import com.example.moamap.feature.explore.data.remote.PhotoUploadUrlRequestDto
 import com.example.moamap.feature.explore.data.remote.PlaceCandidateDto
 import com.example.moamap.feature.explore.data.remote.PlaceCreateRequestDto
 import com.example.moamap.feature.explore.data.remote.PlaceDto
@@ -54,6 +56,9 @@ private class FakePlaceService(
     override suspend fun deletePlace(id: Long) = TODO("사용하지 않음")
     override suspend fun approvePlace(id: Long) = TODO("사용하지 않음")
     override suspend fun rejectPlace(id: Long) = TODO("사용하지 않음")
+    override suspend fun createPhotoUploadUrls(
+        request: PhotoUploadUrlRequestDto,
+    ): List<PhotoUploadUrlDto> = TODO("사용하지 않음")
 }
 
 class PlaceImportRepositoryImplTest {
