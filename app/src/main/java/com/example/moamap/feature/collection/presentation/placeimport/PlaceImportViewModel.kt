@@ -48,7 +48,10 @@ internal class PlaceImportViewModel @Inject constructor(
         requireNotNull(savedStateHandle[MoaMapRoute.PlaceImport.ARG_SOURCE]),
     )
 
-    private val _uiState = MutableStateFlow(PlaceImportUiState(source = source))
+    /** 다른 앱에서 공유로 들어온 링크. 모음 탭으로 들어오면 비어 있다. */
+    private val sharedUrl: String = savedStateHandle[MoaMapRoute.PlaceImport.ARG_URL] ?: ""
+
+    private val _uiState = MutableStateFlow(PlaceImportUiState(source = source, url = sharedUrl))
     val uiState: StateFlow<PlaceImportUiState> = _uiState.asStateFlow()
 
     private var extractionJob: Job? = null

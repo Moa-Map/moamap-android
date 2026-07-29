@@ -31,13 +31,25 @@ sealed interface MoaMapRoute {
      *
      * 인스타그램과 외부 지도가 같은 화면을 쓰고 부르는 API 와 문구만 달라서, 어느 쪽으로
      * 들어왔는지를 [ARG_SOURCE] 로 받는다. 값은 `PlaceImportSource` 의 이름이다.
+     *
+     * [ARG_URL] 은 다른 앱에서 공유로 들어왔을 때 URL 입력 화면을 미리 채우는 값이다.
+     * 모음 탭에서 들어오면 비어 있다.
      */
     data object PlaceImport : MoaMapRoute {
         const val ARG_SOURCE = "source"
+        const val ARG_URL = "url"
 
-        override val route = "place_import/{$ARG_SOURCE}"
+        override val route = "place_import/{$ARG_SOURCE}?$ARG_URL={$ARG_URL}"
 
-        fun createRoute(source: String): String = "place_import/$source"
+        /**
+         * URL 은 선택값이라 경로 조각이 아니라 질의 문자열에 싣는다. 모음 탭처럼 넘길
+         * 것이 없는 경로에서는 경로 조각이 비어 route 와 맞지 않고, 그러면 이동 자체가
+         * 실패한다.
+         *
+         * URL 에는 `?` 나 `&` 가 들어 있어 그대로 붙이면 주소가 끊긴다. 인코딩해서 넘긴다.
+         */
+        fun createRoute(source: String, url: String = ""): String =
+            "place_import/$source?$ARG_URL=${Uri.encode(url)}"
     }
 
     /** 모음 탭의 `새 지도` 로 들어가는 지도 생성 화면. */
