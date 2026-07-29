@@ -109,6 +109,18 @@ class AddPlaceViewModel @Inject constructor(
         _uiState.update { state -> state.copy(search = next) }
     }
 
+    /**
+     * 시트를 새로 열 때 처음 상태로 되돌린다.
+     *
+     * 이 ViewModel 은 지도 상세 화면에 매여 있어 시트를 닫아도 살아남는다. 지우지 않으면
+     * 다시 열었을 때 직전에 등록한 장소의 폼이 그대로 보인다.
+     */
+    fun reset() {
+        searchJob?.cancel()
+        submitJob?.cancel()
+        _uiState.value = AddPlaceUiState()
+    }
+
     // ---------- 단계 이동 ----------
 
     fun selectCandidate(candidate: PlaceCandidate) {
@@ -121,6 +133,7 @@ class AddPlaceViewModel @Inject constructor(
             state.copy(
                 selected = null,
                 photos = emptyList(),
+                uploadedPhotoUrls = emptyList(),
                 tags = emptyList(),
                 tagInput = "",
                 memo = "",
@@ -134,12 +147,15 @@ class AddPlaceViewModel @Inject constructor(
         _uiState.update { state ->
             // 이미 꽉 찼거나 같은 사진이면 무시한다.
             if (!state.canAddPhoto || uri in state.photos) state
-            else state.copy(photos = state.photos + uri)
+            // 목록이 바뀌면 앞서 올려 둔 주소는 더 이상 이 목록과 맞지 않는다.
+            else state.copy(photos = state.photos + uri, uploadedPhotoUrls = emptyList())
         }
     }
 
     fun removePhoto(uri: Uri) {
-        _uiState.update { state -> state.copy(photos = state.photos - uri) }
+        _uiState.update { state ->
+            state.copy(photos = state.photos - uri, uploadedPhotoUrls = emptyList())
+        }
     }
 
     fun updateTagInput(input: String) {
@@ -185,14 +201,20 @@ class AddPlaceViewModel @Inject constructor(
 
         submitJob?.cancel()
         submitJob = viewModelScope.launch {
-            val photoUrls = try {
-                addRepository.uploadPhotos(mapId, state.photos)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "사진 업로드 실패 (mapId=$mapId)", e)
-                fail(e.toUserMessage(PHOTO_UPLOAD_FAILED_MESSAGE))
-                return@launch
+            // 앞선 시도에서 이미 올렸으면 다시 올리지 않는다. 등록만 실패해 다시 눌렀을 때
+            // 매번 새로 올리면 지울 수 없는 사진이 시도할 때마다 쌓인다.
+            val photoUrls = state.uploadedPhotoUrls.ifEmpty {
+                try {
+                    addRepository.uploadPhotos(mapId, state.photos).also { uploaded ->
+                        _uiState.update { current -> current.copy(uploadedPhotoUrls = uploaded) }
+                    }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "사진 업로드 실패 (mapId=$mapId)", e)
+                    fail(e.toUserMessage(PHOTO_UPLOAD_FAILED_MESSAGE))
+                    return@launch
+                }
             }
 
             try {

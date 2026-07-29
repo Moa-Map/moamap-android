@@ -106,10 +106,20 @@ object NetworkModule {
         .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
         .build()
 
+    /**
+     * 로깅을 붙이지 않는다.
+     *
+     * OkHttp 의 로깅 인터셉터는 바이너리 본문을 찍지는 않지만, 그걸 판별하려고 본문을
+     * 버퍼로 한 번 복사한다. 사진을 스트리밍으로 흘려보내는 의미가 없어지고 메모리도
+     * 그만큼 더 든다.
+     */
     @Provides
     @Singleton
     @PresignedUploadClient
-    fun providePresignedUploadOkHttpClient(json: Json): OkHttpClient = baseClientBuilder(json)
+    fun providePresignedUploadOkHttpClient(json: Json): OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor(ErrorInterceptor(json))
+        .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .writeTimeout(UPLOAD_WRITE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
         .build()
 

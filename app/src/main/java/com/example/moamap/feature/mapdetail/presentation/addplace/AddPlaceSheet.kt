@@ -74,7 +74,7 @@ internal fun AddPlaceSheet(
     map: MapDetail,
     onDismiss: () -> Unit,
     onAdded: (String) -> Unit,
-    viewModel: AddPlaceViewModel = hiltViewModel(),
+    viewModel: AddPlaceViewModel,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)

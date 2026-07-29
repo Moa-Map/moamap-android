@@ -17,8 +17,9 @@ import com.example.moamap.feature.mapdetail.domain.model.PlaceCandidate
 fun KakaoPlaceDto.toPlaceCandidate(): PlaceCandidate? {
     if (id.isBlank() || placeName.isBlank()) return null
 
-    val longitude = x.toDoubleOrNull() ?: return null
-    val latitude = y.toDoubleOrNull() ?: return null
+    // toDoubleOrNull 은 "NaN" 과 "Infinity" 도 읽어 낸다. 범위까지 봐야 걸러진다.
+    val longitude = x.toDoubleOrNull()?.takeIf { it in -180.0..180.0 } ?: return null
+    val latitude = y.toDoubleOrNull()?.takeIf { it in -90.0..90.0 } ?: return null
 
     return PlaceCandidate(
         kakaoPlaceId = id,

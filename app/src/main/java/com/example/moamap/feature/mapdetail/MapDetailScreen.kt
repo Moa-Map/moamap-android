@@ -33,6 +33,7 @@ import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.feature.mapdetail.domain.model.MapDetailAction
 import com.example.moamap.feature.mapdetail.presentation.MapDetailViewModel
 import com.example.moamap.feature.mapdetail.presentation.addplace.AddPlaceSheet
+import com.example.moamap.feature.mapdetail.presentation.addplace.AddPlaceViewModel
 import com.example.moamap.feature.mapdetail.presentation.mapOrNull
 import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
@@ -69,6 +70,7 @@ fun MapDetailScreen(
     /** 서버 응답이 오기 전 상단바를 채우는 초기값. 응답이 도착하면 덮어쓴다. */
     initialTitle: String = "",
     viewModel: MapDetailViewModel = hiltViewModel(),
+    addPlaceViewModel: AddPlaceViewModel = hiltViewModel(),
 ) {
     val screenState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -139,7 +141,12 @@ fun MapDetailScreen(
                 if (screenState.action == MapDetailAction.Join) viewModel.join() else viewModel.leave()
             },
             on3dToggleClick = on3dToggleClick,
-            onAddPlaceClick = { addPlaceSheetVisible = true },
+            onAddPlaceClick = {
+                // 시트를 닫아도 ViewModel 은 이 화면에 매여 살아남는다. 지우지 않으면
+                // 다시 열었을 때 직전에 등록한 장소의 폼이 그대로 보인다.
+                addPlaceViewModel.reset()
+                addPlaceSheetVisible = true
+            },
             onTabSelected = { tab -> uiState = uiState.selectTab(tab) },
             places = filterPlaces(SamplePlaces, uiState.selectedCategory),
             selectedCategory = uiState.selectedCategory,
@@ -184,6 +191,7 @@ fun MapDetailScreen(
     if (addPlaceSheetVisible && map != null) {
         AddPlaceSheet(
             map = map,
+            viewModel = addPlaceViewModel,
             onDismiss = { addPlaceSheetVisible = false },
             onAdded = { message ->
                 addPlaceSheetVisible = false

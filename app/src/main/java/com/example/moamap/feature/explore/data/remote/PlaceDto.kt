@@ -59,9 +59,11 @@ data class PhotoFileSpecDto(
  */
 @Serializable
 data class PhotoUploadUrlDto(
-    val uploadUrl: String = "",
+    // 기본값을 두지 않는다. 빈 주소가 흘러들어가면 업로드 직전에 알 수 없는 예외로 터진다.
+    // 없는 채로 오면 역직렬화 단계에서 바로 걸리는 편이 낫다.
+    val uploadUrl: String,
+    val fileUrl: String,
     val objectKey: String? = null,
-    val fileUrl: String = "",
     val expiresInSeconds: Long = 0,
 )
 

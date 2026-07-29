@@ -53,6 +53,8 @@ private class FakeSearchRepository(
 
 private open class FakeAddRepository(
     private val responseDelayMillis: Long = 0L,
+    /** 올린 사진 주소. 재업로드 방지를 검증하려면 비어 있지 않아야 한다. */
+    private val uploadResult: List<String> = emptyList(),
 ) : PlaceAddRepository {
     val calls = mutableListOf<String>()
     var lastNewPlace: NewPlace? = null
@@ -61,7 +63,7 @@ private open class FakeAddRepository(
     override suspend fun uploadPhotos(mapId: Long, photos: List<Uri>): List<String> {
         calls += "uploadPhotos(${photos.size})"
         delay(responseDelayMillis)
-        return emptyList()
+        return uploadResult
     }
 
     override suspend fun addPlace(mapId: Long, newPlace: NewPlace) {
@@ -305,6 +307,51 @@ class AddPlaceViewModelTest {
         assertTrue(add.calls.none { call -> call == "addPlace" })
         assertNotNull(viewModel.uiState.value.errorMessage)
         assertNull(viewModel.uiState.value.addedMessage)
+    }
+
+    @Test
+    fun `시트를 다시 열면 처음 상태로 돌아간다`() = runTest {
+        // ViewModel 이 지도 상세에 매여 살아남아, 지우지 않으면 직전 폼이 그대로 보인다.
+        val viewModel = viewModel()
+        viewModel.updateQuery("카페")
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.selectCandidate(candidate("1"))
+        viewModel.updateTagInput("성수 ")
+        viewModel.updateMemo("메모")
+
+        viewModel.reset()
+
+        val state = viewModel.uiState.value
+        assertFalse(state.isFormStep)
+        assertEquals("", state.query)
+        assertEquals(PlaceSearchState.Idle, state.search)
+        assertEquals(emptyList<String>(), state.tags)
+        assertEquals("", state.memo)
+        assertNull(state.addedMessage)
+    }
+
+    @Test
+    fun `등록만 실패했으면 다시 눌러도 사진을 또 올리지 않는다`() = runTest {
+        // 올린 사진은 지울 방법이 없어, 재시도마다 올리면 고아 파일이 쌓인다.
+        var failAdd = true
+        val add = object : FakeAddRepository(uploadResult = listOf("https://img/1.jpg")) {
+            override suspend fun addPlace(mapId: Long, newPlace: NewPlace) {
+                if (failAdd) throw RuntimeException("boom")
+                super.addPlace(mapId, newPlace)
+            }
+        }
+        val viewModel = viewModel(add = add)
+        viewModel.selectCandidate(candidate("1"))
+
+        viewModel.submit(communityMap())
+        dispatcher.scheduler.advanceUntilIdle()
+
+        failAdd = false
+        viewModel.submit(communityMap())
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, add.calls.count { call -> call.startsWith("uploadPhotos") })
+        assertNotNull(viewModel.uiState.value.addedMessage)
     }
 
     @Test

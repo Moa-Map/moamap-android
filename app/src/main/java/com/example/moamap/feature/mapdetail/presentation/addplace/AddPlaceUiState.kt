@@ -36,6 +36,13 @@ data class AddPlaceUiState(
     val tags: List<String> = emptyList(),
     val tagInput: String = "",
     val memo: String = "",
+    /**
+     * 이미 올려 둔 사진 주소.
+     *
+     * 등록이 실패해도 올린 사진은 스토리지에 남는다(지울 API 가 없다). 다시 시도할 때
+     * 또 올리면 고아 파일이 시도할 때마다 쌓이므로, 한 번 올린 건 여기 두고 재사용한다.
+     */
+    val uploadedPhotoUrls: List<String> = emptyList(),
     val submitting: Boolean = false,
     /** 한 번 보여주고 지우는 실패 안내. */
     val errorMessage: String? = null,

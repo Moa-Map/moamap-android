@@ -60,8 +60,8 @@ private class RecordingPlaceService : PlaceService {
  * 사진이 없는 경로만 검증하므로 이 가짜는 불려서는 안 된다.
  */
 private class UnusedPhotoUploader : PhotoUploader {
-    override suspend fun read(uri: Uri) = TODO("사진 없는 경로만 검증한다")
-    override suspend fun upload(uploadUrl: String, photo: PhotoBytes) =
+    override suspend fun inspect(uri: Uri) = TODO("사진 없는 경로만 검증한다")
+    override suspend fun upload(uploadUrl: String, photo: PhotoSpec) =
         TODO("사진 없는 경로만 검증한다")
 }
 

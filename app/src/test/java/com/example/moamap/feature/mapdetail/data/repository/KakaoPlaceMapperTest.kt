@@ -44,6 +44,19 @@ class KakaoPlaceMapperTest {
     }
 
     @Test
+    fun `좌표가 지구 밖이면 후보로 쓰지 않는다`() {
+        assertNull(starbucks(x = "999").toPlaceCandidate())
+        assertNull(starbucks(y = "-91").toPlaceCandidate())
+    }
+
+    @Test
+    fun `NaN 이나 Infinity 도 걸러낸다`() {
+        // toDoubleOrNull 이 이 둘을 읽어 내므로 범위 검사가 없으면 통과해 버린다.
+        assertNull(starbucks(x = "NaN").toPlaceCandidate())
+        assertNull(starbucks(y = "Infinity").toPlaceCandidate())
+    }
+
+    @Test
     fun `id가 없으면 후보로 쓰지 않는다`() {
         // kakaoPlaceId 는 서버 등록 필수값이다.
         assertNull(starbucks(id = "").toPlaceCandidate())

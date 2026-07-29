@@ -20,32 +20,36 @@ internal class PlaceAddRepositoryImpl @Inject constructor(
 ) : PlaceAddRepository {
 
     /**
-     * 읽기 → 일괄 발급 → 장별 업로드 순으로 간다.
+     * 살펴보기 → 일괄 발급 → 장별 업로드 순으로 간다.
      *
-     * 발급 요청이 각 파일의 크기와 형식을 요구해서 먼저 읽어야 한다. 발급은 한 번에 받고
-     * 업로드만 장별로 한다.
+     * 발급 요청이 각 파일의 크기와 형식을 한 번에 요구해서 먼저 다 살펴봐야 한다. 다만
+     * 내용은 그때 읽지 않는다 - 수 MB 짜리 다섯 장을 동시에 들고 있으면 터진다.
+     * 업로드는 한 장씩, 그 순간에 흘려보낸다.
      */
     override suspend fun uploadPhotos(mapId: Long, photos: List<Uri>): List<String> {
         if (photos.isEmpty()) return emptyList()
 
-        val read = photos.map { uri -> uploader.read(uri) }
+        val specs = photos.map { uri -> uploader.inspect(uri) }
 
         val issued = placeService.createPhotoUploadUrls(
             PhotoUploadUrlRequestDto(
                 mapId = mapId,
-                files = read.map { photo ->
+                files = specs.map { photo ->
                     PhotoFileSpecDto(contentType = photo.contentType, fileSize = photo.size)
                 },
             ),
         )
 
         // 발급 수가 요청 수와 다르면 어떤 사진이 빠졌는지 알 수 없다. 조용히 덜 올리지 않는다.
-        check(issued.size == read.size) {
-            "사진 업로드 주소를 ${read.size}개 요청했는데 ${issued.size}개 받았습니다"
+        check(issued.size == specs.size) {
+            "사진 업로드 주소를 ${specs.size}개 요청했는데 ${issued.size}개 받았습니다"
         }
 
         issued.forEachIndexed { index, url ->
-            uploader.upload(uploadUrl = url.uploadUrl, photo = read[index])
+            require(url.uploadUrl.isNotBlank() && url.fileUrl.isNotBlank()) {
+                "사진 업로드 주소가 비어 있습니다"
+            }
+            uploader.upload(uploadUrl = url.uploadUrl, photo = specs[index])
         }
 
         return issued.map { url -> url.fileUrl }
