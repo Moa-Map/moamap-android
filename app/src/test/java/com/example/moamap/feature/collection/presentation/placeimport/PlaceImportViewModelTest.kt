@@ -4,9 +4,14 @@ import androidx.lifecycle.SavedStateHandle
 import com.example.moamap.core.navigation.MoaMapRoute
 import com.example.moamap.core.network.ConnectionException
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
+import com.example.moamap.feature.collection.domain.model.MapType
+import com.example.moamap.feature.collection.domain.model.MyMap
+import com.example.moamap.feature.collection.domain.model.NewMap
 import com.example.moamap.feature.collection.domain.model.PlaceExtractionException
 import com.example.moamap.feature.collection.domain.model.PlaceImportSource
+import com.example.moamap.feature.collection.domain.repository.MapRepository
 import com.example.moamap.feature.collection.domain.repository.PlaceImportRepository
+import com.example.moamap.feature.collection.presentation.MyMapsState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -28,6 +33,29 @@ private val Places = listOf(
     ImportedPlace(id = "a", name = "커피나무", address = "서울 동작구 상도로 369"),
     ImportedPlace(id = "b", name = "블루보틀 성수", address = "서울 성동구 아차산로 7"),
 )
+
+private val MyMaps = listOf(
+    MyMap(id = 11L, title = "성수 카페 투어", imageUrl = null, memberCount = 1, official = false),
+    MyMap(id = 12L, title = "주말 데이트", imageUrl = null, memberCount = 3, official = false),
+)
+
+private class FakeMapRepository : MapRepository {
+
+    var failure: Throwable? = null
+    var maps: List<MyMap> = MyMaps
+
+    val calls = mutableListOf<MapType>()
+
+    override suspend fun getMyMaps(type: MapType): List<MyMap> {
+        calls += type
+        failure?.let { throw it }
+        return maps
+    }
+
+    override suspend fun createMap(newMap: NewMap) = TODO("사용하지 않음")
+
+    override suspend fun joinByInviteCode(inviteCode: String) = TODO("사용하지 않음")
+}
 
 private class FakePlaceImportRepository : PlaceImportRepository {
 
@@ -65,6 +93,7 @@ class PlaceImportViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val repository = FakePlaceImportRepository()
+    private val mapRepository = FakeMapRepository()
 
     private lateinit var viewModel: PlaceImportViewModel
 
@@ -77,6 +106,7 @@ class PlaceImportViewModelTest {
     private fun viewModel(source: PlaceImportSource) = PlaceImportViewModel(
         SavedStateHandle(mapOf(MoaMapRoute.PlaceImport.ARG_SOURCE to source.name)),
         repository,
+        mapRepository,
     )
 
     @After
@@ -288,18 +318,45 @@ class PlaceImportViewModelTest {
     }
 
     @Test
-    fun `지도는 여러 개 선택할 수 있고 다시 누르면 해제된다`() {
-        val maps = viewModel.uiState.value.targetMaps
+    fun `지도는 여러 개 선택할 수 있고 다시 누르면 해제된다`() = runTest(dispatcher) {
+        advanceUntilIdle()
         assertFalse(viewModel.uiState.value.canSave)
 
-        viewModel.toggleMap(maps[0].id)
-        viewModel.toggleMap(maps[1].id)
+        viewModel.toggleMap(MyMaps[0].id)
+        viewModel.toggleMap(MyMaps[1].id)
 
-        assertEquals(setOf(maps[0].id, maps[1].id), viewModel.uiState.value.selectedMapIds)
+        assertEquals(setOf(MyMaps[0].id, MyMaps[1].id), viewModel.uiState.value.selectedMapIds)
         assertTrue(viewModel.uiState.value.canSave)
 
-        viewModel.toggleMap(maps[0].id)
+        viewModel.toggleMap(MyMaps[0].id)
 
-        assertEquals(setOf(maps[1].id), viewModel.uiState.value.selectedMapIds)
+        assertEquals(setOf(MyMaps[1].id), viewModel.uiState.value.selectedMapIds)
+    }
+
+    @Test
+    fun `저장할 지도 목록은 내 프라이빗 지도만 읽는다`() = runTest(dispatcher) {
+        advanceUntilIdle()
+
+        // 커뮤니티 지도는 남이 만든 것이라 여기에 저장할 수 없다.
+        assertEquals(listOf(MapType.Private), mapRepository.calls)
+        assertEquals(MyMapsState.Success(MyMaps), viewModel.uiState.value.targetMaps)
+    }
+
+    @Test
+    fun `지도 목록을 읽지 못하면 안내를 내고 다시 읽을 수 있다`() = runTest(dispatcher) {
+        mapRepository.failure = ConnectionException(IOException("boom"))
+        viewModel = viewModel(PlaceImportSource.Instagram)
+        advanceUntilIdle()
+
+        assertEquals(
+            MyMapsState.Error("지도 목록을 불러오지 못했어요"),
+            viewModel.uiState.value.targetMaps,
+        )
+
+        mapRepository.failure = null
+        viewModel.retryLoadMaps()
+        advanceUntilIdle()
+
+        assertEquals(MyMapsState.Success(MyMaps), viewModel.uiState.value.targetMaps)
     }
 }

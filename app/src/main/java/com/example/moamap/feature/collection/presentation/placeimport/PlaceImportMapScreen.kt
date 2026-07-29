@@ -24,8 +24,11 @@ import androidx.compose.ui.unit.dp
 import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.feature.collection.CollectionMapCard
-import com.example.moamap.feature.collection.CollectionMapUiModel
+import com.example.moamap.feature.collection.MapsStateContent
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
+import com.example.moamap.feature.collection.domain.model.MyMap
+import com.example.moamap.feature.collection.presentation.MyMapsState
+import com.example.moamap.feature.collection.toPrivateUiModel
 
 /** 하단 버튼에 마지막 카드가 가리지 않도록 확보하는 여백. */
 private val BottomBarClearance = 88.dp
@@ -33,11 +36,12 @@ private val BottomBarClearance = 88.dp
 @Composable
 internal fun PlaceImportMapScreen(
     places: List<ImportedPlace>,
-    maps: List<CollectionMapUiModel>,
+    mapsState: MyMapsState,
     selectedMapIds: Set<Long>,
     canSave: Boolean,
     onBackClick: () -> Unit,
     onMapClick: (Long) -> Unit,
+    onRetryMapsClick: () -> Unit,
     onSaveClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -77,16 +81,22 @@ internal fun PlaceImportMapScreen(
 
                 Spacer(Modifier.height(PlaceImportSectionSpacing))
 
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    maps.forEach { map ->
-                        // 한 장소를 여러 지도에 넣을 수 있어 체크박스로 복수 선택한다.
-                        val selected = map.id in selectedMapIds
-                        CollectionMapCard(
-                            map = map,
-                            onClick = { onMapClick(map.id) },
-                            border = selectedCardBorder(selected),
-                            trailingContent = { PlaceImportCheckBox(checked = selected) },
-                        )
+                MapsStateContent(
+                    state = mapsState,
+                    emptyMessage = "저장할 지도가 없어요",
+                    onRetryClick = onRetryMapsClick,
+                ) { targetMaps ->
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        targetMaps.forEach { map ->
+                            // 한 장소를 여러 지도에 넣을 수 있어 체크박스로 복수 선택한다.
+                            val selected = map.id in selectedMapIds
+                            CollectionMapCard(
+                                map = map.toPrivateUiModel(),
+                                onClick = { onMapClick(map.id) },
+                                border = selectedCardBorder(selected),
+                                trailingContent = { PlaceImportCheckBox(checked = selected) },
+                            )
+                        }
                     }
                 }
 
@@ -106,9 +116,9 @@ internal fun PlaceImportMapScreen(
 }
 
 private val PreviewMaps = listOf(
-    CollectionMapUiModel(id = 11L, title = "내 지도", placeCount = "128곳"),
-    CollectionMapUiModel(id = 12L, title = "성수 카페 투어", placeCount = "24곳"),
-    CollectionMapUiModel(id = 13L, title = "주말 데이트", placeCount = "8곳"),
+    MyMap(id = 11L, title = "내 지도", imageUrl = null, memberCount = 1, official = false),
+    MyMap(id = 12L, title = "성수 카페 투어", imageUrl = null, memberCount = 1, official = false),
+    MyMap(id = 13L, title = "주말 데이트", imageUrl = null, memberCount = 1, official = false),
 )
 
 @Preview(showBackground = true, widthDp = 393, heightDp = 852)
@@ -120,11 +130,12 @@ private fun PlaceImportMapScreenPreview() {
                 ImportedPlace(id = "1", name = "커피나무", address = "서울시 동작구 369"),
                 ImportedPlace(id = "2", name = "블루보틀 성수", address = "서울시 성동구 아차산로 7"),
             ),
-            maps = PreviewMaps,
+            mapsState = MyMapsState.Success(PreviewMaps),
             selectedMapIds = setOf(12L),
             canSave = true,
             onBackClick = {},
             onMapClick = {},
+            onRetryMapsClick = {},
             onSaveClick = {},
         )
     }

@@ -7,11 +7,13 @@ import androidx.lifecycle.viewModelScope
 import com.example.moamap.core.navigation.MoaMapRoute
 import com.example.moamap.core.network.ApiException
 import com.example.moamap.core.network.ConnectionException
-import com.example.moamap.feature.collection.CollectionMapUiModel
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
+import com.example.moamap.feature.collection.domain.model.MapType
 import com.example.moamap.feature.collection.domain.model.PlaceExtractionException
 import com.example.moamap.feature.collection.domain.model.PlaceImportSource
+import com.example.moamap.feature.collection.domain.repository.MapRepository
 import com.example.moamap.feature.collection.domain.repository.PlaceImportRepository
+import com.example.moamap.feature.collection.presentation.MyMapsState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -24,13 +26,7 @@ import javax.inject.Inject
 
 private const val TAG = "PlaceImportViewModel"
 private const val DEFAULT_EXTRACTION_ERROR = "장소를 가져오지 못했어요"
-
-// TODO: 지도 목록은 지도 API 연동 이슈에서 GET /api/v1/maps/me 로 교체한다.
-private val SampleTargetMaps = listOf(
-    CollectionMapUiModel(id = 11L, title = "내 지도", placeCount = "128곳"),
-    CollectionMapUiModel(id = 12L, title = "성수 카페 투어", placeCount = "24곳"),
-    CollectionMapUiModel(id = 13L, title = "주말 데이트", placeCount = "8곳"),
-)
+private const val MAPS_LOAD_FAILED_MESSAGE = "지도 목록을 불러오지 못했어요"
 
 /**
  * 장소 가져오기 4단계가 공유하는 ViewModel.
@@ -42,18 +38,23 @@ private val SampleTargetMaps = listOf(
 internal class PlaceImportViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val placeImportRepository: PlaceImportRepository,
+    private val mapRepository: MapRepository,
 ) : ViewModel() {
 
     private val source: PlaceImportSource = PlaceImportSource.valueOf(
         requireNotNull(savedStateHandle[MoaMapRoute.PlaceImport.ARG_SOURCE]),
     )
 
-    private val _uiState = MutableStateFlow(
-        PlaceImportUiState(source = source, targetMaps = SampleTargetMaps),
-    )
+    private val _uiState = MutableStateFlow(PlaceImportUiState(source = source))
     val uiState: StateFlow<PlaceImportUiState> = _uiState.asStateFlow()
 
     private var extractionJob: Job? = null
+
+    private var mapsJob: Job? = null
+
+    init {
+        loadTargetMaps()
+    }
 
     /**
      * 재시도를 취소했을 때 되돌아갈 직전 결과.
@@ -178,6 +179,30 @@ internal class PlaceImportViewModel @Inject constructor(
                 state.selectedPlaceIds + placeId
             }
             state.copy(selectedPlaceIds = selected)
+        }
+    }
+
+    /** 지도 목록을 읽지 못했을 때 다시 읽는다. */
+    fun retryLoadMaps() = loadTargetMaps()
+
+    private fun loadTargetMaps() {
+        mapsJob?.cancel()
+        _uiState.update { state -> state.copy(targetMaps = MyMapsState.Loading) }
+
+        mapsJob = viewModelScope.launch {
+            val maps = try {
+                mapRepository.getMyMaps(MapType.Private)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (throwable: Throwable) {
+                Log.w(TAG, "저장할 지도 목록 조회 실패", throwable)
+                _uiState.update { state ->
+                    state.copy(targetMaps = MyMapsState.Error(MAPS_LOAD_FAILED_MESSAGE))
+                }
+                return@launch
+            }
+
+            _uiState.update { state -> state.copy(targetMaps = MyMapsState.Success(maps)) }
         }
     }
 

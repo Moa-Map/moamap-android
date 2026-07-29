@@ -141,11 +141,12 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
             } else {
                 PlaceImportMapScreen(
                     places = places,
-                    maps = uiState.targetMaps,
+                    mapsState = uiState.targetMaps,
                     selectedMapIds = uiState.selectedMapIds,
                     canSave = uiState.canSave,
                     onBackClick = navController::popBackStack,
                     onMapClick = viewModel::toggleMap,
+                    onRetryMapsClick = viewModel::retryLoadMaps,
                     // TODO: 저장 동작과 이후 이동은 다음 작업에서 연결한다.
                     onSaveClick = {},
                 )

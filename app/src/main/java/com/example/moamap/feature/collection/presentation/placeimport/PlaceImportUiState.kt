@@ -1,9 +1,9 @@
 package com.example.moamap.feature.collection.presentation.placeimport
 
 import androidx.compose.runtime.Immutable
-import com.example.moamap.feature.collection.CollectionMapUiModel
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
 import com.example.moamap.feature.collection.domain.model.PlaceImportSource
+import com.example.moamap.feature.collection.presentation.MyMapsState
 
 /**
  * 장소 추출 단계. 로딩 화면과 장소 선택 화면이 이 값으로 갈린다.
@@ -32,7 +32,8 @@ internal data class PlaceImportUiState(
     val url: String = "",
     val extraction: ExtractionState = ExtractionState.Idle,
     val selectedPlaceIds: Set<String> = emptySet(),
-    val targetMaps: List<CollectionMapUiModel> = emptyList(),
+    /** 저장할 곳으로 고를 수 있는 내 프라이빗 지도. 모음 화면의 프라이빗 탭과 같은 목록이다. */
+    val targetMaps: MyMapsState = MyMapsState.Loading,
     val selectedMapIds: Set<Long> = emptySet(),
     /** 한 번 보여주고 소비하는 실패 안내. 추출 결과와 독립적이다. */
     val errorMessage: String? = null,
