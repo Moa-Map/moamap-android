@@ -70,7 +70,8 @@ class MapDetailRepositoryImpl @Inject constructor(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            Log.w(TAG, "제작자 프로필 조회 실패 (ownerId=$ownerId)", e)
+            // 사용자 식별자는 남기지 않는다. 로그가 수집·보관되는 경로를 타기 때문이다.
+            Log.w(TAG, "제작자 프로필 조회 실패", e)
             null
         }
     }

@@ -135,7 +135,7 @@ class MapDetailViewModelTest {
     }
 
     @Test
-    fun `요청이 도는 동안 다시 눌러도 한 번만 나간다`() = runTest {
+    fun `요청이 도는 동안 다시 눌러도 한 번만 참여한다`() = runTest {
         val repository = FakeMapDetailRepository(responseDelayMillis = 100L)
         val viewModel = viewModel(repository)
         dispatcher.scheduler.advanceUntilIdle()
@@ -146,6 +146,61 @@ class MapDetailViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(1, repository.calls.count { call -> call == "joinMap" })
+    }
+
+    @Test
+    fun `요청이 도는 동안 다시 눌러도 한 번만 나간다`() = runTest {
+        val repository = FakeMapDetailRepository(
+            responseDelayMillis = 100L,
+            map = { testMap(joined = true, role = MapRole.Member) },
+        )
+        val viewModel = viewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.leave()
+        dispatcher.scheduler.runCurrent()
+        viewModel.leave()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, repository.calls.count { call -> call == "leaveMap" })
+    }
+
+    @Test
+    fun `나가기가 막힌 지도에서는 요청을 보내지 않는다`() = runTest {
+        // 커뮤니티 방장은 서버가 탈퇴를 거절한다. 화면도 비활성이지만 여기서 한 번 더 막는다.
+        val repository = FakeMapDetailRepository(
+            map = { testMap(joined = true, role = MapRole.Owner) },
+        )
+        val viewModel = viewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(MapDetailAction.LeaveDisabled, viewModel.uiState.value.action)
+
+        viewModel.leave()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf("getMapDetail"), repository.calls)
+        assertFalse(viewModel.uiState.value.left)
+    }
+
+    @Test
+    fun `조회 중에 지워진 안내는 응답이 와도 되살아나지 않는다`() = runTest {
+        val repository = object : FakeMapDetailRepository(responseDelayMillis = 100L) {
+            override suspend fun joinMap(mapId: Long) = throw RuntimeException("boom")
+        }
+        val viewModel = viewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.join()
+        dispatcher.scheduler.advanceUntilIdle()
+        assertNotNull(viewModel.uiState.value.errorMessage)
+
+        // 재조회가 도는 동안 스낵바가 떠서 안내를 소비한다.
+        viewModel.retry()
+        dispatcher.scheduler.runCurrent()
+        viewModel.consumeErrorMessage()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.errorMessage)
     }
 
     @Test

@@ -107,10 +107,16 @@ class MapDetailRuleTest {
     @Test
     fun `프라이빗 지도에 다른 멤버가 남아 있으면 만든 사람은 나갈 수 없다`() {
         // 소유권 이전 API 가 없어 프론트에서 할 수 있는 게 없다.
-        assertEquals(
-            MapDetailAction.LeaveDisabled,
-            map(MapType.Private, MapRole.Owner, joined = true, memberCount = 3).topBarAction,
-        )
+        val map = map(MapType.Private, MapRole.Owner, joined = true, memberCount = 3)
+
+        assertEquals(MapDetailAction.LeaveDisabled, map.topBarAction)
+        // 남의 지도까지 날아가면 안 된다. 삭제 판단이 인원 수를 스스로 확인해야 한다.
+        assertFalse(map.leavingDeletesMap)
+    }
+
+    @Test
+    fun `참여하지 않은 프라이빗 지도는 삭제 대상이 아니다`() {
+        assertFalse(map(MapType.Private, MapRole.Owner, joined = false).leavingDeletesMap)
     }
 
     @Test

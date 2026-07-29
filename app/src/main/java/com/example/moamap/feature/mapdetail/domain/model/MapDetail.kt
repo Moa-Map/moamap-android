@@ -77,8 +77,11 @@ val MapDetail.topBarAction: MapDetailAction
 /**
  * 나가기가 지도 삭제로 처리되는 경우.
  *
- * 프라이빗 지도를 만든 사람인 상황이다. [topBarAction] 이 이 중 혼자 남았을 때만
- * [MapDetailAction.Leave] 를 내주므로, 멤버가 남아 있는데 삭제가 나갈 일은 없다.
+ * 프라이빗 지도를 만든 사람이 혼자 남은 상황이다. 조건을 [topBarAction] 과 나눠 갖지 않고
+ * 여기서 다 본다 - 지도 삭제는 되돌릴 수 없어서, 호출부가 순서를 지켰겠거니 하면 안 된다.
  */
 val MapDetail.leavingDeletesMap: Boolean
-    get() = type == MapType.Private && role == MapRole.Owner
+    get() = joined &&
+        type == MapType.Private &&
+        role == MapRole.Owner &&
+        memberCount <= 1

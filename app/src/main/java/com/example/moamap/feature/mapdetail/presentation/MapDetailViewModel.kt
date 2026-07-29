@@ -68,6 +68,9 @@ class MapDetailViewModel @Inject constructor(
     /** 참여·나가기가 겹쳐 돌지 않게 잡아 두는 자리. */
     private var actionJob: Job? = null
 
+    /** 진행 중인 상세 조회. `retry()` 를 연달아 눌러도 마지막 것만 남게 한다. */
+    private var loadJob: Job? = null
+
     init {
         load()
     }
@@ -88,7 +91,8 @@ class MapDetailViewModel @Inject constructor(
      */
     fun join() = runAction(JOIN_FAILED_MESSAGE) {
         repository.joinMap(mapId)
-        loadInto(_uiState.value.copy(actionInProgress = false))
+        _uiState.update { state -> state.copy(actionInProgress = false) }
+        loadMap()
     }
 
     /**
@@ -96,9 +100,13 @@ class MapDetailViewModel @Inject constructor(
      *
      * 프라이빗 지도를 만든 사람은 서버가 탈퇴를 거절한다. 혼자 남았을 때만 나갈 수 있고,
      * 그때는 나가기가 곧 지도를 없애는 것과 같아 삭제로 대신한다.
+     *
+     * 삭제가 걸린 갈래라 화면이 눌리게 해둔 상태인지 여기서 한 번 더 본다. 되돌릴 수 없는
+     * 요청을 화면 상태만 믿고 보내지 않는다.
      */
     fun leave() {
         val map = _uiState.value.map.mapOrNull ?: return
+        if (map.topBarAction != MapDetailAction.Leave) return
 
         runAction(LEAVE_FAILED_MESSAGE) {
             if (map.leavingDeletesMap) {
@@ -110,26 +118,34 @@ class MapDetailViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 상세를 다시 읽는다.
+     *
+     * 이전 조회는 취소한다. 연달아 부르면 응답이 뒤바뀌어 도착할 수 있고, 그러면 오래된
+     * 결과가 최종 상태로 남는다.
+     */
     private fun load() {
         _uiState.update { state -> state.copy(map = MapLoadState.Loading) }
-        viewModelScope.launch { loadInto(_uiState.value) }
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch { loadMap() }
     }
 
     /**
-     * 상세를 읽어 [base] 위에 얹는다.
+     * 조회 결과를 [MapDetailScreenState.map] 에만 얹는다.
      *
-     * 참여 직후처럼 다른 필드를 함께 바꿔야 할 때가 있어 바탕이 될 상태를 받는다.
+     * 상태 전체를 갈아끼우면 조회가 도는 동안 일어난 변경이 되돌아간다. 예를 들어 이미
+     * 지워진 [MapDetailScreenState.errorMessage] 가 되살아나 스낵바가 다시 뜬다.
      */
-    private suspend fun loadInto(base: MapDetailScreenState) {
-        val next = try {
-            base.copy(map = MapLoadState.Success(repository.getMapDetail(mapId)))
+    private suspend fun loadMap() {
+        val mapState = try {
+            MapLoadState.Success(repository.getMapDetail(mapId))
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             Log.w(TAG, "지도 상세 조회 실패 (mapId=$mapId)", e)
-            base.copy(map = MapLoadState.Error(e.toUserMessage(MAP_LOAD_FAILED_MESSAGE)))
+            MapLoadState.Error(e.toUserMessage(MAP_LOAD_FAILED_MESSAGE))
         }
-        _uiState.update { next }
+        _uiState.update { state -> state.copy(map = mapState) }
     }
 
     /** 진행 중이면 무시하고, 아니면 잠근 채 [block] 을 돌린다. */

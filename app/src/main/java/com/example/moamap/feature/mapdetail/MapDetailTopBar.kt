@@ -89,14 +89,15 @@ internal fun MapDetailTopBar(
                     text = roleBadge,
                     style = MoaMapTheme.typography.caption0,
                     color = MoaMapPrimitiveColors.Blue900,
+                    // 배경을 먼저 깐다. 순서를 뒤집으면 나중에 그려지는 배경이 테두리를 덮는다.
                     modifier = Modifier
+                        .background(
+                            color = MoaMapPrimitiveColors.Blue50,
+                            shape = RoleBadgeShape,
+                        )
                         .border(
                             width = 1.dp,
                             color = MoaMapPrimitiveColors.Blue500,
-                            shape = RoleBadgeShape,
-                        )
-                        .background(
-                            color = MoaMapPrimitiveColors.Blue50,
                             shape = RoleBadgeShape,
                         )
                         .padding(horizontal = 12.dp, vertical = 4.dp),

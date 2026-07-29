@@ -42,6 +42,9 @@ private val MapControlsBottomGap = 16.dp
 
 private val SheetPeekHeight = 283.dp
 
+/** 장소 추가가 아직 연결되지 않았다는 임시 안내. 플로우가 붙으면 지운다. */
+private const val ADD_PLACE_NOT_READY_MESSAGE = "장소 추가는 곧 열려요"
+
 private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
     save = { state ->
         listOf(
@@ -75,6 +78,8 @@ fun MapDetailScreen(
     LaunchedEffect(screenState.left) {
         if (screenState.left) onBackClick()
     }
+
+    var addPlaceNotice by remember { mutableStateOf<String?>(null) }
 
     var uiState by rememberSaveable(stateSaver = MapDetailUiStateSaver) {
         mutableStateOf(MapDetailUiState())
@@ -134,8 +139,9 @@ fun MapDetailScreen(
                 if (screenState.action == MapDetailAction.Join) viewModel.join() else viewModel.leave()
             },
             on3dToggleClick = on3dToggleClick,
-            // TODO: 장소 추가 플로우는 다음 이슈에서 연결한다. 지금은 활성/비활성만 만든다.
-            onAddPlaceClick = {},
+            // TODO: 장소 추가 플로우는 다음 이슈에서 연결한다. 그때까지는 아무 일도 하지 않는
+            //  버튼이 고장 난 것처럼 보이지 않게 안내만 띄운다.
+            onAddPlaceClick = { addPlaceNotice = ADD_PLACE_NOT_READY_MESSAGE },
             onTabSelected = { tab -> uiState = uiState.selectTab(tab) },
             places = filterPlaces(SamplePlaces, uiState.selectedCategory),
             selectedCategory = uiState.selectedCategory,
@@ -153,9 +159,16 @@ fun MapDetailScreen(
             },
         )
 
+        // 스낵바 자리는 하나뿐이라 두 출처를 한 줄로 모은다. 서버 실패가 먼저다.
         ErrorSnackbar(
-            message = screenState.errorMessage,
-            onShown = viewModel::consumeErrorMessage,
+            message = screenState.errorMessage ?: addPlaceNotice,
+            onShown = {
+                if (screenState.errorMessage != null) {
+                    viewModel.consumeErrorMessage()
+                } else {
+                    addPlaceNotice = null
+                }
+            },
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
