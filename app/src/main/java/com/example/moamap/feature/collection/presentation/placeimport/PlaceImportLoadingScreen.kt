@@ -21,14 +21,25 @@ import androidx.compose.ui.unit.dp
 import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
+import com.example.moamap.feature.collection.domain.model.PlaceImportSource
 
 private val ProgressIndicatorSize = 80.dp
 
 @Composable
 internal fun PlaceImportLoadingScreen(
+    source: PlaceImportSource,
     onCancel: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val title = when (source) {
+        PlaceImportSource.Instagram -> "장소 불러오는 중.."
+        PlaceImportSource.MapShare -> "지도 불러오는 중.."
+    }
+    val description = when (source) {
+        PlaceImportSource.Instagram -> "AI가 영상을 분석하고 있어요.\n최대 30초 정도 걸려요."
+        PlaceImportSource.MapShare -> "외부 지도에서 장소를 불러오고 있어요.\n잠시만 기다려주세요."
+    }
+
     // 뒤로가기는 진행 중이던 추출을 취소하고 URL 입력으로 되돌린다.
     BackHandler(onBack = onCancel)
 
@@ -61,13 +72,13 @@ internal fun PlaceImportLoadingScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(
-                        text = "장소 불러오는 중..",
+                        text = title,
                         style = MoaMapTheme.typography.title1,
                         color = MoaMapPrimitiveColors.Black,
                         textAlign = TextAlign.Center,
                     )
                     Text(
-                        text = "AI가 영상을 분석하고 있어요.\n최대 30초 정도 걸려요.",
+                        text = description,
                         style = MoaMapTheme.typography.subtitle4,
                         color = MoaMapPrimitiveColors.Black,
                         textAlign = TextAlign.Center,
@@ -82,6 +93,14 @@ internal fun PlaceImportLoadingScreen(
 @Composable
 private fun PlaceImportLoadingScreenPreview() {
     MoaMapTheme {
-        PlaceImportLoadingScreen(onCancel = {})
+        PlaceImportLoadingScreen(source = PlaceImportSource.Instagram, onCancel = {})
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Composable
+private fun PlaceImportLoadingScreenMapSharePreview() {
+    MoaMapTheme {
+        PlaceImportLoadingScreen(source = PlaceImportSource.MapShare, onCancel = {})
     }
 }

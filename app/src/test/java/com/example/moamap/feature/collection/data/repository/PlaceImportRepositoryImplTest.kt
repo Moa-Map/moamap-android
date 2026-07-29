@@ -5,6 +5,9 @@ import com.example.moamap.feature.collection.domain.model.PlaceExtractionExcepti
 import com.example.moamap.feature.collection.instagram.CaptionExtractor
 import com.example.moamap.feature.collection.instagram.CaptionResult
 import com.example.moamap.feature.explore.data.remote.InstagramExtractRequestDto
+import com.example.moamap.feature.explore.data.remote.MapShareExtractRequestDto
+import com.example.moamap.feature.explore.data.remote.MapShareExtractResponseDto
+import com.example.moamap.feature.explore.data.remote.MapSharePlaceCandidateDto
 import com.example.moamap.feature.explore.data.remote.PlaceCandidateDto
 import com.example.moamap.feature.explore.data.remote.PlaceCreateRequestDto
 import com.example.moamap.feature.explore.data.remote.PlaceDto
@@ -30,9 +33,13 @@ private class FakeCaptionExtractor(private val result: CaptionResult) : CaptionE
 /** 추출 API 외의 메서드는 이 테스트에서 쓰지 않는다. */
 private class FakePlaceService(
     private val candidates: List<PlaceCandidateDto> = emptyList(),
+    private val mapShare: MapShareExtractResponseDto = MapShareExtractResponseDto(),
 ) : PlaceService {
 
     var lastRequest: InstagramExtractRequestDto? = null
+        private set
+
+    var lastMapShareRequest: MapShareExtractRequestDto? = null
         private set
 
     override suspend fun extractFromInstagram(
@@ -40,6 +47,13 @@ private class FakePlaceService(
     ): List<PlaceCandidateDto> {
         lastRequest = request
         return candidates
+    }
+
+    override suspend fun extractFromMapShare(
+        request: MapShareExtractRequestDto,
+    ): MapShareExtractResponseDto {
+        lastMapShareRequest = request
+        return mapShare
     }
 
     override suspend fun getPlaces(mapId: Long, page: Int?, size: Int?, sort: String?) =
@@ -166,5 +180,74 @@ class PlaceImportRepositoryImplTest {
         val places = repository(service = service).extractPlaces("url")
 
         assertEquals(listOf("커피나무"), places.map { it.name })
+    }
+
+    // --- 지도 공유 링크 ---
+
+    private fun shared(
+        kakaoPlaceId: String? = "kakao-1",
+        name: String? = "커피나무",
+        address: String? = "서울 동작구 상도동 1",
+        roadAddress: String? = "서울 동작구 상도로 369",
+    ) = MapSharePlaceCandidateDto(
+        kakaoPlaceId = kakaoPlaceId,
+        name = name,
+        address = address,
+        roadAddress = roadAddress,
+    )
+
+    private fun mapShareService(
+        matched: List<MapSharePlaceCandidateDto> = listOf(shared()),
+    ) = FakePlaceService(mapShare = MapShareExtractResponseDto(matched = matched))
+
+    @Test
+    fun `공유 링크는 캡션을 읽지 않고 그대로 서버로 보낸다`() = runTest {
+        val extractor = FakeCaptionExtractor(CaptionResult.Success("캡션"))
+        val service = mapShareService()
+
+        repository(service = service, extractor = extractor)
+            .extractMapSharePlaces("  https://naver.me/xAbC1234  ")
+
+        assertEquals("https://naver.me/xAbC1234", service.lastMapShareRequest?.url)
+        // 서버가 링크를 직접 열어보므로 앱이 긁을 캡션이 없다.
+        assertNull(extractor.lastUrl)
+    }
+
+    @Test
+    fun `matched 를 장소 목록으로 바꾼다`() = runTest {
+        val service = mapShareService(
+            matched = listOf(
+                shared(kakaoPlaceId = "a", roadAddress = "서울 동작구 상도로 369"),
+                shared(kakaoPlaceId = "b", roadAddress = null, address = "서울 동작구 상도동 1"),
+            ),
+        )
+
+        val places = repository(service = service).extractMapSharePlaces("url")
+
+        assertEquals(listOf("a", "b"), places.map { it.id })
+        assertEquals("서울 동작구 상도로 369", places[0].address)
+        assertEquals("서울 동작구 상도동 1", places[1].address)
+    }
+
+    @Test
+    fun `공유 링크에서도 이름 없는 항목은 걸러낸다`() = runTest {
+        val service = mapShareService(
+            matched = listOf(shared(name = "커피나무"), shared(name = null), shared(name = " ")),
+        )
+
+        val places = repository(service = service).extractMapSharePlaces("url")
+
+        assertEquals(listOf("커피나무"), places.map { it.name })
+    }
+
+    @Test
+    fun `공유 링크에서도 kakaoPlaceId 가 없으면 순번으로 id 를 만든다`() = runTest {
+        val service = mapShareService(
+            matched = listOf(shared(kakaoPlaceId = null), shared(kakaoPlaceId = "")),
+        )
+
+        val places = repository(service = service).extractMapSharePlaces("url")
+
+        assertEquals(listOf("candidate-0", "candidate-1"), places.map { it.id })
     }
 }

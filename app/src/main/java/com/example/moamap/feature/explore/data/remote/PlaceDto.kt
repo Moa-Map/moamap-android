@@ -82,3 +82,61 @@ data class PlaceCandidateDto(
     val placeUrl: String? = null,
     val sourceUrl: String? = null,
 )
+
+/**
+ * POST api/v1/places/map-share-extractions 요청.
+ *
+ * 앱 공유로 들어온 문구가 섞인 텍스트를 그대로 넣어도 서버가 첫 URL 을 뽑아 쓴다.
+ */
+@Serializable
+data class MapShareExtractRequestDto(
+    val url: String,
+)
+
+/**
+ * 지도 공유 링크 추출 응답.
+ */
+@Serializable
+data class MapShareExtractResponseDto(
+    // NAVER_MAP, KAKAO_MAP, GOOGLE_MAP
+    val source: String? = null,
+    val sourceUrl: String? = null,
+    val listName: String? = null,
+    val owner: String? = null,
+    /** 공유 리스트가 스스로 밝힌 장소 수. 없을 수 있다. */
+    val declaredCount: Int? = null,
+    val extractedCount: Int = 0,
+    /** 서버 상한을 넘어 뒤가 잘렸는지. */
+    val truncated: Boolean = false,
+    val matched: List<MapSharePlaceCandidateDto> = emptyList(),
+    val unmatched: List<UnmatchedPlaceDto> = emptyList(),
+)
+
+/** 재매칭에 성공한 항목. `mapId` 만 더하면 일괄 등록 요청 항목이 된다. */
+@Serializable
+data class MapSharePlaceCandidateDto(
+    val kakaoPlaceId: String? = null,
+    val name: String? = null,
+    val category: String? = null,
+    val address: String? = null,
+    val roadAddress: String? = null,
+    val lat: Double = 0.0,
+    val lng: Double = 0.0,
+    val placeUrl: String? = null,
+    /** 공유 리스트에 사용자가 적어둔 메모. */
+    val description: String? = null,
+    val sourceUrl: String? = null,
+    // NAVER_MAP, KAKAO_MAP, GOOGLE_MAP
+    val sourceType: String? = null,
+)
+
+/** 카카오 장소와 매칭하지 못해 등록 후보에서 빠진 장소. */
+@Serializable
+data class UnmatchedPlaceDto(
+    val name: String? = null,
+    val address: String? = null,
+    val lat: Double? = null,
+    val lng: Double? = null,
+    // NO_RESULT, NAME_MISMATCH, TOO_FAR, SEARCH_FAILED
+    val reason: String? = null,
+)

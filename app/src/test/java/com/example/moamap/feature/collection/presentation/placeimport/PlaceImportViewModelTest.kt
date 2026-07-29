@@ -1,8 +1,11 @@
 package com.example.moamap.feature.collection.presentation.placeimport
 
+import androidx.lifecycle.SavedStateHandle
+import com.example.moamap.core.navigation.MoaMapRoute
 import com.example.moamap.core.network.ConnectionException
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
 import com.example.moamap.feature.collection.domain.model.PlaceExtractionException
+import com.example.moamap.feature.collection.domain.model.PlaceImportSource
 import com.example.moamap.feature.collection.domain.repository.PlaceImportRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -37,8 +40,20 @@ private class FakePlaceImportRepository : PlaceImportRepository {
     var callCount: Int = 0
         private set
 
+    var mapShareCallCount: Int = 0
+        private set
+
     override suspend fun extractPlaces(url: String): List<ImportedPlace> {
         callCount++
+        return extract()
+    }
+
+    override suspend fun extractMapSharePlaces(url: String): List<ImportedPlace> {
+        mapShareCallCount++
+        return extract()
+    }
+
+    private suspend fun extract(): List<ImportedPlace> {
         pending?.await()
         failure?.let { throw it }
         return places
@@ -56,8 +71,13 @@ class PlaceImportViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        viewModel = PlaceImportViewModel(repository)
+        viewModel = viewModel(PlaceImportSource.Instagram)
     }
+
+    private fun viewModel(source: PlaceImportSource) = PlaceImportViewModel(
+        SavedStateHandle(mapOf(MoaMapRoute.PlaceImport.ARG_SOURCE to source.name)),
+        repository,
+    )
 
     @After
     fun tearDown() {
@@ -224,6 +244,47 @@ class PlaceImportViewModelTest {
 
         advanceUntilIdle()
         assertTrue(viewModel.uiState.value.extraction is ExtractionState.Success)
+    }
+
+    @Test
+    fun `인스타그램으로 들어오면 인스타그램 추출을 부른다`() = runTest(dispatcher) {
+        startExtraction()
+        advanceUntilIdle()
+
+        assertEquals(1, repository.callCount)
+        assertEquals(0, repository.mapShareCallCount)
+    }
+
+    @Test
+    fun `외부 지도로 들어오면 공유 링크 추출을 부른다`() = runTest(dispatcher) {
+        viewModel = viewModel(PlaceImportSource.MapShare)
+
+        startExtraction()
+        advanceUntilIdle()
+
+        assertEquals(1, repository.mapShareCallCount)
+        assertEquals(0, repository.callCount)
+    }
+
+    @Test
+    fun `외부 지도는 가져온 장소를 모두 고른 채로 시작한다`() = runTest(dispatcher) {
+        // 리스트를 통째로 가져오는 것이라 빼고 싶은 것만 해제하게 한다.
+        viewModel = viewModel(PlaceImportSource.MapShare)
+
+        startExtraction()
+        advanceUntilIdle()
+
+        assertEquals(Places, viewModel.uiState.value.selectedPlaces)
+        assertTrue(viewModel.uiState.value.canProceed)
+    }
+
+    @Test
+    fun `인스타그램은 아무것도 고르지 않은 채로 시작한다`() = runTest(dispatcher) {
+        startExtraction()
+        advanceUntilIdle()
+
+        assertEquals(emptySet<String>(), viewModel.uiState.value.selectedPlaceIds)
+        assertFalse(viewModel.uiState.value.canProceed)
     }
 
     @Test

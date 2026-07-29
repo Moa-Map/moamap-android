@@ -9,8 +9,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
+import androidx.navigation.navArgument
 import com.example.moamap.feature.collection.presentation.placeimport.ExtractionState
 import com.example.moamap.feature.collection.presentation.placeimport.PlaceImportEditScreen
 import com.example.moamap.feature.collection.presentation.placeimport.PlaceImportLoadingScreen
@@ -30,6 +32,9 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
     navigation(
         route = MoaMapRoute.PlaceImport.route,
         startDestination = PlaceImportRoute.URL,
+        arguments = listOf(
+            navArgument(MoaMapRoute.PlaceImport.ARG_SOURCE) { type = NavType.StringType },
+        ),
     ) {
         composable(PlaceImportRoute.URL) { entry ->
             val viewModel = sharedPlaceImportViewModel(navController, entry)
@@ -72,6 +77,7 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
             }
 
             PlaceImportLoadingScreen(
+                source = uiState.source,
                 onCancel = {
                     viewModel.cancelExtraction()
                     navController.popBackStack()
@@ -84,6 +90,7 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
             PlaceImportPlaceScreen(
+                source = uiState.source,
                 places = uiState.places,
                 selectedPlaceIds = uiState.selectedPlaceIds,
                 canProceed = uiState.canProceed,

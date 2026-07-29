@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -18,7 +17,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -64,9 +62,7 @@ internal fun PlaceImportUrlScreen(
 
                 UrlInputField(
                     url = url,
-                    canSearch = canSearch,
                     onUrlChange = onUrlChange,
-                    onSearch = onSearchClick,
                 )
             }
         }
@@ -89,6 +85,9 @@ internal fun PlaceImportUrlScreen(
     }
 }
 
+/** 붙여넣은 내용이 길어도 이 줄 수까지만 늘어나고 그 뒤로는 세로로 스크롤한다. */
+private const val UrlInputMaxLines = 3
+
 /**
  * Material `TextField` 는 자체 패딩과 인디케이터가 있어 디자인의
  * `padding 12/16 + 모서리 12 + 그림자` 를 맞추기 어려워 [BasicTextField] 위에 placeholder 를 겹친다.
@@ -96,9 +95,7 @@ internal fun PlaceImportUrlScreen(
 @Composable
 private fun UrlInputField(
     url: String,
-    canSearch: Boolean,
     onUrlChange: (String) -> Unit,
-    onSearch: () -> Unit,
 ) {
     ShadowedSurface(
         modifier = Modifier.fillMaxWidth(),
@@ -120,15 +117,9 @@ private fun UrlInputField(
                 textStyle = MoaMapTheme.typography.body2.copy(
                     color = MoaMapTheme.colors.textNormal,
                 ),
-                singleLine = true,
+                maxLines = UrlInputMaxLines,
                 cursorBrush = SolidColor(MoaMapTheme.colors.primary),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.Uri,
-                    imeAction = ImeAction.Search,
-                ),
-                // 검색 버튼과 달리 IME 검색키는 비활성화할 수 없다. 빈 URL 로 로딩 화면에
-                // 들어가면 추출이 시작되지 않아 끝나지 않는 로딩에 갇힌다.
-                keyboardActions = KeyboardActions(onSearch = { if (canSearch) onSearch() }),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
             )
         }
     }

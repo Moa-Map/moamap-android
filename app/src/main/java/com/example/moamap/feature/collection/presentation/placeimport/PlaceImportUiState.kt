@@ -3,6 +3,7 @@ package com.example.moamap.feature.collection.presentation.placeimport
 import androidx.compose.runtime.Immutable
 import com.example.moamap.feature.collection.CollectionMapUiModel
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
+import com.example.moamap.feature.collection.domain.model.PlaceImportSource
 
 /**
  * 장소 추출 단계. 로딩 화면과 장소 선택 화면이 이 값으로 갈린다.
@@ -26,6 +27,8 @@ internal sealed interface ExtractionState {
  */
 @Immutable
 internal data class PlaceImportUiState(
+    /** 어느 카드로 들어왔는지. 화면 문구와 버튼 구성이 이 값으로 갈린다. */
+    val source: PlaceImportSource = PlaceImportSource.Instagram,
     val url: String = "",
     val extraction: ExtractionState = ExtractionState.Idle,
     val selectedPlaceIds: Set<String> = emptySet(),

@@ -26,9 +26,18 @@ sealed interface MoaMapRoute {
         override val route = "collection"
     }
 
-    /** 인스타그램 URL 로 장소를 가져오는 4단계 흐름을 감싸는 중첩 그래프. */
+    /**
+     * 링크로 장소를 가져오는 흐름을 감싸는 중첩 그래프.
+     *
+     * 인스타그램과 외부 지도가 같은 화면을 쓰고 부르는 API 와 문구만 달라서, 어느 쪽으로
+     * 들어왔는지를 [ARG_SOURCE] 로 받는다. 값은 `PlaceImportSource` 의 이름이다.
+     */
     data object PlaceImport : MoaMapRoute {
-        override val route = "place_import"
+        const val ARG_SOURCE = "source"
+
+        override val route = "place_import/{$ARG_SOURCE}"
+
+        fun createRoute(source: String): String = "place_import/$source"
     }
 
     /** 모음 탭의 `새 지도` 로 들어가는 지도 생성 화면. */

@@ -17,6 +17,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.example.moamap.feature.collection.CollectionScreen
+import com.example.moamap.feature.collection.domain.model.PlaceImportSource
 import com.example.moamap.feature.collection.presentation.createmap.CreateMapScreen
 import com.example.moamap.feature.explore.ExploreScreen
 import com.example.moamap.feature.mapdetail.MapDetailScreen
@@ -88,7 +89,14 @@ fun MoaMapNavHost(
                         navController.navigate(MoaMapRoute.CreateMap.route)
                     },
                     onInstagramImportClick = {
-                        navController.navigate(MoaMapRoute.PlaceImport.route)
+                        navController.navigate(
+                            MoaMapRoute.PlaceImport.createRoute(PlaceImportSource.Instagram.name),
+                        )
+                    },
+                    onMapShareImportClick = {
+                        navController.navigate(
+                            MoaMapRoute.PlaceImport.createRoute(PlaceImportSource.MapShare.name),
+                        )
                     },
                     onMapClick = { map ->
                         navController.navigate(
