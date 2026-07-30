@@ -218,6 +218,9 @@ class ProfileEditViewModelTest {
 
         assertTrue(repository.uploadedUris.isEmpty())
         assertNull(repository.updatedProfileImageUrl)
+        // updatedProfileImageUrl 의 초깃값도 null 이라 이 값만으로는 PATCH 가 아예 안 나간 것과
+        // 사진 없이 나간 것을 구별할 수 없다. 실제로 PATCH 가 나갔다는 것을 이 값으로 고정한다.
+        assertEquals("모아", repository.updatedNickname)
     }
 
     @Test
