@@ -2,6 +2,7 @@ package com.example.moamap.feature.collection.data.repository
 
 import android.net.Uri
 import com.example.moamap.core.common.upload.PhotoUploader
+import com.example.moamap.core.common.upload.validateImageUpload
 import com.example.moamap.feature.collection.data.remote.CoverUploadUrlRequestDto
 import com.example.moamap.feature.collection.data.remote.JoinByInviteCodeRequestDto
 import com.example.moamap.feature.collection.data.remote.MapService
@@ -32,7 +33,7 @@ internal class MapRepositoryImpl @Inject constructor(
      */
     override suspend fun uploadCoverImage(imageUri: String): String {
         val photo = uploader.inspect(Uri.parse(imageUri))
-        validateCoverImage(contentType = photo.contentType, fileSize = photo.size)
+        validateImageUpload(contentType = photo.contentType, fileSize = photo.size)
 
         val issued = mapService.createCoverUploadUrl(
             CoverUploadUrlRequestDto(contentType = photo.contentType, fileSize = photo.size),
