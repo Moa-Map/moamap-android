@@ -1,44 +1,38 @@
 package com.example.moamap.feature.mapdetail.presentation.logs
 
 import androidx.compose.runtime.Immutable
-import com.example.moamap.feature.collection.domain.model.MapType
+import com.example.moamap.feature.mapdetail.domain.model.MapActivity
+import com.example.moamap.feature.mapdetail.domain.model.MapActivityType
+import com.example.moamap.feature.mapdetail.relativeTimeLabel
 
 /** 타임라인 점 색으로 구분되는 로그 종류. */
 internal enum class MapLogType {
     PlaceAdded,
     PlaceRemoved,
 
-    /** 권한 위임·회수. 권한 개념이 없는 프라이빗 지도에는 나오지 않는다. */
-    RoleChanged,
+    /** 후기 작성. 서버가 프라이빗 지도에만 내려준다. */
+    ReviewCreated,
 }
 
 /**
  * 활동 내역 한 건.
  *
- * 화면에 그릴 형태 그대로 담는다. 서버 연동이 붙으면 매퍼가 이 모양으로 바꿔 준다.
+ * 화면에 그릴 형태 그대로 담는다. 시각도 이미 "2시간 전" 이다 - 여기서 시각을 들고 있으면
+ * 포맷 코드가 화면으로 들어온다.
  */
 @Immutable
 internal data class MapLogUiModel(
-    val id: Long,
+    /**
+     * 목록 키.
+     *
+     * 서버 응답에 로그 식별자가 없어 만들어 쓴다. 같은 사람이 같은 초에 같은 장소로 두 건을
+     * 남기면 나머지 값이 전부 겹치므로 순번을 섞는다 - 키가 겹치면 `LazyColumn` 이 터진다.
+     */
+    val id: String,
     val type: MapLogType,
     val userName: String,
     val userImageUrl: String?,
-    /**
-     * 사용자명 옆 역할 태그.
-     *
-     * `MapRole` 이 아니라 문자열이다. 프라이빗 지도에는 역할이 없어서 아예 그리지 않는데,
-     * enum 을 들고 있으면 "프라이빗인데 역할이 있는" 상태가 표현 가능해진다.
-     */
-    val roleTag: String?,
     val message: String,
-    /** 장소 추가에 사진이 딸린 경우. 없으면 카드에 글만 들어간다. */
-    val imageUrl: String?,
-    /**
-     * 이미 "2시간 전" 형태다.
-     *
-     * 서버는 ISO 시각을 주겠지만, 여기서 시각을 들고 있으면 포맷 코드가 화면으로 들어온다.
-     * 계산은 연동할 때 매퍼가 맡는다.
-     */
     val timeAgo: String,
 )
 
@@ -56,17 +50,64 @@ internal data class PendingRequestUiModel(
     val timeAgo: String,
 )
 
-/**
- * 지도 타입에 맞지 않는 것을 걸러낸다.
- *
- * 프라이빗 지도는 권한 자체가 없다. 권한 변경 로그뿐 아니라 **사용자명 옆 역할 태그도** 나올
- * 수 없다 - 로그 종류만 거르면 남은 장소 추가·삭제 로그에 "방장" 이 그대로 붙는다.
- * 서버가 실수로 내려줘도 화면에 흘리지 않는다.
- */
-internal fun List<MapLogUiModel>.forMapType(type: MapType): List<MapLogUiModel> = when (type) {
-    MapType.Private ->
-        filter { log -> log.type != MapLogType.RoleChanged }
-            .map { log -> log.copy(roleTag = null) }
+/** 이름을 못 얻은 사용자. 이름 자리가 빈 줄로 보이지 않게 채운다. */
+private const val UNKNOWN_ACTOR = "알 수 없는 사용자"
 
-    MapType.Community -> this
+internal fun List<MapActivity>.toMapLogUiModels(nowMillis: Long): List<MapLogUiModel> =
+    mapIndexed { index, activity ->
+        MapLogUiModel(
+            id = "$index-${activity.type.name}-${activity.placeId}-${activity.occurredAtMillis}",
+            type = activity.type.toLogType(),
+            userName = activity.actorName ?: UNKNOWN_ACTOR,
+            userImageUrl = activity.actorImageUrl,
+            message = activity.toMessage(),
+            timeAgo = relativeTimeLabel(activity.occurredAtMillis, nowMillis),
+        )
+    }
+
+private fun MapActivityType.toLogType(): MapLogType = when (this) {
+    MapActivityType.PlaceAdded -> MapLogType.PlaceAdded
+    MapActivityType.PlaceRemoved -> MapLogType.PlaceRemoved
+    MapActivityType.ReviewCreated -> MapLogType.ReviewCreated
+}
+
+/**
+ * 카드에 들어갈 문장.
+ *
+ * 장소명이 없으면 이름을 뺀 문장으로 바꾼다. 빈 따옴표(`‘’`)가 남으면 지워진 장소처럼 보인다.
+ */
+private fun MapActivity.toMessage(): String = when (type) {
+    MapActivityType.PlaceAdded -> placeName
+        ?.let { name -> "‘$name’ ${name.objectParticle()} 추가했어요" }
+        ?: "장소를 추가했어요"
+
+    MapActivityType.PlaceRemoved -> placeName
+        ?.let { name -> "‘$name’ ${name.objectParticle()} 지도에서 삭제했어요" }
+        ?: "장소를 지도에서 삭제했어요"
+
+    MapActivityType.ReviewCreated -> {
+        val stars = rating?.let { score -> "별점 ${score}점 " }.orEmpty()
+        placeName
+            ?.let { name -> "‘$name’ 에 ${stars}후기를 남겼어요" }
+            ?: "${stars}후기를 남겼어요"
+    }
+}
+
+/** 한글 음절 영역. 이 밖의 글자는 받침을 따질 수 없다. */
+private val HANGUL_SYLLABLES = '가'..'힣'
+
+/** 한 음절을 이루는 종성의 가짓수. 받침 없음까지 세어 28 이다. */
+private const val JONGSUNG_COUNT = 28
+
+/**
+ * 목적격 조사. 받침이 있으면 "을", 없으면 "를".
+ *
+ * 한글로 끝나지 않는 이름은 "를" 로 둔다. 영문·숫자는 읽는 소리를 봐야 정할 수 있는데,
+ * 그러자고 발음 사전을 들일 만한 자리가 아니다.
+ */
+private fun String.objectParticle(): String {
+    val last = lastOrNull() ?: return "를"
+    if (last !in HANGUL_SYLLABLES) return "를"
+
+    return if ((last - '가') % JONGSUNG_COUNT == 0) "를" else "을"
 }

@@ -59,7 +59,6 @@ internal fun PendingRequestCard(
                 LogAuthor(
                     userName = request.userName,
                     userImageUrl = request.userImageUrl,
-                    roleTag = null,
                 )
                 LogTime(timeAgo = request.timeAgo)
             }

@@ -9,6 +9,7 @@ import com.example.moamap.feature.explore.data.remote.MapShareExtractRequestDto
 import com.example.moamap.feature.explore.data.remote.MapShareExtractResponseDto
 import com.example.moamap.feature.explore.data.remote.PhotoUploadUrlDto
 import com.example.moamap.feature.explore.data.remote.PhotoUploadUrlRequestDto
+import com.example.moamap.feature.explore.data.remote.PlaceActivityDto
 import com.example.moamap.feature.explore.data.remote.PlaceBulkCreateRequestDto
 import com.example.moamap.feature.explore.data.remote.PlaceBulkCreateResponseDto
 import com.example.moamap.feature.explore.data.remote.PlaceCandidateDto
@@ -50,6 +51,12 @@ private class RecordingPlaceService : PlaceService {
 
     override suspend fun getPendingPlaces(page: Int?, size: Int?, sort: String?): PageResponse<PlaceDto> =
         TODO("사용하지 않음")
+
+    override suspend fun getActivities(
+        mapId: Long,
+        page: Int?,
+        size: Int?,
+    ): PageResponse<PlaceActivityDto> = TODO("사용하지 않음")
 
     override suspend fun getPlace(id: Long) = TODO("사용하지 않음")
     override suspend fun updatePlace(id: Long, request: PlaceUpdateRequestDto) = TODO("사용하지 않음")
