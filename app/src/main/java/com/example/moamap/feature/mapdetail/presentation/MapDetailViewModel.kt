@@ -113,6 +113,18 @@ class MapDetailViewModel @Inject constructor(
 
     fun retry() = load()
 
+    /**
+     * 상세를 다시 읽되 화면은 채워 둔 채로 둔다.
+     *
+     * [retry] 와 달리 Loading 으로 되돌리지 않는다. 후기를 남긴 뒤처럼 이미 화면이 차 있는
+     * 상태에서 부르는 갱신이라, 잠깐이라도 Loading 이 되면 그 값에 매달린 것들이 함께
+     * 깜빡인다 - 상단바 제목이 초기값으로 돌아가고, 참여 여부를 보는 후기 입력창이 잠긴다.
+     */
+    fun refresh() {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch { loadMap() }
+    }
+
     fun consumeErrorMessage() {
         _uiState.update { state -> state.copy(errorMessage = null) }
     }
@@ -162,8 +174,7 @@ class MapDetailViewModel @Inject constructor(
      */
     private fun load() {
         _uiState.update { state -> state.copy(map = MapLoadState.Loading) }
-        loadJob?.cancel()
-        loadJob = viewModelScope.launch { loadMap() }
+        refresh()
     }
 
     /**

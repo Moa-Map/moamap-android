@@ -77,6 +77,39 @@ class MapDetailViewModelTest {
     }
 
     @Test
+    fun `refresh 는 화면을 채워 둔 채로 다시 읽는다`() = runTest {
+        // 후기를 남긴 뒤의 갱신이다. 잠깐이라도 Loading 이 되면 상단바 제목과 후기 입력창이 깜빡인다.
+        val repository = FakeMapDetailRepository(
+            responseDelayMillis = 100L,
+            map = { testMap(joined = true, placeCount = 3) },
+        )
+        val viewModel = viewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.refresh()
+        dispatcher.scheduler.runCurrent()
+
+        assertTrue(viewModel.uiState.value.map is MapLoadState.Success)
+        assertTrue(viewModel.uiState.value.canAddPlace)
+        assertEquals("지도1", viewModel.uiState.value.title)
+
+        dispatcher.scheduler.advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.map is MapLoadState.Success)
+    }
+
+    @Test
+    fun `retry 는 다시 읽는 동안 Loading 으로 되돌린다`() = runTest {
+        val repository = FakeMapDetailRepository(responseDelayMillis = 100L)
+        val viewModel = viewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.retry()
+        dispatcher.scheduler.runCurrent()
+
+        assertTrue(viewModel.uiState.value.map is MapLoadState.Loading)
+    }
+
+    @Test
     fun `참여하면 화면에 남고 나가기로 바뀐다`() = runTest {
         var joined = false
         val repository = FakeMapDetailRepository(

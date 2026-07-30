@@ -2,6 +2,7 @@ package com.example.moamap.feature.mapdetail
 
 import androidx.compose.runtime.Immutable
 import com.example.moamap.feature.mapdetail.domain.model.MapPlace
+import com.example.moamap.feature.mapdetail.domain.model.PlaceReview
 import com.example.moamap.feature.mapdetail.domain.model.areaLabel
 import com.example.moamap.feature.mapdetail.domain.model.categoryLabel
 
@@ -90,6 +91,59 @@ internal data class PlaceReviewUiModel(
     val message: String,
     val relativeTime: String,
 )
+
+/**
+ * 장소 상세 시트의 후기 영역 상태.
+ * 목록·조회 실패·작성 진행을 한 덩어리로 넘긴다.
+ */
+@Immutable
+internal data class PlaceReviewsUiModel(
+    val loading: Boolean = false,
+    val items: List<PlaceReviewUiModel> = emptyList(),
+    val loadErrorMessage: String? = null,
+    val submitting: Boolean = false,
+    /** 시트 위에는 스낵바를 띄울 수 없어 입력창 아래에 남긴다. */
+    val submitErrorMessage: String? = null,
+    /** 서버가 받아들인 후기 수. 늘어나면 입력창을 비운다. */
+    val submittedCount: Int = 0,
+)
+
+/** 닉네임을 못 얻은 작성자. 이름 자리가 빈 줄로 보이지 않게 채운다. */
+private const val ANONYMOUS_REVIEWER = "이름 없는 사용자"
+
+internal fun PlaceReview.toPlaceReviewUiModel(nowMillis: Long): PlaceReviewUiModel =
+    PlaceReviewUiModel(
+        id = id,
+        userName = authorName ?: ANONYMOUS_REVIEWER,
+        rating = rating,
+        message = content,
+        relativeTime = relativeTimeLabel(createdAtMillis, nowMillis),
+    )
+
+private const val MINUTE_MILLIS = 60_000L
+private const val HOUR_MILLIS = 60 * MINUTE_MILLIS
+private const val DAY_MILLIS = 24 * HOUR_MILLIS
+private const val WEEK_MILLIS = 7 * DAY_MILLIS
+private const val MONTH_MILLIS = 30 * DAY_MILLIS
+private const val YEAR_MILLIS = 365 * DAY_MILLIS
+
+/**
+ * 시각을 못 읽었으면 빈 문자열이고, 화면은 그 자리를 비운다.
+ */
+internal fun relativeTimeLabel(createdAtMillis: Long?, nowMillis: Long): String {
+    if (createdAtMillis == null) return ""
+
+    val elapsed = nowMillis - createdAtMillis
+    return when {
+        elapsed < MINUTE_MILLIS -> "방금 전"
+        elapsed < HOUR_MILLIS -> "${elapsed / MINUTE_MILLIS}분 전"
+        elapsed < DAY_MILLIS -> "${elapsed / HOUR_MILLIS}시간 전"
+        elapsed < WEEK_MILLIS -> "${elapsed / DAY_MILLIS}일 전"
+        elapsed < MONTH_MILLIS -> "${elapsed / WEEK_MILLIS}주일 전"
+        elapsed < YEAR_MILLIS -> "${elapsed / MONTH_MILLIS}개월 전"
+        else -> "${elapsed / YEAR_MILLIS}년 전"
+    }
+}
 
 /** 미리보기 전용 장소. 프리뷰는 네트워크를 타지 않아 썸네일 자리는 플레이스홀더로 뜬다. */
 internal val SamplePlaces = listOf(

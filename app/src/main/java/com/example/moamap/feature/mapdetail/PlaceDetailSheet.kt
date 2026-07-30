@@ -22,6 +22,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -30,6 +31,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -55,12 +57,16 @@ private val ReviewComposerShape = RoundedCornerShape(20.dp)
 private val ReviewInputShape = RoundedCornerShape(100.dp)
 private val PlaceDetailGrabberShape = RoundedCornerShape(100.dp)
 
+/** 후기 자리의 로딩·오류·빈 상태가 함께 쓰는 높이. 상태가 바뀌어도 시트가 튀지 않는다. */
+private val ReviewPlaceholderHeight = 140.dp
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PlaceDetailSheet(
     place: PlaceUiModel,
-    reviews: List<PlaceReviewUiModel>,
+    reviews: PlaceReviewsUiModel,
     onDismiss: () -> Unit,
+    onRetryReviews: () -> Unit = {},
     onSubmitReview: ((rating: Int, reviewText: String) -> Boolean)? = null,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -93,6 +99,7 @@ internal fun PlaceDetailSheet(
             place = place,
             reviews = reviews,
             onDismiss = onDismiss,
+            onRetryReviews = onRetryReviews,
             onSubmitReview = onSubmitReview,
         )
     }
@@ -113,8 +120,9 @@ internal fun trySubmitReview(
 @Composable
 private fun PlaceDetailSheetContent(
     place: PlaceUiModel,
-    reviews: List<PlaceReviewUiModel>,
+    reviews: PlaceReviewsUiModel,
     onDismiss: () -> Unit,
+    onRetryReviews: () -> Unit = {},
     onSubmitReview: ((rating: Int, reviewText: String) -> Boolean)? = null,
     modifier: Modifier = Modifier,
 ) {
@@ -134,15 +142,75 @@ private fun PlaceDetailSheetContent(
             )
             ReviewComposer(
                 placeId = place.id,
+                reviews = reviews,
                 onSubmitReview = onSubmitReview,
             )
         }
 
-        items(
-            items = reviews,
-            key = PlaceReviewUiModel::id,
-        ) { review ->
-            ReviewRow(review = review)
+        val loadErrorMessage = reviews.loadErrorMessage
+        when {
+            reviews.loading -> item { ReviewPlaceholder { CircularProgressIndicator() } }
+
+            loadErrorMessage != null -> item {
+                ReviewPlaceholder {
+                    ReviewLoadError(message = loadErrorMessage, onRetryClick = onRetryReviews)
+                }
+            }
+
+            reviews.items.isEmpty() -> item {
+                ReviewPlaceholder {
+                    Text(
+                        text = "아직 후기가 없어요",
+                        style = MoaMapTheme.typography.body2,
+                        color = MoaMapTheme.colors.textAssistive,
+                    )
+                }
+            }
+
+            else -> items(
+                items = reviews.items,
+                key = PlaceReviewUiModel::id,
+            ) { review ->
+                ReviewRow(review = review)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReviewPlaceholder(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(ReviewPlaceholderHeight),
+        contentAlignment = Alignment.Center,
+    ) {
+        content()
+    }
+}
+
+@Composable
+private fun ReviewLoadError(message: String, onRetryClick: () -> Unit) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            text = message,
+            style = MoaMapTheme.typography.body2,
+            color = MoaMapTheme.colors.textAssistive,
+        )
+        Surface(
+            shape = RoundedCornerShape(8.dp),
+            color = MoaMapPrimitiveColors.Blue500,
+            onClick = onRetryClick,
+        ) {
+            Text(
+                text = "다시 시도",
+                style = MoaMapTheme.typography.button2,
+                color = MoaMapTheme.colors.textWhite,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+            )
         }
     }
 }
@@ -335,11 +403,20 @@ private fun PlaceDetailMetric(
 @Composable
 private fun ReviewComposer(
     placeId: Long,
+    reviews: PlaceReviewsUiModel,
     onSubmitReview: ((rating: Int, reviewText: String) -> Boolean)?,
 ) {
     var rating by rememberSaveable(placeId) { mutableStateOf(0) }
     var reviewText by rememberSaveable(placeId) { mutableStateOf("") }
-    val submitEnabled = onSubmitReview != null
+    val submitEnabled = onSubmitReview != null && !reviews.submitting
+
+    // 서버가 받아들인 뒤에만 입력을 비운다. 보내자마자 지우면 실패했을 때 적어 둔 게 날아간다.
+    LaunchedEffect(reviews.submittedCount) {
+        if (reviews.submittedCount > 0) {
+            rating = 0
+            reviewText = ""
+        }
+    }
 
     Surface(
         modifier = Modifier
@@ -354,7 +431,11 @@ private fun ReviewComposer(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Text(
-                text = "별점과 함께 후기를 입력해주세요.",
+                text = if (onSubmitReview == null) {
+                    "지도에 참여하면 후기를 남길 수 있어요."
+                } else {
+                    "별점과 함께 후기를 입력해주세요."
+                },
                 style = MoaMapTheme.typography.body1,
                 color = MoaMapTheme.colors.textNormal,
             )
@@ -369,6 +450,7 @@ private fun ReviewComposer(
                             .size(48.dp)
                             .selectable(
                                 selected = rating == value,
+                                enabled = submitEnabled,
                                 onClick = { rating = value },
                                 role = Role.RadioButton,
                             )
@@ -414,6 +496,7 @@ private fun ReviewComposer(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(horizontal = 16.dp),
+                        enabled = submitEnabled,
                         singleLine = true,
                         textStyle = MoaMapTheme.typography.body2.copy(
                             color = MoaMapTheme.colors.textNormal,
@@ -445,11 +528,8 @@ private fun ReviewComposer(
                         .clickable(
                             enabled = submitEnabled,
                             role = Role.Button,
-                            onClick = {
-                                if (trySubmitReview(rating, reviewText, onSubmitReview)) {
-                                    reviewText = ""
-                                }
-                            },
+                            // 입력은 여기서 비우지 않는다. 서버가 받아들였는지는 아직 모른다.
+                            onClick = { trySubmitReview(rating, reviewText, onSubmitReview) },
                         )
                         .semantics {
                             contentDescription = "후기 보내기"
@@ -466,15 +546,31 @@ private fun ReviewComposer(
                         },
                     ) {
                         Box(contentAlignment = Alignment.Center) {
-                            Icon(
-                                painter = painterResource(R.drawable.ic_send),
-                                contentDescription = null,
-                                tint = MoaMapPrimitiveColors.White,
-                                modifier = Modifier.size(24.dp),
-                            )
+                            if (reviews.submitting) {
+                                CircularProgressIndicator(
+                                    color = MoaMapPrimitiveColors.White,
+                                    strokeWidth = 2.dp,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                            } else {
+                                Icon(
+                                    painter = painterResource(R.drawable.ic_send),
+                                    contentDescription = null,
+                                    tint = MoaMapPrimitiveColors.White,
+                                    modifier = Modifier.size(24.dp),
+                                )
+                            }
                         }
                     }
                 }
+            }
+
+            reviews.submitErrorMessage?.let { message ->
+                Text(
+                    text = message,
+                    style = MoaMapTheme.typography.caption0,
+                    color = MoaMapTheme.colors.statusAlert,
+                )
             }
         }
     }
@@ -534,11 +630,14 @@ private fun ReviewRow(review: PlaceReviewUiModel) {
                         )
                     }
                 }
-                Text(
-                    text = review.message,
-                    style = MoaMapTheme.typography.body1,
-                    color = MoaMapTheme.colors.textNormal,
-                )
+                // 별점만 남기고 글은 비워 둘 수 있다. 그때 빈 줄이 끼지 않게 통째로 뺀다.
+                if (review.message.isNotBlank()) {
+                    Text(
+                        text = review.message,
+                        style = MoaMapTheme.typography.body1,
+                        color = MoaMapTheme.colors.textNormal,
+                    )
+                }
                 Text(
                     text = review.relativeTime,
                     style = MoaMapTheme.typography.caption0,
@@ -567,8 +666,9 @@ private fun PlaceDetailSheetPreview() {
         Surface(color = MoaMapTheme.colors.backgroundSecondary) {
             PlaceDetailSheetContent(
                 place = SamplePlaces.first(),
-                reviews = SamplePlaceReviews,
+                reviews = PlaceReviewsUiModel(items = SamplePlaceReviews),
                 onDismiss = {},
+                onSubmitReview = { _, _ -> true },
                 modifier = Modifier.fillMaxSize(),
             )
         }
