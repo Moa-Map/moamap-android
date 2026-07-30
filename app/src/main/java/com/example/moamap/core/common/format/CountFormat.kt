@@ -1,5 +1,7 @@
 package com.example.moamap.core.common.format
 
+import java.util.Locale
+
 /**
  * 지도 카드 메타 줄에 들어가는 숫자 표기.
  *
@@ -23,8 +25,11 @@ fun formatMemberCount(count: Int): String = when {
  *
  * 천 단위 구분을 넣는다. 공식지도는 공공데이터라 장소가 수천 건씩 들어 있어
  * 구분자가 없으면 자릿수를 읽기 어렵다.
+ *
+ * 로케일을 고정한다. 기기 로케일에 맡기면 독일어처럼 마침표로 묶는 곳에서 `"5.416곳"` 이
+ * 되는데, 문구가 한국어라 자릿수 구분이 아니라 소수점으로 읽힌다.
  */
-fun formatPlaceCount(count: Int): String = "%,d곳".format(count)
+fun formatPlaceCount(count: Int): String = "%,d곳".format(Locale.KOREA, count)
 
 /** 내림해서 실제 인원보다 많아 보이지 않게 한다. (9990명이 "1만명" 이 되면 안 된다.) */
 private fun trimTrailingZero(value: Double): String {

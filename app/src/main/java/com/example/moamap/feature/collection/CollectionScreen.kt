@@ -87,11 +87,7 @@ internal data class CollectionMapUiModel(
     val title: String,
     /** 커버 이미지 주소. null 이면 [MapThumbnail] 이 기본 이미지를 그린다. */
     val imageUrl: String? = null,
-    /**
-     * 등록 장소 수.
-     *
-     * 서버 목록 응답에 해당 필드가 없어 지금은 채우지 않는다. null 이면 표시하지 않는다.
-     */
+    /** 등록 장소 수. null 이면 그 자리를 그리지 않는다. */
     val placeCount: String? = null,
     val verified: Boolean = false,
     /** null 이면 인원 수를 노출하지 않는다. */

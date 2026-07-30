@@ -1,6 +1,7 @@
 package com.example.moamap.feature.collection.data.repository
 
 import com.example.moamap.feature.collection.data.remote.MapSummaryDto
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -8,6 +9,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MyMapMapperTest {
+
+    /** `NetworkModule.provideJson()` 과 같은 설정. 응답을 읽는 경로를 그대로 재현한다. */
+    private val json = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+    }
 
     private fun dto(
         id: Long = 1L,
@@ -61,10 +68,16 @@ class MyMapMapperTest {
         assertFalse(dto(personal = false).toMyMap().personal)
     }
 
-    /** 서버가 필드를 빼고 주면 0·false 로 본다. 카드가 빈 줄로 보이지 않게 한다. */
+    /**
+     * 서버가 필드를 빼고 주면 0·false 로 본다. 카드가 빈 줄로 보이지 않게 한다.
+     *
+     * 생성자 기본값이 아니라 **응답을 읽는 경로**를 확인해야 의미가 있어 JSON 으로 넣는다.
+     */
     @Test
-    fun `장소 수와 개인 지도 여부가 없으면 기본값으로 본다`() {
-        val myMap = MapSummaryDto(id = 1L, name = "성수 카페 투어").toMyMap()
+    fun `장소 수와 개인 지도 여부가 응답에 없으면 기본값으로 본다`() {
+        val myMap = json
+            .decodeFromString<MapSummaryDto>("""{"id":1,"name":"성수 카페 투어"}""")
+            .toMyMap()
 
         assertEquals(0, myMap.placeCount)
         assertFalse(myMap.personal)
