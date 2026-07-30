@@ -63,8 +63,15 @@ class ProfileEditViewModel @Inject constructor(
         _uiState.update { it.copy(introduction = value) }
     }
 
-    /** 다른 사진을 골랐으면 앞서 올려둔 주소는 쓸모가 없다. */
+    /**
+     * 다른 사진을 골랐으면 앞서 올려둔 주소는 쓸모가 없다.
+     *
+     * 저장 중에는 무시한다 — `save()` 는 호출 시점의 사진을 스냅샷으로 들고 이미 업로드를
+     * 시작했으므로, 지금 바꿔봐야 서버에는 먼저 고른 사진이 저장된다. 그런데 바꾸는 걸 허용하면
+     * 화면은 나중에 고른 사진을 보여주며 저장이 끝났다고 알리게 돼 실제로 저장된 사진과 어긋난다.
+     */
     fun onImageSelected(uri: String) {
+        if (_uiState.value.saving) return
         _uiState.update { it.copy(pickedImageUri = uri, uploadedImage = null) }
     }
 

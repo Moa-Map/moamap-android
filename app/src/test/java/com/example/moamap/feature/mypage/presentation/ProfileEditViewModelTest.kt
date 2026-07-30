@@ -308,4 +308,23 @@ class ProfileEditViewModelTest {
         assertEquals("저장하지 못했어요. 잠시 후 다시 시도해주세요.", state.errorMessage)
         assertFalse(state.saved)
     }
+
+    /**
+     * 저장은 이미 골라둔 사진의 스냅샷을 들고 시작한다. 그 사이에 사진을 바꿔치기 허용하면,
+     * 서버에는 먼저 고른 사진이 저장되는데 화면은 나중에 고른 사진을 보여주며 저장됐다고 알리게 된다.
+     */
+    @Test
+    fun `저장하는 동안에는 사진을 바꿔도 무시한다`() = runTest(dispatcher) {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onImageSelected("content://media/1")
+        viewModel.save()
+        viewModel.onImageSelected("content://media/2")
+        advanceUntilIdle()
+
+        assertEquals("content://media/1", viewModel.uiState.value.pickedImageUri)
+        assertEquals(listOf("content://media/1"), repository.uploadedUris)
+        assertEquals("https://cdn.example.com/profile.jpg?v=1", repository.updatedProfileImageUrl)
+    }
 }
