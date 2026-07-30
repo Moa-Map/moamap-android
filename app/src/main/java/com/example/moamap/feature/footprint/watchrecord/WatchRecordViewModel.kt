@@ -1,4 +1,4 @@
-package com.example.moamap.feature.footprint.debug
+package com.example.moamap.feature.footprint.watchrecord
 
 import android.content.Context
 import androidx.lifecycle.ViewModel
@@ -17,29 +17,29 @@ import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
-sealed interface WearDebugUiState {
-    data object Loading : WearDebugUiState
-    data class Success(val sessions: List<ReceivedWalkSession>) : WearDebugUiState
+sealed interface WatchRecordUiState {
+    data object Loading : WatchRecordUiState
+    data class Success(val sessions: List<ReceivedWalkSession>) : WatchRecordUiState
 }
 
 @HiltViewModel
-class WearDebugViewModel @Inject constructor(
+class WatchRecordViewModel @Inject constructor(
     private val fileStore: WalkSessionFileStore,
     @param:ApplicationContext private val context: Context,
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<WearDebugUiState>(WearDebugUiState.Loading)
-    val uiState: StateFlow<WearDebugUiState> = _uiState.asStateFlow()
+    private val _uiState = MutableStateFlow<WatchRecordUiState>(WatchRecordUiState.Loading)
+    val uiState: StateFlow<WatchRecordUiState> = _uiState.asStateFlow()
 
     init {
         refresh()
     }
 
     fun refresh() {
-        _uiState.value = WearDebugUiState.Loading
+        _uiState.value = WatchRecordUiState.Loading
         viewModelScope.launch {
             val sessions = withContext(Dispatchers.IO) { fileStore.loadAll() }
-            _uiState.value = WearDebugUiState.Success(sessions)
+            _uiState.value = WatchRecordUiState.Success(sessions)
         }
     }
 
