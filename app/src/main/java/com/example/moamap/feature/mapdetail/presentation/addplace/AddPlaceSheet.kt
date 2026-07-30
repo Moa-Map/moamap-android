@@ -50,9 +50,13 @@ internal val AddPlaceHorizontalPadding = 20.dp
  * 시트 위에 남기는 여백.
  *
  * 시트는 아래에 붙어 위로 자라므로, 내용 높이를 화면에서 이만큼 뺀 값으로 고정해
- * 윗변이 늘 같은 자리에 서게 한다. 검색과 등록 폼이 한 시트라 두 단계 모두 같은 높이다.
+ * 윗변이 늘 같은 자리에 서게 한다. 내용에 맡기면 검색 결과 수에 따라 높이가 출렁인다.
+ *
+ * 두 단계의 높이는 다르다. 검색은 결과 네 장까지만 담고 뒤의 지도를 조금 남겨 두는데,
+ * 등록 폼은 사진·태그·메모에 등록 버튼까지 얹어야 해서 화면을 거의 다 쓴다.
  */
-private val SheetTopMargin = 28.dp
+private val SearchStepTopMargin = 104.dp
+private val FormStepTopMargin = 28.dp
 
 private val SheetShape = RoundedCornerShape(topStart = 38.dp, topEnd = 38.dp)
 private val GrabberShape = RoundedCornerShape(100.dp)
@@ -91,8 +95,9 @@ internal fun AddPlaceSheet(
         onImageSelected = viewModel::addPhoto,
     )
 
-    // 화면 높이에서 여백을 뺀 만큼으로 고정한다. 내용에 맡기면 단계마다 시트 높이가 달라진다.
-    val sheetHeight = LocalConfiguration.current.screenHeightDp.dp - SheetTopMargin
+    // 화면 높이에서 단계별 여백을 뺀 만큼으로 고정한다. 장소를 고르면 시트가 폼 높이로 자란다.
+    val topMargin = if (uiState.isFormStep) FormStepTopMargin else SearchStepTopMargin
+    val sheetHeight = LocalConfiguration.current.screenHeightDp.dp - topMargin
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,

@@ -18,6 +18,7 @@ import com.example.moamap.feature.collection.presentation.MyMapsState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +31,9 @@ private const val DEFAULT_EXTRACTION_ERROR = "장소를 가져오지 못했어�
 private const val MAPS_LOAD_FAILED_MESSAGE = "지도 목록을 불러오지 못했어요"
 private const val DEFAULT_SAVE_ERROR = "장소를 저장하지 못했어요"
 private const val NETWORK_ERROR_MESSAGE = "네트워크에 연결할 수 없어요"
+
+/** 임시. 워치 기록 추천이 서버를 다녀오는 것처럼 보이게 로딩 화면을 붙잡아 두는 시간. */
+private const val WALK_RECORD_FAKE_DELAY_MILLIS = 4_000L
 
 /**
  * 장소 가져오기 4단계가 공유하는 ViewModel.
@@ -77,7 +81,8 @@ internal class PlaceImportViewModel @Inject constructor(
     /** 검색하기와 재시도가 함께 쓴다. */
     fun startExtraction() {
         val current = _uiState.value
-        if (!current.canSearch) return
+        // 임시 추천 흐름은 링크 없이 들어오므로 URL 검사를 건너뛴다.
+        if (!current.canSearch && !source.isWalkRecord) return
 
         extractionJob?.cancel()
         previousResult = (current.extraction as? ExtractionState.Success)
@@ -99,6 +104,12 @@ internal class PlaceImportViewModel @Inject constructor(
 
                     PlaceImportSource.MapShare ->
                         placeImportRepository.extractMapSharePlaces(current.url)
+
+                    // 임시. 부를 API 가 없어 로딩 화면만 잠시 보여주고 하드코딩 목록을 준다.
+                    PlaceImportSource.WalkRecordSingle, PlaceImportSource.WalkRecordMulti -> {
+                        delay(WALK_RECORD_FAKE_DELAY_MILLIS)
+                        walkRecordPresetPlaces(source)
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -168,7 +179,12 @@ internal class PlaceImportViewModel @Inject constructor(
      */
     private fun initialSelection(places: List<ImportedPlace>): Set<String> = when (source) {
         PlaceImportSource.Instagram -> emptySet()
-        PlaceImportSource.MapShare -> places
+
+        // 임시 추천 목록도 통째로 받아온 것이라 외부 지도와 같이 전부 고른 채로 시작한다.
+        PlaceImportSource.MapShare,
+        PlaceImportSource.WalkRecordSingle,
+        PlaceImportSource.WalkRecordMulti,
+        -> places
             .filter { place -> place.savable }
             .mapTo(mutableSetOf()) { place -> place.id }
     }

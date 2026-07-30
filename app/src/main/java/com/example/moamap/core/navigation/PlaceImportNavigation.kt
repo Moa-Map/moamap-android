@@ -1,5 +1,6 @@
 package com.example.moamap.core.navigation
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,6 +47,26 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
             val viewModel = sharedPlaceImportViewModel(navController, entry)
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+            // 임시. 워치 기록에서 들어오면 입력받을 링크가 없어 로딩부터 시작한다.
+            // 여기를 pop 하면 그래프의 시작 화면이 사라지므로 백스택에는 그대로 남겨두고,
+            // 대신 뒤 화면들의 뒤로가기가 그래프를 통째로 빠져나간다.
+            if (uiState.source.isWalkRecord) {
+                LaunchedEffect(Unit) {
+                    viewModel.startExtraction()
+                    navController.navigate(PlaceImportRoute.LOADING) { launchSingleTop = true }
+                }
+
+                // 넘어가기까지 한 프레임이 비므로 로딩 화면을 미리 같은 모습으로 그려둔다.
+                PlaceImportLoadingScreen(
+                    source = uiState.source,
+                    onCancel = {
+                        viewModel.cancelExtraction()
+                        navController.popBackStack(MoaMapRoute.PlaceImport.route, inclusive = true)
+                    },
+                )
+                return@composable
+            }
+
             PlaceImportUrlScreen(
                 url = uiState.url,
                 canSearch = uiState.canSearch,
@@ -72,7 +93,10 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
             LaunchedEffect(uiState.extraction, uiState.errorMessage) {
                 when {
                     // 실패하면 직전 화면으로 돌아가고, 그 화면이 안내를 띄운다.
-                    uiState.errorMessage != null -> navController.popBackStack()
+                    // 워치 기록은 그 직전 화면이 되돌아오자마자 여기로 다시 보내는 URL
+                    // 입력이라 흐름을 통째로 닫는다.
+                    uiState.errorMessage != null ->
+                        navController.leavePlaceImportIf(uiState.source.isWalkRecord)
 
                     uiState.extraction is ExtractionState.Success ->
                         navController.navigate(PlaceImportRoute.PLACE) {
@@ -86,7 +110,7 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
                 source = uiState.source,
                 onCancel = {
                     viewModel.cancelExtraction()
-                    navController.popBackStack()
+                    navController.leavePlaceImportIf(uiState.source.isWalkRecord)
                 },
             )
         }
@@ -95,13 +119,21 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
             val viewModel = sharedPlaceImportViewModel(navController, entry)
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+            // 시스템 뒤로가기도 상단 화살표와 같은 곳으로 나가야 한다. 기본 동작은 아래
+            // URL 입력으로 되돌려 로딩을 다시 태운다.
+            BackHandler(enabled = uiState.source.isWalkRecord) {
+                navController.popBackStack(MoaMapRoute.PlaceImport.route, inclusive = true)
+            }
+
             PlaceImportPlaceScreen(
                 source = uiState.source,
                 places = uiState.places,
                 selectedPlaceIds = uiState.selectedPlaceIds,
                 canProceed = uiState.canProceed,
                 errorMessage = uiState.errorMessage,
-                onBackClick = navController::popBackStack,
+                // 워치 기록은 아래에 URL 입력이 깔려 있고 그 화면이 곧장 되돌려 보내므로
+                // 한 칸 pop 하지 않고 흐름을 통째로 닫는다.
+                onBackClick = { navController.leavePlaceImportIf(uiState.source.isWalkRecord) },
                 onErrorShown = viewModel::consumeError,
                 onPlaceClick = viewModel::togglePlace,
                 // 장소 화면을 백스택에 남겨둔다. 로딩 중 취소하면 보던 목록으로 돌아와야 한다.
@@ -180,6 +212,20 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
                 )
             }
         }
+    }
+}
+
+/**
+ * 임시. [leaveWholeFlow] 면 흐름을 통째로 닫고, 아니면 한 칸만 되돌아간다.
+ *
+ * 워치 기록 추천은 그래프 시작 화면인 URL 입력을 건너뛰고 들어온다. 한 칸씩 pop 하면
+ * 그 URL 입력이 드러나면서 다시 로딩으로 보내버려 흐름을 빠져나갈 수 없다.
+ */
+private fun NavHostController.leavePlaceImportIf(leaveWholeFlow: Boolean) {
+    if (leaveWholeFlow) {
+        popBackStack(MoaMapRoute.PlaceImport.route, inclusive = true)
+    } else {
+        popBackStack()
     }
 }
 
