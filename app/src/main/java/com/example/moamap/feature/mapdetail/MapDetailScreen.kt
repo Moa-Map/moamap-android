@@ -152,6 +152,9 @@ fun MapDetailScreen(
     var addPlaceSheetVisible by rememberSaveable { mutableStateOf(false) }
     var memberSheetVisible by rememberSaveable { mutableStateOf(false) }
 
+    // 코드는 상세 응답에 실려 있다. 여는지 마는지만 화면이 들고 있으면 된다.
+    var inviteCodeDialogVisible by rememberSaveable { mutableStateOf(false) }
+
     var uiState by rememberSaveable(stateSaver = MapDetailUiStateSaver) {
         mutableStateOf(MapDetailUiState())
     }
@@ -298,6 +301,8 @@ fun MapDetailScreen(
             roleBadge = screenState.roleBadge,
             action = screenState.action,
             actionEnabled = !screenState.actionInProgress,
+            inviteCode = screenState.inviteCode,
+            onInviteCodeClick = { inviteCodeDialogVisible = true },
             placeCount = screenState.placeCount,
             is3d = is3d,
             canAddPlace = screenState.canAddPlace,
@@ -385,6 +390,16 @@ fun MapDetailScreen(
         )
     }
 
+    // 코드가 사라진 채로 열려 있으면 안 된다. 나가기·삭제로 자격을 잃으면 같이 닫힌다.
+    val inviteCode = screenState.inviteCode
+    if (inviteCodeDialogVisible && inviteCode != null) {
+        MapInviteCodeDialog(
+            mapName = screenState.title ?: initialTitle,
+            inviteCode = inviteCode,
+            onDismiss = { inviteCodeDialogVisible = false },
+        )
+    }
+
     if (memberSheetVisible) {
         MemberSheet(
             // TODO: 멤버 목록도 아직 목데이터다. 서버 API 가 생기면 여기만 바꾼다.
@@ -403,6 +418,8 @@ internal fun MapDetailContent(
     roleBadge: String?,
     action: MapDetailAction,
     actionEnabled: Boolean,
+    inviteCode: String?,
+    onInviteCodeClick: () -> Unit,
     placeCount: Int?,
     is3d: Boolean,
     canAddPlace: Boolean,
@@ -439,6 +456,8 @@ internal fun MapDetailContent(
             roleBadge = roleBadge,
             action = action,
             actionEnabled = actionEnabled,
+            inviteCode = inviteCode,
+            onInviteCodeClick = onInviteCodeClick,
             onBackClick = onBackClick,
             onActionClick = onActionClick,
         )
@@ -592,6 +611,8 @@ private fun MapDetailScreenPreview() {
             roleBadge = "방장",
             action = MapDetailAction.Leave,
             actionEnabled = true,
+            inviteCode = null,
+            onInviteCodeClick = {},
             placeCount = 32,
             is3d = true,
             canAddPlace = true,
@@ -635,6 +656,8 @@ private fun MapDetailScreenNotJoinedPreview() {
             roleBadge = null,
             action = MapDetailAction.Join,
             actionEnabled = true,
+            inviteCode = null,
+            onInviteCodeClick = {},
             placeCount = 12,
             is3d = false,
             canAddPlace = false,

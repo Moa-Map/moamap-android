@@ -101,6 +101,7 @@ class AddPlaceViewModelTest {
         placeCount = 0,
         joined = true,
         personal = false,
+        inviteCode = null,
     )
 
     private fun viewModel(

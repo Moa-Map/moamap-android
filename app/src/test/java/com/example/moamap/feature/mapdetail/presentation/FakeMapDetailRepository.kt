@@ -16,6 +16,7 @@ internal fun testMap(
     memberCount: Int = 1,
     placeCount: Int = 0,
     personal: Boolean = false,
+    inviteCode: String? = null,
 ) = MapDetail(
     id = id,
     title = "지도$id",
@@ -29,6 +30,7 @@ internal fun testMap(
     placeCount = placeCount,
     joined = joined,
     personal = personal,
+    inviteCode = inviteCode,
 )
 
 internal fun testPlace(id: Long) = MapPlace(

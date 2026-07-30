@@ -12,6 +12,7 @@ import com.example.moamap.feature.mapdetail.domain.model.leavingDeletesMap
 import com.example.moamap.feature.collection.domain.model.MapType
 import com.example.moamap.feature.mapdetail.domain.model.MapRole
 import com.example.moamap.feature.mapdetail.domain.model.roleBadge
+import com.example.moamap.feature.mapdetail.domain.model.shareableInviteCode
 import com.example.moamap.feature.mapdetail.domain.model.topBarAction
 import com.example.moamap.feature.mapdetail.domain.repository.MapDetailRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -53,6 +54,9 @@ data class MapDetailScreenState(
     val roleBadge: String? get() = map.mapOrNull?.roleBadge
 
     val action: MapDetailAction get() = map.mapOrNull?.topBarAction ?: MapDetailAction.None
+
+    /** 상단바 초대코드 버튼에 실을 코드. null 이면 버튼을 띄우지 않는다. */
+    val inviteCode: String? get() = map.mapOrNull?.shareableInviteCode
 
     /** 참여 중인 지도에만 장소를 더할 수 있다. */
     val canAddPlace: Boolean get() = map.mapOrNull?.joined == true

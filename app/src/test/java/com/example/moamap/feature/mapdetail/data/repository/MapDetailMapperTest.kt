@@ -66,6 +66,14 @@ class MapDetailMapperTest {
     }
 
     @Test
+    fun `초대 코드는 공백이면 접는다`() {
+        // 빈 코드는 없는 것과 같다. 화면이 코드 없음으로 한 번에 판단할 수 있어야 한다.
+        assertEquals("VH4YXZ", MapDetailDto(inviteCode = "VH4YXZ").toMapDetail(null).inviteCode)
+        assertNull(MapDetailDto(inviteCode = " ").toMapDetail(null).inviteCode)
+        assertNull(MapDetailDto().toMapDetail(null).inviteCode)
+    }
+
+    @Test
     fun `장소 주소는 도로명을 우선한다`() {
         val place = PlaceDto(
             address = "서울 성동구 성수동1가 1",
