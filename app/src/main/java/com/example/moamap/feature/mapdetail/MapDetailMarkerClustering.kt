@@ -53,14 +53,25 @@ internal fun screenDistanceDp(
 
 /**
  * 화면 거리 기준으로 가까워서 하나로 묶인 마커 묶음.
- *
- * [id] 는 ViewAnnotation 의 Compose key 로 쓰이므로 구성이 바뀔 때만 바뀌어야 한다.
  */
 @Immutable
 internal data class MarkerCluster(
     val members: List<PlaceMarker>,
 ) {
-    val id: String = members.joinToString(separator = "-") { member -> member.placeId.toString() }
+    /**
+     * ViewAnnotation 의 Compose key.
+     *
+     * 시드(첫 구성원)의 placeId 를 쓴다. 구성 전체를 이어붙이면 하나라도 붙거나 떨어질
+     * 때마다 key 가 달라져, 지도 위의 ViewAnnotation(안드로이드 View)이 통째로 버려지고
+     * 새로 만들어진다. 안에 걸린 사진 요청도 함께 처음부터 다시 시작한다.
+     *
+     * [clusterMarkers] 가 입력 순서를 지키는 그리디라, 두 묶음이 합쳐지면 앞선 시드가
+     * 그대로 시드가 되고 갈라지면 원래 시드가 남는다. 그래서 통합·분리를 거쳐도 묶음
+     * 하나는 key 를 유지하고, 그 View 와 사진이 살아남는다.
+     *
+     * 마커는 한 묶음에만 속하므로 같은 화면 안에서 값이 겹치지 않는다.
+     */
+    val id: Long = members.first().placeId
 
     val isSingle: Boolean get() = members.size == 1
 }
@@ -77,6 +88,10 @@ internal fun MarkerCluster.anchorPoint(): Point = Point.fromLngLat(
  * 입력 순서를 유지하므로 같은 입력이면 항상 같은 결과가 나온다. 이 결정성이
  * [MarkerCluster.id] 안정성의 근거이고, 나아가 ViewAnnotation 재생성을 막는다.
  *
+ * 투영을 마커마다 한 번만 한다. [screenDistanceDp] 를 쌍마다 부르면 pow·ln·tan 이
+ * 쌍의 수만큼, 즉 마커 수의 제곱으로 늘어난다. 거리도 제곱끼리 견주어 sqrt 를 뺀다.
+ * 묶는 기준과 결과는 그대로다.
+ *
  * 카메라 pitch 와 bearing 은 무시한다. 기울인 화면에서 지평선 쪽 마커는 실제보다
  * 가깝게 보이지만, 이번 스파이크 규모에서는 무시할 수 있는 오차다.
  */
@@ -85,19 +100,25 @@ internal fun clusterMarkers(
     zoom: Double,
     thresholdDp: Double = ClusterThresholdDp,
 ): List<MarkerCluster> {
-    val remaining = markers.toMutableList()
+    val xs = DoubleArray(markers.size) { index -> worldPixelX(markers[index].longitude, zoom) }
+    val ys = DoubleArray(markers.size) { index -> worldPixelY(markers[index].latitude, zoom) }
+    // 묶인 마커를 리스트에서 지우는 대신 표시만 한다. 지우면 뒤쪽이 통째로 밀린다.
+    val taken = BooleanArray(markers.size)
+    val thresholdSquared = thresholdDp * thresholdDp
     val clusters = mutableListOf<MarkerCluster>()
 
-    while (remaining.isNotEmpty()) {
-        val seed = remaining.removeAt(0)
-        val members = mutableListOf(seed)
-        val candidates = remaining.iterator()
+    for (seed in markers.indices) {
+        if (taken[seed]) continue
+        taken[seed] = true
+        val members = mutableListOf(markers[seed])
 
-        while (candidates.hasNext()) {
-            val candidate = candidates.next()
-            if (screenDistanceDp(seed, candidate, zoom) <= thresholdDp) {
-                members += candidate
-                candidates.remove()
+        for (candidate in seed + 1 until markers.size) {
+            if (taken[candidate]) continue
+            val dx = xs[seed] - xs[candidate]
+            val dy = ys[seed] - ys[candidate]
+            if (dx * dx + dy * dy <= thresholdSquared) {
+                taken[candidate] = true
+                members += markers[candidate]
             }
         }
 

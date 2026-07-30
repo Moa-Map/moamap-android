@@ -1,8 +1,10 @@
 package com.example.moamap.feature.mapdetail
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -23,7 +26,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import coil3.compose.AsyncImage
 import com.example.moamap.R
@@ -38,24 +40,38 @@ private val MarkerElevation = 6.dp
 private val FacepileAvatarSize = 40.dp
 private val FacepileOverlap = 14.dp
 
-/** 사진 자리를 채우는 대체 그림. 로드 전·실패·URL 없음을 한 모양으로 다룬다. */
+/**
+ * 사진 자리를 채우는 대체 그림. 로드 전·실패·URL 없음을 한 모양으로 다룬다.
+ *
+ * 로고를 코드에서 자르지 않는다. moa 로고는 가로로 긴 워드마크(1.88:1)라 원형 마커에
+ * 맞추려면 확대·정렬을 손으로 맞춰야 하고, 투명한 자리가 원 가장자리에 비친다. 그래서
+ * 잘라 낸 결과를 정사각 불투명 에셋으로 미리 구워 두고 여기서는 그대로 깐다.
+ */
 @Composable
 private fun AvatarPlaceholder() {
-    Box(
+    Image(
+        painter = painterResource(R.drawable.img_marker_placeholder),
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
         modifier = Modifier
             .fillMaxSize()
-            .clip(CircleShape)
-            .background(MoaMapPrimitiveColors.Yellow50),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_photo_camera),
-            contentDescription = null,
-            tint = MoaMapPrimitiveColors.Gray500,
-            modifier = Modifier.size(20.dp),
-        )
-    }
+            .clip(CircleShape),
+    )
 }
+
+/**
+ * 리플 없는 클릭.
+ *
+ * 마커는 지도 위에 떠 있는 작은 그림이라, 기본 인디케이션을 두면 꼬리까지 포함한
+ * 네모 영역에 회색이 번져 마커 모양과 어긋나 보인다. 누르면 곧바로 시트가 열리거나
+ * 카메라가 움직여서, 눌렸다는 사실은 그쪽으로 이미 드러난다.
+ */
+@Composable
+private fun Modifier.markerClickable(onClick: () -> Unit): Modifier = clickable(
+    interactionSource = remember { MutableInteractionSource() },
+    indication = null,
+    onClick = onClick,
+)
 
 @Composable
 private fun AvatarCircle(
@@ -95,7 +111,7 @@ internal fun PlacePhotoMarker(
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = modifier.clickable(onClick = onClick),
+        modifier = modifier.markerClickable(onClick),
     ) {
         AvatarCircle(
             photoUrl = marker.photoUrl,
@@ -143,7 +159,7 @@ internal fun PlaceFacepileMarker(
             .shadow(elevation = MarkerElevation, shape = CircleShape, clip = false)
             .clip(CircleShape)
             .background(MoaMapPrimitiveColors.White)
-            .clickable(onClick = onClick)
+            .markerClickable(onClick)
             .padding(MarkerRingWidth),
     ) {
         visible.forEachIndexed { index, member ->

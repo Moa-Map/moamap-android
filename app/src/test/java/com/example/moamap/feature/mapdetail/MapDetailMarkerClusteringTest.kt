@@ -60,11 +60,92 @@ class MapDetailMarkerClusteringTest {
         val second = clusterMarkers(PreviewPlaceMarkers, zoom = MergedZoom).first()
 
         assertEquals(first.id, second.id)
-        assertEquals("1-2", first.id)
+        assertEquals(PreviewPlaceMarkers.first().placeId, first.id)
+    }
+
+    /**
+     * ViewAnnotation 재사용의 근거.
+     *
+     * 묶이든 갈라지든 시드의 id 를 쓰는 묶음이 남아야, 지도 위의 View 와 그 안에 걸린
+     * 사진이 버려지지 않고 이어진다.
+     */
+    @Test
+    fun `묶이고 갈라져도 시드 마커의 클러스터 id는 남는다`() {
+        val seedId = PreviewPlaceMarkers.first().placeId
+
+        val separated = clusterMarkers(PreviewPlaceMarkers, zoom = SeparatedZoom)
+        val merged = clusterMarkers(PreviewPlaceMarkers, zoom = MergedZoom)
+
+        assertTrue(separated.any { cluster -> cluster.id == seedId })
+        assertTrue(merged.any { cluster -> cluster.id == seedId })
+    }
+
+    /** id 는 Compose key 로 쓰이므로 같은 화면 안에서 유일해야 한다. */
+    @Test
+    fun `같은 화면 안에서 클러스터 id는 겹치지 않는다`() {
+        val markers = GridMarkers
+
+        listOf(13.0, 14.0, 15.0, 16.0, 17.0).forEach { zoom ->
+            val ids = clusterMarkers(markers, zoom = zoom).map { cluster -> cluster.id }
+
+            assertEquals("zoom=$zoom", ids.size, ids.toSet().size)
+        }
+    }
+
+    /**
+     * 투영을 미리 계산하고 거리를 제곱끼리 견주는 최적화가, 쌍마다
+     * [screenDistanceDp] 를 부르던 원래 셈과 같은 묶음을 내는지 본다.
+     */
+    @Test
+    fun `투영을 미리 계산해도 묶이는 결과는 그대로다`() {
+        listOf(13.0, 14.0, 15.0, 16.0, 17.0).forEach { zoom ->
+            val actual = clusterMarkers(GridMarkers, zoom = zoom).map { it.members }
+            val expected = clusterMarkersByPairDistance(GridMarkers, zoom).map { it.members }
+
+            assertEquals("zoom=$zoom", expected, actual)
+        }
     }
 
     @Test
     fun `마커가 없으면 빈 목록을 반환한다`() {
         assertTrue(clusterMarkers(emptyList(), zoom = SeparatedZoom).isEmpty())
     }
+}
+
+/** 여러 줌에서 묶였다 갈라졌다 하도록 촘촘히 깔아 둔 마커들. */
+private val GridMarkers = List(48) { index ->
+    PlaceMarker(
+        placeId = index.toLong(),
+        name = "장소 $index",
+        longitude = 126.9500 + index % 8 * 0.00037,
+        latitude = 37.4900 + index / 8 * 0.00041,
+        photoUrl = null,
+    )
+}
+
+/** 최적화 이전의 셈법. 쌍마다 투영해 [screenDistanceDp] 로 잰다. */
+private fun clusterMarkersByPairDistance(
+    markers: List<PlaceMarker>,
+    zoom: Double,
+): List<MarkerCluster> {
+    val remaining = markers.toMutableList()
+    val clusters = mutableListOf<MarkerCluster>()
+
+    while (remaining.isNotEmpty()) {
+        val seed = remaining.removeAt(0)
+        val members = mutableListOf(seed)
+        val candidates = remaining.iterator()
+
+        while (candidates.hasNext()) {
+            val candidate = candidates.next()
+            if (screenDistanceDp(seed, candidate, zoom) <= ClusterThresholdDp) {
+                members += candidate
+                candidates.remove()
+            }
+        }
+
+        clusters += MarkerCluster(members = members)
+    }
+
+    return clusters
 }
