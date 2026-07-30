@@ -382,6 +382,7 @@ private val PreviewMap = MapDetail(
     placeCount = 12,
     joined = false,
     personal = false,
+    inviteCode = null,
 )
 
 private val PreviewPlaces = MapPlacePreview(

@@ -22,6 +22,7 @@ class MapDetailRuleTest {
         joined: Boolean,
         memberCount: Int = 1,
         personal: Boolean = false,
+        inviteCode: String? = "A1B2C3",
     ) = MapDetail(
         id = 1L,
         title = "지도",
@@ -35,6 +36,7 @@ class MapDetailRuleTest {
         placeCount = 0,
         joined = joined,
         personal = personal,
+        inviteCode = inviteCode,
     )
 
     // ---------- 역할 배지 ----------
@@ -145,6 +147,49 @@ class MapDetailRuleTest {
         assertFalse(map(MapType.Community, MapRole.Owner, joined = true).leavingDeletesMap)
         assertFalse(map(MapType.Community, MapRole.Member, joined = true).leavingDeletesMap)
         assertFalse(map(MapType.Private, MapRole.Member, joined = true).leavingDeletesMap)
+    }
+
+    // ---------- 초대 코드 ----------
+
+    @Test
+    fun `프라이빗 지도에 참여한 사람은 초대 코드를 볼 수 있다`() {
+        assertEquals(
+            "A1B2C3",
+            map(MapType.Private, MapRole.Owner, joined = true).shareableInviteCode,
+        )
+        assertEquals(
+            "A1B2C3",
+            map(MapType.Private, MapRole.Member, joined = true, memberCount = 3)
+                .shareableInviteCode,
+        )
+    }
+
+    @Test
+    fun `참여하지 않았으면 초대 코드를 보여주지 않는다`() {
+        // 서버가 코드를 실어 보내더라도 남을 부를 자격이 없다.
+        assertNull(map(MapType.Private, MapRole.None, joined = false).shareableInviteCode)
+    }
+
+    @Test
+    fun `나만의 지도는 초대 코드를 보여주지 않는다`() {
+        // PRIVATE·OWNER 로 내려와 일반 프라이빗과 모양이 같다. 초대할 상대가 없는 지도다.
+        assertNull(
+            map(MapType.Private, MapRole.Owner, joined = true, personal = true)
+                .shareableInviteCode,
+        )
+    }
+
+    @Test
+    fun `커뮤니티 지도는 초대 코드를 보여주지 않는다`() {
+        assertNull(map(MapType.Community, MapRole.Owner, joined = true).shareableInviteCode)
+    }
+
+    @Test
+    fun `서버가 코드를 주지 않으면 보여줄 것이 없다`() {
+        assertNull(
+            map(MapType.Private, MapRole.Owner, joined = true, inviteCode = null)
+                .shareableInviteCode,
+        )
     }
 
     // ---------- 역할 문자열 ----------

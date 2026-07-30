@@ -173,6 +173,38 @@ class MapDetailViewModelTest {
     }
 
     @Test
+    fun `프라이빗 지도에 참여했으면 초대 코드가 상태에 실린다`() = runTest {
+        val repository = FakeMapDetailRepository(
+            map = {
+                testMap(
+                    type = MapType.Private,
+                    role = MapRole.Member,
+                    joined = true,
+                    memberCount = 3,
+                    inviteCode = "VH4YXZ",
+                )
+            },
+        )
+        val viewModel = viewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        // 상세 응답에 실려 온 값을 그대로 쓴다. 코드를 따로 조회하지 않는다.
+        assertEquals("VH4YXZ", viewModel.uiState.value.inviteCode)
+        assertEquals(listOf("getMapDetail", "getPlaces"), repository.calls)
+    }
+
+    @Test
+    fun `커뮤니티 지도에서는 초대 코드가 없다`() = runTest {
+        val repository = FakeMapDetailRepository(
+            map = { testMap(joined = true, role = MapRole.Member, inviteCode = "VH4YXZ") },
+        )
+        val viewModel = viewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.inviteCode)
+    }
+
+    @Test
     fun `요청이 도는 동안 다시 눌러도 한 번만 참여한다`() = runTest {
         val repository = FakeMapDetailRepository(responseDelayMillis = 100L)
         val viewModel = viewModel(repository)

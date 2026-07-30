@@ -30,6 +30,12 @@ data class MapDetail(
      * 않는다. 서버가 따로 주는 이 값으로만 가릴 수 있다.
      */
     val personal: Boolean,
+    /**
+     * 프라이빗 지도 초대 코드.
+     *
+     * 서버가 아무에게나 주는 값이 아니다. 참여자가 아니거나 코드가 없는 지도는 null 로 온다.
+     */
+    val inviteCode: String?,
 )
 
 /**
@@ -44,6 +50,18 @@ val MapDetail.roleBadge: String?
         role == MapRole.Admin -> "관리자"
         role == MapRole.Member -> "멤버"
         else -> null
+    }
+
+/**
+ * 상단바에서 꺼내 볼 수 있는 초대 코드. 볼 수 없으면 null 이다.
+ *
+ * 프라이빗 지도에 참여한 사람만 코드를 쥔다. 초대할 상대가 없는 "나만의 지도" 는 빼고,
+ * 서버가 코드를 내려주지 않았으면 버튼 자체를 띄우지 않는다 - 빈 코드를 보여줘 봐야
+ * 공유할 수도, 고칠 수도 없다.
+ */
+val MapDetail.shareableInviteCode: String?
+    get() = inviteCode?.takeIf {
+        type == MapType.Private && joined && !personal
     }
 
 /** 상세 화면 우측 위에 놓일 액션. */

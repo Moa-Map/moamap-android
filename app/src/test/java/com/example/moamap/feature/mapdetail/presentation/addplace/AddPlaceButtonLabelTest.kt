@@ -28,6 +28,7 @@ class AddPlaceButtonLabelTest {
         placeCount = 0,
         joined = true,
         personal = false,
+        inviteCode = null,
     )
 
     @Test
