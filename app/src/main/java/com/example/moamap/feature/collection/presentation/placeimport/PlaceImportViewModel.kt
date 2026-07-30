@@ -55,6 +55,12 @@ internal class PlaceImportViewModel @Inject constructor(
     /** 다른 앱에서 공유로 들어온 링크. 모음 탭으로 들어오면 비어 있다. */
     private val sharedUrl: String = savedStateHandle[MoaMapRoute.PlaceImport.ARG_URL] ?: ""
 
+    /** 워치가 보낸 좌표. 그 경로로 들어오지 않았으면 null 이다. */
+    private val lat: Double? =
+        savedStateHandle.get<String>(MoaMapRoute.PlaceImport.ARG_LAT)?.toDoubleOrNull()
+    private val lng: Double? =
+        savedStateHandle.get<String>(MoaMapRoute.PlaceImport.ARG_LNG)?.toDoubleOrNull()
+
     private val _uiState = MutableStateFlow(PlaceImportUiState(source = source, url = sharedUrl))
     val uiState: StateFlow<PlaceImportUiState> = _uiState.asStateFlow()
 
@@ -82,7 +88,7 @@ internal class PlaceImportViewModel @Inject constructor(
     fun startExtraction() {
         val current = _uiState.value
         // 임시 추천 흐름은 링크 없이 들어오므로 URL 검사를 건너뛴다.
-        if (!current.canSearch && !source.isWalkRecord) return
+        if (!current.canSearch && !source.skipsUrlInput) return
 
         extractionJob?.cancel()
         previousResult = (current.extraction as? ExtractionState.Success)
@@ -109,6 +115,17 @@ internal class PlaceImportViewModel @Inject constructor(
                     PlaceImportSource.WalkRecordSingle, PlaceImportSource.WalkRecordMulti -> {
                         delay(WALK_RECORD_FAKE_DELAY_MILLIS)
                         walkRecordPresetPlaces(source)
+                    }
+
+                    PlaceImportSource.WalkPoint -> {
+                        // 좌표가 없으면 부를 것이 없다. 경로가 잘못 만들어진 경우다.
+                        val latitude = lat
+                        val longitude = lng
+                        if (latitude == null || longitude == null) {
+                            failExtraction("좌표를 읽지 못했어요")
+                            return@launch
+                        }
+                        placeImportRepository.findPlaceAtCoordinate(latitude, longitude)
                     }
                 }
             } catch (e: CancellationException) {
@@ -184,6 +201,7 @@ internal class PlaceImportViewModel @Inject constructor(
         PlaceImportSource.MapShare,
         PlaceImportSource.WalkRecordSingle,
         PlaceImportSource.WalkRecordMulti,
+        PlaceImportSource.WalkPoint,
         -> places
             .filter { place -> place.savable }
             .mapTo(mutableSetOf()) { place -> place.id }

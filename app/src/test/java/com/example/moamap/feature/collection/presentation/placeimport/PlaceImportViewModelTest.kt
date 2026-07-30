@@ -82,6 +82,12 @@ private class FakePlaceImportRepository : PlaceImportRepository {
     var mapShareCallCount: Int = 0
         private set
 
+    var coordinateCallCount: Int = 0
+        private set
+
+    var lastCoordinate: Pair<Double, Double>? = null
+        private set
+
     var saveFailure: Throwable? = null
     var saveResult = PlaceSaveResult(created = 2, duplicate = 0, failed = 0)
 
@@ -112,6 +118,12 @@ private class FakePlaceImportRepository : PlaceImportRepository {
 
     override suspend fun extractMapSharePlaces(url: String): List<ImportedPlace> {
         mapShareCallCount++
+        return extract()
+    }
+
+    override suspend fun findPlaceAtCoordinate(lat: Double, lng: Double): List<ImportedPlace> {
+        coordinateCallCount++
+        lastCoordinate = lat to lng
         return extract()
     }
 

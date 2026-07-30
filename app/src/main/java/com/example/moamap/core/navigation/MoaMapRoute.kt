@@ -38,8 +38,11 @@ sealed interface MoaMapRoute {
     data object PlaceImport : MoaMapRoute {
         const val ARG_SOURCE = "source"
         const val ARG_URL = "url"
+        const val ARG_LAT = "lat"
+        const val ARG_LNG = "lng"
 
-        override val route = "place_import/{$ARG_SOURCE}?$ARG_URL={$ARG_URL}"
+        override val route =
+            "place_import/{$ARG_SOURCE}?$ARG_URL={$ARG_URL}&$ARG_LAT={$ARG_LAT}&$ARG_LNG={$ARG_LNG}"
 
         /**
          * URL 은 선택값이라 경로 조각이 아니라 질의 문자열에 싣는다. 모음 탭처럼 넘길
@@ -47,9 +50,19 @@ sealed interface MoaMapRoute {
          * 실패한다.
          *
          * URL 에는 `?` 나 `&` 가 들어 있어 그대로 붙이면 주소가 끊긴다. 인코딩해서 넘긴다.
+         *
+         * 좌표는 워치가 보낸 한 점에서 들어올 때만 채워진다. 없으면 빈 문자열로 남기고
+         * 받는 쪽이 `toDoubleOrNull()` 로 읽는다.
          */
-        fun createRoute(source: String, url: String = ""): String =
-            "place_import/$source?$ARG_URL=${Uri.encode(url)}"
+        fun createRoute(
+            source: String,
+            url: String = "",
+            lat: Double? = null,
+            lng: Double? = null,
+        ): String = "place_import/$source" +
+            "?$ARG_URL=${Uri.encode(url)}" +
+            "&$ARG_LAT=${lat?.toString().orEmpty()}" +
+            "&$ARG_LNG=${lng?.toString().orEmpty()}"
     }
 
     /** 모음 탭의 `새 지도` 로 들어가는 지도 생성 화면. */

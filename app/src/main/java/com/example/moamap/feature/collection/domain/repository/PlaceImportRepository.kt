@@ -23,6 +23,15 @@ interface PlaceImportRepository {
     suspend fun extractMapSharePlaces(url: String): List<ImportedPlace>
 
     /**
+     * 좌표 한 점 근처의 장소를 찾는다. 워치가 보낸 단일 좌표에서 들어온다.
+     *
+     * @return 0건 아니면 1건
+     * @throws com.example.moamap.feature.collection.domain.model.PlaceExtractionException
+     *   그 자리에서 등록할 만한 장소를 찾지 못한 경우
+     */
+    suspend fun findPlaceAtCoordinate(lat: Double, lng: Double): List<ImportedPlace>
+
+    /**
      * 고른 장소를 고른 지도에 모두 등록한다.
      *
      * 서버가 요청 하나에 지도 하나만 받으므로 지도 수만큼 호출한다. 건별로 부분 성공하니

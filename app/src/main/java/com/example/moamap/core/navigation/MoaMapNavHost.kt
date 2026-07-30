@@ -255,6 +255,15 @@ internal fun MoaMapNavHost(
                             ),
                         )
                     },
+                    onFindPlaceClick = { lat, lng ->
+                        navController.navigate(
+                            MoaMapRoute.PlaceImport.createRoute(
+                                source = PlaceImportSource.WalkPoint.name,
+                                lat = lat,
+                                lng = lng,
+                            ),
+                        )
+                    },
                 )
             }
         }
