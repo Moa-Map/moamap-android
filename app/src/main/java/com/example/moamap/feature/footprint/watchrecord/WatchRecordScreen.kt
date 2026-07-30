@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +28,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -166,8 +168,7 @@ private fun SessionCard(
  * 임시. 겉보기엔 버튼 하나지만 누른 쪽에 따라 다른 추천 목록을 띄운다.
  *
  * 추천 API 가 붙기 전까지 두 가지 결과를 화면에서 바로 견줘보려고 둔 것이다. 왼쪽 절반은
- * 한 곳만, 오른쪽 절반은 미리 지정한 여러 곳을 준다. 눌린 쪽에만 물결이 번져서 어느 쪽을
- * 눌렀는지 눈으로 확인할 수 있다.
+ * 한 곳만, 오른쪽 절반은 미리 지정한 여러 곳을 준다.
  */
 @Composable
 private fun RecommendSplitButton(
@@ -195,16 +196,31 @@ private fun RecommendSplitButton(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .clickable(onClick = onLeftClick),
+                    .noRippleClickable(onClick = onLeftClick),
             )
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxHeight()
-                    .clickable(onClick = onRightClick),
+                    .noRippleClickable(onClick = onRightClick),
             )
         }
     }
+}
+
+/**
+ * 물결 없이 클릭만 받는다.
+ *
+ * 반쪽짜리 영역에 물결이 번지면 버튼이 둘로 갈라져 보인다. 겉보기에는 버튼 하나여야 한다.
+ */
+@Composable
+private fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier {
+    val interactionSource = remember { MutableInteractionSource() }
+    return clickable(
+        interactionSource = interactionSource,
+        indication = null,
+        onClick = onClick,
+    )
 }
 
 /**
