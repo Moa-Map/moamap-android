@@ -85,6 +85,8 @@ data class MapDetailDto(
     val memberCount: Int = 0,
     val placeCount: Int = 0,
     val joined: Boolean = false,
+    /** 가입할 때 자동으로 생기는 "나만의 지도". PRIVATE 로 내려와 type 으로는 못 가린다. */
+    val personal: Boolean = false,
     // OWNER, ADMIN, MEMBER, NONE
     val myRole: String? = null,
     val inviteCode: String? = null,

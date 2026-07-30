@@ -23,6 +23,13 @@ data class MapDetail(
     val memberCount: Int,
     val placeCount: Int,
     val joined: Boolean,
+    /**
+     * 가입할 때 자동으로 생기는 "나만의 지도" 다.
+     *
+     * 서버가 PRIVATE 타입으로 내려주기 때문에 [type] 으로는 일반 프라이빗 지도와 구분되지
+     * 않는다. 서버가 따로 주는 이 값으로만 가릴 수 있다.
+     */
+    val personal: Boolean,
 )
 
 /**
@@ -68,6 +75,8 @@ enum class MapDetailAction {
  */
 val MapDetail.topBarAction: MapDetailAction
     get() = when {
+        // 나만의 지도는 나갈 대상이 아니다. 자동으로 생기는 내 지도라 나가 봐야 다시 생긴다.
+        personal -> MapDetailAction.None
         !joined -> if (type == MapType.Private) MapDetailAction.None else MapDetailAction.Join
         role != MapRole.Owner -> MapDetailAction.Leave
         type == MapType.Private && memberCount <= 1 -> MapDetailAction.Leave
@@ -79,9 +88,13 @@ val MapDetail.topBarAction: MapDetailAction
  *
  * 프라이빗 지도를 만든 사람이 혼자 남은 상황이다. 조건을 [topBarAction] 과 나눠 갖지 않고
  * 여기서 다 본다 - 지도 삭제는 되돌릴 수 없어서, 호출부가 순서를 지켰겠거니 하면 안 된다.
+ *
+ * 나만의 지도도 같은 모양(PRIVATE·OWNER·혼자)이라 [personal] 을 먼저 걸러낸다. 나가기를
+ * 띄우지 않으니 여기까지 올 일은 없지만, 삭제 판단이 화면 상태를 믿고 있으면 안 된다.
  */
 val MapDetail.leavingDeletesMap: Boolean
     get() = joined &&
+        !personal &&
         type == MapType.Private &&
         role == MapRole.Owner &&
         memberCount <= 1

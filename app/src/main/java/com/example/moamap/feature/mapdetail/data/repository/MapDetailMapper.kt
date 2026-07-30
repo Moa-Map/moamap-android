@@ -32,6 +32,7 @@ fun MapDetailDto.toMapDetail(ownerName: String?): MapDetail = MapDetail(
     memberCount = memberCount,
     placeCount = placeCount,
     joined = joined,
+    personal = personal,
 )
 
 /** 주소는 도로명을 우선한다. 사람이 읽기 쉬운 쪽이고 카드의 한 줄에도 잘 들어간다. */
