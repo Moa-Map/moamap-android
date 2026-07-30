@@ -38,7 +38,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -46,6 +48,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.example.moamap.R
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
@@ -267,11 +270,26 @@ private fun PlaceHeader(place: PlaceUiModel) {
         Box(
             modifier = Modifier
                 .size(64.dp)
+                .clip(PlaceImageShape)
                 .background(
                     color = MoaMapPrimitiveColors.Yellow50,
                     shape = PlaceImageShape,
                 ),
-        )
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_photo_camera),
+                contentDescription = null,
+                tint = MoaMapPrimitiveColors.Gray500,
+                modifier = Modifier.size(24.dp),
+            )
+            AsyncImage(
+                model = place.photoUrl,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
 
         Column(
             modifier = Modifier.weight(1f),
