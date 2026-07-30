@@ -3,6 +3,7 @@ package com.example.moamap.feature.mypage.presentation
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.moamap.core.common.upload.ImageUploadException
 import com.example.moamap.feature.mypage.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -62,6 +63,11 @@ class ProfileEditViewModel @Inject constructor(
         _uiState.update { it.copy(introduction = value) }
     }
 
+    /** 다른 사진을 골랐으면 앞서 올려둔 주소는 쓸모가 없다. */
+    fun onImageSelected(uri: String) {
+        _uiState.update { it.copy(pickedImageUri = uri, uploadedImage = null) }
+    }
+
     fun save() {
         val current = _uiState.value
         if (!current.canSave) return
@@ -69,9 +75,11 @@ class ProfileEditViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
+                val imageUrl = current.pickedImageUri?.let { uri -> resolveImageUrl(uri) }
                 userRepository.updateMyProfile(
                     nickname = current.nickname.trim(),
                     introduction = current.introduction,
+                    profileImageUrl = imageUrl,
                 )
                 _uiState.update { it.copy(saving = false, saved = true) }
             } catch (e: CancellationException) {
@@ -79,12 +87,37 @@ class ProfileEditViewModel @Inject constructor(
             } catch (throwable: Throwable) {
                 // 저장이 안 됐는데 화면을 닫으면 고친 내용이 사라진 걸 사용자가 모른다.
                 Log.e(TAG, "프로필 저장 실패", throwable)
-                _uiState.update { it.copy(saving = false, errorMessage = SAVE_ERROR) }
+                _uiState.update {
+                    it.copy(saving = false, errorMessage = throwable.toSaveMessage())
+                }
             }
         }
     }
 
+    /**
+     * 같은 사진을 이미 올렸으면 그 주소를 그대로 쓴다.
+     *
+     * 올린 파일을 지우는 API 가 없어, 저장이 실패할 때마다 새로 올리면 지울 수 없는 사진이 쌓인다.
+     */
+    private suspend fun resolveImageUrl(uri: String): String =
+        _uiState.value.uploadedImage?.takeIf { it.sourceUri == uri }?.fileUrl
+            ?: userRepository.uploadProfileImage(uri).also { fileUrl ->
+                _uiState.update { it.copy(uploadedImage = UploadedProfileImage(uri, fileUrl)) }
+            }
+
     fun consumeError() {
         _uiState.update { it.copy(errorMessage = null) }
     }
+}
+
+/**
+ * 업로드 실패는 저장 실패와 다르게 안내한다.
+ *
+ * 둘 다 "저장하지 못했어요" 로 뭉개면 사용자가 할 조치를 알 수 없다 - 사진을 바꿔야 하는 경우와
+ * 그냥 다시 눌러야 하는 경우가 다르다.
+ */
+private fun Throwable.toSaveMessage(): String = when (this) {
+    // 무엇이 문제인지는 예외가 이미 문구로 들고 있다.
+    is ImageUploadException -> message ?: SAVE_ERROR
+    else -> SAVE_ERROR
 }

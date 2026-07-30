@@ -1,5 +1,6 @@
 package com.example.moamap.feature.mypage.presentation
 
+import com.example.moamap.core.common.upload.ImageUploadException
 import com.example.moamap.feature.mypage.domain.model.MyProfile
 import com.example.moamap.feature.mypage.domain.repository.UserRepository
 import kotlinx.coroutines.Dispatchers
@@ -205,5 +206,106 @@ class ProfileEditViewModelTest {
         advanceUntilIdle()
 
         assertNull(repository.updatedNickname)
+    }
+
+    @Test
+    fun `사진을 고르지 않으면 업로드하지 않는다`() = runTest(dispatcher) {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.save()
+        advanceUntilIdle()
+
+        assertTrue(repository.uploadedUris.isEmpty())
+        assertNull(repository.updatedProfileImageUrl)
+    }
+
+    @Test
+    fun `사진을 고르면 올린 주소를 저장 요청에 담는다`() = runTest(dispatcher) {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onImageSelected("content://media/1")
+        viewModel.save()
+        advanceUntilIdle()
+
+        assertEquals(listOf("content://media/1"), repository.uploadedUris)
+        assertEquals("https://cdn.example.com/profile.jpg?v=1", repository.updatedProfileImageUrl)
+        assertTrue(viewModel.uiState.value.saved)
+    }
+
+    /** 올린 파일을 지우는 API 가 없다. 재시도마다 새로 올리면 고아 파일이 쌓인다. */
+    @Test
+    fun `저장에 실패해 다시 눌러도 같은 사진을 두 번 올리지 않는다`() = runTest(dispatcher) {
+        repository.updateFailure = IOException("전송 실패")
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onImageSelected("content://media/1")
+        viewModel.save()
+        advanceUntilIdle()
+
+        repository.updateFailure = null
+        viewModel.save()
+        advanceUntilIdle()
+
+        assertEquals(listOf("content://media/1"), repository.uploadedUris)
+        assertTrue(viewModel.uiState.value.saved)
+    }
+
+    @Test
+    fun `사진을 바꿔 고르면 다시 올린다`() = runTest(dispatcher) {
+        repository.updateFailure = IOException("전송 실패")
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onImageSelected("content://media/1")
+        viewModel.save()
+        advanceUntilIdle()
+
+        repository.updateFailure = null
+        viewModel.onImageSelected("content://media/2")
+        viewModel.save()
+        advanceUntilIdle()
+
+        assertEquals(listOf("content://media/1", "content://media/2"), repository.uploadedUris)
+        assertEquals("https://cdn.example.com/profile.jpg?v=2", repository.updatedProfileImageUrl)
+    }
+
+    /** 무엇이 문제인지는 예외가 이미 문구로 들고 있다. 사진을 바꾸라고 알려줘야 한다. */
+    @Test
+    fun `사진이 너무 크면 그 이유를 알리고 저장 요청을 보내지 않는다`() = runTest(dispatcher) {
+        repository.uploadFailure = ImageUploadException.TooLarge()
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onImageSelected("content://media/1")
+        viewModel.save()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals("사진 크기는 10MB 이하여야 해요", state.errorMessage)
+        assertFalse(state.saved)
+        assertFalse(state.saving)
+        assertNull(repository.updatedNickname)
+    }
+
+    @Test
+    fun `업로드가 네트워크로 실패하면 일반 저장 실패로 알린다`() = runTest(dispatcher) {
+        repository.uploadFailure = IOException("네트워크 끊김")
+
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onImageSelected("content://media/1")
+        viewModel.save()
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertEquals("저장하지 못했어요. 잠시 후 다시 시도해주세요.", state.errorMessage)
+        assertFalse(state.saved)
     }
 }

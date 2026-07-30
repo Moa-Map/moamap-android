@@ -23,11 +23,22 @@ sealed interface ProfileLoadState {
     data class Error(val message: String) : ProfileLoadState
 }
 
+/**
+ * 올려둔 사진. 저장이 실패해 다시 눌러도 같은 사진을 두 번 올리지 않으려고 들고 있다.
+ *
+ * [sourceUri] 를 함께 들고 있어야 사진을 바꿔 고른 뒤에도 옛 주소를 쓰는 일이 없다.
+ */
+@Immutable
+data class UploadedProfileImage(val sourceUri: String, val fileUrl: String)
+
 @Immutable
 data class ProfileEditUiState(
     val load: ProfileLoadState = ProfileLoadState.Loading,
     val nickname: String = "",
     val introduction: String = "",
+    /** 사용자가 고른 사진. 미리보기가 서버 URL 대신 이걸 그린다. 저장 전까지 올리지 않는다. */
+    val pickedImageUri: String? = null,
+    val uploadedImage: UploadedProfileImage? = null,
     val saving: Boolean = false,
     val saved: Boolean = false,
     val errorMessage: String? = null,
