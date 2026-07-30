@@ -4,8 +4,8 @@ import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.moamap.core.common.upload.ImageUploadException
 import com.example.moamap.core.network.ConnectionException
-import com.example.moamap.feature.collection.domain.model.CoverImageException
 import com.example.moamap.feature.collection.domain.model.MapVisibility
 import com.example.moamap.feature.collection.domain.model.NewMap
 import com.example.moamap.feature.collection.domain.repository.MapRepository
@@ -290,7 +290,7 @@ private fun Throwable.toUserMessage(): String = when (this) {
  */
 private fun Throwable.toCoverMessage(): String = when (this) {
     // 무엇이 문제인지는 예외가 이미 문구로 들고 있다.
-    is CoverImageException -> message ?: COVER_UPLOAD_FAILED_MESSAGE
+    is ImageUploadException -> message ?: COVER_UPLOAD_FAILED_MESSAGE
     is ConnectionException -> NETWORK_ERROR_MESSAGE
     else -> COVER_UPLOAD_FAILED_MESSAGE
 }

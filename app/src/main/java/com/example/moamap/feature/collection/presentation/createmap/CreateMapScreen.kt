@@ -48,7 +48,7 @@ import com.example.moamap.core.designsystem.component.ErrorSnackbar
 import com.example.moamap.core.designsystem.component.ImageSourceMenu
 import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
-import com.example.moamap.feature.collection.domain.model.ALLOWED_COVER_CONTENT_TYPES
+import com.example.moamap.core.common.upload.ALLOWED_IMAGE_CONTENT_TYPES
 import com.example.moamap.feature.collection.domain.model.MapVisibility
 import kotlinx.coroutines.flow.collectLatest
 
@@ -62,7 +62,7 @@ private const val MapImageFilePrefix = "map"
  * 발급 전에 거르는 형식과 같은 값을 써야 한다. 고르고 나서 거절당하지 않도록 선택기에서
  * 미리 좁히는 것뿐이라, 목록을 따로 두면 서버 계약이 바뀔 때 조용히 어긋난다.
  */
-private val CoverImageMimeTypes = ALLOWED_COVER_CONTENT_TYPES.toTypedArray()
+private val CoverImageMimeTypes = ALLOWED_IMAGE_CONTENT_TYPES.toTypedArray()
 
 /** 버튼과 홈 인디케이터 사이 간격. */
 private val SubmitButtonBottomPadding = 13.dp
