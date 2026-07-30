@@ -1,5 +1,9 @@
 package com.example.moamap.wear.record
 
+import com.example.moamap.core.walksession.SessionKind
+import com.example.moamap.core.walksession.WalkSample
+import com.example.moamap.core.walksession.WalkSessionPayload
+
 /**
  * 현재 위치 한 점을 폰으로 보내는 동안의 상태.
  *
@@ -48,3 +52,19 @@ fun PointSendState.onSentShown(): PointSendState = when (this) {
     PointSendState.Sent -> PointSendState.Idle
     else -> this
 }
+
+/**
+ * 좌표 한 점을 세션 페이로드로 감싼다.
+ *
+ * 시작과 종료가 같은 시각이다. 길이가 없는 기록이라 그 사이에 채울 것이 없다.
+ */
+internal fun singlePointPayload(
+    clientSessionId: String,
+    sample: WalkSample,
+): WalkSessionPayload = WalkSessionPayload(
+    clientSessionId = clientSessionId,
+    kind = SessionKind.SINGLE_POINT,
+    startedAtEpochMillis = sample.tsEpochMillis,
+    endedAtEpochMillis = sample.tsEpochMillis,
+    samples = listOf(sample),
+)

@@ -1,5 +1,7 @@
 package com.example.moamap.wear.record
 
+import com.example.moamap.core.walksession.SessionKind
+import com.example.moamap.core.walksession.WalkSample
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -70,5 +72,17 @@ class PointSendStateTest {
         assertFalse(PointSendState.Idle.isBusy)
         assertFalse(PointSendState.Sent.isBusy)
         assertFalse(PointSendState.Failed("x").isBusy)
+    }
+
+    @Test
+    fun `단일 좌표 페이로드는 시작과 종료가 측정 시각으로 같다`() {
+        val sample = WalkSample(tsEpochMillis = 1_700_000_000_000, lat = 37.4963, lng = 126.9574)
+
+        val payload = singlePointPayload(clientSessionId = "point-1", sample = sample)
+
+        assertEquals(SessionKind.SINGLE_POINT, payload.kind)
+        assertEquals(1_700_000_000_000, payload.startedAtEpochMillis)
+        assertEquals(1_700_000_000_000, payload.endedAtEpochMillis)
+        assertEquals(listOf(sample), payload.samples)
     }
 }
