@@ -27,6 +27,7 @@ import com.example.moamap.feature.collection.domain.model.PlaceImportSource
 import com.example.moamap.feature.collection.share.SharedLink
 import com.example.moamap.feature.collection.presentation.createmap.CreateMapScreen
 import com.example.moamap.feature.explore.ExploreScreen
+import com.example.moamap.feature.footprint.watchrecord.WatchRecordScreen
 import com.example.moamap.feature.mapdetail.MapDetailScreen
 import com.example.moamap.feature.mapdetail.presentation.intro.MapIntroScreen
 import com.example.moamap.feature.mypage.ProfileEditScreen
@@ -113,6 +114,9 @@ internal fun MoaMapNavHost(
                     },
                     onSettingsClick = {
                         navController.navigate(MoaMapRoute.Settings.route)
+                    },
+                    onWatchRecordClick = {
+                        navController.navigate(MoaMapRoute.WatchRecord.route)
                     },
                     onOfficialMapClick = {
                         navController.navigate(MoaMapRoute.OfficialMap.route)
@@ -224,6 +228,9 @@ internal fun MoaMapNavHost(
                     onBackClick = navController::popBackStack,
                     onLoggedOut = { navController.navigateToLoginClearingStack() },
                 )
+            }
+            composable(MoaMapRoute.WatchRecord.route) {
+                WatchRecordScreen(onBackClick = navController::popBackStack)
             }
         }
 

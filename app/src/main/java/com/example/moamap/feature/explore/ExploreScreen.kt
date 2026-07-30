@@ -84,6 +84,7 @@ private val sampleRecommendedMaps = List(3) { index ->
 fun ExploreScreen(
     onProfileEditClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
+    onWatchRecordClick: () -> Unit = {},
     onOfficialMapClick: () -> Unit = {},
     onCommunityMapClick: (CommunityMap) -> Unit = {},
     modifier: Modifier = Modifier,
@@ -101,6 +102,7 @@ fun ExploreScreen(
         uiState = uiState,
         onProfileEditClick = onProfileEditClick,
         onSettingsClick = onSettingsClick,
+        onWatchRecordClick = onWatchRecordClick,
         onOfficialMapClick = onOfficialMapClick,
         onCommunityMapClick = onCommunityMapClick,
         onCategoryClick = viewModel::selectCategory,
@@ -115,6 +117,7 @@ private fun ExploreContent(
     uiState: ExploreUiState,
     onProfileEditClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onWatchRecordClick: () -> Unit,
     onOfficialMapClick: () -> Unit,
     onCommunityMapClick: (CommunityMap) -> Unit,
     onCategoryClick: (String) -> Unit,
@@ -183,6 +186,10 @@ private fun ExploreContent(
                 onSettingsClick = {
                     profileMenuState.dismiss()
                     onSettingsClick()
+                },
+                onWatchRecordClick = {
+                    profileMenuState.dismiss()
+                    onWatchRecordClick()
                 },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -531,6 +538,7 @@ private fun ExploreScreenPreview() {
             ),
             onProfileEditClick = {},
             onSettingsClick = {},
+            onWatchRecordClick = {},
             onOfficialMapClick = {},
             onCommunityMapClick = {},
             onCategoryClick = {},

@@ -117,4 +117,9 @@ sealed interface MoaMapRoute {
     data object Settings : MoaMapRoute {
         override val route = "settings"
     }
+
+    /** 워치에서 받아 저장해 둔 걷기 세션 목록. */
+    data object WatchRecord : MoaMapRoute {
+        override val route = "watch_record"
+    }
 }

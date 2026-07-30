@@ -16,6 +16,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.moamap.R
 import com.example.moamap.core.designsystem.component.ActionMenu
+import com.example.moamap.core.designsystem.component.ActionMenuItem
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 
 private val ProfileMenuCornerRadius = 16.dp
@@ -43,11 +44,13 @@ internal fun rememberProfileMenuState(): ProfileMenuState = remember { ProfileMe
 internal fun ProfileMenu(
     onProfileEditClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onWatchRecordClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     ProfileMenuContent(
         onProfileEditClick = onProfileEditClick,
         onSettingsClick = onSettingsClick,
+        onWatchRecordClick = onWatchRecordClick,
         modifier = modifier,
     )
 }
@@ -56,15 +59,15 @@ internal fun ProfileMenu(
 private fun ProfileMenuContent(
     onProfileEditClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onWatchRecordClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     ActionMenu(
-        firstIconRes = R.drawable.ic_person,
-        firstLabel = "프로필",
-        onFirstClick = onProfileEditClick,
-        secondIconRes = R.drawable.ic_settings,
-        secondLabel = "설정",
-        onSecondClick = onSettingsClick,
+        items = listOf(
+            ActionMenuItem(R.drawable.ic_person, "프로필", onProfileEditClick),
+            ActionMenuItem(R.drawable.ic_settings, "설정", onSettingsClick),
+            ActionMenuItem(R.drawable.ic_send, "워치 기록", onWatchRecordClick),
+        ),
         cornerRadius = ProfileMenuCornerRadius,
         modifier = modifier,
     )
@@ -86,6 +89,7 @@ private fun ProfileMenuPreview() {
             ProfileMenuContent(
                 onProfileEditClick = {},
                 onSettingsClick = {},
+                onWatchRecordClick = {},
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .offset(x = (-20).dp, y = 49.dp),

@@ -8,19 +8,6 @@
     -->
     <application
         android:usesCleartextTraffic="true"
-        tools:ignore="UnusedAttribute">
-
-        <!-- 워치에서 받은 세션을 확인하고 JSON 을 빼내는 개발용 화면. debug 빌드에만 존재한다. -->
-        <activity
-            android:name=".feature.footprint.debug.WearDebugActivity"
-            android:exported="true"
-            android:label="@string/wear_debug_label"
-            android:theme="@style/Theme.MoaMap">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
-    </application>
+        tools:ignore="UnusedAttribute" />
 
 </manifest>
