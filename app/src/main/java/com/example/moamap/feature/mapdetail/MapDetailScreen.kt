@@ -37,6 +37,7 @@ import androidx.compose.material3.rememberStandardBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -134,11 +135,35 @@ fun MapDetailScreen(
      */
     var permissionAnswered by remember { mutableStateOf(granted) }
 
+    // 지도에서 올라오는 안내. 장소 등록 완료와 위치 실패가 같은 스낵바 자리를 나눠 쓴다.
+    var mapNotice by remember { mutableStateOf<String?>(null) }
+
+    /** 좌표를 찾는 중. 버튼을 잠가 조회가 겹치지 않게 한다. */
+    var myLocationInProgress by remember { mutableStateOf(false) }
+
+    /**
+     * "내 위치로" 를 지금까지 누른 횟수. 0 이면 아직 누른 적이 없다.
+     *
+     * 눌렸다는 사실을 불리언으로 들고 있다가 처리 후 내리면 안 된다. 이 값은 아래
+     * `LaunchedEffect` 의 열쇠라, 효과가 도는 도중에 되돌리면 그 효과가 자기 자신을
+     * 취소한다 - 좌표를 기다리다 죽어 카메라가 영영 움직이지 않는다. 그래서 올리기만 한다.
+     */
+    var myLocationRequest by remember { mutableIntStateOf(0) }
+
+    /** 버튼 때문에 권한을 묻는 중인지. 진입할 때 자동으로 묻는 것과 구별하려고 둔다. */
+    var awaitingLocationPermission by remember { mutableStateOf(false) }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
         locationGranted = result.values.any { isGranted -> isGranted }
         permissionAnswered = true
+        // 허용됐을 때 이어 가는 일은 아래 LaunchedEffect 가 맡는다 - 카메라를 옮기려면
+        // 코루틴이 필요한데 이 콜백은 코루틴이 아니다. 여기서는 거부만 알린다.
+        if (!locationGranted && awaitingLocationPermission) {
+            mapNotice = "위치 권한이 없어 현재 위치를 찾을 수 없어요"
+        }
+        awaitingLocationPermission = false
     }
 
     // 들어올 때마다 묻는다. 안드로이드가 두 번 거절 이후로는 다이얼로그 없이 즉시
@@ -147,8 +172,6 @@ fun MapDetailScreen(
         if (!locationGranted) permissionLauncher.launch(LocationPermissions)
     }
 
-    // 등록 완료 안내. 시트가 닫힌 뒤 상세 화면에서 띄운다.
-    var addPlaceNotice by remember { mutableStateOf<String?>(null) }
     var addPlaceSheetVisible by rememberSaveable { mutableStateOf(false) }
     var memberSheetVisible by rememberSaveable { mutableStateOf(false) }
 
@@ -267,6 +290,45 @@ fun MapDetailScreen(
         }
         cameraSettled = true
     }
+
+    // 버튼은 요청만 세우고, 옮기는 일은 여기서 한다. 권한을 묻느라 미뤄졌던 요청도
+    // 허용이 떨어지는 순간 같은 자리로 들어온다 - 사용자가 버튼을 다시 누를 필요가 없다.
+    LaunchedEffect(myLocationRequest, locationGranted) {
+        if (myLocationRequest == 0 || !locationGranted) return@LaunchedEffect
+
+        myLocationInProgress = true
+        val point = try {
+            currentLocation()
+        } finally {
+            myLocationInProgress = false
+        }
+
+        if (point == null) {
+            mapNotice = "현재 위치를 찾지 못했어요"
+            return@LaunchedEffect
+        }
+
+        // pitch 는 건드리지 않는다. 2D 로 보던 사람의 지도가 버튼 하나에 기울어지면 안 된다.
+        mapViewportState.easeTo(
+            cameraOptions {
+                center(point)
+                zoom(myLocationZoom(mapViewportState.cameraState?.zoom))
+            },
+            MapAnimationOptions.mapAnimationOptions { duration(600L) },
+        )
+    }
+
+    val onMyLocationClick: () -> Unit = {
+        // 권한이 없으면 먼저 묻는다. 어느 쪽이든 요청은 세워 두고, 위 효과가 이어받는다.
+        if (!myLocationInProgress) {
+            myLocationRequest++
+            if (!locationGranted) {
+                awaitingLocationPermission = true
+                permissionLauncher.launch(LocationPermissions)
+            }
+        }
+    }
+
     val onMarkerClick: (Long) -> Unit = remember {
         { placeId -> uiState = uiState.selectPlace(placeId) }
     }
@@ -306,6 +368,7 @@ fun MapDetailScreen(
             placeCount = screenState.placeCount,
             is3d = is3d,
             canAddPlace = screenState.canAddPlace,
+            myLocationInProgress = myLocationInProgress,
             selectedTab = uiState.selectedTab,
             onBackClick = onBackClick,
             onActionClick = {
@@ -318,6 +381,7 @@ fun MapDetailScreen(
                 addPlaceViewModel.reset()
                 addPlaceSheetVisible = true
             },
+            onMyLocationClick = onMyLocationClick,
             onTabSelected = { tab -> uiState = uiState.selectTab(tab) },
             places = visiblePlaces,
             searchQuery = uiState.searchQuery,
@@ -347,12 +411,12 @@ fun MapDetailScreen(
 
         // 스낵바 자리는 하나뿐이라 두 출처를 한 줄로 모은다. 서버 실패가 먼저다.
         ErrorSnackbar(
-            message = screenState.errorMessage ?: addPlaceNotice,
+            message = screenState.errorMessage ?: mapNotice,
             onShown = {
                 if (screenState.errorMessage != null) {
                     viewModel.consumeErrorMessage()
                 } else {
-                    addPlaceNotice = null
+                    mapNotice = null
                 }
             },
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -383,7 +447,7 @@ fun MapDetailScreen(
             onDismiss = { addPlaceSheetVisible = false },
             onAdded = { message ->
                 addPlaceSheetVisible = false
-                addPlaceNotice = message
+                mapNotice = message
                 // 장소 수가 늘었다. 상단과 시트 제목이 옛 값을 들고 있으면 안 된다.
                 viewModel.retry()
             },
@@ -423,11 +487,13 @@ internal fun MapDetailContent(
     placeCount: Int?,
     is3d: Boolean,
     canAddPlace: Boolean,
+    myLocationInProgress: Boolean,
     selectedTab: MapDetailTab,
     onBackClick: () -> Unit,
     onActionClick: () -> Unit,
     on3dToggleClick: () -> Unit,
     onAddPlaceClick: () -> Unit,
+    onMyLocationClick: () -> Unit,
     onTabSelected: (MapDetailTab) -> Unit,
     places: List<PlaceUiModel>,
     searchQuery: String,
@@ -475,11 +541,13 @@ internal fun MapDetailContent(
                         searchQuery = searchQuery,
                         is3d = is3d,
                         canAddPlace = canAddPlace,
+                        myLocationInProgress = myLocationInProgress,
                         onSearchQueryChange = onSearchQueryChange,
                         onPlaceClick = onPlaceClick,
                         onTabSelected = onTabSelected,
                         on3dToggleClick = on3dToggleClick,
                         onAddPlaceClick = onAddPlaceClick,
+                        onMyLocationClick = onMyLocationClick,
                         mapContent = mapContent,
                     )
                 }
@@ -544,11 +612,13 @@ private fun MapDetailPlacesContent(
     searchQuery: String,
     is3d: Boolean,
     canAddPlace: Boolean,
+    myLocationInProgress: Boolean,
     onSearchQueryChange: (String) -> Unit,
     onPlaceClick: (Long) -> Unit,
     onTabSelected: (MapDetailTab) -> Unit,
     on3dToggleClick: () -> Unit,
     onAddPlaceClick: () -> Unit,
+    onMyLocationClick: () -> Unit,
     mapContent: @Composable () -> Unit,
 ) {
     val scaffoldState = rememberBottomSheetScaffoldState(
@@ -589,6 +659,13 @@ private fun MapDetailPlacesContent(
                     .align(Alignment.TopCenter)
                     .padding(start = 20.dp, top = 16.dp, end = 20.dp),
             )
+            MyLocationButton(
+                inProgress = myLocationInProgress,
+                onClick = onMyLocationClick,
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 20.dp, bottom = SheetPeekHeight + MapControlsBottomGap),
+            )
             MapDetailMapControls(
                 is3d = is3d,
                 canAddPlace = canAddPlace,
@@ -616,11 +693,13 @@ private fun MapDetailScreenPreview() {
             placeCount = 32,
             is3d = true,
             canAddPlace = true,
+            myLocationInProgress = false,
             selectedTab = MapDetailTab.Places,
             onBackClick = {},
             onActionClick = {},
             on3dToggleClick = {},
             onAddPlaceClick = {},
+            onMyLocationClick = {},
             onTabSelected = {},
             places = SamplePlaces,
             searchQuery = "",
@@ -661,11 +740,13 @@ private fun MapDetailScreenNotJoinedPreview() {
             placeCount = 12,
             is3d = false,
             canAddPlace = false,
+            myLocationInProgress = false,
             selectedTab = MapDetailTab.Places,
             onBackClick = {},
             onActionClick = {},
             on3dToggleClick = {},
             onAddPlaceClick = {},
+            onMyLocationClick = {},
             onTabSelected = {},
             places = SamplePlaces,
             searchQuery = "",

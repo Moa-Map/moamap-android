@@ -40,7 +40,8 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.moamap.R
 import com.example.moamap.core.designsystem.component.BannerShadowBlurRadius
-import com.example.moamap.core.designsystem.component.CardShadowBlurRadius
+// TODO: SearchBar 복구 시 함께 되살린다.
+// import com.example.moamap.core.designsystem.component.CardShadowBlurRadius
 import com.example.moamap.core.designsystem.component.CardShadowColor
 import com.example.moamap.core.designsystem.component.ListCardShadowBlurRadius
 import com.example.moamap.core.designsystem.component.ListCardShadowColor
@@ -139,7 +140,8 @@ private fun ExploreContent(
                     .padding(top = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                SearchBar(onClick = {})
+                // TODO: 검색 API 연동 후 복구
+                // SearchBar(onClick = {})
                 OfficialMapBanner(onClick = onOfficialMapClick)
                 // 읽지 못했거나 추천할 것이 없으면 제목까지 함께 감춘다.
                 if (uiState.recommendedMaps.isNotEmpty()) {
@@ -235,39 +237,40 @@ private fun ExploreTopBar(
     }
 }
 
-@Composable
-private fun SearchBar(
-    onClick: () -> Unit,
-) {
-    ShadowedSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding)
-            .height(44.dp),
-        shape = RoundedCornerShape(1000.dp),
-        shadowBlurRadius = CardShadowBlurRadius,
-        shadowColor = CardShadowColor,
-        onClick = onClick,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_search),
-                contentDescription = null,
-                tint = MoaMapTheme.colors.textAssistive,
-                modifier = Modifier.size(20.dp),
-            )
-            Text(
-                text = "장소,지도를 검색해보세요",
-                style = MoaMapTheme.typography.body2,
-                color = MoaMapTheme.colors.textAssistive,
-            )
-        }
-    }
-}
+// TODO: 검색 API 연동 후 복구. 함께 주석 처리한 CardShadowBlurRadius import 도 되살린다.
+// @Composable
+// private fun SearchBar(
+//     onClick: () -> Unit,
+// ) {
+//     ShadowedSurface(
+//         modifier = Modifier
+//             .fillMaxWidth()
+//             .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding)
+//             .height(44.dp),
+//         shape = RoundedCornerShape(1000.dp),
+//         shadowBlurRadius = CardShadowBlurRadius,
+//         shadowColor = CardShadowColor,
+//         onClick = onClick,
+//     ) {
+//         Row(
+//             modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+//             horizontalArrangement = Arrangement.spacedBy(4.dp),
+//             verticalAlignment = Alignment.CenterVertically,
+//         ) {
+//             Icon(
+//                 painter = painterResource(R.drawable.ic_search),
+//                 contentDescription = null,
+//                 tint = MoaMapTheme.colors.textAssistive,
+//                 modifier = Modifier.size(20.dp),
+//             )
+//             Text(
+//                 text = "장소,지도를 검색해보세요",
+//                 style = MoaMapTheme.typography.body2,
+//                 color = MoaMapTheme.colors.textAssistive,
+//             )
+//         }
+//     }
+// }
 
 @Composable
 private fun OfficialMapBanner(

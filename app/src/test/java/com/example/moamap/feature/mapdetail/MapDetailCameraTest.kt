@@ -74,4 +74,20 @@ class MapDetailCameraTest {
 
         assertEquals(InitialCamera.Center(Point.fromLngLat(129.0, 35.1)), camera)
     }
+
+    @Test
+    fun `카메라가 아직 없으면 기본 줌으로 간다`() {
+        assertEquals(MapDetailDefaultZoom, myLocationZoom(null), 1e-9)
+    }
+
+    @Test
+    fun `너무 멀리서 보고 있으면 기본 줌까지 끌어당긴다`() {
+        // 전국이 보이는 줌에서는 카메라만 옮겨서는 내 위치로 왔다는 느낌이 나지 않는다.
+        assertEquals(MapDetailDefaultZoom, myLocationZoom(6.0), 1e-9)
+    }
+
+    @Test
+    fun `이미 더 확대해 봤으면 그 줌을 유지한다`() {
+        assertEquals(17.5, myLocationZoom(17.5), 1e-9)
+    }
 }

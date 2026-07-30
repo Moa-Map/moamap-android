@@ -137,6 +137,40 @@ private fun MapDimensionSegment(
 }
 
 /**
+ * 내 위치로 이동. 지도 왼쪽 아래에 홀로 놓인다.
+ *
+ * [MapDetailMapControls] 에 넣지 않는다. 그건 오른쪽 아래 컬럼이고 이건 왼쪽 아래다.
+ *
+ * 오른쪽 컨트롤과 달리 흰 바탕에 파란 아이콘이다. 오른쪽은 지도를 바꾸는 조작이고
+ * 이쪽은 보던 자리를 되돌리는 보조라, 색으로 역할을 갈라 둔다.
+ *
+ * 좌표를 찾는 동안에는 눌리지 않는다. 연타로 조회가 겹치면 카메라가 두 번 튄다.
+ */
+@Composable
+internal fun MyLocationButton(
+    inProgress: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier
+            .shadow(elevation = 10.dp, shape = FabShape, clip = false)
+            .clip(FabShape)
+            .background(MoaMapTheme.colors.backgroundSecondary)
+            .clickable(enabled = !inProgress, onClick = onClick)
+            .padding(8.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_location),
+            contentDescription = "내 위치로 이동",
+            tint = if (inProgress) MoaMapPrimitiveColors.Gray100 else MoaMapPrimitiveColors.Blue500,
+            modifier = Modifier.size(32.dp),
+        )
+    }
+}
+
+/**
  * 장소 추가.
  *
  * 참여하지 않은 지도에서는 누를 수 없다. 비활성 색은 피그마에 없어 팔레트에서 골랐다.
@@ -201,6 +235,20 @@ private fun MapDetailMapControlsDisabledPreview() {
                 on3dToggleClick = {},
                 onAddPlaceClick = {},
             )
+        }
+    }
+}
+
+@Preview(showBackground = true, backgroundColor = 0xFFDDE5E8, widthDp = 160, heightDp = 100)
+@Composable
+private fun MyLocationButtonPreview() {
+    MoaMapTheme {
+        Box(
+            modifier = Modifier
+                .background(Color(0xFFDDE5E8))
+                .padding(20.dp),
+        ) {
+            MyLocationButton(inProgress = false, onClick = {})
         }
     }
 }
