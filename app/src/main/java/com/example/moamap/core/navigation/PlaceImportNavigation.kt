@@ -41,6 +41,14 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
                 type = NavType.StringType
                 defaultValue = ""
             },
+            navArgument(MoaMapRoute.PlaceImport.ARG_LAT) {
+                type = NavType.StringType
+                defaultValue = ""
+            },
+            navArgument(MoaMapRoute.PlaceImport.ARG_LNG) {
+                type = NavType.StringType
+                defaultValue = ""
+            },
         ),
     ) {
         composable(PlaceImportRoute.URL) { entry ->
@@ -50,7 +58,7 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
             // 임시. 워치 기록에서 들어오면 입력받을 링크가 없어 로딩부터 시작한다.
             // 여기를 pop 하면 그래프의 시작 화면이 사라지므로 백스택에는 그대로 남겨두고,
             // 대신 뒤 화면들의 뒤로가기가 그래프를 통째로 빠져나간다.
-            if (uiState.source.isWalkRecord) {
+            if (uiState.source.skipsUrlInput) {
                 LaunchedEffect(Unit) {
                     viewModel.startExtraction()
                     navController.navigate(PlaceImportRoute.LOADING) { launchSingleTop = true }
@@ -96,7 +104,7 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
                     // 워치 기록은 그 직전 화면이 되돌아오자마자 여기로 다시 보내는 URL
                     // 입력이라 흐름을 통째로 닫는다.
                     uiState.errorMessage != null ->
-                        navController.leavePlaceImportIf(uiState.source.isWalkRecord)
+                        navController.leavePlaceImportIf(uiState.source.skipsUrlInput)
 
                     uiState.extraction is ExtractionState.Success ->
                         navController.navigate(PlaceImportRoute.PLACE) {
@@ -110,7 +118,7 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
                 source = uiState.source,
                 onCancel = {
                     viewModel.cancelExtraction()
-                    navController.leavePlaceImportIf(uiState.source.isWalkRecord)
+                    navController.leavePlaceImportIf(uiState.source.skipsUrlInput)
                 },
             )
         }
@@ -121,7 +129,7 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
 
             // 시스템 뒤로가기도 상단 화살표와 같은 곳으로 나가야 한다. 기본 동작은 아래
             // URL 입력으로 되돌려 로딩을 다시 태운다.
-            BackHandler(enabled = uiState.source.isWalkRecord) {
+            BackHandler(enabled = uiState.source.skipsUrlInput) {
                 navController.popBackStack(MoaMapRoute.PlaceImport.route, inclusive = true)
             }
 
@@ -133,7 +141,7 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
                 errorMessage = uiState.errorMessage,
                 // 워치 기록은 아래에 URL 입력이 깔려 있고 그 화면이 곧장 되돌려 보내므로
                 // 한 칸 pop 하지 않고 흐름을 통째로 닫는다.
-                onBackClick = { navController.leavePlaceImportIf(uiState.source.isWalkRecord) },
+                onBackClick = { navController.leavePlaceImportIf(uiState.source.skipsUrlInput) },
                 onErrorShown = viewModel::consumeError,
                 onPlaceClick = viewModel::togglePlace,
                 // 장소 화면을 백스택에 남겨둔다. 로딩 중 취소하면 보던 목록으로 돌아와야 한다.

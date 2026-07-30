@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.moamap.core.walksession.WalkSessionPayload
 import com.example.moamap.wear.health.ExerciseRecorder
+import com.example.moamap.wear.location.CurrentLocationProvider
 import com.example.moamap.wear.transfer.PendingSessionStore
 import com.example.moamap.wear.transfer.SessionSender
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -24,10 +25,17 @@ class RecordViewModel @Inject constructor(
     private val recorder: ExerciseRecorder,
     private val sender: SessionSender,
     private val pendingStore: PendingSessionStore,
+    private val locationProvider: CurrentLocationProvider,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<RecordUiState>(RecordUiState.Idle)
     val uiState: StateFlow<RecordUiState> = _uiState.asStateFlow()
+
+    private val _pointState = MutableStateFlow<PointSendState>(PointSendState.Idle)
+    val pointState: StateFlow<PointSendState> = _pointState.asStateFlow()
+
+    // 산책 세션 전송과 별개로 관리한다. 좌표 전송은 기록 중에도 일어날 수 있다.
+    private var pointJob: Job? = null
 
     private var startedAtEpochMillis: Long = 0
     private var clientSessionId: String = ""
@@ -191,6 +199,47 @@ class RecordViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 지금 있는 자리의 좌표 하나를 폰으로 보낸다. 기록 중이든 아니든 똑같이 동작한다.
+     *
+     * 이미 도는 전송이 있으면 무시한다 - 취소하지 않는다. 기존 시작·전송과 같은 정책이다.
+     *
+     * 실패해도 [PendingSessionStore] 에 남기지 않는다. 좌표는 그 순간의 값이라,
+     * 나중에 되살려 보내면 "그때 거기 있었다"는 거짓 기록이 된다.
+     */
+    fun sendCurrentLocation() {
+        if (pointJob?.isActive == true) return
+        pointJob = viewModelScope.launch {
+            _pointState.update { it.onSendRequested() }
+
+            val sample = locationProvider.current()
+            if (sample == null) {
+                // 권한이 없는 것과 측위에 실패한 것은 조치가 다르다. 같은 문구로 뭉뚱그리면
+                // 권한을 켜면 되는 사람이 계속 다시 누르게 된다.
+                val message = if (locationProvider.hasPermission()) {
+                    LOCATION_FAILURE_MESSAGE
+                } else {
+                    PERMISSION_FAILURE_MESSAGE
+                }
+                _pointState.update { it.onSendResult(success = false, failureMessage = message) }
+                return@launch
+            }
+
+            val result = sender.send(
+                singlePointPayload(clientSessionId = UUID.randomUUID().toString(), sample = sample),
+            )
+            _pointState.update {
+                it.onSendResult(success = result.isSuccess, failureMessage = TRANSFER_FAILURE_MESSAGE)
+            }
+
+            // 성공 안내는 잠깐만 보여주고 스스로 걷는다. 확인 탭을 한 번 더 받을 이유가 없다.
+            if (result.isSuccess) {
+                delay(SENT_MESSAGE_MILLIS)
+                _pointState.update { it.onSentShown() }
+            }
+        }
+    }
+
     fun retry() {
         viewModelScope.launch {
             val payload = pendingStore.load() ?: return@launch
@@ -213,5 +262,12 @@ class RecordViewModel @Inject constructor(
         if (newState is RecordUiState.Finished && newState.transferState == TransferState.SUCCESS) {
             pendingStore.clear()
         }
+    }
+
+    private companion object {
+        const val LOCATION_FAILURE_MESSAGE = "위치를 못 찾았어요"
+        const val PERMISSION_FAILURE_MESSAGE = "위치 권한이 필요해요"
+        const val TRANSFER_FAILURE_MESSAGE = "폰에 보내지 못했어요"
+        const val SENT_MESSAGE_MILLIS = 2_000L
     }
 }

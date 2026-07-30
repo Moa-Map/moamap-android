@@ -1,4 +1,4 @@
-package com.example.moamap.feature.mapdetail.data.remote
+package com.example.moamap.core.network.kakao
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -31,4 +31,26 @@ data class KakaoPlaceDto(
     /** `"음식점 > 카페 > 커피전문점"` 같은 분류 경로. 항상 채워져 온다. */
     @SerialName("category_name") val categoryName: String? = null,
     @SerialName("place_url") val placeUrl: String? = null,
+)
+
+/** GET v2/local/geo/coord2address.json 응답 */
+@Serializable
+data class KakaoCoordToAddressDto(
+    val documents: List<KakaoCoordAddressDocumentDto> = emptyList(),
+)
+
+/**
+ * 좌표 하나에 대한 주소.
+ *
+ * 도로명이 없는 곳(산·논밭)에서는 [roadAddress] 가 null 로 오므로 [address] 로 대체한다.
+ */
+@Serializable
+data class KakaoCoordAddressDocumentDto(
+    @SerialName("road_address") val roadAddress: KakaoAddressNameDto? = null,
+    val address: KakaoAddressNameDto? = null,
+)
+
+@Serializable
+data class KakaoAddressNameDto(
+    @SerialName("address_name") val addressName: String = "",
 )

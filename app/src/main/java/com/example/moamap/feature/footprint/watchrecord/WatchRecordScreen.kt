@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.moamap.R
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
+import com.example.moamap.core.walksession.SessionKind
 import com.example.moamap.feature.footprint.domain.model.ReceivedWalkSession
 import java.io.File
 import java.text.SimpleDateFormat
@@ -55,6 +56,7 @@ internal fun WatchRecordScreen(
     onBackClick: () -> Unit,
     onRecommendSingleClick: () -> Unit,
     onRecommendMultiClick: () -> Unit,
+    onFindPlaceClick: (lat: Double, lng: Double) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: WatchRecordViewModel = hiltViewModel(),
 ) {
@@ -84,11 +86,18 @@ internal fun WatchRecordScreen(
                 } else {
                     LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         items(state.sessions) { session ->
-                            SessionCard(
-                                session = session,
-                                onRecommendSingleClick = onRecommendSingleClick,
-                                onRecommendMultiClick = onRecommendMultiClick,
-                            )
+                            when (session.payload.kind) {
+                                SessionKind.WALK -> WalkSessionCard(
+                                    session = session,
+                                    onRecommendSingleClick = onRecommendSingleClick,
+                                    onRecommendMultiClick = onRecommendMultiClick,
+                                )
+
+                                SessionKind.SINGLE_POINT -> SinglePointCard(
+                                    session = session,
+                                    onFindPlaceClick = onFindPlaceClick,
+                                )
+                            }
                         }
                     }
                 }
@@ -132,7 +141,7 @@ private fun WatchRecordTopBar(
 }
 
 @Composable
-private fun SessionCard(
+private fun WalkSessionCard(
     session: ReceivedWalkSession,
     onRecommendSingleClick: () -> Unit,
     onRecommendMultiClick: () -> Unit,
@@ -163,6 +172,61 @@ private fun SessionCard(
         }
     }
 }
+
+/**
+ * 워치에서 한 번 눌러 보낸 좌표 하나.
+ *
+ * 산책 카드와 달리 갈래가 하나뿐이라 좌우로 나뉜 버튼을 쓰지 않는다.
+ */
+@Composable
+private fun SinglePointCard(
+    session: ReceivedWalkSession,
+    onFindPlaceClick: (lat: Double, lng: Double) -> Unit,
+) {
+    // 좌표가 없는 단일 좌표 세션은 워치가 보내지 않는다. 그래도 들어오면 보여줄 것이 없다.
+    val point = session.payload.samples.firstOrNull { it.lat != null && it.lng != null } ?: return
+    val lat = point.lat ?: return
+    val lng = point.lng ?: return
+
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = "📍 ${formatTime(session.receivedAtEpochMillis)}",
+                style = MoaMapTheme.typography.title3,
+            )
+            Text(
+                text = formatCoordinate(lat, lng),
+                style = MoaMapTheme.typography.body2,
+                color = MoaMapTheme.colors.textAlternative,
+            )
+
+            Spacer(Modifier.height(4.dp))
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(RecommendButtonHeight)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(MoaMapTheme.colors.primary)
+                    .clickable { onFindPlaceClick(lat, lng) },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = "이 위치 장소 추가하기",
+                    style = MoaMapTheme.typography.subtitle4,
+                    color = MoaMapPrimitiveColors.White,
+                )
+            }
+        }
+    }
+}
+
+/** 다섯 자리면 1m 남짓이다. 그보다 길게 보여줘도 읽는 사람에게 의미가 없다. */
+internal fun formatCoordinate(lat: Double, lng: Double): String =
+    String.format(Locale.US, "%.5f, %.5f", lat, lng)
 
 /**
  * 임시. 겉보기엔 버튼 하나지만 누른 쪽에 따라 다른 추천 목록을 띄운다.

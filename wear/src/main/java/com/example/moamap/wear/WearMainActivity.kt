@@ -9,9 +9,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import androidx.hilt.navigation.compose.hiltViewModel
-import androidx.wear.compose.material3.MaterialTheme
 import com.example.moamap.wear.record.RecordScreen
 import com.example.moamap.wear.record.RecordViewModel
+import com.example.moamap.wear.theme.MoaWearTheme
 import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
@@ -20,7 +20,7 @@ class WearMainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            MaterialTheme {
+            MoaWearTheme {
                 val viewModel: RecordViewModel = hiltViewModel()
 
                 val permissionLauncher = rememberLauncherForActivityResult(
