@@ -2,6 +2,7 @@ package com.example.moamap.feature.explore.di
 
 import com.example.moamap.feature.explore.data.remote.CommunityMapService
 import com.example.moamap.feature.explore.data.remote.PlaceService
+import com.example.moamap.feature.explore.data.remote.ReviewService
 import com.example.moamap.feature.explore.data.repository.CommunityMapRepositoryImpl
 import com.example.moamap.feature.explore.domain.repository.CommunityMapRepository
 import dagger.Binds
@@ -31,5 +32,11 @@ internal abstract class ExploreModule {
         @Singleton
         fun providePlaceService(retrofit: Retrofit): PlaceService =
             retrofit.create(PlaceService::class.java)
+
+        /** 지도 상세(`feature/mapdetail`)의 장소 상세 시트가 후기를 읽고 쓸 때 쓴다. */
+        @Provides
+        @Singleton
+        fun provideReviewService(retrofit: Retrofit): ReviewService =
+            retrofit.create(ReviewService::class.java)
     }
 }
