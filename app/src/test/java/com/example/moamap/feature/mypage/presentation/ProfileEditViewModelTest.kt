@@ -31,20 +31,40 @@ private class FakeUserRepository : UserRepository {
 
     var loadFailure: Throwable? = null
     var updateFailure: Throwable? = null
+    var uploadFailure: Throwable? = null
 
     var updatedNickname: String? = null
         private set
     var updatedIntroduction: String? = null
         private set
+    var updatedProfileImageUrl: String? = null
+        private set
+
+    /** 올린 URI 를 순서대로 담는다. 크기가 곧 업로드 횟수다. */
+    val uploadedUris = mutableListOf<String>()
+
+    /** 업로드가 성공했을 때 돌려줄 주소. 호출 순서대로 뒤에 번호가 붙는다. */
+    var issuedFileUrl = "https://cdn.example.com/profile.jpg"
 
     override suspend fun getMyProfile(): MyProfile {
         loadFailure?.let { throw it }
         return profile
     }
 
-    override suspend fun updateMyProfile(nickname: String, introduction: String): MyProfile {
+    override suspend fun uploadProfileImage(imageUri: String): String {
+        uploadFailure?.let { throw it }
+        uploadedUris += imageUri
+        return "$issuedFileUrl?v=${uploadedUris.size}"
+    }
+
+    override suspend fun updateMyProfile(
+        nickname: String,
+        introduction: String,
+        profileImageUrl: String?,
+    ): MyProfile {
         updatedNickname = nickname
         updatedIntroduction = introduction
+        updatedProfileImageUrl = profileImageUrl
         updateFailure?.let { throw it }
         return profile.copy(nickname = nickname, introduction = introduction)
     }

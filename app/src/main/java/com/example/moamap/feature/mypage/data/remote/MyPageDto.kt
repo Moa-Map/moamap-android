@@ -37,3 +37,25 @@ data class UserProfileDto(
     val nickname: String? = null,
     val profileImageUrl: String? = null,
 )
+
+/** POST api/v1/users/profile-upload-url 요청 */
+@Serializable
+data class ProfileUploadUrlRequestDto(
+    val contentType: String,
+    val fileSize: Long,
+)
+
+/**
+ * POST api/v1/users/profile-upload-url 응답.
+ *
+ * [uploadUrl] 로 직접 PUT 한 뒤 [fileUrl] 을 마이페이지 수정 요청의 `profileImageUrl` 에 담는다.
+ */
+@Serializable
+data class ProfileUploadUrlDto(
+    // 기본값을 두지 않는다. 빈 주소가 흘러들어가면 업로드 직전에 알 수 없는 예외로 터진다.
+    // 없는 채로 오면 역직렬화 단계에서 바로 걸리는 편이 낫다.
+    val uploadUrl: String,
+    val fileUrl: String,
+    val objectKey: String? = null,
+    val expiresInSeconds: Long = 0,
+)

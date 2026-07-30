@@ -93,8 +93,14 @@ class ExploreViewModelTest {
             return profile()
         }
 
-        override suspend fun updateMyProfile(nickname: String, introduction: String): MyProfile =
+        override suspend fun uploadProfileImage(imageUri: String): String =
             throw UnsupportedOperationException("탐색 화면은 프로필을 고치지 않는다")
+
+        override suspend fun updateMyProfile(
+            nickname: String,
+            introduction: String,
+            profileImageUrl: String?,
+        ): MyProfile = throw UnsupportedOperationException("탐색 화면은 프로필을 고치지 않는다")
     }
 
     private fun viewModel(
