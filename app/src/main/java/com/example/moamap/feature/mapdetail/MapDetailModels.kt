@@ -1,6 +1,9 @@
 package com.example.moamap.feature.mapdetail
 
 import androidx.compose.runtime.Immutable
+import com.example.moamap.feature.mapdetail.domain.model.MapPlace
+import com.example.moamap.feature.mapdetail.domain.model.areaLabel
+import com.example.moamap.feature.mapdetail.domain.model.categoryLabel
 
 internal enum class MapDetailTab(val label: String) {
     Places("장소"),
@@ -10,21 +13,22 @@ internal enum class MapDetailTab(val label: String) {
 @Immutable
 internal data class MapDetailUiState(
     val selectedTab: MapDetailTab = MapDetailTab.Places,
-    val selectedCategory: String = "전체",
     val selectedPlaceId: Long? = null,
+    /** 바텀시트 검색어. 받아 둔 목록을 이 자리에서 거른다. */
+    val searchQuery: String = "",
 )
 
 internal fun MapDetailUiState.selectTab(tab: MapDetailTab): MapDetailUiState =
     copy(selectedTab = tab)
-
-internal fun MapDetailUiState.selectCategory(category: String): MapDetailUiState =
-    copy(selectedCategory = category)
 
 internal fun MapDetailUiState.selectPlace(placeId: Long): MapDetailUiState =
     copy(selectedPlaceId = placeId)
 
 internal fun MapDetailUiState.closePlaceDetail(): MapDetailUiState =
     copy(selectedPlaceId = null)
+
+internal fun MapDetailUiState.search(query: String): MapDetailUiState =
+    copy(searchQuery = query)
 
 @Immutable
 internal data class PlaceUiModel(
@@ -37,7 +41,46 @@ internal data class PlaceUiModel(
     val rating: Double,
     val reviewCount: Int,
     val favorite: Boolean,
+    /** 목록 썸네일. 없으면 플레이스홀더를 띄운다. */
+    val photoUrl: String? = null,
 )
+
+/**
+ * 서버에서 받은 장소를 목록 카드가 읽는 모양으로 옮긴다.
+ *
+ * [PlaceUiModel.favorite] 은 늘 false 다. 즐겨찾기에 해당하는 서버 필드가 아직 없어
+ * 켤 근거가 없다. 하트는 디자인대로 그려지되 빈 상태로 남는다.
+ */
+internal fun MapPlace.toPlaceUiModel(): PlaceUiModel = PlaceUiModel(
+    id = id,
+    name = name,
+    description = description,
+    category = categoryLabel,
+    area = areaLabel,
+    address = address,
+    rating = rating,
+    reviewCount = reviewCount,
+    favorite = false,
+    photoUrl = photoUrl,
+)
+
+/**
+ * 이름으로 장소를 거른다. 검색어가 비면 전부 남긴다.
+ *
+ * 이미 받아 둔 목록을 그 자리에서 거른다. 조회 API 에 검색 파라미터가 없기도 하고,
+ * 어차피 전량을 들고 있어 서버를 한 번 더 다녀올 이유가 없다.
+ *
+ * 주소는 보지 않는다. `"서울"` 같은 걸 치면 지도 전체가 그대로 남아 거른 티가 안 난다.
+ */
+internal fun searchPlaces(
+    places: List<PlaceUiModel>,
+    query: String,
+): List<PlaceUiModel> {
+    val keyword = query.trim()
+    if (keyword.isEmpty()) return places
+
+    return places.filter { place -> place.name.contains(keyword, ignoreCase = true) }
+}
 
 @Immutable
 internal data class PlaceReviewUiModel(
@@ -48,14 +91,7 @@ internal data class PlaceReviewUiModel(
     val relativeTime: String,
 )
 
-internal val MapDetailCategories = listOf(
-    "전체",
-    "데이트",
-    "식당",
-    "카페",
-    "놀거리",
-)
-
+/** 미리보기 전용 장소. 프리뷰는 네트워크를 타지 않아 썸네일 자리는 플레이스홀더로 뜬다. */
 internal val SamplePlaces = listOf(
     PlaceUiModel(
         id = 1L,
@@ -133,12 +169,3 @@ internal val SamplePlaceReviews = listOf(
         relativeTime = "1주일 전",
     ),
 )
-
-internal fun filterPlaces(
-    places: List<PlaceUiModel>,
-    category: String,
-): List<PlaceUiModel> = if (category == "전체") {
-    places
-} else {
-    places.filter { it.category == category }
-}

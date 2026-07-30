@@ -23,6 +23,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -48,11 +49,13 @@ import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
 import com.mapbox.maps.plugin.animation.MapAnimationOptions
+import kotlinx.coroutines.launch
 
 /** 시트가 가리지 않도록 지도 컨트롤을 시트 위로 띄우는 여백. */
 private val MapControlsBottomGap = 16.dp
 
-private val SheetPeekHeight = 283.dp
+/** 접힌 시트 높이. 제목·검색창까지만 보이고 장소 카드는 올려야 나온다. */
+private val SheetPeekHeight = 187.dp
 
 private val LocationPermissions = arrayOf(
     Manifest.permission.ACCESS_FINE_LOCATION,
@@ -68,8 +71,8 @@ private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
     save = { state ->
         listOf(
             state.selectedTab.name,
-            state.selectedCategory,
             state.selectedPlaceId?.toString().orEmpty(),
+            state.searchQuery,
         )
     },
     restore = { values ->
@@ -77,8 +80,8 @@ private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
             selectedTab = values.getOrNull(0)?.let { savedTabName ->
                 MapDetailTab.entries.firstOrNull { tab -> tab.name == savedTabName }
             } ?: MapDetailTab.Places,
-            selectedCategory = values.getOrNull(1) ?: "전체",
-            selectedPlaceId = values.getOrNull(2)?.toLongOrNull(),
+            selectedPlaceId = values.getOrNull(1)?.toLongOrNull(),
+            searchQuery = values.getOrNull(2).orEmpty(),
         )
     },
 )
@@ -130,7 +133,14 @@ fun MapDetailScreen(
     var uiState by rememberSaveable(stateSaver = MapDetailUiStateSaver) {
         mutableStateOf(MapDetailUiState())
     }
-    val selectedPlace = SamplePlaces.firstOrNull { place ->
+    val places = remember(screenState.places) {
+        screenState.places.map { place -> place.toPlaceUiModel() }
+    }
+    val visiblePlaces = remember(places, uiState.searchQuery) {
+        searchPlaces(places, uiState.searchQuery)
+    }
+    // 검색으로 목록에서 빠진 장소라도, 마커로 눌러 열어 둔 상세는 닫히면 안 된다.
+    val selectedPlace = places.firstOrNull { place ->
         place.id == uiState.selectedPlaceId
     }
     val closePlaceDetail = { uiState = uiState.closePlaceDetail() }
@@ -242,9 +252,9 @@ fun MapDetailScreen(
                 addPlaceSheetVisible = true
             },
             onTabSelected = { tab -> uiState = uiState.selectTab(tab) },
-            places = filterPlaces(SamplePlaces, uiState.selectedCategory),
-            selectedCategory = uiState.selectedCategory,
-            onCategorySelected = { category -> uiState = uiState.selectCategory(category) },
+            places = visiblePlaces,
+            searchQuery = uiState.searchQuery,
+            onSearchQueryChange = { query -> uiState = uiState.search(query) },
             onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
             mapContent = {
                 MapDetailMap(
@@ -313,8 +323,8 @@ internal fun MapDetailContent(
     onAddPlaceClick: () -> Unit,
     onTabSelected: (MapDetailTab) -> Unit,
     places: List<PlaceUiModel>,
-    selectedCategory: String,
-    onCategorySelected: (String) -> Unit,
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
     onPlaceClick: (Long) -> Unit,
     modifier: Modifier = Modifier,
     mapContent: @Composable () -> Unit,
@@ -344,10 +354,10 @@ internal fun MapDetailContent(
                     MapDetailPlacesContent(
                         places = places,
                         placeCount = placeCount,
-                        selectedCategory = selectedCategory,
+                        searchQuery = searchQuery,
                         is3d = is3d,
                         canAddPlace = canAddPlace,
-                        onCategorySelected = onCategorySelected,
+                        onSearchQueryChange = onSearchQueryChange,
                         onPlaceClick = onPlaceClick,
                         onTabSelected = onTabSelected,
                         on3dToggleClick = on3dToggleClick,
@@ -382,10 +392,10 @@ internal fun MapDetailContent(
 private fun MapDetailPlacesContent(
     places: List<PlaceUiModel>,
     placeCount: Int?,
-    selectedCategory: String,
+    searchQuery: String,
     is3d: Boolean,
     canAddPlace: Boolean,
-    onCategorySelected: (String) -> Unit,
+    onSearchQueryChange: (String) -> Unit,
     onPlaceClick: (Long) -> Unit,
     onTabSelected: (MapDetailTab) -> Unit,
     on3dToggleClick: () -> Unit,
@@ -398,6 +408,7 @@ private fun MapDetailPlacesContent(
             skipHiddenState = true,
         ),
     )
+    val scope = rememberCoroutineScope()
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
@@ -405,8 +416,10 @@ private fun MapDetailPlacesContent(
             MapDetailBottomSheet(
                 places = places,
                 placeCount = placeCount,
-                selectedCategory = selectedCategory,
-                onCategorySelected = onCategorySelected,
+                searchQuery = searchQuery,
+                onSearchQueryChange = onSearchQueryChange,
+                // 접힌 시트에서 검색창을 누르면 목록이 안 보인다. 눌린 김에 끝까지 올린다.
+                onSearchFocused = { scope.launch { scaffoldState.bottomSheetState.expand() } },
                 onPlaceClick = onPlaceClick,
             )
         },
@@ -459,8 +472,8 @@ private fun MapDetailScreenPreview() {
             onAddPlaceClick = {},
             onTabSelected = {},
             places = SamplePlaces,
-            selectedCategory = "전체",
-            onCategorySelected = {},
+            searchQuery = "",
+            onSearchQueryChange = {},
             onPlaceClick = {},
             mapContent = {
                 Box(
@@ -493,8 +506,8 @@ private fun MapDetailScreenNotJoinedPreview() {
             onAddPlaceClick = {},
             onTabSelected = {},
             places = SamplePlaces,
-            selectedCategory = "전체",
-            onCategorySelected = {},
+            searchQuery = "",
+            onSearchQueryChange = {},
             onPlaceClick = {},
             mapContent = {
                 Box(

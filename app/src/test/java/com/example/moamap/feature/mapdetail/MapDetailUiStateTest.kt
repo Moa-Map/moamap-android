@@ -2,37 +2,38 @@ package com.example.moamap.feature.mapdetail
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MapDetailUiStateTest {
     @Test
-    fun `default state uses places tab all category and no selected place`() {
+    fun `default state uses places tab empty query and no selected place`() {
         val state = MapDetailUiState()
 
         assertEquals(MapDetailTab.Places, state.selectedTab)
-        assertEquals("전체", state.selectedCategory)
+        assertEquals("", state.searchQuery)
         assertNull(state.selectedPlaceId)
     }
 
     @Test
     fun `selecting logs changes only the selected tab`() {
         val original = MapDetailUiState(
-            selectedCategory = "카페",
             selectedPlaceId = 42L,
+            searchQuery = "커피",
         )
 
         val updated = original.selectTab(MapDetailTab.Logs)
 
         assertEquals(MapDetailTab.Logs, updated.selectedTab)
-        assertEquals(original.selectedCategory, updated.selectedCategory)
+        assertEquals(original.searchQuery, updated.searchQuery)
         assertEquals(original.selectedPlaceId, updated.selectedPlaceId)
     }
 
     @Test
-    fun `selecting cafe changes the category`() {
-        val updated = MapDetailUiState().selectCategory("카페")
+    fun `typing a query records it`() {
+        val updated = MapDetailUiState().search("커피")
 
-        assertEquals("카페", updated.selectedCategory)
+        assertEquals("커피", updated.searchQuery)
     }
 
     @Test
@@ -44,24 +45,63 @@ class MapDetailUiStateTest {
     }
 
     @Test
-    fun `filter places returns all items for all category and matches otherwise`() {
-        val places = listOf(
-            place(id = 1L, category = "데이트"),
-            place(id = 2L, category = "카페"),
-            place(id = 3L, category = "카페"),
-        )
+    fun `빈 검색어는 전부 남긴다`() {
+        val places = listOf(place(1L, "커피나무"), place(2L, "달빛정원"))
 
-        assertEquals(places, filterPlaces(places, "전체"))
-        assertEquals(listOf(places[1], places[2]), filterPlaces(places, "카페"))
+        assertEquals(places, searchPlaces(places, ""))
+        // 공백만 친 것도 안 친 것으로 본다.
+        assertEquals(places, searchPlaces(places, "   "))
     }
 
-    private fun place(id: Long, category: String) = PlaceUiModel(
+    @Test
+    fun `이름에 검색어가 들어간 장소만 남는다`() {
+        val places = listOf(place(1L, "커피나무"), place(2L, "달빛정원"), place(3L, "커피가게"))
+
+        val found = searchPlaces(places, "커피")
+
+        assertEquals(listOf(1L, 3L), found.map { place -> place.id })
+    }
+
+    @Test
+    fun `검색어 앞뒤 공백은 무시한다`() {
+        val places = listOf(place(1L, "커피나무"), place(2L, "달빛정원"))
+
+        assertEquals(listOf(1L), searchPlaces(places, "  커피 ").map { place -> place.id })
+    }
+
+    @Test
+    fun `대소문자를 가리지 않는다`() {
+        val places = listOf(place(1L, "Coffee Tree"), place(2L, "달빛정원"))
+
+        assertEquals(listOf(1L), searchPlaces(places, "coffee").map { place -> place.id })
+    }
+
+    @Test
+    fun `맞는 게 없으면 빈 목록이다`() {
+        val places = listOf(place(1L, "커피나무"))
+
+        assertTrue(searchPlaces(places, "국밥").isEmpty())
+    }
+
+    @Test
+    fun `주소는 검색 대상이 아니다`() {
+        // "서울" 로 거르면 서울 지도가 통째로 남아 거른 티가 안 난다.
+        val places = listOf(place(1L, "커피나무", address = "서울 성동구 성수이로 12"))
+
+        assertTrue(searchPlaces(places, "성동구").isEmpty())
+    }
+
+    private fun place(
+        id: Long,
+        name: String,
+        address: String = "Address $id",
+    ) = PlaceUiModel(
         id = id,
-        name = "Place $id",
+        name = name,
         description = "Description $id",
-        category = category,
+        category = "카페",
         area = "Area $id",
-        address = "Address $id",
+        address = address,
         rating = 4.5,
         reviewCount = 10,
         favorite = false,
