@@ -92,4 +92,40 @@ class WalkSessionJsonTest {
             WalkSessionJson.decodeFromGzip(oversizedInput)
         }
     }
+
+    @Test
+    fun `kind가 없는 예전 JSON은 산책 세션으로 읽힌다`() {
+        // 이 기능이 붙기 전에 저장된 파일이 폰에 그대로 남아 있다. 읽지 못하면 사용자가
+        // 이미 받아 둔 기록이 목록에서 통째로 사라진다.
+        val legacy = """
+            {
+              "clientSessionId": "session-1",
+              "startedAtEpochMillis": 1700000000000,
+              "endedAtEpochMillis": 1700000600000,
+              "samples": []
+            }
+        """.trimIndent()
+
+        val decoded = WalkSessionJson.decodeFromString(legacy)
+
+        assertEquals(SessionKind.WALK, decoded.kind)
+    }
+
+    @Test
+    fun `단일 좌표 세션은 kind를 유지한 채 복원된다`() {
+        val singlePoint = WalkSessionPayload(
+            clientSessionId = "point-1",
+            kind = SessionKind.SINGLE_POINT,
+            startedAtEpochMillis = 1_700_000_000_000,
+            endedAtEpochMillis = 1_700_000_000_000,
+            samples = listOf(
+                WalkSample(tsEpochMillis = 1_700_000_000_000, lat = 37.4963, lng = 126.9574),
+            ),
+        )
+
+        val decoded = WalkSessionJson.decodeFromGzip(WalkSessionJson.encodeToGzip(singlePoint))
+
+        assertEquals(SessionKind.SINGLE_POINT, decoded.kind)
+        assertEquals(singlePoint, decoded)
+    }
 }
