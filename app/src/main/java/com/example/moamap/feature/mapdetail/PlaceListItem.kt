@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -16,15 +17,19 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import coil3.compose.AsyncImage
 import com.example.moamap.R
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 
 private val PlaceCardShape = RoundedCornerShape(16.dp)
+private val PlaceThumbnailShape = RoundedCornerShape(4.dp)
 internal val PlaceListTextMinHeight = 64.dp
 
 @Composable
@@ -47,8 +52,24 @@ internal fun PlaceListItem(
             Box(
                 modifier = Modifier
                     .size(64.dp)
+                    .clip(PlaceThumbnailShape)
                     .background(MoaMapPrimitiveColors.Yellow50),
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                // 사진이 없거나 받는 중일 때 노란 자리만 남지 않게 아이콘을 깔아 둔다.
+                Icon(
+                    painter = painterResource(R.drawable.ic_photo_camera),
+                    contentDescription = null,
+                    tint = MoaMapPrimitiveColors.Gray500,
+                    modifier = Modifier.size(24.dp),
+                )
+                AsyncImage(
+                    model = place.photoUrl,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize(),
+                )
+            }
 
             Column(
                 modifier = Modifier
