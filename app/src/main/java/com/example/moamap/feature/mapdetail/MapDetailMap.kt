@@ -2,6 +2,7 @@ package com.example.moamap.feature.mapdetail
 
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
@@ -38,6 +39,23 @@ private const val ClusterZoomStep = 0.25
  */
 private const val CenterStep = 0.001
 
+/**
+ * 클러스터링에 넣을 카메라 값을 양자화해 담은 것.
+ *
+ * `derivedStateOf` 는 리컴포지션만 막지 람다 실행은 막지 못한다. 값이 달라졌는지
+ * 알아내려면 돌려 보는 수밖에 없어서다. 그래서 컬링과 클러스터링을 그 안에 두면
+ * 팬·줌 매 프레임마다 그 비용을 치른다. 여기에는 floor 몇 번짜리 이 값만 두고,
+ * 비싼 셈은 이 값이 실제로 달라질 때만 도는 `remember` 로 넘긴다.
+ *
+ * 카메라가 아직 없으면 중심이 null 이다. 그때는 컬링을 건너뛴다.
+ */
+@Immutable
+private data class ClusterCameraKey(
+    val zoom: Double,
+    val centerLongitude: Double?,
+    val centerLatitude: Double?,
+)
+
 @Composable
 internal fun MapDetailMap(
     mapViewportState: MapViewportState,
@@ -51,33 +69,46 @@ internal fun MapDetailMap(
         val widthDp = maxWidth.value.toDouble()
         val heightDp = maxHeight.value.toDouble()
 
-        // derivedStateOf 로 감싸야 카메라가 바뀔 때마다가 아니라 결과가 실제로 달라질 때만
-        // 이 컴포저블이 리컴포지션된다. cameraState 를 바디에서 직접 읽으면 팬/줌/회전 매
-        // 프레임마다 리컴포지션된다.
-        val clusters by remember(markers, widthDp, heightDp) {
+        // 카메라를 바디에서 직접 읽으면 팬·줌·회전 매 프레임마다 리컴포지션된다.
+        // derivedStateOf 로 감싸 결과가 실제로 달라질 때만 리컴포지션되게 한다.
+        // 여기 담기는 일은 floor 몇 번뿐이다. 이 람다는 매 프레임 도니까.
+        val cameraKey by remember(mapViewportState) {
             derivedStateOf {
                 val camera = mapViewportState.cameraState
-                val rawZoom = camera?.zoom ?: MapDetailDefaultZoom
-                val zoom = floor(rawZoom / ClusterZoomStep) * ClusterZoomStep
-
                 val center = camera?.center
-                val visible = if (center == null) {
-                    markers
-                } else {
-                    cullToViewport(
-                        markers = markers,
-                        bounds = viewportBounds(
-                            centerLongitude = floor(center.longitude() / CenterStep) * CenterStep,
-                            centerLatitude = floor(center.latitude() / CenterStep) * CenterStep,
-                            zoom = zoom,
-                            widthDp = widthDp,
-                            heightDp = heightDp,
-                        ),
-                    )
-                }
-
-                clusterMarkers(visible, zoom)
+                ClusterCameraKey(
+                    zoom = floor((camera?.zoom ?: MapDetailDefaultZoom) / ClusterZoomStep) *
+                        ClusterZoomStep,
+                    centerLongitude = center?.let { point ->
+                        floor(point.longitude() / CenterStep) * CenterStep
+                    },
+                    centerLatitude = center?.let { point ->
+                        floor(point.latitude() / CenterStep) * CenterStep
+                    },
+                )
             }
+        }
+
+        // 양자화한 카메라가 실제로 한 칸 움직였을 때만 다시 센다.
+        val clusters = remember(markers, widthDp, heightDp, cameraKey) {
+            val longitude = cameraKey.centerLongitude
+            val latitude = cameraKey.centerLatitude
+            val visible = if (longitude == null || latitude == null) {
+                markers
+            } else {
+                cullToViewport(
+                    markers = markers,
+                    bounds = viewportBounds(
+                        centerLongitude = longitude,
+                        centerLatitude = latitude,
+                        zoom = cameraKey.zoom,
+                        widthDp = widthDp,
+                        heightDp = heightDp,
+                    ),
+                )
+            }
+
+            clusterMarkers(visible, cameraKey.zoom)
         }
 
         val standardStyleState = rememberStandardStyleState {
