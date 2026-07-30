@@ -230,7 +230,24 @@ internal fun MoaMapNavHost(
                 )
             }
             composable(MoaMapRoute.WatchRecord.route) {
-                WatchRecordScreen(onBackClick = navController::popBackStack)
+                WatchRecordScreen(
+                    onBackClick = navController::popBackStack,
+                    // 임시. 추천 API 가 붙기 전까지 하드코딩한 목록으로 흐름만 확인한다.
+                    onRecommendSingleClick = {
+                        navController.navigate(
+                            MoaMapRoute.PlaceImport.createRoute(
+                                PlaceImportSource.WalkRecordSingle.name,
+                            ),
+                        )
+                    },
+                    onRecommendMultiClick = {
+                        navController.navigate(
+                            MoaMapRoute.PlaceImport.createRoute(
+                                PlaceImportSource.WalkRecordMulti.name,
+                            ),
+                        )
+                    },
+                )
             }
         }
 

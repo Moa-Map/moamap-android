@@ -66,19 +66,8 @@ private val SectionTitlePadding = 4.dp
 private val HorizontalListPadding =
     PaddingValues(horizontal = MoaMapDimens.ScreenHorizontalPadding)
 
-// TODO: 추천 지도는 서버에 해당 API 가 없어 목데이터로 그린다. 추천 신호 도입 후 교체한다.
-private val sampleRecommendedMaps = List(3) { index ->
-    CommunityMap(
-        id = -(index + 1L),
-        title = "서울 팝업스토어 맵",
-        imageUrl = null,
-        hashtags = listOf("맛집", "데이트코스", "데이트"),
-        memberCount = 2312,
-        // 추천 카드는 메타 줄을 그리지 않아 이 값이 화면에 나오지 않는다.
-        placeCount = 0,
-        joined = false,
-    )
-}
+/** 이름을 아직 못 읽었을 때 추천 섹션 제목에 대신 쓰는 말. */
+private const val DEFAULT_NICKNAME = "회원"
 
 @Composable
 fun ExploreScreen(
@@ -152,10 +141,14 @@ private fun ExploreContent(
             ) {
                 SearchBar(onClick = {})
                 OfficialMapBanner(onClick = onOfficialMapClick)
-                RecommendedMapSection(
-                    maps = sampleRecommendedMaps,
-                    onMapClick = onCommunityMapClick,
-                )
+                // 읽지 못했거나 추천할 것이 없으면 제목까지 함께 감춘다.
+                if (uiState.recommendedMaps.isNotEmpty()) {
+                    RecommendedMapSection(
+                        nickname = uiState.nickname,
+                        maps = uiState.recommendedMaps,
+                        onMapClick = onCommunityMapClick,
+                    )
+                }
                 CommunityMapSection(
                     uiState = uiState,
                     onCategoryClick = onCategoryClick,
@@ -337,12 +330,12 @@ private fun SectionTitle(text: String) {
 
 @Composable
 private fun RecommendedMapSection(
+    nickname: String,
     maps: List<CommunityMap>,
     onMapClick: (CommunityMap) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        // TODO: 사용자 이름은 프로필 API 연결 시 채운다.
-        SectionTitle(text = "00님을 위한 추천 지도")
+        SectionTitle(text = "${nickname.ifBlank { DEFAULT_NICKNAME }}님을 위한 추천 지도")
 
         LazyRow(
             contentPadding = HorizontalListPadding,
@@ -516,25 +509,28 @@ private fun SortOptionRow(
     }
 }
 
+private fun previewMaps(placeCount: Int) = List(3) { index ->
+    CommunityMap(
+        id = index + 1L,
+        title = "서울 팝업스토어 맵",
+        imageUrl = null,
+        hashtags = listOf("맛집", "데이트코스", "데이트"),
+        memberCount = 2312,
+        placeCount = placeCount,
+        joined = false,
+    )
+}
+
 @Preview(showBackground = true, widthDp = 393, heightDp = 852)
 @Composable
 private fun ExploreScreenPreview() {
     MoaMapTheme {
         ExploreContent(
             uiState = ExploreUiState(
-                communityMaps = CommunityMapsState.Success(
-                    List(3) { index ->
-                        CommunityMap(
-                            id = index + 1L,
-                            title = "서울 팝업스토어 맵",
-                            imageUrl = null,
-                            hashtags = listOf("맛집", "데이트코스", "데이트"),
-                            memberCount = 2312,
-                            placeCount = 116,
-                            joined = false,
-                        )
-                    }
-                ),
+                communityMaps = CommunityMapsState.Success(previewMaps(placeCount = 116)),
+                nickname = "모아맵",
+                // 추천 카드는 장소 수를 그리지 않아 서버도 주지 않는다.
+                recommendedMaps = previewMaps(placeCount = 0),
             ),
             onProfileEditClick = {},
             onSettingsClick = {},

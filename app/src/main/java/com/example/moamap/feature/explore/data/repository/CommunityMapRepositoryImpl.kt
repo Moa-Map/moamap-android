@@ -18,8 +18,15 @@ class CommunityMapRepositoryImpl @Inject constructor(
         .content
         .map { it.toDomain() }
 
+    override suspend fun getRecommendedMaps(): List<CommunityMap> = service
+        .getRecommendedMaps(size = RECOMMENDATION_SIZE)
+        .map { it.toDomain() }
+
     private companion object {
         /** 서버 기본값과 같다. 무한 스크롤을 붙이기 전까지는 첫 페이지만 쓴다. */
         const val PAGE_SIZE = 20
+
+        /** 가로 스크롤 한 줄에 담는 수. 서버 기본값과 같다(상한 20). */
+        const val RECOMMENDATION_SIZE = 5
     }
 }
