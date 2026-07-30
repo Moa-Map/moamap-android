@@ -1,6 +1,6 @@
 package com.example.moamap.feature.mapdetail.data.repository
 
-import com.example.moamap.feature.mapdetail.data.remote.KakaoPlaceDto
+import com.example.moamap.core.network.kakao.KakaoPlaceDto
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

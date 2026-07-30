@@ -1,6 +1,6 @@
 package com.example.moamap.feature.mapdetail.data.repository
 
-import com.example.moamap.feature.mapdetail.data.remote.KakaoLocalService
+import com.example.moamap.core.network.kakao.KakaoLocalService
 import com.example.moamap.feature.mapdetail.domain.model.PlaceCandidate
 import com.example.moamap.feature.mapdetail.domain.repository.PlaceSearchRepository
 import javax.inject.Inject

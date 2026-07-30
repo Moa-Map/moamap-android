@@ -1,7 +1,7 @@
 package com.example.moamap.feature.mapdetail.di
 
 import com.example.moamap.core.network.di.KakaoLocalClient
-import com.example.moamap.feature.mapdetail.data.remote.KakaoLocalService
+import com.example.moamap.core.network.kakao.KakaoLocalService
 import com.example.moamap.feature.mapdetail.data.repository.KakaoPlaceSearchRepository
 import com.example.moamap.feature.mapdetail.data.repository.MapActivityRepositoryImpl
 import com.example.moamap.feature.mapdetail.data.repository.MapDetailRepositoryImpl

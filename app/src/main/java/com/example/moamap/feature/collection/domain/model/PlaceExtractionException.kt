@@ -19,4 +19,11 @@ sealed class PlaceExtractionException(message: String) : Exception(message) {
      * 링크는 멀쩡한데 통신이 안 되는 경우라, 링크를 확인하라고 안내하면 엉뚱한 조치를 하게 된다.
      */
     class CaptionNetworkError : PlaceExtractionException("네트워크에 연결할 수 없어요")
+
+    /**
+     * 좌표는 받았는데 그 근처에서 등록할 만한 장소를 찾지 못했다.
+     *
+     * 카카오 쿼터가 소진돼도 200 에 빈 결과로 오므로 이 경우와 구분되지 않는다.
+     */
+    class NoPlaceAtCoordinate : PlaceExtractionException("이 위치 근처에서 장소를 찾지 못했어요")
 }
