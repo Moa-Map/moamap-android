@@ -6,6 +6,22 @@ import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import com.example.moamap.R
+import com.example.moamap.feature.collection.domain.model.MapType
+import com.example.moamap.feature.mapdetail.presentation.logs.MapLogUiModel
+import com.example.moamap.feature.mapdetail.presentation.logs.MapLogsContent
+import com.example.moamap.feature.mapdetail.presentation.logs.PendingRequestUiModel
+import com.example.moamap.feature.mapdetail.presentation.logs.SampleMapLogs
+import com.example.moamap.feature.mapdetail.presentation.logs.SamplePendingRequests
+import com.example.moamap.feature.mapdetail.presentation.logs.forMapType
+import com.example.moamap.feature.mapdetail.presentation.members.MemberSheet
+import com.example.moamap.feature.mapdetail.presentation.members.SampleMembers
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -129,6 +145,7 @@ fun MapDetailScreen(
     // 등록 완료 안내. 시트가 닫힌 뒤 상세 화면에서 띄운다.
     var addPlaceNotice by remember { mutableStateOf<String?>(null) }
     var addPlaceSheetVisible by rememberSaveable { mutableStateOf(false) }
+    var memberSheetVisible by rememberSaveable { mutableStateOf(false) }
 
     var uiState by rememberSaveable(stateSaver = MapDetailUiStateSaver) {
         mutableStateOf(MapDetailUiState())
@@ -256,6 +273,14 @@ fun MapDetailScreen(
             searchQuery = uiState.searchQuery,
             onSearchQueryChange = { query -> uiState = uiState.search(query) },
             onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
+            mapType = screenState.mapType,
+            canReviewRequests = screenState.canReviewRequests,
+            // TODO: 활동 내역·요청 목록은 아직 목데이터다. 서버 API 가 생기면 여기만 바꾼다.
+            pendingRequests = SamplePendingRequests,
+            logs = SampleMapLogs,
+            onRequestAccept = {},
+            onRequestReject = {},
+            onMembersClick = { memberSheetVisible = true },
             mapContent = {
                 MapDetailMap(
                     mapViewportState = mapViewportState,
@@ -305,6 +330,17 @@ fun MapDetailScreen(
             },
         )
     }
+
+    if (memberSheetVisible) {
+        MemberSheet(
+            // TODO: 멤버 목록도 아직 목데이터다. 서버 API 가 생기면 여기만 바꾼다.
+            members = SampleMembers,
+            showRoles = screenState.showMemberRoles,
+            canGrantRole = screenState.canGrantRole,
+            onGrantRoleClick = {},
+            onDismiss = { memberSheetVisible = false },
+        )
+    }
 }
 
 @Composable
@@ -326,6 +362,14 @@ internal fun MapDetailContent(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onPlaceClick: (Long) -> Unit,
+    /** 아직 지도를 못 읽었으면 null. 그동안은 활동 내역을 그리지 않는다. */
+    mapType: MapType?,
+    canReviewRequests: Boolean,
+    pendingRequests: List<PendingRequestUiModel>,
+    logs: List<MapLogUiModel>,
+    onRequestAccept: (Long) -> Unit,
+    onRequestReject: (Long) -> Unit,
+    onMembersClick: () -> Unit,
     modifier: Modifier = Modifier,
     mapContent: @Composable () -> Unit,
 ) {
@@ -367,11 +411,14 @@ internal fun MapDetailContent(
                 }
                 MapDetailTab.Logs -> {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        Text(
-                            text = "로그 부분입니다",
-                            style = MoaMapTheme.typography.body1,
-                            color = MoaMapTheme.colors.textNormal,
-                            modifier = Modifier.align(Alignment.Center),
+                        MapLogsContent(
+                            // 알림을 띄울지는 여기서 정한다. MapLogsContent 는 받은 것만 그린다.
+                            pendingRequests = if (canReviewRequests) pendingRequests else emptyList(),
+                            // 타입을 모르는 동안은 비워 둔다. 공개 지도로 넘겨짚으면
+                            // 프라이빗 지도에 권한 로그가 잠깐 스쳐 지나간다.
+                            logs = mapType?.let { type -> logs.forMapType(type) }.orEmpty(),
+                            onAcceptClick = onRequestAccept,
+                            onRejectClick = onRequestReject,
                         )
                         MapDetailTabBar(
                             selectedTab = selectedTab,
@@ -380,10 +427,35 @@ internal fun MapDetailContent(
                                 .align(Alignment.TopCenter)
                                 .padding(start = 20.dp, top = 16.dp, end = 20.dp),
                         )
+                        MemberSheetFab(
+                            onClick = onMembersClick,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(end = 20.dp, bottom = 20.dp),
+                        )
                     }
                 }
             }
         }
+    }
+}
+
+/** 멤버 관리 진입. 로그 탭에만 있다 - 장소 탭은 같은 자리를 3D·장소 추가가 쓴다. */
+@Composable
+private fun MemberSheetFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .clip(CircleShape)
+            .background(MoaMapPrimitiveColors.Blue500)
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_person),
+            contentDescription = "멤버 관리",
+            tint = MoaMapTheme.colors.textWhite,
+            modifier = Modifier.size(32.dp),
+        )
     }
 }
 
@@ -475,6 +547,13 @@ private fun MapDetailScreenPreview() {
             searchQuery = "",
             onSearchQueryChange = {},
             onPlaceClick = {},
+            mapType = MapType.Community,
+            canReviewRequests = true,
+            pendingRequests = SamplePendingRequests,
+            logs = SampleMapLogs,
+            onRequestAccept = {},
+            onRequestReject = {},
+            onMembersClick = {},
             mapContent = {
                 Box(
                     modifier = Modifier
@@ -509,6 +588,13 @@ private fun MapDetailScreenNotJoinedPreview() {
             searchQuery = "",
             onSearchQueryChange = {},
             onPlaceClick = {},
+            mapType = MapType.Community,
+            canReviewRequests = true,
+            pendingRequests = SamplePendingRequests,
+            logs = SampleMapLogs,
+            onRequestAccept = {},
+            onRequestReject = {},
+            onMembersClick = {},
             mapContent = {
                 Box(
                     modifier = Modifier

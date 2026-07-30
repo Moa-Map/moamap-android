@@ -9,6 +9,8 @@ import com.example.moamap.core.navigation.MoaMapRoute
 import com.example.moamap.feature.mapdetail.domain.model.MapDetailAction
 import com.example.moamap.feature.mapdetail.domain.model.MapPlace
 import com.example.moamap.feature.mapdetail.domain.model.leavingDeletesMap
+import com.example.moamap.feature.collection.domain.model.MapType
+import com.example.moamap.feature.mapdetail.domain.model.MapRole
 import com.example.moamap.feature.mapdetail.domain.model.roleBadge
 import com.example.moamap.feature.mapdetail.domain.model.topBarAction
 import com.example.moamap.feature.mapdetail.domain.repository.MapDetailRepository
@@ -55,6 +57,35 @@ data class MapDetailScreenState(
     val canAddPlace: Boolean get() = map.mapOrNull?.joined == true
 
     val placeCount: Int? get() = map.mapOrNull?.placeCount
+
+    /**
+     * 로그 탭에 장소 등록 요청 알림을 띄울 수 있는가.
+     *
+     * 프라이빗 지도에는 권한이 없어 수락·거절할 사람 자체가 없다.
+     */
+    val canReviewRequests: Boolean
+        get() = map.mapOrNull?.let { detail ->
+            detail.type == MapType.Community &&
+                (detail.role == MapRole.Owner || detail.role == MapRole.Admin)
+        } ?: false
+
+    /** 멤버 카드에 방장·관리자 표시를 붙일지. 프라이빗 지도는 역할이 없다. */
+    val showMemberRoles: Boolean
+        get() = map.mapOrNull?.type == MapType.Community
+
+    /** 권한 위임은 방장 권한이다. 역할 안내 툴팁도 그렇게 적혀 있다. */
+    val canGrantRole: Boolean
+        get() = map.mapOrNull?.let { detail ->
+            detail.type == MapType.Community && detail.role == MapRole.Owner
+        } ?: false
+
+    /**
+     * 로그를 걸러 낼 때 쓴다.
+     *
+     * 아직 못 받았으면 null 이다. 공개 지도로 넘겨짚으면 프라이빗 지도에서도 로딩 중에는
+     * 권한 변경 로그와 역할 태그가 보인다.
+     */
+    val mapType: MapType? get() = map.mapOrNull?.type
 }
 
 @HiltViewModel
