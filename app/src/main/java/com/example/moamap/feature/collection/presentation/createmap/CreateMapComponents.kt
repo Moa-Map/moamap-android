@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -46,7 +47,14 @@ private val VisibilityCardShape = RoundedCornerShape(16.dp)
 private val SubmitButtonShape = RoundedCornerShape(8.dp)
 private val ChipShape = RoundedCornerShape(100.dp)
 
-private val PhotoCardHeight = 115.dp
+/**
+ * 사진 카드의 가로:세로. 피그마가 353x235.33 으로 그렸는데 정확히 3:2 다.
+ *
+ * 높이를 dp 로 못 박으면 폭이 좁은 기기에서 카드만 세로로 길어 보인다. 커버 사진을
+ * 미리보기로 채우는 자리라 비율을 지키는 쪽이 맞다.
+ */
+private const val PhotoCardAspectRatio = 3f / 2f
+
 private val VisibilityCardHeight = 113.dp
 private val SubmitButtonHeight = 54.dp
 
@@ -84,7 +92,7 @@ internal fun MapPhotoField(
         ShadowedSurface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(PhotoCardHeight),
+                .aspectRatio(PhotoCardAspectRatio),
             shape = FieldShape,
             shadowBlurRadius = CardShadowBlurRadius,
             shadowColor = PhotoCardShadowColor,

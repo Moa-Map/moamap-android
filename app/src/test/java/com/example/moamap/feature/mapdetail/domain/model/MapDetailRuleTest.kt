@@ -21,6 +21,7 @@ class MapDetailRuleTest {
         role: MapRole,
         joined: Boolean,
         memberCount: Int = 1,
+        personal: Boolean = false,
     ) = MapDetail(
         id = 1L,
         title = "지도",
@@ -33,6 +34,7 @@ class MapDetailRuleTest {
         memberCount = memberCount,
         placeCount = 0,
         joined = joined,
+        personal = personal,
     )
 
     // ---------- 역할 배지 ----------
@@ -126,6 +128,16 @@ class MapDetailRuleTest {
             MapDetailAction.None,
             map(MapType.Private, MapRole.None, joined = false).topBarAction,
         )
+    }
+
+    @Test
+    fun `나만의 지도는 나가기를 띄우지 않는다`() {
+        // 서버가 PRIVATE·OWNER·혼자로 내려주므로 `프라이빗에 혼자 남은 방장` 과 모양이 같다.
+        // personal 을 먼저 보지 않으면 나가기가 뜨고, 그 나가기는 삭제로 처리된다.
+        val map = map(MapType.Private, MapRole.Owner, joined = true, personal = true)
+
+        assertEquals(MapDetailAction.None, map.topBarAction)
+        assertFalse(map.leavingDeletesMap)
     }
 
     @Test

@@ -1,5 +1,7 @@
 package com.example.moamap.core.navigation
 
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -89,6 +91,12 @@ internal fun MoaMapNavHost(
         NavHost(
             navController = navController,
             startDestination = MoaMapRoute.Splash.route,
+            // 기본 전환은 두 화면을 겹쳐 놓고 투명도를 바꾼다. 그동안 이전 화면이 비쳐
+            // 잔상처럼 보여서 전부 끈다. 여기 넣은 값이 중첩 그래프까지 기본값이 된다.
+            enterTransition = { EnterTransition.None },
+            exitTransition = { ExitTransition.None },
+            popEnterTransition = { EnterTransition.None },
+            popExitTransition = { ExitTransition.None },
         ) {
             composable(MoaMapRoute.Splash.route) {
                 SplashScreen(

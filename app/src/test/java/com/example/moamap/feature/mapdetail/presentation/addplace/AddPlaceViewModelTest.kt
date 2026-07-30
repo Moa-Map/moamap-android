@@ -100,6 +100,7 @@ class AddPlaceViewModelTest {
         memberCount = 1,
         placeCount = 0,
         joined = true,
+        personal = false,
     )
 
     private fun viewModel(

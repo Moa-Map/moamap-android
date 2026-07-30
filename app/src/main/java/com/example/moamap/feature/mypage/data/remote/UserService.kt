@@ -3,6 +3,7 @@ package com.example.moamap.feature.mypage.data.remote
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.PATCH
+import retrofit2.http.POST
 import retrofit2.http.Query
 
 interface UserService {
@@ -20,4 +21,17 @@ interface UserService {
      */
     @GET("api/v1/users/profiles")
     suspend fun getProfiles(@Query("ids") ids: List<Long>): List<UserProfileDto>
+
+    /**
+     * 프로필 이미지 업로드용 presigned PUT URL 을 발급받는다.
+     *
+     * 사진은 우리 서버로 올리지 않는다. 여기서 받은 주소로 앱이 직접 올리고, 응답의 `fileUrl`
+     * 을 마이페이지 수정 요청의 `profileImageUrl` 에 담는다.
+     *
+     * 한 장만 발급한다. 허용 형식은 jpeg/png/webp, 최대 10MB.
+     */
+    @POST("api/v1/users/profile-upload-url")
+    suspend fun createProfileUploadUrl(
+        @Body request: ProfileUploadUrlRequestDto,
+    ): ProfileUploadUrlDto
 }

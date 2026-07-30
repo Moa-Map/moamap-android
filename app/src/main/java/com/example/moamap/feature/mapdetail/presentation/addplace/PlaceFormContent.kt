@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -47,6 +48,9 @@ private val SelectedCardShape = RoundedCornerShape(16.dp)
 private val InputShape = RoundedCornerShape(12.dp)
 private val TagChipShape = RoundedCornerShape(1000.dp)
 private val PhotoShape = RoundedCornerShape(12.dp)
+
+/** 새 지도 만들기의 사진 카드와 같은 비율(피그마 353x235.33 = 3:2)이다. */
+private const val PhotoCardAspectRatio = 3f / 2f
 
 /** 2단계. 고른 장소에 사진·태그·메모를 붙인다. 셋 다 선택이다. */
 @Composable
@@ -207,7 +211,7 @@ private fun PhotoPicker(
         ShadowedSurface(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp),
+                .aspectRatio(PhotoCardAspectRatio),
             shape = InputShape,
             onClick = onAddPhotoClick,
         ) {

@@ -1,8 +1,8 @@
 package com.example.moamap.feature.collection.presentation.createmap
 
 import androidx.lifecycle.SavedStateHandle
+import com.example.moamap.core.common.upload.ImageUploadException
 import com.example.moamap.core.network.ConnectionException
-import com.example.moamap.feature.collection.domain.model.CoverImageException
 import com.example.moamap.feature.collection.domain.model.CreatedMap
 import com.example.moamap.feature.collection.domain.model.MapType
 import com.example.moamap.feature.collection.domain.model.MapVisibility
@@ -472,7 +472,7 @@ class CreateMapViewModelTest {
     /** 무엇이 문제인지 알려야 사용자가 사진을 바꿀 수 있다. */
     @Test
     fun `형식이나 크기 문제는 그 이유를 그대로 안내한다`() = runTest(dispatcher) {
-        repository.uploadResult = { throw CoverImageException.TooLarge() }
+        repository.uploadResult = { throw ImageUploadException.TooLarge() }
         fillRequiredInput()
         viewModel.selectImage(PICKED_IMAGE_URI)
         viewModel.submit()

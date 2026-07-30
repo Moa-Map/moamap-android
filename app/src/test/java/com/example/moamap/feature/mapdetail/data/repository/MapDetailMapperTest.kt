@@ -59,6 +59,13 @@ class MapDetailMapperTest {
     }
 
     @Test
+    fun `나만의 지도 표시를 그대로 옮긴다`() {
+        // PRIVATE 타입으로 내려오므로 type 으로는 못 가린다. 이 값만 보고 판단한다.
+        assertEquals(true, MapDetailDto(type = "PRIVATE", personal = true).toMapDetail(null).personal)
+        assertEquals(false, MapDetailDto(type = "PRIVATE").toMapDetail(null).personal)
+    }
+
+    @Test
     fun `장소 주소는 도로명을 우선한다`() {
         val place = PlaceDto(
             address = "서울 성동구 성수동1가 1",

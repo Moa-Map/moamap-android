@@ -211,20 +211,24 @@ private fun ExploreTopBar(
             modifier = Modifier.size(width = 74.dp, height = 44.dp),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Icon(
-                painter = painterResource(R.drawable.ic_notifications),
-                contentDescription = "알림",
-                tint = MoaMapPrimitiveColors.Black,
-                modifier = Modifier
-                    .size(32.dp)
-                    .clickable {},
-            )
+            // TODO: 알림 API 연동 후 복구
+            // Icon(
+            //     painter = painterResource(R.drawable.ic_notifications),
+            //     contentDescription = "알림",
+            //     tint = MoaMapPrimitiveColors.Black,
+            //     modifier = Modifier
+            //         .size(32.dp)
+            //         .clickable {},
+            // )
+            // TODO: 알림 아이콘 복구 시 크기 32.dp / end 패딩 제거로 되돌린다.
+            //  알림이 빠져 혼자 남은 동안만 키우고 안쪽으로 들인 값이다.
             Icon(
                 painter = painterResource(R.drawable.ic_person),
                 contentDescription = "프로필 메뉴",
                 tint = MoaMapPrimitiveColors.Black,
                 modifier = Modifier
-                    .size(32.dp)
+                    .padding(end = 4.dp)
+                    .size(36.dp)
                     .clickable(onClick = onProfileClick),
             )
         }

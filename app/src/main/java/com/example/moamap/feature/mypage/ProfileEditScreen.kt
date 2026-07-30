@@ -28,10 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -94,6 +91,7 @@ internal fun ProfileEditScreen(
             onBackClick = onBackClick,
             onNicknameChange = viewModel::onNicknameChange,
             onIntroductionChange = viewModel::onIntroductionChange,
+            onImageSelected = viewModel::onImageSelected,
             onRetryClick = viewModel::load,
             onSaveClick = viewModel::save,
         )
@@ -112,17 +110,18 @@ private fun ProfileEditContent(
     onBackClick: () -> Unit,
     onNicknameChange: (String) -> Unit,
     onIntroductionChange: (String) -> Unit,
+    onImageSelected: (String) -> Unit,
     onRetryClick: () -> Unit,
     onSaveClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var selectedImageUri by rememberSaveable { mutableStateOf<String?>(null) }
+    // 고른 사진도 편집 중인 이름·자기소개와 같은 곳(ViewModel)에 둔다.
     val pickerState = rememberImagePickerState()
     val pickerController = rememberImagePickerController(
         state = pickerState,
         cacheDirectoryName = ProfileImageCacheDirectory,
         fileNamePrefix = ProfileImageFilePrefix,
-        onImageSelected = { uri -> selectedImageUri = uri.toString() },
+        onImageSelected = { uri -> onImageSelected(uri.toString()) },
     )
     val serverImageUrl = (uiState.load as? ProfileLoadState.Success)?.profileImageUrl
 
@@ -140,7 +139,8 @@ private fun ProfileEditContent(
             ProfileEditTopBar(onBackClick = onBackClick)
             Spacer(Modifier.height(37.dp))
             ProfileImageEditor(
-                imageModel = selectedImageUri ?: serverImageUrl,
+                imageModel = uiState.pickedImageUri ?: serverImageUrl,
+                enabled = !uiState.saving,
                 isSourceMenuVisible = pickerState.isSourceMenuVisible,
                 onCameraBadgeClick = pickerState::showSourceMenu,
                 onMenuDismissRequest = pickerState::dismissSourceMenu,
@@ -190,6 +190,7 @@ private fun ProfileEditContent(
 
         ProfileSaveButton(
             enabled = uiState.canSave,
+            saving = uiState.saving,
             onClick = onSaveClick,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -249,6 +250,7 @@ private fun ProfileEditTopBar(
 private fun ProfileImageEditor(
     /** 고른 사진의 `Uri` 문자열이거나 서버가 준 URL. AsyncImage 가 둘 다 받는다. */
     imageModel: String?,
+    enabled: Boolean,
     isSourceMenuVisible: Boolean,
     onCameraBadgeClick: () -> Unit,
     onMenuDismissRequest: () -> Unit,
@@ -292,8 +294,10 @@ private fun ProfileImageEditor(
                 .offset(x = 98.dp, y = 94.dp)
                 .size(40.dp)
                 .clip(CircleShape)
-                .background(MoaMapTheme.colors.primary)
-                .clickable(onClick = onCameraBadgeClick),
+                // 저장 중에는 눌러도 반영되지 않으니(ViewModel 가드), 저장 버튼과 같은 죽은 색으로
+                // 눌리지 않는다는 것을 보여준다.
+                .background(if (enabled) MoaMapTheme.colors.primary else MoaMapPrimitiveColors.Gray100)
+                .clickable(enabled = enabled, onClick = onCameraBadgeClick),
             contentAlignment = Alignment.Center,
         ) {
             Icon(
@@ -474,6 +478,7 @@ private fun ProfileField(
 @Composable
 private fun ProfileSaveButton(
     enabled: Boolean,
+    saving: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -492,11 +497,20 @@ private fun ProfileSaveButton(
         shadowColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.1f),
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            text = "저장하기",
-            style = MoaMapTheme.typography.subtitle2,
-            color = MoaMapTheme.colors.textWhite,
-        )
+        // 업로드까지 포함하면 저장에 수십 초가 걸릴 수 있어, 버튼이 눌렸다는 것을 계속 보여줘야 한다.
+        if (saving) {
+            CircularProgressIndicator(
+                color = MoaMapTheme.colors.textWhite,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(20.dp),
+            )
+        } else {
+            Text(
+                text = "저장하기",
+                style = MoaMapTheme.typography.subtitle2,
+                color = MoaMapTheme.colors.textWhite,
+            )
+        }
     }
 }
 
@@ -553,6 +567,7 @@ private fun ProfileEditScreenPreview() {
             onBackClick = {},
             onNicknameChange = {},
             onIntroductionChange = {},
+            onImageSelected = {},
             onRetryClick = {},
             onSaveClick = {},
         )

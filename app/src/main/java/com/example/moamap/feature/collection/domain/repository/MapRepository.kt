@@ -18,7 +18,7 @@ interface MapRepository {
      * @param imageUri 사용자가 고른 사진의 `content://` URI 문자열. 화면 상태가 들고 있는
      *  형태 그대로 받는다.
      * @return 지도 생성 요청의 `imageUrl` 에 담을 주소
-     * @throws com.example.moamap.feature.collection.domain.model.CoverImageException
+     * @throws com.example.moamap.core.common.upload.ImageUploadException
      *  형식이나 크기가 서버 허용 범위를 벗어날 때
      */
     suspend fun uploadCoverImage(imageUri: String): String
