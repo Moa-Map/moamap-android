@@ -57,12 +57,16 @@ internal data class PendingRequestUiModel(
 )
 
 /**
- * 지도 타입에 맞지 않는 로그를 걸러낸다.
+ * 지도 타입에 맞지 않는 것을 걸러낸다.
  *
- * 프라이빗 지도는 권한 자체가 없으므로 권한 변경 로그도 있을 수 없다. 서버가 실수로 내려줘도
- * 화면에 흘리지 않는다.
+ * 프라이빗 지도는 권한 자체가 없다. 권한 변경 로그뿐 아니라 **사용자명 옆 역할 태그도** 나올
+ * 수 없다 - 로그 종류만 거르면 남은 장소 추가·삭제 로그에 "방장" 이 그대로 붙는다.
+ * 서버가 실수로 내려줘도 화면에 흘리지 않는다.
  */
 internal fun List<MapLogUiModel>.forMapType(type: MapType): List<MapLogUiModel> = when (type) {
-    MapType.Private -> filter { log -> log.type != MapLogType.RoleChanged }
+    MapType.Private ->
+        filter { log -> log.type != MapLogType.RoleChanged }
+            .map { log -> log.copy(roleTag = null) }
+
     MapType.Community -> this
 }

@@ -12,7 +12,8 @@ internal enum class MemberRole(val label: String) {
 /**
  * 멤버 관리 목록의 한 사람.
  *
- * 등록한 장소 수는 이미 `"12곳"` 형태다. 서버가 숫자를 주면 매퍼가 포맷해서 채운다.
+ * 장소 수는 숫자로 들고 화면에서 `formatPlaceCount()` 로 그린다. 카드 메타를 그리는 다른
+ * 화면들과 같은 방식이다.
  */
 @Immutable
 internal data class MemberUiModel(
@@ -20,7 +21,7 @@ internal data class MemberUiModel(
     val name: String,
     val imageUrl: String?,
     val role: MemberRole,
-    val placeCount: String,
+    val placeCount: Int,
 )
 
 /**

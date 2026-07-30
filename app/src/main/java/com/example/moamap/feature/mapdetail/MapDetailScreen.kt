@@ -362,7 +362,8 @@ internal fun MapDetailContent(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onPlaceClick: (Long) -> Unit,
-    mapType: MapType,
+    /** 아직 지도를 못 읽었으면 null. 그동안은 활동 내역을 그리지 않는다. */
+    mapType: MapType?,
     canReviewRequests: Boolean,
     pendingRequests: List<PendingRequestUiModel>,
     logs: List<MapLogUiModel>,
@@ -413,7 +414,9 @@ internal fun MapDetailContent(
                         MapLogsContent(
                             // 알림을 띄울지는 여기서 정한다. MapLogsContent 는 받은 것만 그린다.
                             pendingRequests = if (canReviewRequests) pendingRequests else emptyList(),
-                            logs = logs.forMapType(mapType),
+                            // 타입을 모르는 동안은 비워 둔다. 공개 지도로 넘겨짚으면
+                            // 프라이빗 지도에 권한 로그가 잠깐 스쳐 지나간다.
+                            logs = mapType?.let { type -> logs.forMapType(type) }.orEmpty(),
                             onAcceptClick = onRequestAccept,
                             onRejectClick = onRequestReject,
                         )

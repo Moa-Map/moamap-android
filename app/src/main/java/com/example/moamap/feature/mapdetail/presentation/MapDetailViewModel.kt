@@ -79,8 +79,13 @@ data class MapDetailScreenState(
             detail.type == MapType.Community && detail.role == MapRole.Owner
         } ?: false
 
-    /** 로그를 걸러 낼 때 쓴다. 아직 못 받았으면 공개 지도로 본다. */
-    val mapType: MapType get() = map.mapOrNull?.type ?: MapType.Community
+    /**
+     * 로그를 걸러 낼 때 쓴다.
+     *
+     * 아직 못 받았으면 null 이다. 공개 지도로 넘겨짚으면 프라이빗 지도에서도 로딩 중에는
+     * 권한 변경 로그와 역할 태그가 보인다.
+     */
+    val mapType: MapType? get() = map.mapOrNull?.type
 }
 
 @HiltViewModel

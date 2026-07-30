@@ -37,6 +37,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import coil3.compose.AsyncImage
 import com.example.moamap.R
+import com.example.moamap.core.common.format.formatPlaceCount
 import com.example.moamap.core.designsystem.component.ListCardShadowColor
 import com.example.moamap.core.designsystem.component.ShadowedSurface
 import com.example.moamap.core.designsystem.theme.MoaMapDimens
@@ -237,7 +238,7 @@ private fun MemberCard(
                         if (showRole) MemberRoleTag(member.role)
                     }
                     Text(
-                        text = "등록한 장소 ${member.placeCount}",
+                        text = "등록한 장소 ${formatPlaceCount(member.placeCount)}",
                         style = MoaMapTheme.typography.caption0,
                         color = MoaMapTheme.colors.textAlternative,
                     )

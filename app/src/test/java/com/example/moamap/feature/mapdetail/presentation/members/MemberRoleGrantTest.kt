@@ -11,7 +11,7 @@ class MemberRoleGrantTest {
         name = "박지훈",
         imageUrl = null,
         role = role,
-        placeCount = "9곳",
+        placeCount = 9,
     )
 
     /** 방장·관리자는 이미 권한이 있다. 시안에서도 일반 카드에만 버튼이 붙는다. */
