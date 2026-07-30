@@ -31,8 +31,9 @@ private const val TAG = "MapDetailViewModel"
 /**
  * 지도 상세 화면 상태.
  *
- * 바텀시트 목록과 로그는 아직 목데이터다. 서버에서 받아오는 건 지도 한 건([map]),
- * 마커로 그릴 장소([places]), 참여·나가기 진행 상황이다.
+ * 서버에서 받아오는 건 지도 한 건([map]), 마커로 그릴 장소([places]), 참여·나가기 진행
+ * 상황이다. 활동 내역은
+ * [com.example.moamap.feature.mapdetail.presentation.logs.MapActivityViewModel] 이 따로 읽는다.
  */
 @Immutable
 data class MapDetailScreenState(
@@ -78,14 +79,6 @@ data class MapDetailScreenState(
         get() = map.mapOrNull?.let { detail ->
             detail.type == MapType.Community && detail.role == MapRole.Owner
         } ?: false
-
-    /**
-     * 로그를 걸러 낼 때 쓴다.
-     *
-     * 아직 못 받았으면 null 이다. 공개 지도로 넘겨짚으면 프라이빗 지도에서도 로딩 중에는
-     * 권한 변경 로그와 역할 태그가 보인다.
-     */
-    val mapType: MapType? get() = map.mapOrNull?.type
 }
 
 @HiltViewModel

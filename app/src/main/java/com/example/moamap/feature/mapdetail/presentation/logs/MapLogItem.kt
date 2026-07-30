@@ -35,7 +35,6 @@ private val DotSize = 8.dp
 private val DotTopSpace = 8.dp
 private val ItemBottomSpace = 20.dp
 private val CardShape = RoundedCornerShape(12.dp)
-private val LogPhotoHeight = 202.dp
 private val AvatarSize = 24.dp
 
 /**
@@ -132,7 +131,6 @@ private fun LogAuthorRow(log: MapLogUiModel) {
         LogAuthor(
             userName = log.userName,
             userImageUrl = log.userImageUrl,
-            roleTag = log.roleTag,
         )
         LogTime(timeAgo = log.timeAgo)
     }
@@ -141,30 +139,18 @@ private fun LogAuthorRow(log: MapLogUiModel) {
 /**
  * 로그 카드.
  *
- * 사진은 있을 때만 그린다. 자리를 비워 두면 글만 있는 로그와 높이가 달라져 목록이 성겨진다.
+ * 글 한 줄뿐이다. 활동 내역 응답에는 장소 사진이 없어 카드에 얹을 것이 없다.
  */
 @Composable
 private fun LogCard(log: MapLogUiModel) {
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(CardShape)
             .background(MoaMapPrimitiveColors.White)
             .border(1.dp, MoaMapPrimitiveColors.Gray50, CardShape)
             .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        log.imageUrl?.let { url ->
-            AsyncImage(
-                model = url,
-                contentDescription = "등록한 장소 사진",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(LogPhotoHeight)
-                    .clip(RoundedCornerShape(8.dp)),
-            )
-        }
         Text(
             text = log.message,
             style = MoaMapTheme.typography.body2,
@@ -173,12 +159,11 @@ private fun LogCard(log: MapLogUiModel) {
     }
 }
 
-/** 아바타 + 이름 + 역할 태그. 알림 카드도 같은 줄을 쓴다. */
+/** 아바타 + 이름. 알림 카드도 같은 줄을 쓴다. */
 @Composable
 internal fun LogAuthor(
     userName: String,
     userImageUrl: String?,
-    roleTag: String?,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -206,23 +191,7 @@ internal fun LogAuthor(
             style = MoaMapTheme.typography.caption0,
             color = MoaMapTheme.colors.textNormal,
         )
-        // 프라이빗 지도와 일반 멤버는 태그가 없다.
-        roleTag?.let { tag -> LogRoleTag(tag) }
     }
-}
-
-@Composable
-private fun LogRoleTag(tag: String) {
-    Text(
-        text = tag,
-        style = MoaMapTheme.typography.caption0,
-        color = MoaMapPrimitiveColors.Blue900,
-        modifier = Modifier
-            .clip(RoundedCornerShape(1000.dp))
-            .background(MoaMapPrimitiveColors.Blue50)
-            .border(1.dp, MoaMapPrimitiveColors.Blue500, RoundedCornerShape(1000.dp))
-            .padding(horizontal = 8.dp, vertical = 2.dp),
-    )
 }
 
 @Composable
@@ -242,7 +211,7 @@ private val MapLogType.dotColor: Color
     get() = when (this) {
         MapLogType.PlaceAdded -> MoaMapPrimitiveColors.Blue500
         MapLogType.PlaceRemoved -> MoaMapPrimitiveColors.Gray400
-        MapLogType.RoleChanged -> MoaMapPrimitiveColors.Yellow500
+        MapLogType.ReviewCreated -> MoaMapPrimitiveColors.Yellow500
     }
 
 @Preview(showBackground = true, widthDp = 393)

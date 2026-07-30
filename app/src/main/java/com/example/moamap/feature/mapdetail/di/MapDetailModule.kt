@@ -3,9 +3,11 @@ package com.example.moamap.feature.mapdetail.di
 import com.example.moamap.core.network.di.KakaoLocalClient
 import com.example.moamap.feature.mapdetail.data.remote.KakaoLocalService
 import com.example.moamap.feature.mapdetail.data.repository.KakaoPlaceSearchRepository
+import com.example.moamap.feature.mapdetail.data.repository.MapActivityRepositoryImpl
 import com.example.moamap.feature.mapdetail.data.repository.MapDetailRepositoryImpl
 import com.example.moamap.feature.mapdetail.data.repository.PlaceAddRepositoryImpl
 import com.example.moamap.feature.mapdetail.data.repository.PlaceReviewRepositoryImpl
+import com.example.moamap.feature.mapdetail.domain.repository.MapActivityRepository
 import com.example.moamap.feature.mapdetail.domain.repository.MapDetailRepository
 import com.example.moamap.feature.mapdetail.domain.repository.PlaceAddRepository
 import com.example.moamap.feature.mapdetail.domain.repository.PlaceReviewRepository
@@ -45,6 +47,10 @@ internal abstract class MapDetailModule {
     @Binds
     @Singleton
     abstract fun bindPlaceReviewRepository(impl: PlaceReviewRepositoryImpl): PlaceReviewRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMapActivityRepository(impl: MapActivityRepositoryImpl): MapActivityRepository
 
     companion object {
         @Provides

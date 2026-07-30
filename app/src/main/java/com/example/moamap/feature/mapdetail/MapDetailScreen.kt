@@ -13,13 +13,13 @@ import androidx.compose.material3.Icon
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import com.example.moamap.R
-import com.example.moamap.feature.collection.domain.model.MapType
+import com.example.moamap.feature.mapdetail.presentation.logs.MapActivityViewModel
 import com.example.moamap.feature.mapdetail.presentation.logs.MapLogUiModel
 import com.example.moamap.feature.mapdetail.presentation.logs.MapLogsContent
 import com.example.moamap.feature.mapdetail.presentation.logs.PendingRequestUiModel
 import com.example.moamap.feature.mapdetail.presentation.logs.SampleMapLogs
 import com.example.moamap.feature.mapdetail.presentation.logs.SamplePendingRequests
-import com.example.moamap.feature.mapdetail.presentation.logs.forMapType
+import com.example.moamap.feature.mapdetail.presentation.logs.toMapLogUiModels
 import com.example.moamap.feature.mapdetail.presentation.members.MemberSheet
 import com.example.moamap.feature.mapdetail.presentation.members.SampleMembers
 import androidx.compose.foundation.layout.Box
@@ -112,9 +112,11 @@ fun MapDetailScreen(
     viewModel: MapDetailViewModel = hiltViewModel(),
     addPlaceViewModel: AddPlaceViewModel = hiltViewModel(),
     reviewViewModel: PlaceReviewViewModel = hiltViewModel(),
+    activityViewModel: MapActivityViewModel = hiltViewModel(),
 ) {
     val screenState by viewModel.uiState.collectAsStateWithLifecycle()
     val reviewState by reviewViewModel.uiState.collectAsStateWithLifecycle()
+    val activityState by activityViewModel.uiState.collectAsStateWithLifecycle()
 
     // 나가기가 끝나면 왔던 곳(탐색 또는 모음)으로 돌아간다.
     LaunchedEffect(screenState.left) {
@@ -171,6 +173,11 @@ fun MapDetailScreen(
         if (placeId == null) reviewViewModel.close() else reviewViewModel.open(placeId)
     }
 
+    // 로그 탭을 처음 열 때 활동 내역을 읽는다. 장소 탭만 보고 나가면 조회가 아예 안 나간다.
+    LaunchedEffect(uiState.selectedTab) {
+        if (uiState.selectedTab == MapDetailTab.Logs) activityViewModel.loadOnce()
+    }
+
     // 후기가 하나 늘면 장소의 평점·후기 수도 달라진다. 시트 뒤의 목록이 옛 값을 들고 있으면 안 된다.
     LaunchedEffect(reviewState.submittedCount) {
         if (reviewState.submittedCount > 0) viewModel.refresh()
@@ -192,6 +199,12 @@ fun MapDetailScreen(
                 submittedCount = reviewState.submittedCount,
             )
         }
+    }
+
+    // "2시간 전" 은 그리는 시점을 기준으로 한다. 목록이 바뀔 때만 다시 계산해, 재구성마다
+    // 시각을 새로 읽어 같은 값을 두고 목록 전체가 갈리는 일을 막는다.
+    val logs = remember(activityState.activities) {
+        activityState.activities.toMapLogUiModels(System.currentTimeMillis())
     }
 
     val markers = remember(screenState.places) {
@@ -305,13 +318,15 @@ fun MapDetailScreen(
             searchQuery = uiState.searchQuery,
             onSearchQueryChange = { query -> uiState = uiState.search(query) },
             onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
-            mapType = screenState.mapType,
             canReviewRequests = screenState.canReviewRequests,
-            // TODO: 활동 내역·요청 목록은 아직 목데이터다. 서버 API 가 생기면 여기만 바꾼다.
+            // TODO: 장소 등록 요청은 아직 목데이터다. `GET api/v1/places/pending` 이 붙으면 여기만 바꾼다.
             pendingRequests = SamplePendingRequests,
-            logs = SampleMapLogs,
+            logs = logs,
+            logsLoading = activityState.loading,
+            logsErrorMessage = activityState.errorMessage,
             onRequestAccept = {},
             onRequestReject = {},
+            onLogsRetry = activityViewModel::retry,
             onMembersClick = { memberSheetVisible = true },
             mapContent = {
                 MapDetailMap(
@@ -401,13 +416,14 @@ internal fun MapDetailContent(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onPlaceClick: (Long) -> Unit,
-    /** 아직 지도를 못 읽었으면 null. 그동안은 활동 내역을 그리지 않는다. */
-    mapType: MapType?,
     canReviewRequests: Boolean,
     pendingRequests: List<PendingRequestUiModel>,
     logs: List<MapLogUiModel>,
+    logsLoading: Boolean,
+    logsErrorMessage: String?,
     onRequestAccept: (Long) -> Unit,
     onRequestReject: (Long) -> Unit,
+    onLogsRetry: () -> Unit,
     onMembersClick: () -> Unit,
     modifier: Modifier = Modifier,
     mapContent: @Composable () -> Unit,
@@ -453,11 +469,14 @@ internal fun MapDetailContent(
                         MapLogsContent(
                             // 알림을 띄울지는 여기서 정한다. MapLogsContent 는 받은 것만 그린다.
                             pendingRequests = if (canReviewRequests) pendingRequests else emptyList(),
-                            // 타입을 모르는 동안은 비워 둔다. 공개 지도로 넘겨짚으면
-                            // 프라이빗 지도에 권한 로그가 잠깐 스쳐 지나간다.
-                            logs = mapType?.let { type -> logs.forMapType(type) }.orEmpty(),
+                            // 지도 타입별로 거르지 않는다. 서버가 이미 프라이빗 지도에만
+                            // 후기 로그를 넣어 보낸다.
+                            logs = logs,
+                            loading = logsLoading,
+                            errorMessage = logsErrorMessage,
                             onAcceptClick = onRequestAccept,
                             onRejectClick = onRequestReject,
+                            onRetryClick = onLogsRetry,
                         )
                         MapDetailTabBar(
                             selectedTab = selectedTab,
@@ -586,12 +605,14 @@ private fun MapDetailScreenPreview() {
             searchQuery = "",
             onSearchQueryChange = {},
             onPlaceClick = {},
-            mapType = MapType.Community,
             canReviewRequests = true,
             pendingRequests = SamplePendingRequests,
             logs = SampleMapLogs,
+            logsLoading = false,
+            logsErrorMessage = null,
             onRequestAccept = {},
             onRequestReject = {},
+            onLogsRetry = {},
             onMembersClick = {},
             mapContent = {
                 Box(
@@ -627,12 +648,14 @@ private fun MapDetailScreenNotJoinedPreview() {
             searchQuery = "",
             onSearchQueryChange = {},
             onPlaceClick = {},
-            mapType = MapType.Community,
             canReviewRequests = true,
             pendingRequests = SamplePendingRequests,
             logs = SampleMapLogs,
+            logsLoading = false,
+            logsErrorMessage = null,
             onRequestAccept = {},
             onRequestReject = {},
+            onLogsRetry = {},
             onMembersClick = {},
             mapContent = {
                 Box(

@@ -11,6 +11,7 @@ import com.example.moamap.feature.explore.data.remote.MapShareExtractResponseDto
 import com.example.moamap.feature.explore.data.remote.MapSharePlaceCandidateDto
 import com.example.moamap.feature.explore.data.remote.PhotoUploadUrlDto
 import com.example.moamap.feature.explore.data.remote.PhotoUploadUrlRequestDto
+import com.example.moamap.feature.explore.data.remote.PlaceActivityDto
 import com.example.moamap.feature.explore.data.remote.PlaceBulkCreateRequestDto
 import com.example.moamap.feature.explore.data.remote.PlaceBulkCreateResponseDto
 import com.example.moamap.feature.explore.data.remote.PlaceBulkResultDto
@@ -100,6 +101,12 @@ private class FakePlaceService(
     override suspend fun createPhotoUploadUrls(
         request: PhotoUploadUrlRequestDto,
     ): List<PhotoUploadUrlDto> = TODO("사용하지 않음")
+
+    override suspend fun getActivities(
+        mapId: Long,
+        page: Int?,
+        size: Int?,
+    ): PageResponse<PlaceActivityDto> = TODO("사용하지 않음")
 }
 
 class PlaceImportRepositoryImplTest {

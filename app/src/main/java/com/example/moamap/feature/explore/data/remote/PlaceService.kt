@@ -28,6 +28,21 @@ interface PlaceService {
         @Body request: PlaceBulkCreateRequestDto,
     ): PlaceBulkCreateResponseDto
 
+    /**
+     * 지도 활동 내역. 장소 추가·삭제와 후기 작성 이력이다.
+     *
+     * `sort` 를 받지 않는다. 서버가 발생 시각 내림차순으로 고정하고 보낸 값은 무시한다.
+     * `size` 는 서버가 100 으로 자른다.
+     *
+     * 공식 지도는 제공하지 않고, 프라이빗 지도는 멤버만 볼 수 있다.
+     */
+    @GET("api/v1/places/activities")
+    suspend fun getActivities(
+        @Query("mapId") mapId: Long,
+        @Query("page") page: Int? = null,
+        @Query("size") size: Int? = null,
+    ): PageResponse<PlaceActivityDto>
+
     @GET("api/v1/places/pending")
     suspend fun getPendingPlaces(
         @Query("page") page: Int? = null,

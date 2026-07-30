@@ -154,6 +154,29 @@ data class PlaceDto(
     val photoUrls: List<String> = emptyList(),
 )
 
+/**
+ * GET api/v1/places/activities 응답 항목.
+ *
+ * 서버가 로그 테이블을 따로 두지 않고 `places`·`place_reviews` 의 시각 컬럼에서 이벤트를
+ * 역산해 준다. 그래서 **로그 한 건을 가리키는 식별자가 없다** - 목록 키는 화면이 만든다.
+ *
+ * 후기 작성([type] 이 `REVIEW_CREATED`)은 프라이빗 지도에만 내려온다.
+ */
+@Serializable
+data class PlaceActivityDto(
+    // PLACE_ADDED, PLACE_DELETED, REVIEW_CREATED
+    val type: String? = null,
+    val occurredAt: String? = null,
+    val actorId: Long? = null,
+    val actorNickname: String? = null,
+    val actorProfileImageUrl: String? = null,
+    val placeId: Long? = null,
+    val placeName: String? = null,
+    val reviewId: Long? = null,
+    /** 후기 작성 로그의 별점. 다른 종류에는 없다. */
+    val rating: Int? = null,
+)
+
 /** POST api/v1/places/instagram-extractions 응답 항목 (장소 후보) */
 @Serializable
 data class PlaceCandidateDto(
