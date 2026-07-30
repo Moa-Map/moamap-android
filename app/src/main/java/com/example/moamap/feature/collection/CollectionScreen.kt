@@ -54,8 +54,10 @@ import com.example.moamap.feature.collection.presentation.CollectionViewModel
 import com.example.moamap.feature.collection.presentation.JoinMapDialog
 import com.example.moamap.feature.collection.presentation.JoinState
 import com.example.moamap.feature.collection.presentation.MyMapsState
+import com.example.moamap.feature.collection.presentation.splitPersonal
+import com.example.moamap.core.common.format.formatMemberCount
+import com.example.moamap.core.common.format.formatPlaceCount
 import com.example.moamap.feature.explore.presentation.MapThumbnail
-import com.example.moamap.feature.explore.presentation.formatMemberCount
 
 /** 카드 썸네일과 같은 높이를 유지해 제목/메타가 위아래로 벌어지도록 한다. */
 private val CardThumbnailSize = 64.dp
@@ -85,11 +87,7 @@ internal data class CollectionMapUiModel(
     val title: String,
     /** 커버 이미지 주소. null 이면 [MapThumbnail] 이 기본 이미지를 그린다. */
     val imageUrl: String? = null,
-    /**
-     * 등록 장소 수.
-     *
-     * 서버 목록 응답에 해당 필드가 없어 지금은 채우지 않는다. null 이면 표시하지 않는다.
-     */
+    /** 등록 장소 수. null 이면 그 자리를 그리지 않는다. */
     val placeCount: String? = null,
     val verified: Boolean = false,
     /** null 이면 인원 수를 노출하지 않는다. */
@@ -100,18 +98,17 @@ private fun MyMap.toCommunityUiModel() = CollectionMapUiModel(
     id = id,
     title = title,
     imageUrl = imageUrl,
+    placeCount = formatPlaceCount(placeCount),
     verified = official,
     memberCount = formatMemberCount(memberCount),
 )
 
-/**
- * 프라이빗 카드는 원래 장소 수만 보여주는 자리다. 서버가 장소 수를 주지 않는 동안에는
- * 인원 수로 대신 채우지 않고 그 자리를 비워 둔다.
- */
+/** 프라이빗 카드는 장소 수만 보여주는 자리다. 인원 수는 시안에 없다. */
 internal fun MyMap.toPrivateUiModel() = CollectionMapUiModel(
     id = id,
     title = title,
     imageUrl = imageUrl,
+    placeCount = formatPlaceCount(placeCount),
     verified = official,
 )
 
@@ -391,11 +388,10 @@ private fun PrivateTabContent(
             emptyMessage = "아직 만든 지도가 없어요",
             onRetryClick = onRetryClick,
         ) { maps ->
+            val sections = maps.splitPersonal()
             Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                // 로그인하면 기본으로 있는 개인 지도. 서버 목록 응답에 이를 가려낼 수단이
-                // 없어 지금은 늘 비어 있다. type=PERSONAL 이 생기면 그 목록을 넣는다.
-                PrivateMapSection(title = "나만의 지도", maps = emptyList(), onMapClick = onMapClick)
-                PrivateMapSection(title = "전체", maps = maps, onMapClick = onMapClick)
+                PrivateMapSection("나만의 지도", sections.personal, onMapClick)
+                PrivateMapSection("전체", sections.others, onMapClick)
             }
         }
     }
@@ -568,6 +564,9 @@ private fun PrivateMapSection(
     maps: List<MyMap>,
     onMapClick: (MyMap) -> Unit,
 ) {
+    // 제목만 떠 있고 아래가 비어 있으면 못 불러온 것처럼 보인다.
+    if (maps.isEmpty()) return
+
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
             text = title,
@@ -720,8 +719,8 @@ private fun CollectionScreenPreview() {
             uiState = CollectionUiState(
                 community = MyMapsState.Success(
                     listOf(
-                        MyMap(1L, "서울 팝업스토어 맵", null, 2312, official = false),
-                        MyMap(2L, "성수 카페 투어", null, 24, official = false),
+                        MyMap(1L, "서울 팝업스토어 맵", null, 2312, 116, official = false, personal = false),
+                        MyMap(2L, "성수 카페 투어", null, 24, 0, official = false, personal = false),
                     ),
                 ),
             ),

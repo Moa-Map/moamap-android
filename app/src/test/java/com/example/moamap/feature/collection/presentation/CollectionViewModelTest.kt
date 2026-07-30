@@ -56,7 +56,9 @@ class CollectionViewModelTest {
         title = "지도$id",
         imageUrl = null,
         memberCount = 1,
+        placeCount = 0,
         official = false,
+        personal = false,
     )
 
     /**

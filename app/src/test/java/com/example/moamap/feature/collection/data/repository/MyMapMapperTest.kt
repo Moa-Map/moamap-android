@@ -1,6 +1,7 @@
 package com.example.moamap.feature.collection.data.repository
 
 import com.example.moamap.feature.collection.data.remote.MapSummaryDto
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -9,18 +10,28 @@ import org.junit.Test
 
 class MyMapMapperTest {
 
+    /** `NetworkModule.provideJson()` 과 같은 설정. 응답을 읽는 경로를 그대로 재현한다. */
+    private val json = Json {
+        ignoreUnknownKeys = true
+        coerceInputValues = true
+    }
+
     private fun dto(
         id: Long = 1L,
         name: String? = "성수 카페 투어",
         imageUrl: String? = "https://cdn.example.com/map.jpg",
         type: String? = "COMMUNITY",
         memberCount: Int = 12,
+        placeCount: Int = 5,
+        personal: Boolean = false,
     ) = MapSummaryDto(
         id = id,
         name = name,
         imageUrl = imageUrl,
         type = type,
         memberCount = memberCount,
+        placeCount = placeCount,
+        personal = personal,
     )
 
     @Test
@@ -52,11 +63,38 @@ class MyMapMapperTest {
     }
 
     @Test
+    fun `개인 지도 여부를 그대로 옮긴다`() {
+        assertTrue(dto(personal = true).toMyMap().personal)
+        assertFalse(dto(personal = false).toMyMap().personal)
+    }
+
+    /**
+     * 서버가 필드를 빼고 주면 0·false 로 본다. 카드가 빈 줄로 보이지 않게 한다.
+     *
+     * 생성자 기본값이 아니라 **응답을 읽는 경로**를 확인해야 의미가 있어 JSON 으로 넣는다.
+     */
+    @Test
+    fun `장소 수와 개인 지도 여부가 응답에 없으면 기본값으로 본다`() {
+        val myMap = json
+            .decodeFromString<MapSummaryDto>("""{"id":1,"name":"성수 카페 투어"}""")
+            .toMyMap()
+
+        assertEquals(0, myMap.placeCount)
+        assertFalse(myMap.personal)
+    }
+
+    @Test
     fun `나머지 값은 그대로 옮긴다`() {
-        val myMap = dto(id = 7L, name = "성수 카페 투어", memberCount = 2312).toMyMap()
+        val myMap = dto(
+            id = 7L,
+            name = "성수 카페 투어",
+            memberCount = 2312,
+            placeCount = 116,
+        ).toMyMap()
 
         assertEquals(7L, myMap.id)
         assertEquals("성수 카페 투어", myMap.title)
         assertEquals(2312, myMap.memberCount)
+        assertEquals(116, myMap.placeCount)
     }
 }

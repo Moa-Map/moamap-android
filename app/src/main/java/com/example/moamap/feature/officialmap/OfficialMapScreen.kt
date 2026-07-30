@@ -34,11 +34,11 @@ import com.example.moamap.core.designsystem.component.MapCard
 import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
-import com.example.moamap.feature.explore.presentation.formatMemberCount
+import com.example.moamap.core.common.format.formatMemberCount
+import com.example.moamap.core.common.format.formatPlaceCount
 import com.example.moamap.feature.officialmap.domain.model.OfficialMap
 import com.example.moamap.feature.officialmap.presentation.OfficialMapViewModel
 import com.example.moamap.feature.officialmap.presentation.OfficialMapsState
-import com.example.moamap.feature.officialmap.presentation.formatPlaceCount
 
 @Composable
 fun OfficialMapScreen(

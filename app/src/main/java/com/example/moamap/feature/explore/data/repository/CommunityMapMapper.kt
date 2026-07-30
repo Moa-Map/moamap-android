@@ -12,5 +12,6 @@ fun CommunityMapDto.toDomain(): CommunityMap = CommunityMap(
     imageUrl = imageUrl?.takeIf { it.isNotBlank() },
     hashtags = tags.filter { it.isNotBlank() },
     memberCount = memberCount,
+    placeCount = placeCount,
     joined = joined,
 )
