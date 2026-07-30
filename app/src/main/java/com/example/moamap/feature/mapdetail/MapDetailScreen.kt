@@ -45,6 +45,7 @@ import com.example.moamap.feature.mapdetail.presentation.addplace.AddPlaceSheet
 import com.example.moamap.feature.mapdetail.presentation.addplace.AddPlaceViewModel
 import com.example.moamap.feature.mapdetail.presentation.MapLoadState
 import com.example.moamap.feature.mapdetail.presentation.mapOrNull
+import com.example.moamap.feature.mapdetail.presentation.review.PlaceReviewViewModel
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
@@ -94,8 +95,10 @@ fun MapDetailScreen(
     initialTitle: String = "",
     viewModel: MapDetailViewModel = hiltViewModel(),
     addPlaceViewModel: AddPlaceViewModel = hiltViewModel(),
+    reviewViewModel: PlaceReviewViewModel = hiltViewModel(),
 ) {
     val screenState by viewModel.uiState.collectAsStateWithLifecycle()
+    val reviewState by reviewViewModel.uiState.collectAsStateWithLifecycle()
 
     // 나가기가 끝나면 왔던 곳(탐색 또는 모음)으로 돌아간다.
     LaunchedEffect(screenState.left) {
@@ -144,6 +147,35 @@ fun MapDetailScreen(
         place.id == uiState.selectedPlaceId
     }
     val closePlaceDetail = { uiState = uiState.closePlaceDetail() }
+
+    // 시트를 연 장소의 후기를 읽는다. 닫으면 비워, 다음에 열 때 서버에서 다시 읽는다.
+    LaunchedEffect(uiState.selectedPlaceId) {
+        val placeId = uiState.selectedPlaceId
+        if (placeId == null) reviewViewModel.close() else reviewViewModel.open(placeId)
+    }
+
+    // 후기가 하나 늘면 장소의 평점·후기 수도 달라진다. 시트 뒤의 목록이 옛 값을 들고 있으면 안 된다.
+    LaunchedEffect(reviewState.submittedCount) {
+        if (reviewState.submittedCount > 0) viewModel.refresh()
+    }
+
+    // 시트가 읽는 후기 상태. 조회는 시트가 그려진 뒤에 시작하므로, 상태가 어느 장소의
+    // 것인지 확인하지 않으면 직전 장소의 후기가 한 프레임 스쳐 간다.
+    val reviews = remember(reviewState, uiState.selectedPlaceId) {
+        if (reviewState.placeId != uiState.selectedPlaceId) {
+            PlaceReviewsUiModel(loading = true)
+        } else {
+            val now = System.currentTimeMillis()
+            PlaceReviewsUiModel(
+                loading = reviewState.loading,
+                items = reviewState.reviews.map { review -> review.toPlaceReviewUiModel(now) },
+                loadErrorMessage = reviewState.loadErrorMessage,
+                submitting = reviewState.submitting,
+                submitErrorMessage = reviewState.submitErrorMessage,
+                submittedCount = reviewState.submittedCount,
+            )
+        }
+    }
 
     val markers = remember(screenState.places) {
         screenState.places.map { place -> place.toPlaceMarker() }
@@ -285,8 +317,15 @@ fun MapDetailScreen(
     selectedPlace?.let { place ->
         PlaceDetailSheet(
             place = place,
-            reviews = SamplePlaceReviews,
+            reviews = reviews,
             onDismiss = closePlaceDetail,
+            onRetryReviews = reviewViewModel::retry,
+            // 참여 중인 지도에만 후기를 남길 수 있다. 서버도 같은 기준으로 막는다.
+            onSubmitReview = if (screenState.canAddPlace) {
+                { rating, reviewText -> reviewViewModel.submit(rating, reviewText) }
+            } else {
+                null
+            },
         )
     }
 
