@@ -39,6 +39,17 @@ private val TitleSidePadding = 72.dp
 private val TitleSidePaddingWithInviteCode = 132.dp
 
 /**
+ * 우측 액션 글자 위아래로 넓히는 터치 영역.
+ *
+ * 글자 높이가 18dp 뿐이라 그대로 두면 누를 자리가 너무 얇다. `clickable` **뒤에** 두어야
+ * 여백이 클릭 영역 안으로 들어간다 - 앞에 두면 여백만큼 밀리고 누르는 자리는 그대로다.
+ *
+ * 가로는 건드리지 않는다. 폭을 48dp 로 고정하면 51dp 인 "초대코드" 가 말줄임으로 잘린다.
+ * 옆 버튼과는 12dp 를 띄워 두어 잘못 눌릴 일이 없다.
+ */
+private val ActionTouchPadding = 12.dp
+
+/**
  * 지도 상세 상단바.
  *
  * 우측은 아이콘이 아니라 텍스트다. 참여 여부와 역할에 따라 참여하기·나가기가 오가고,
@@ -140,7 +151,9 @@ internal fun MapDetailTopBar(
                     style = MoaMapTheme.typography.button2,
                     color = MoaMapPrimitiveColors.Blue600,
                     maxLines = 1,
-                    modifier = Modifier.clickable(onClick = onInviteCodeClick),
+                    modifier = Modifier
+                        .clickable(onClick = onInviteCodeClick)
+                        .padding(vertical = ActionTouchPadding),
                 )
             }
 
@@ -179,7 +192,9 @@ private fun MapDetailTopBarAction(
         style = MoaMapTheme.typography.button2,
         color = color,
         maxLines = 1,
-        modifier = modifier.clickable(enabled = clickable, onClick = onClick),
+        modifier = modifier
+            .clickable(enabled = clickable, onClick = onClick)
+            .padding(vertical = ActionTouchPadding),
     )
 }
 
