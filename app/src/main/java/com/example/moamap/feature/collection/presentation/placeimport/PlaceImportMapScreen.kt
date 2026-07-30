@@ -127,9 +127,9 @@ internal fun PlaceImportMapScreen(
 }
 
 private val PreviewMaps = listOf(
-    MyMap(id = 11L, title = "내 지도", imageUrl = null, memberCount = 1, official = false),
-    MyMap(id = 12L, title = "성수 카페 투어", imageUrl = null, memberCount = 1, official = false),
-    MyMap(id = 13L, title = "주말 데이트", imageUrl = null, memberCount = 1, official = false),
+    MyMap(11L, "내 지도", null, memberCount = 1, placeCount = 0, official = false, personal = true),
+    MyMap(12L, "성수 카페 투어", null, memberCount = 1, placeCount = 8, official = false, personal = false),
+    MyMap(13L, "주말 데이트", null, memberCount = 1, placeCount = 3, official = false, personal = false),
 )
 
 @Preview(showBackground = true, widthDp = 393, heightDp = 852)

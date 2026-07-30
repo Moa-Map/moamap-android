@@ -15,12 +15,16 @@ class MyMapMapperTest {
         imageUrl: String? = "https://cdn.example.com/map.jpg",
         type: String? = "COMMUNITY",
         memberCount: Int = 12,
+        placeCount: Int = 5,
+        personal: Boolean = false,
     ) = MapSummaryDto(
         id = id,
         name = name,
         imageUrl = imageUrl,
         type = type,
         memberCount = memberCount,
+        placeCount = placeCount,
+        personal = personal,
     )
 
     @Test
@@ -52,11 +56,32 @@ class MyMapMapperTest {
     }
 
     @Test
+    fun `개인 지도 여부를 그대로 옮긴다`() {
+        assertTrue(dto(personal = true).toMyMap().personal)
+        assertFalse(dto(personal = false).toMyMap().personal)
+    }
+
+    /** 서버가 필드를 빼고 주면 0·false 로 본다. 카드가 빈 줄로 보이지 않게 한다. */
+    @Test
+    fun `장소 수와 개인 지도 여부가 없으면 기본값으로 본다`() {
+        val myMap = MapSummaryDto(id = 1L, name = "성수 카페 투어").toMyMap()
+
+        assertEquals(0, myMap.placeCount)
+        assertFalse(myMap.personal)
+    }
+
+    @Test
     fun `나머지 값은 그대로 옮긴다`() {
-        val myMap = dto(id = 7L, name = "성수 카페 투어", memberCount = 2312).toMyMap()
+        val myMap = dto(
+            id = 7L,
+            name = "성수 카페 투어",
+            memberCount = 2312,
+            placeCount = 116,
+        ).toMyMap()
 
         assertEquals(7L, myMap.id)
         assertEquals("성수 카페 투어", myMap.title)
         assertEquals(2312, myMap.memberCount)
+        assertEquals(116, myMap.placeCount)
     }
 }

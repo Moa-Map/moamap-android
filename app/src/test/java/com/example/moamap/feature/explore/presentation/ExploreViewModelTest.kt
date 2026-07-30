@@ -37,6 +37,7 @@ class ExploreViewModelTest {
         imageUrl = null,
         hashtags = emptyList(),
         memberCount = 0,
+        placeCount = 0,
         joined = false,
     )
 

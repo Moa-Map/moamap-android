@@ -44,8 +44,8 @@ private val Places = listOf(
 )
 
 private val MyMaps = listOf(
-    MyMap(id = 11L, title = "성수 카페 투어", imageUrl = null, memberCount = 1, official = false),
-    MyMap(id = 12L, title = "주말 데이트", imageUrl = null, memberCount = 3, official = false),
+    MyMap(11L, "성수 카페 투어", null, memberCount = 1, placeCount = 8, official = false, personal = false),
+    MyMap(12L, "주말 데이트", null, memberCount = 3, placeCount = 0, official = false, personal = false),
 )
 
 private class FakeMapRepository : MapRepository {

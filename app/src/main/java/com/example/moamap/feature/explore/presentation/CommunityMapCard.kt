@@ -1,5 +1,6 @@
 package com.example.moamap.feature.explore.presentation
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +18,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.example.moamap.R
+import com.example.moamap.core.common.format.formatMemberCount
+import com.example.moamap.core.common.format.formatPlaceCount
 import com.example.moamap.core.designsystem.component.ListCardShadowBlurRadius
 import com.example.moamap.core.designsystem.component.ListCardShadowColor
 import com.example.moamap.core.designsystem.component.ShadowedSurface
@@ -24,6 +27,11 @@ import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.feature.explore.domain.model.CommunityMap
 
 private const val MAX_VISIBLE_HASHTAGS = 3
+
+/** 메타 줄 규격. 시안의 "지도" 컴포넌트 값과 같다. */
+private val MetaItemGap = 8.dp
+private val MetaIconGap = 2.dp
+private val MetaIconSize = 14.dp
 
 /**
  * 탐색 탭의 커뮤니티 지도 목록 카드.
@@ -70,26 +78,46 @@ fun CommunityMapCard(
                         maxVisible = MAX_VISIBLE_HASHTAGS,
                     )
                 }
-                MemberCountMeta(memberCount = map.memberCount)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(MetaItemGap),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CommunityMapMeta(
+                        iconRes = R.drawable.ic_person,
+                        text = formatMemberCount(map.memberCount),
+                        contentDescription = "참여 인원",
+                    )
+                    // 장소가 없어도 "0곳" 을 그린다. 줄을 숨기면 인원만 있는 카드와
+                    // 섞여 어느 쪽이 0인지 알 수 없다.
+                    CommunityMapMeta(
+                        iconRes = R.drawable.ic_location,
+                        text = formatPlaceCount(map.placeCount),
+                        contentDescription = "등록 장소",
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun MemberCountMeta(memberCount: Int) {
+private fun CommunityMapMeta(
+    @DrawableRes iconRes: Int,
+    text: String,
+    contentDescription: String,
+) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(MetaIconGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            painter = painterResource(R.drawable.ic_person),
-            contentDescription = "참여 인원",
+            painter = painterResource(iconRes),
+            contentDescription = contentDescription,
             tint = MoaMapTheme.colors.textAssistive,
-            modifier = Modifier.size(14.dp),
+            modifier = Modifier.size(MetaIconSize),
         )
         Text(
-            text = formatMemberCount(memberCount),
+            text = text,
             style = MoaMapTheme.typography.caption0,
             color = MoaMapTheme.colors.textAssistive,
             maxLines = 1,
@@ -108,6 +136,7 @@ private fun CommunityMapCardPreview() {
                 imageUrl = null,
                 hashtags = listOf("맛집", "데이트코스", "데이트", "카페"),
                 memberCount = 2312,
+                placeCount = 116,
                 joined = false,
             ),
             onClick = {},

@@ -67,6 +67,8 @@ data class MapSummaryDto(
     val memberCount: Int = 0,
     val placeCount: Int = 0,
     val joined: Boolean = false,
+    /** 로그인할 때 기본으로 생기는 개인 지도. 프라이빗 탭에서 따로 묶는다. */
+    val personal: Boolean = false,
 )
 
 /** 지도 상세/생성/수정/합류 응답 */

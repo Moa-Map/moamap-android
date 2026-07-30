@@ -15,6 +15,7 @@ class CommunityMapMapperTest {
             imageUrl = "https://cdn.example.com/map.png",
             tags = listOf("맛집", "데이트코스"),
             memberCount = 2312,
+            placeCount = 116,
             joined = true,
         ).toDomain()
 
@@ -23,7 +24,14 @@ class CommunityMapMapperTest {
         assertEquals("https://cdn.example.com/map.png", map.imageUrl)
         assertEquals(listOf("맛집", "데이트코스"), map.hashtags)
         assertEquals(2312, map.memberCount)
+        assertEquals(116, map.placeCount)
         assertEquals(true, map.joined)
+    }
+
+    /** 서버가 필드를 빼고 주면 0 으로 본다. 카드는 그때도 "0곳" 을 그린다. */
+    @Test
+    fun `장소 수가 없으면 0으로 본다`() {
+        assertEquals(0, CommunityMapDto(name = "서울 팝업스토어 맵").toDomain().placeCount)
     }
 
     @Test

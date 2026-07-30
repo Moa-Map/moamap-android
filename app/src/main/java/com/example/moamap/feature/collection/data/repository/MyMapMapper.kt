@@ -13,5 +13,7 @@ fun MapSummaryDto.toMyMap(): MyMap = MyMap(
     title = name?.takeIf { it.isNotBlank() } ?: UNTITLED_MAP,
     imageUrl = imageUrl?.takeIf { it.isNotBlank() },
     memberCount = memberCount,
+    placeCount = placeCount,
     official = type == OFFICIAL_TYPE,
+    personal = personal,
 )

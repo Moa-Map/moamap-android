@@ -74,6 +74,8 @@ private val sampleRecommendedMaps = List(3) { index ->
         imageUrl = null,
         hashtags = listOf("맛집", "데이트코스", "데이트"),
         memberCount = 2312,
+        // 추천 카드는 메타 줄을 그리지 않아 이 값이 화면에 나오지 않는다.
+        placeCount = 0,
         joined = false,
     )
 }
@@ -521,6 +523,7 @@ private fun ExploreScreenPreview() {
                             imageUrl = null,
                             hashtags = listOf("맛집", "데이트코스", "데이트"),
                             memberCount = 2312,
+                            placeCount = 116,
                             joined = false,
                         )
                     }

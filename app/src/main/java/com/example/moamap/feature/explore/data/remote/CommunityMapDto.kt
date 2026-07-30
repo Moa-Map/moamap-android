@@ -16,5 +16,6 @@ data class CommunityMapDto(
     val imageUrl: String? = null,
     val tags: List<String> = emptyList(),
     val memberCount: Int = 0,
+    val placeCount: Int = 0,
     val joined: Boolean = false,
 )

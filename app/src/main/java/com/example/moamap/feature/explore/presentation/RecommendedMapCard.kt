@@ -80,6 +80,7 @@ private fun RecommendedMapCardPreview() {
                 imageUrl = null,
                 hashtags = listOf("맛집", "데이트코스", "데이트"),
                 memberCount = 2312,
+                placeCount = 116,
                 joined = false,
             ),
             onClick = {},

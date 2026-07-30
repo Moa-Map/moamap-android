@@ -1,4 +1,4 @@
-package com.example.moamap.feature.explore.presentation
+package com.example.moamap.core.common.format
 
 import org.junit.Assert.assertEquals
 import org.junit.Test
