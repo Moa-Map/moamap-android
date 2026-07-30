@@ -19,6 +19,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,28 +32,27 @@ import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 
 private val ActionMenuWidth = 172.dp
-private val ActionMenuHeight = 100.dp
 private val ActionMenuRowHeight = 50.dp
 
-/** 두 줄짜리 팝업 메뉴. 프로필 메뉴와 사진 소스 선택이 같은 모양을 쓴다. */
+/** [ActionMenu] 한 줄. */
+@Immutable
+internal data class ActionMenuItem(
+    @DrawableRes val iconRes: Int,
+    val label: String,
+    val onClick: () -> Unit,
+)
+
+/** 줄 사이에 구분선을 넣는 팝업 메뉴. 프로필 메뉴와 사진 소스 선택이 같은 모양을 쓴다. */
 @Composable
 internal fun ActionMenu(
-    @DrawableRes firstIconRes: Int,
-    firstLabel: String,
-    onFirstClick: () -> Unit,
-    @DrawableRes secondIconRes: Int,
-    secondLabel: String,
-    onSecondClick: () -> Unit,
+    items: List<ActionMenuItem>,
     cornerRadius: Dp,
     modifier: Modifier = Modifier,
 ) {
     val shape = RoundedCornerShape(cornerRadius)
 
-    Box(
-        modifier = modifier
-            .width(ActionMenuWidth)
-            .height(ActionMenuHeight),
-    ) {
+    // 높이는 줄 수에 따라 늘어나므로 고정하지 않고 Column 이 정하게 둔다.
+    Box(modifier = modifier.width(ActionMenuWidth)) {
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -65,7 +65,7 @@ internal fun ActionMenu(
 
         Column(
             modifier = Modifier
-                .matchParentSize()
+                .fillMaxWidth()
                 .clip(shape)
                 .background(MoaMapTheme.colors.backgroundSecondary)
                 .border(
@@ -75,25 +75,20 @@ internal fun ActionMenu(
                 )
                 .padding(horizontal = 4.dp),
         ) {
-            ActionMenuRow(
-                iconRes = firstIconRes,
-                label = firstLabel,
-                onClick = onFirstClick,
-            )
-            ActionMenuRow(
-                iconRes = secondIconRes,
-                label = secondLabel,
-                onClick = onSecondClick,
-            )
+            items.forEachIndexed { index, item ->
+                if (index > 0) {
+                    HorizontalDivider(
+                        thickness = 1.dp,
+                        color = MoaMapTheme.colors.lineNormal,
+                    )
+                }
+                ActionMenuRow(
+                    iconRes = item.iconRes,
+                    label = item.label,
+                    onClick = item.onClick,
+                )
+            }
         }
-
-        HorizontalDivider(
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(horizontal = 4.dp),
-            thickness = 1.dp,
-            color = MoaMapTheme.colors.lineNormal,
-        )
     }
 }
 
@@ -141,12 +136,10 @@ internal fun ImageSourceMenu(
     modifier: Modifier = Modifier,
 ) {
     ActionMenu(
-        firstIconRes = R.drawable.ic_photo_camera,
-        firstLabel = "카메라",
-        onFirstClick = onCameraClick,
-        secondIconRes = R.drawable.ic_gallery,
-        secondLabel = "갤러리",
-        onSecondClick = onGalleryClick,
+        items = listOf(
+            ActionMenuItem(R.drawable.ic_photo_camera, "카메라", onCameraClick),
+            ActionMenuItem(R.drawable.ic_gallery, "갤러리", onGalleryClick),
+        ),
         cornerRadius = 12.dp,
         modifier = modifier,
     )
