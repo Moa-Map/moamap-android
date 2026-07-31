@@ -49,6 +49,14 @@ internal object MoaMapPrimitiveColors {
     val StatusCaution = Color(0xFFFC912F)
     val StatusPositive = Color(0xFF1E9E6A)
     val LineNormal = Color(0xFFD5DBDB)
+
+    // 혼잡도 램프. 지도 폴리곤 위에서 4단계가 균일한 무게로 읽히도록 명도를
+    // 38~50% 대에 모아둔 별도 세트다. Status* 토큰과 목적이 달라 공유하지 않는다.
+    // 여유는 베이스맵 녹지(hue 90~130)와 갈라지도록 청록 대역에 둔다.
+    val CongestionRelaxed = Color(0xFF10B39A)
+    val CongestionNormal = Color(0xFFE0A21A)
+    val CongestionSlightlyBusy = Color(0xFFEA6A17)
+    val CongestionBusy = Color(0xFFD01620)
 }
 
 @Immutable
