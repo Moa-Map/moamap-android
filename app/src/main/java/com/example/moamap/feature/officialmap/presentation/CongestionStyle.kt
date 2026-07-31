@@ -6,10 +6,10 @@ import com.example.moamap.feature.officialmap.domain.model.CongestionLevel
 
 internal val CongestionLevel.color: Color
     get() = when (this) {
-        CongestionLevel.RELAXED -> Color(0xFF95E5AB)
-        CongestionLevel.NORMAL -> Color(0xFFF8CE34)
-        CongestionLevel.SLIGHTLY_BUSY -> MoaMapPrimitiveColors.StatusCaution
-        CongestionLevel.BUSY -> MoaMapPrimitiveColors.StatusAlert
+        CongestionLevel.RELAXED -> MoaMapPrimitiveColors.CongestionRelaxed
+        CongestionLevel.NORMAL -> MoaMapPrimitiveColors.CongestionNormal
+        CongestionLevel.SLIGHTLY_BUSY -> MoaMapPrimitiveColors.CongestionSlightlyBusy
+        CongestionLevel.BUSY -> MoaMapPrimitiveColors.CongestionBusy
         CongestionLevel.UNKNOWN -> MoaMapPrimitiveColors.Gray200
     }
 
@@ -43,8 +43,12 @@ internal val CongestionLevel.tagColors: CongestionTagColors
         )
     }
 
+/** RGB → HSL의 명도(0..1) 성분. */
+internal fun Color.lightness(): Float =
+    (maxOf(red, green, blue) + minOf(red, green, blue)) / 2f
+
 /** RGB → HSL의 색상(0..360) 성분. 무채색이면 0을 돌려준다. */
-private fun Color.hue(): Float {
+internal fun Color.hue(): Float {
     val max = maxOf(red, green, blue)
     val min = minOf(red, green, blue)
     val delta = max - min
