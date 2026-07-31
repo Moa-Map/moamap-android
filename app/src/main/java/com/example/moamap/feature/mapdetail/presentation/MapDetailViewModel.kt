@@ -58,8 +58,16 @@ data class MapDetailScreenState(
     /** 상단바 초대코드 버튼에 실을 코드. null 이면 버튼을 띄우지 않는다. */
     val inviteCode: String? get() = map.mapOrNull?.shareableInviteCode
 
-    /** 참여 중인 지도에만 장소를 더할 수 있다. */
-    val canAddPlace: Boolean get() = map.mapOrNull?.joined == true
+    /**
+     * 참여 중인 지도에만 장소를 더할 수 있다.
+     *
+     * 공식지도는 참여했더라도 뺀다. 공공데이터를 그대로 옮겨 온 지도라 사용자가 넣은 장소가
+     * 섞이면 무엇이 출처인지 알 수 없게 된다.
+     */
+    val canAddPlace: Boolean
+        get() = map.mapOrNull?.let { detail ->
+            detail.joined && detail.type != MapType.Official
+        } ?: false
 
     val placeCount: Int? get() = map.mapOrNull?.placeCount
 

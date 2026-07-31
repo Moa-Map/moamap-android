@@ -90,4 +90,50 @@ class MapDetailViewportTest {
 
         assertEquals(listOf(3L, 1L), cullToViewport(markers, bounds).map { it.placeId })
     }
+
+    // ---------- 중심 양자화 ----------
+
+    @Test
+    fun `아무리 확대해도 화면 한복판 마커는 살아남는다`() {
+        // 중심 간격을 도 단위로 고정했을 때 zoom 19 부터 통째로 사라졌다. 확대한 만큼
+        // 어긋남이 화면에서 커지는데 마진은 그대로였기 때문이다.
+        val longitude = 127.02345678
+        val latitude = 37.51234567
+        val widthDp = 393.0
+        val heightDp = 750.0
+
+        for (zoom in listOf(10.0, 14.0, 16.0, 18.0, 19.0, 20.0, 21.0, 22.0)) {
+            val bounds = viewportBounds(
+                centerLongitude = quantizeCenter(longitude, zoom),
+                centerLatitude = quantizeCenter(latitude, zoom),
+                zoom = zoom,
+                widthDp = widthDp,
+                heightDp = heightDp,
+            )
+
+            val kept = cullToViewport(listOf(marker(1L, longitude, latitude)), bounds)
+
+            assertEquals("zoom=$zoom 에서 한복판 마커가 잘렸다", 1, kept.size)
+        }
+    }
+
+    @Test
+    fun `양자화 어긋남이 컬링 마진보다 작다`() {
+        // 이 관계가 깨지면 화면 가장자리 마커부터 잘려 나간다.
+        val widthDp = 393.0
+        val marginDp = widthDp / 2.0 * ViewportCullMargin
+
+        for (zoom in listOf(10.0, 14.0, 16.0, 18.0, 20.0, 22.0)) {
+            val longitude = 127.02345678
+            val offDp = kotlin.math.abs(
+                worldPixelX(longitude, zoom) - worldPixelX(quantizeCenter(longitude, zoom), zoom),
+            )
+
+            // 위도는 메르카토르라 화면 거리로 1.26배까지 커진다. 그것까지 담아야 한다.
+            assertTrue(
+                "zoom=$zoom 어긋남=$offDp 마진=$marginDp",
+                offDp * 1.3 < marginDp,
+            )
+        }
+    }
 }

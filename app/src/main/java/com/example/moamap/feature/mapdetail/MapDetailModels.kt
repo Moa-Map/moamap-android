@@ -17,16 +17,31 @@ internal data class MapDetailUiState(
     val selectedPlaceId: Long? = null,
     /** 바텀시트 검색어. 받아 둔 목록을 이 자리에서 거른다. */
     val searchQuery: String = "",
+    /**
+     * 펼쳐 본 묶음 마커의 장소들. 비어 있으면 시트를 띄우지 않는다.
+     *
+     * 묶음을 푸는 수단이 줌뿐이면 좌표가 같은 장소는 영영 못 연다. 아무리 확대해도 화면
+     * 거리가 0이라 갈라지지 않기 때문이다 - 공공데이터 화장실처럼 한 자리에 남녀 칸이
+     * 따로 등록되는 경우가 그렇다. 그래서 묶음을 누르면 목록으로 펼친다.
+     */
+    val expandedClusterPlaceIds: List<Long> = emptyList(),
 )
 
 internal fun MapDetailUiState.selectTab(tab: MapDetailTab): MapDetailUiState =
     copy(selectedTab = tab)
 
+/** 장소 상세를 연다. 묶음 목록에서 고른 경우 그 목록은 닫는다. */
 internal fun MapDetailUiState.selectPlace(placeId: Long): MapDetailUiState =
-    copy(selectedPlaceId = placeId)
+    copy(selectedPlaceId = placeId, expandedClusterPlaceIds = emptyList())
 
 internal fun MapDetailUiState.closePlaceDetail(): MapDetailUiState =
     copy(selectedPlaceId = null)
+
+internal fun MapDetailUiState.expandCluster(placeIds: List<Long>): MapDetailUiState =
+    copy(expandedClusterPlaceIds = placeIds)
+
+internal fun MapDetailUiState.closeCluster(): MapDetailUiState =
+    copy(expandedClusterPlaceIds = emptyList())
 
 internal fun MapDetailUiState.search(query: String): MapDetailUiState =
     copy(searchQuery = query)

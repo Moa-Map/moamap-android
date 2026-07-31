@@ -60,6 +60,18 @@ class MapDetailViewModelTest {
     }
 
     @Test
+    fun `공식지도는 참여 중이어도 장소를 더할 수 없다`() = runTest {
+        // 공공데이터를 옮겨 온 지도라 사용자가 넣은 장소가 섞이면 출처를 가릴 수 없다.
+        val repository = FakeMapDetailRepository(
+            map = { testMap(type = MapType.Official, role = MapRole.Member, joined = true) },
+        )
+        val viewModel = viewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.canAddPlace)
+    }
+
+    @Test
     fun `조회에 실패하면 Error 가 되고 retry 로 복구한다`() = runTest {
         var fail = true
         val repository = FakeMapDetailRepository(

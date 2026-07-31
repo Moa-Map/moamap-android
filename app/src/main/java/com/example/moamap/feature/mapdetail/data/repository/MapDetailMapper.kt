@@ -14,11 +14,13 @@ private const val UNTITLED_PLACE = "이름 없는 장소"
 
 private const val PRIVATE_TYPE = "PRIVATE"
 
+private const val OFFICIAL_TYPE = "OFFICIAL"
+
 /**
  * 지도 상세 응답을 도메인으로 옮긴다.
  *
- * 서버 `type` 은 OFFICIAL 도 낼 수 있지만 공식 지도는 이 화면으로 들어오지 않는다.
- * PRIVATE 이 아닌 값은 모두 커뮤니티로 본다 - 화면의 판단 기준이 "프라이빗이냐" 뿐이라서다.
+ * 아는 값이 아니면 커뮤니티로 본다. 서버가 종류를 하나 더 늘려도 화면이 열리기는 해야 하고,
+ * 커뮤니티가 권한이 가장 좁은 쪽은 아니지만 참여하지 않은 상태로는 볼 수만 있어 안전하다.
  */
 fun MapDetailDto.toMapDetail(ownerName: String?): MapDetail = MapDetail(
     id = id,
@@ -26,7 +28,11 @@ fun MapDetailDto.toMapDetail(ownerName: String?): MapDetail = MapDetail(
     description = description?.takeIf { it.isNotBlank() },
     imageUrl = imageUrl?.takeIf { it.isNotBlank() },
     ownerName = ownerName?.takeIf { it.isNotBlank() },
-    type = if (type == PRIVATE_TYPE) MapType.Private else MapType.Community,
+    type = when (type) {
+        PRIVATE_TYPE -> MapType.Private
+        OFFICIAL_TYPE -> MapType.Official
+        else -> MapType.Community
+    },
     role = MapRole.from(myRole),
     tags = tags.filter { tag -> tag.isNotBlank() },
     memberCount = memberCount,

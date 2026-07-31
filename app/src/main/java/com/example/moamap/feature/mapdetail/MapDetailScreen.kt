@@ -85,12 +85,16 @@ private fun hasLocationPermission(context: Context): Boolean =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
     }
 
+/** 펼친 묶음의 placeId 를 한 칸에 담을 때 쓰는 구분자. */
+private const val ClusterIdSeparator = ","
+
 private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
     save = { state ->
         listOf(
             state.selectedTab.name,
             state.selectedPlaceId?.toString().orEmpty(),
             state.searchQuery,
+            state.expandedClusterPlaceIds.joinToString(ClusterIdSeparator),
         )
     },
     restore = { values ->
@@ -100,6 +104,10 @@ private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
             } ?: MapDetailTab.Places,
             selectedPlaceId = values.getOrNull(1)?.toLongOrNull(),
             searchQuery = values.getOrNull(2).orEmpty(),
+            expandedClusterPlaceIds = values.getOrNull(3)
+                ?.split(ClusterIdSeparator)
+                ?.mapNotNull { id -> id.toLongOrNull() }
+                .orEmpty(),
         )
     },
 )
@@ -190,6 +198,11 @@ fun MapDetailScreen(
     // 검색으로 목록에서 빠진 장소라도, 마커로 눌러 열어 둔 상세는 닫히면 안 된다.
     val selectedPlace = places.firstOrNull { place ->
         place.id == uiState.selectedPlaceId
+    }
+    // 묶음이 들고 있는 건 placeId 뿐이다. 목록 카드가 읽을 모양으로 되찾아 온다.
+    val expandedClusterPlaces = remember(places, uiState.expandedClusterPlaceIds) {
+        val byId = places.associateBy { place -> place.id }
+        uiState.expandedClusterPlaceIds.mapNotNull { placeId -> byId[placeId] }
     }
     val closePlaceDetail = { uiState = uiState.closePlaceDetail() }
 
@@ -332,17 +345,16 @@ fun MapDetailScreen(
     val onMarkerClick: (Long) -> Unit = remember {
         { placeId -> uiState = uiState.selectPlace(placeId) }
     }
-    val onClusterClick: (MarkerCluster) -> Unit = remember(mapViewportState) {
+    /**
+     * 묶음 마커를 누르면 목록으로 펼친다.
+     *
+     * 확대로 풀지 않는다. 좌표가 같은 장소는 어떤 줌에서도 갈라지지 않아 - 화면 거리가
+     * 0이라 임계값을 넘을 수가 없다 - 확대만으로는 열 방법이 영영 생기지 않는다. 공공데이터
+     * 화장실처럼 한 자리에 여러 칸이 따로 등록되는 지도에서 실제로 겪은 문제다.
+     */
+    val onClusterClick: (MarkerCluster) -> Unit = remember {
         { cluster ->
-            // 중심과 줌만 건드린다. 여기서 pitch 를 걸면 2D 로 보던 사람이 클러스터를
-            // 누를 때마다 지도가 기울어진다.
-            mapViewportState.easeTo(
-                cameraOptions {
-                    center(cluster.anchorPoint())
-                    zoom((mapViewportState.cameraState?.zoom ?: MapDetailDefaultZoom) + 1.5)
-                },
-                MapAnimationOptions.mapAnimationOptions { duration(600L) },
-            )
+            uiState = uiState.expandCluster(cluster.members.map { member -> member.placeId })
         }
     }
     var is3d by rememberSaveable { mutableStateOf(false) }
@@ -420,6 +432,15 @@ fun MapDetailScreen(
                 }
             },
             modifier = Modifier.align(Alignment.BottomCenter),
+        )
+    }
+
+    // 상세보다 먼저 그린다. 목록에서 하나를 고르면 목록은 닫히고 상세만 남는다.
+    if (expandedClusterPlaces.isNotEmpty()) {
+        ClusterPlacesSheet(
+            places = expandedClusterPlaces,
+            onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
+            onDismiss = { uiState = uiState.closeCluster() },
         )
     }
 

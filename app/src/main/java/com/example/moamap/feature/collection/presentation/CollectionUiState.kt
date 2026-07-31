@@ -40,13 +40,21 @@ data class CollectionUiState(
     val currentMaps: MyMapsState
         get() = stateOf(selectedTab)
 
+    /**
+     * 공식지도는 이 화면이 다루지 않는 종류다. 탭으로 고를 수 없어 [selectedTab] 이 될 일이
+     * 없고, 슬롯도 없다. 목록이 빈 것으로 답한다 - 모음에 걸리는 공식지도가 없다는 뜻이라
+     * 사실과 어긋나지 않고, 예외를 던져 화면을 죽이는 것보다 낫다.
+     */
     fun stateOf(type: MapType): MyMapsState = when (type) {
         MapType.Community -> community
         MapType.Private -> private
+        MapType.Official -> MyMapsState.Success(emptyList())
     }
 
+    /** 공식지도는 담아 둘 슬롯이 없다. 그대로 둔다 - [stateOf] 참고. */
     fun withState(type: MapType, state: MyMapsState): CollectionUiState = when (type) {
         MapType.Community -> copy(community = state)
         MapType.Private -> copy(private = state)
+        MapType.Official -> this
     }
 }

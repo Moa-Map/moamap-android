@@ -183,6 +183,18 @@ internal fun MoaMapNavHost(
                     onDensityMapClick = {
                         navController.navigate(MoaMapRoute.DensityMapDetail.route)
                     },
+                    // 커뮤니티 지도와 같은 규칙이다. 참여 중이면 소개를 건너뛰고 상세로 간다.
+                    onMapClick = { map ->
+                        val route = if (map.joined) {
+                            MoaMapRoute.MapDetail.createRoute(
+                                mapId = map.id,
+                                mapTitle = map.title,
+                            )
+                        } else {
+                            MoaMapRoute.MapIntro.createRoute(mapId = map.id)
+                        }
+                        navController.navigate(route)
+                    },
                 )
             }
             composable(MoaMapRoute.DensityMapDetail.route) {

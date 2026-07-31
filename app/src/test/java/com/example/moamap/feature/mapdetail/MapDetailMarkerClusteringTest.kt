@@ -46,12 +46,38 @@ class MapDetailMarkerClusteringTest {
     }
 
     @Test
-    fun `클러스터 중심은 구성원의 평균 좌표다`() {
+    fun `클러스터 앵커는 시드 좌표 그대로다`() {
         val cluster = clusterMarkers(PreviewPlaceMarkers, zoom = MergedZoom).first()
         val anchor = cluster.anchorPoint()
 
-        assertEquals(126.9574, anchor.longitude(), 1e-6)
-        assertEquals(37.4963, anchor.latitude(), 1e-6)
+        // 평균(126.9574, 37.4963)이 아니라 시드인 첫 구성원의 좌표다.
+        assertEquals(PreviewPlaceMarkers[0].longitude, anchor.longitude(), 1e-9)
+        assertEquals(PreviewPlaceMarkers[0].latitude, anchor.latitude(), 1e-9)
+    }
+
+    @Test
+    fun `앵커끼리는 임계값보다 가까워지지 않는다`() {
+        // 겹쳐서 아래 깔린 마커를 누를 수 없던 문제가 이 성질이 깨져 생겼다.
+        // A - B 는 임계값 아래라 묶이고, C 는 A 로부터 임계값 위라 따로 남는 배치다.
+        val zoom = 16.0
+        val baseLongitude = 127.0
+        fun longitudeOffsetBy(dp: Double) =
+            longitudeAtWorldPixelX(worldPixelX(baseLongitude, zoom) + dp, zoom)
+
+        val markers = listOf(
+            PlaceMarker(1L, "A", baseLongitude, 37.5, null),
+            PlaceMarker(2L, "B", longitudeOffsetBy(70.0), 37.5, null),
+            PlaceMarker(3L, "C", longitudeOffsetBy(80.0), 37.5, null),
+        )
+
+        val clusters = clusterMarkers(markers, zoom)
+        assertEquals(2, clusters.size)
+
+        val gap = kotlin.math.abs(
+            worldPixelX(clusters[0].anchorPoint().longitude(), zoom) -
+                worldPixelX(clusters[1].anchorPoint().longitude(), zoom),
+        )
+        assertTrue("앵커 간격=$gap", gap >= ClusterThresholdDp)
     }
 
     @Test

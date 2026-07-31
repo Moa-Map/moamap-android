@@ -30,9 +30,36 @@ class OfficialMapViewModel @Inject constructor(
 
     private var loadJob: Job? = null
 
+    /** 진행 중인 참여 요청의 지도. 같은 카드를 연달아 눌러도 요청은 한 번만 나간다. */
+    private var joinJob: Job? = null
+
     private companion object {
         const val TAG = "OfficialMapViewModel"
         const val LOAD_FAILED_MESSAGE = "공식지도를 불러오지 못했어요"
+    }
+
+    /**
+     * 카드의 참여 버튼.
+     *
+     * 성공하면 목록을 다시 읽어 버튼이 "참여중" 으로 바뀐다. 응답만 보고 화면 상태를 직접
+     * 고치지 않는 건, 참여로 멤버 수도 함께 늘어 어차피 목록이 낡기 때문이다.
+     *
+     * 실패는 로그만 남긴다. 이 화면에는 안내를 띄울 자리가 없고, 버튼이 "참여하기" 인 채로
+     * 남아 다시 누를 수 있다.
+     */
+    fun join(mapId: Long) {
+        if (joinJob?.isActive == true) return
+
+        joinJob = viewModelScope.launch {
+            try {
+                repository.joinMap(mapId)
+                load(keepCurrent = true)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "공식지도 참여 실패 (mapId=$mapId)", e)
+            }
+        }
     }
 
     /**

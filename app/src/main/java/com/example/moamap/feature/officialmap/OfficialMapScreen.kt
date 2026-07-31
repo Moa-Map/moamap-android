@@ -44,6 +44,7 @@ import com.example.moamap.feature.officialmap.presentation.OfficialMapsState
 fun OfficialMapScreen(
     onBackClick: () -> Unit = {},
     onDensityMapClick: () -> Unit = {},
+    onMapClick: (OfficialMap) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: OfficialMapViewModel = hiltViewModel(),
 ) {
@@ -60,6 +61,8 @@ fun OfficialMapScreen(
         onBackClick = onBackClick,
         onDensityMapClick = onDensityMapClick,
         onRetryClick = viewModel::retry,
+        onMapClick = onMapClick,
+        onJoinClick = { officialMap -> viewModel.join(officialMap.id) },
         modifier = modifier,
     )
 }
@@ -70,6 +73,8 @@ private fun OfficialMapContent(
     onBackClick: () -> Unit,
     onDensityMapClick: () -> Unit,
     onRetryClick: () -> Unit,
+    onMapClick: (OfficialMap) -> Unit = {},
+    onJoinClick: (OfficialMap) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -112,7 +117,6 @@ private fun OfficialMapContent(
                     }
                 } else {
                     state.maps.forEach { officialMap ->
-                        // 상세 화면이 아직 없다. 카드는 목록에 뜨되 눌러도 이동하지 않는다.
                         MapCard(
                             title = officialMap.title,
                             description = officialMap.description,
@@ -121,8 +125,8 @@ private fun OfficialMapContent(
                             joined = officialMap.joined,
                             verified = true,
                             descriptionStyle = MoaMapTheme.typography.caption0,
-                            onClick = {},
-                            onJoinClick = {},
+                            onClick = { onMapClick(officialMap) },
+                            onJoinClick = { onJoinClick(officialMap) },
                         )
                     }
                 }

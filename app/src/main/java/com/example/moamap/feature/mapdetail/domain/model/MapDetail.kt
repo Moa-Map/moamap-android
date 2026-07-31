@@ -42,10 +42,12 @@ data class MapDetail(
  * 지도명 아래 역할 배지.
  *
  * 프라이빗 지도는 역할이 없는 지도라 배지를 띄우지 않는다. 참여하지 않은 지도도 마찬가지다.
+ * 공식지도는 참여해도 역할이 뜻을 갖지 않는다 - 장소를 관리할 사람이 아니라 공공데이터를
+ * 받아 보는 사람이라 "멤버" 라고 붙여 봐야 알려 주는 게 없다.
  */
 val MapDetail.roleBadge: String?
     get() = when {
-        type == MapType.Private -> null
+        type == MapType.Private || type == MapType.Official -> null
         role == MapRole.Owner -> "방장"
         role == MapRole.Admin -> "관리자"
         role == MapRole.Member -> "멤버"
