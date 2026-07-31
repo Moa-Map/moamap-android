@@ -219,6 +219,43 @@ class OfficialMapViewModelTest {
     }
 
     @Test
+    fun `한 지도에 참여하는 중에도 다른 지도에 참여할 수 있다`() = runTest {
+        // 진행 상태를 하나만 들고 있으면 지도 A 를 누른 동안 지도 B 버튼까지 죽는다.
+        // 눌러도 아무 일이 없고 안내도 없어 원인을 찾기 어렵다.
+        val repository = FakeRepository { listOf(sampleMap(6L), sampleMap(7L)) }
+            .apply { joinDelayMillis = 100L }
+        val viewModel = OfficialMapViewModel(repository).apply { refresh() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.join(6L)
+        dispatcher.scheduler.runCurrent()
+        viewModel.join(7L)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf(6L, 7L), repository.joinedMapIds)
+    }
+
+    @Test
+    fun `참여에 실패한 지도도 다시 누를 수 있다`() = runTest {
+        // 진행 표시를 실패 때 지우지 않으면 그 지도는 영영 다시 참여할 수 없다.
+        val repository = FakeRepository { listOf(sampleMap(6L)) }
+            .apply { joinError = RuntimeException("boom") }
+
+        val viewModel = OfficialMapViewModel(repository).apply { refresh() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.join(6L)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertTrue(repository.joinedMapIds.isEmpty())
+
+        repository.joinError = null
+        viewModel.join(6L)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf(6L), repository.joinedMapIds)
+    }
+
+    @Test
     fun `참여에 실패해도 보던 목록을 지우지 않는다`() = runTest {
         val repository = FakeRepository { listOf(sampleMap(6L)) }
             .apply { joinError = RuntimeException("boom") }

@@ -30,8 +30,17 @@ class OfficialMapViewModel @Inject constructor(
 
     private var loadJob: Job? = null
 
-    /** 진행 중인 참여 요청의 지도. 같은 카드를 연달아 눌러도 요청은 한 번만 나간다. */
-    private var joinJob: Job? = null
+    /**
+     * 참여 요청이 나가 있는 지도.
+     *
+     * 요청 하나를 들고 있으면 안 된다. 그러면 지도 하나에 참여하는 동안 다른 지도의 참여
+     * 버튼까지 함께 죽는다 - 눌러도 아무 일이 없고 안내도 없어 원인을 찾기 어렵다. 막아야
+     * 하는 건 같은 카드를 연달아 누르는 것뿐이라 지도별로 센다.
+     *
+     * 잠그지 않는다. `viewModelScope` 는 `Dispatchers.Main.immediate` 라 여기 드나드는
+     * 일이 모두 메인 스레드에서 일어난다.
+     */
+    private val joiningMapIds = mutableSetOf<Long>()
 
     private companion object {
         const val TAG = "OfficialMapViewModel"
@@ -48,9 +57,10 @@ class OfficialMapViewModel @Inject constructor(
      * 남아 다시 누를 수 있다.
      */
     fun join(mapId: Long) {
-        if (joinJob?.isActive == true) return
+        // add 가 false 면 이 지도의 요청이 이미 나가 있다는 뜻이다.
+        if (!joiningMapIds.add(mapId)) return
 
-        joinJob = viewModelScope.launch {
+        viewModelScope.launch {
             try {
                 repository.joinMap(mapId)
                 load(keepCurrent = true)
@@ -58,6 +68,9 @@ class OfficialMapViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "공식지도 참여 실패 (mapId=$mapId)", e)
+            } finally {
+                // 실패해도 지운다. 남겨 두면 그 지도는 다시 참여할 수 없다.
+                joiningMapIds.remove(mapId)
             }
         }
     }

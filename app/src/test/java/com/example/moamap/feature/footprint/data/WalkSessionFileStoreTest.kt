@@ -3,6 +3,7 @@ package com.example.moamap.feature.footprint.data
 import com.example.moamap.core.walksession.WalkSample
 import com.example.moamap.core.walksession.WalkSessionPayload
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -157,5 +158,62 @@ class WalkSessionFileStoreTest {
 
         assertEquals(1, loaded.size)
         assertEquals("real-session", loaded.single().payload.clientSessionId)
+    }
+
+    // ---------- 삭제 ----------
+
+    @Test
+    fun `지운 세션은 목록에서 빠진다`() {
+        val store = WalkSessionFileStore(tempFolder.root)
+        store.save(payload("s1", 1_700_000_000_000), receivedAtEpochMillis = 1_700_000_700_000)
+        store.save(payload("s2", 1_700_000_100_000), receivedAtEpochMillis = 1_700_000_800_000)
+
+        val target = store.loadAll().first { it.payload.clientSessionId == "s1" }
+        assertTrue(store.delete(target.fileName))
+
+        assertEquals(listOf("s2"), store.loadAll().map { it.payload.clientSessionId })
+    }
+
+    @Test
+    fun `없는 파일을 지워도 지운 것으로 본다`() {
+        // 같은 카드를 두 번 눌러 삭제가 두 번 나가도 두 번째가 실패로 보이면 안 된다.
+        val store = WalkSessionFileStore(tempFolder.root)
+
+        assertTrue(store.delete("walk-session-1700000700000-s1.json"))
+    }
+
+    @Test
+    fun `저장소 바깥을 가리키는 이름은 지우지 않는다`() {
+        // 지우는 일은 되돌릴 수 없다. 호출부가 이름을 지켰겠거니 하고 넘기지 않는다.
+        val store = WalkSessionFileStore(tempFolder.root)
+        val outside = File(tempFolder.root.parentFile, "walk-session-1-outside.json")
+        outside.writeText("{}")
+
+        assertFalse(store.delete("../${outside.name}"))
+        assertTrue(outside.exists())
+
+        outside.delete()
+    }
+
+    @Test
+    fun `이름 규칙을 통과해도 저장소를 벗어나면 지우지 않는다`() {
+        // 파일명 패턴의 `.+` 는 슬래시도 먹는다. `walk-session-1-../evil.json` 은 규칙을
+        // 통과하면서 상위 폴더를 가리킨다. 패턴 검사만으로는 못 막는 자리다.
+        val store = WalkSessionFileStore(tempFolder.root)
+        val outside = File(tempFolder.root.parentFile, "evil.json").apply { writeText("{}") }
+
+        assertFalse(store.delete("walk-session-1-../${outside.name}"))
+        assertTrue(outside.exists())
+
+        outside.delete()
+    }
+
+    @Test
+    fun `세션 파일이 아닌 이름은 지우지 않는다`() {
+        val store = WalkSessionFileStore(tempFolder.root)
+        val other = File(tempFolder.root, "secrets.json").apply { writeText("{}") }
+
+        assertFalse(store.delete("secrets.json"))
+        assertTrue(other.exists())
     }
 }

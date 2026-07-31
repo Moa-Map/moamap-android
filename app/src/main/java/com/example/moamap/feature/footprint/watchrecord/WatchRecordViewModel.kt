@@ -12,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -40,6 +41,27 @@ class WatchRecordViewModel @Inject constructor(
         viewModelScope.launch {
             val sessions = withContext(Dispatchers.IO) { fileStore.loadAll() }
             _uiState.value = WatchRecordUiState.Success(sessions)
+        }
+    }
+
+    /**
+     * 기록 하나를 폰에서 지운다.
+     *
+     * 되돌릴 수 없다. 백엔드 업로드가 아직 없어 이 파일이 그 기록의 유일한 원본이다.
+     *
+     * 파일을 지운 뒤 목록을 다시 읽지 않고 화면에서 바로 덜어낸다. 다시 읽으면 목록이
+     * Loading 을 거쳐 통째로 깜빡이는데, 지운 카드 하나가 빠지는 것뿐이라 그럴 이유가 없다.
+     */
+    fun deleteSession(session: ReceivedWalkSession) {
+        viewModelScope.launch {
+            withContext(Dispatchers.IO) { fileStore.delete(session.fileName) }
+
+            _uiState.update { state ->
+                if (state !is WatchRecordUiState.Success) return@update state
+                state.copy(
+                    sessions = state.sessions.filterNot { it.fileName == session.fileName },
+                )
+            }
         }
     }
 

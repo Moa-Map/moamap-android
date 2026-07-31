@@ -253,18 +253,15 @@ internal fun MoaMapNavHost(
                 WatchRecordScreen(
                     onBackClick = navController::popBackStack,
                     // 임시. 추천 API 가 붙기 전까지 하드코딩한 목록으로 흐름만 확인한다.
-                    onRecommendSingleClick = {
+                    // 한 곳이냐 여러 곳이냐는 화면이 기록 시간을 보고 정해서 넘겨준다.
+                    onRecommendClick = { multiplePlaces ->
+                        val source = if (multiplePlaces) {
+                            PlaceImportSource.WalkRecordMulti
+                        } else {
+                            PlaceImportSource.WalkRecordSingle
+                        }
                         navController.navigate(
-                            MoaMapRoute.PlaceImport.createRoute(
-                                PlaceImportSource.WalkRecordSingle.name,
-                            ),
-                        )
-                    },
-                    onRecommendMultiClick = {
-                        navController.navigate(
-                            MoaMapRoute.PlaceImport.createRoute(
-                                PlaceImportSource.WalkRecordMulti.name,
-                            ),
+                            MoaMapRoute.PlaceImport.createRoute(source.name),
                         )
                     },
                     onFindPlaceClick = { lat, lng ->
