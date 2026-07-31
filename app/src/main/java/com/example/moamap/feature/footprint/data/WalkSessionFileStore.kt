@@ -94,6 +94,25 @@ class WalkSessionFileStore(
 
     fun fileFor(fileName: String): File = File(rootDir, fileName)
 
+    /**
+     * 세션 파일 하나를 지운다. 이미 없으면 지운 것으로 본다.
+     *
+     * 되돌릴 수 없다. 백엔드 업로드가 붙기 전까지 이 파일이 그 기록의 유일한 원본이다.
+     *
+     * 이름을 그대로 믿지 않는다. `..` 이 섞인 이름이 오면 저장소 바깥 파일을 지우게 된다 -
+     * 지금은 [loadAll] 이 준 이름만 들어오지만, 지우는 일은 되돌릴 수 없어 호출부가
+     * 지켰겠거니 하고 넘기지 않는다.
+     */
+    @Synchronized
+    fun delete(fileName: String): Boolean {
+        if (!COMPLETED_FILE.matches(fileName)) return false
+
+        val file = File(rootDir, fileName)
+        if (file.parentFile != rootDir) return false
+
+        return !file.exists() || file.delete()
+    }
+
     private fun receivedAtFromName(fileName: String): Long {
         val withoutPrefixAndSuffix = fileName.removePrefix("walk-session-").removeSuffix(".json")
         val timestampSegment = withoutPrefixAndSuffix.substringBefore("-")

@@ -4,13 +4,10 @@ import android.content.Context
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -28,7 +25,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -54,8 +50,8 @@ private val RecommendButtonHeight = 48.dp
 @Composable
 internal fun WatchRecordScreen(
     onBackClick: () -> Unit,
-    onRecommendSingleClick: () -> Unit,
-    onRecommendMultiClick: () -> Unit,
+    /** @param multiplePlaces 추천 장소를 여러 곳 띄울지. [recommendsMultiplePlaces] 가 정한다. */
+    onRecommendClick: (multiplePlaces: Boolean) -> Unit,
     onFindPlaceClick: (lat: Double, lng: Double) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: WatchRecordViewModel = hiltViewModel(),
@@ -89,13 +85,20 @@ internal fun WatchRecordScreen(
                             when (session.payload.kind) {
                                 SessionKind.WALK -> WalkSessionCard(
                                     session = session,
-                                    onRecommendSingleClick = onRecommendSingleClick,
-                                    onRecommendMultiClick = onRecommendMultiClick,
+                                    // 지우고 나서 넘어간다. 순서가 뒤바뀌면 화면이 떠난 뒤에
+                                    // 지워져, 돌아왔을 때 카드가 남아 있는지가 타이밍에 걸린다.
+                                    onRecommendClick = {
+                                        viewModel.deleteSession(session)
+                                        onRecommendClick(session.recommendsMultiplePlaces())
+                                    },
                                 )
 
                                 SessionKind.SINGLE_POINT -> SinglePointCard(
                                     session = session,
-                                    onFindPlaceClick = onFindPlaceClick,
+                                    onFindPlaceClick = { lat, lng ->
+                                        viewModel.deleteSession(session)
+                                        onFindPlaceClick(lat, lng)
+                                    },
                                 )
                             }
                         }
@@ -143,8 +146,7 @@ private fun WatchRecordTopBar(
 @Composable
 private fun WalkSessionCard(
     session: ReceivedWalkSession,
-    onRecommendSingleClick: () -> Unit,
-    onRecommendMultiClick: () -> Unit,
+    onRecommendClick: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -165,10 +167,7 @@ private fun WalkSessionCard(
 
             Spacer(Modifier.height(4.dp))
 
-            RecommendSplitButton(
-                onLeftClick = onRecommendSingleClick,
-                onRightClick = onRecommendMultiClick,
-            )
+            RecommendButton(onClick = onRecommendClick)
         }
     }
 }
@@ -176,7 +175,7 @@ private fun WalkSessionCard(
 /**
  * 워치에서 한 번 눌러 보낸 좌표 하나.
  *
- * 산책 카드와 달리 갈래가 하나뿐이라 좌우로 나뉜 버튼을 쓰지 않는다.
+ * 산책 카드와 마찬가지로 버튼을 누르면 이 기록은 폰에서 지워진다. 확인은 묻지 않는다.
  */
 @Composable
 private fun SinglePointCard(
@@ -229,15 +228,17 @@ internal fun formatCoordinate(lat: Double, lng: Double): String =
     String.format(Locale.US, "%.5f, %.5f", lat, lng)
 
 /**
- * 임시. 겉보기엔 버튼 하나지만 누른 쪽에 따라 다른 추천 목록을 띄운다.
+ * 추천 장소로 넘어가는 버튼.
  *
- * 추천 API 가 붙기 전까지 두 가지 결과를 화면에서 바로 견줘보려고 둔 것이다. 왼쪽 절반은
- * 한 곳만, 오른쪽 절반은 미리 지정한 여러 곳을 준다.
+ * 누르면 이 기록은 폰에서 지워진다. 확인을 묻지 않는다.
+ *
+ * 전에는 겉보기만 버튼 하나이고 왼쪽 절반과 오른쪽 절반이 각각 한 곳·여러 곳을 띄우는
+ * 임시 장치였다. 두 결과를 눈으로 견주려던 것이라 규칙이라 할 게 없었고, 지금은 기록 시간이
+ * 정한다 - [recommendsMultiplePlaces] 참고.
  */
 @Composable
-private fun RecommendSplitButton(
-    onLeftClick: () -> Unit,
-    onRightClick: () -> Unit,
+private fun RecommendButton(
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -245,7 +246,8 @@ private fun RecommendSplitButton(
             .fillMaxWidth()
             .height(RecommendButtonHeight)
             .clip(RoundedCornerShape(8.dp))
-            .background(MoaMapTheme.colors.primary),
+            .background(MoaMapTheme.colors.primary)
+            .clickable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -253,38 +255,7 @@ private fun RecommendSplitButton(
             style = MoaMapTheme.typography.subtitle4,
             color = MoaMapPrimitiveColors.White,
         )
-
-        // 글자 위에 얹어 어느 쪽을 눌러도 두 영역 중 하나가 반드시 받게 한다.
-        Row(modifier = Modifier.matchParentSize()) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .noRippleClickable(onClick = onLeftClick),
-            )
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxHeight()
-                    .noRippleClickable(onClick = onRightClick),
-            )
-        }
     }
-}
-
-/**
- * 물결 없이 클릭만 받는다.
- *
- * 반쪽짜리 영역에 물결이 번지면 버튼이 둘로 갈라져 보인다. 겉보기에는 버튼 하나여야 한다.
- */
-@Composable
-private fun Modifier.noRippleClickable(onClick: () -> Unit): Modifier {
-    val interactionSource = remember { MutableInteractionSource() }
-    return clickable(
-        interactionSource = interactionSource,
-        indication = null,
-        onClick = onClick,
-    )
 }
 
 /**

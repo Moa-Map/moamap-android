@@ -60,6 +60,35 @@ class MapDetailViewModelTest {
     }
 
     @Test
+    fun `공식지도는 참여 중이어도 장소를 더할 수 없다`() = runTest {
+        // 공공데이터를 옮겨 온 지도라 사용자가 넣은 장소가 섞이면 출처를 가릴 수 없다.
+        val repository = FakeMapDetailRepository(
+            map = { testMap(type = MapType.Official, role = MapRole.Member, joined = true) },
+        )
+        val viewModel = viewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.canAddPlace)
+    }
+
+    @Test
+    fun `장소를 더할 수 있는 종류는 프라이빗과 커뮤니티뿐이다`() = runTest {
+        // 뺄 것을 세는 대신 될 것만 세는 판단을 못 박는다. 서버에 종류가 하나 늘 때
+        // 여기가 실패해, 그 종류에 장소 추가를 열지 말지 정하고 가게 한다.
+        val addable = MapType.entries.filter { type ->
+            val repository = FakeMapDetailRepository(
+                map = { testMap(type = type, role = MapRole.Member, joined = true) },
+            )
+            val viewModel = viewModel(repository)
+            dispatcher.scheduler.advanceUntilIdle()
+
+            viewModel.uiState.value.canAddPlace
+        }
+
+        assertEquals(listOf(MapType.Community, MapType.Private), addable)
+    }
+
+    @Test
     fun `조회에 실패하면 Error 가 되고 retry 로 복구한다`() = runTest {
         var fail = true
         val repository = FakeMapDetailRepository(

@@ -60,6 +60,31 @@ class MapDetailRuleTest {
         assertNull(map(MapType.Private, MapRole.Member, joined = true).roleBadge)
     }
 
+    @Test
+    fun `공식지도는 참여해도 배지가 없다`() {
+        // 공공데이터를 받아 보는 지도다. "멤버" 라고 붙여 봐야 알려 주는 게 없다.
+        assertNull(map(MapType.Official, MapRole.Member, joined = true).roleBadge)
+        assertNull(map(MapType.Official, MapRole.None, joined = false).roleBadge)
+    }
+
+    @Test
+    fun `참여하지 않은 공식지도는 참여하기다`() {
+        assertEquals(
+            MapDetailAction.Join,
+            map(MapType.Official, MapRole.None, joined = false).topBarAction,
+        )
+    }
+
+    @Test
+    fun `공식지도에서 나가는 것은 지도 삭제가 아니다`() {
+        assertFalse(map(MapType.Official, MapRole.Member, joined = true).leavingDeletesMap)
+    }
+
+    @Test
+    fun `공식지도는 초대 코드를 보여주지 않는다`() {
+        assertNull(map(MapType.Official, MapRole.Member, joined = true).shareableInviteCode)
+    }
+
     // ---------- 우측 상단 액션 ----------
 
     @Test

@@ -30,6 +30,13 @@ import javax.inject.Inject
 private const val TAG = "MapDetailViewModel"
 
 /**
+ * 사용자가 장소를 더할 수 있는 지도 종류.
+ *
+ * 공식지도는 없다. 공공데이터를 옮겨 온 지도라 사용자가 넣은 장소가 섞이면 안 된다.
+ */
+private val PLACE_ADDABLE_TYPES = setOf(MapType.Private, MapType.Community)
+
+/**
  * 지도 상세 화면 상태.
  *
  * 서버에서 받아오는 건 지도 한 건([map]), 마커로 그릴 장소([places]), 참여·나가기 진행
@@ -58,8 +65,20 @@ data class MapDetailScreenState(
     /** 상단바 초대코드 버튼에 실을 코드. null 이면 버튼을 띄우지 않는다. */
     val inviteCode: String? get() = map.mapOrNull?.shareableInviteCode
 
-    /** 참여 중인 지도에만 장소를 더할 수 있다. */
-    val canAddPlace: Boolean get() = map.mapOrNull?.joined == true
+    /**
+     * 참여 중이면서, 장소를 더할 수 있는 종류인 지도인가.
+     *
+     * 뺄 것을 세지 않고 될 것만 센다. "공식지도가 아니면" 으로 적으면 서버가 종류를 하나
+     * 더 늘렸을 때 그게 읽기 전용이더라도 장소 추가가 열린다 - 매퍼가 모르는 종류를
+     * 커뮤니티로 보기 때문이다. 목록을 늘리는 건 새 종류를 다룰 때 함께 판단할 일이다.
+     *
+     * 공식지도가 빠지는 이유는 그대로다. 공공데이터를 옮겨 온 지도라 사용자가 넣은 장소가
+     * 섞이면 무엇이 출처인지 알 수 없게 된다.
+     */
+    val canAddPlace: Boolean
+        get() = map.mapOrNull?.let { detail ->
+            detail.joined && detail.type in PLACE_ADDABLE_TYPES
+        } ?: false
 
     val placeCount: Int? get() = map.mapOrNull?.placeCount
 

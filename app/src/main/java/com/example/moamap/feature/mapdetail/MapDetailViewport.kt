@@ -1,6 +1,7 @@
 package com.example.moamap.feature.mapdetail
 
 import androidx.compose.runtime.Immutable
+import kotlin.math.floor
 
 /**
  * 경계에 더하는 여유. 폭·높이의 비율이다.
@@ -10,6 +11,44 @@ import androidx.compose.runtime.Immutable
  * 조금 움직였을 때 마커가 곧바로 사라지는 것도 이 여유가 막는다.
  */
 internal const val ViewportCullMargin = 0.3
+
+/**
+ * 컬링 경계를 다시 계산하는 중심 이동 간격(dp).
+ *
+ * 카메라 중심을 이 격자에 맞춰 내린 값으로 경계를 잡는다. 팬 도중 매 프레임 다시 세지 않게
+ * 하려는 것이다. 그만큼 경계가 실제 화면에서 어긋나므로, 어긋남을 마진([ViewportCullMargin])
+ * 이 덮을 수 있어야 한다.
+ *
+ * 도가 아니라 화면 거리(dp)로 잡는 게 핵심이다. 마진은 화면 크기의 비율, 곧 화면 거리다.
+ * 도 단위 상수(0.001도, 약 100m)로 두었을 때는 확대하면 마커가 통째로 사라졌다. 어긋남만
+ * 도 단위로 고정이라 확대할수록 화면에서 커졌기 때문이다. 393dp 폭 화면 기준으로 이랬다.
+ *
+ * ```
+ * zoom | 어긋남   | 마진   | 화면 한복판 마커
+ *   14 |   13.3dp | 58.9dp | 보임
+ *   16 |   53.4dp | 58.9dp | 보임
+ *   19 |  427.1dp | 58.9dp | 사라짐
+ *   21 | 1708.5dp | 58.9dp | 사라짐
+ * ```
+ *
+ * 화면 거리로 잡으면 어느 줌에서든 어긋남이 이 값으로 묶인다. 마진보다 넉넉히 작게 둔다 -
+ * 위도는 메르카토르 때문에 화면 거리로 1.26배가 되니 그것까지 담아야 한다.
+ *
+ * 낮은 줌에서는 덤으로 재계산이 줄어든다. 0.001도는 zoom 10 에서 1.5dp 라, 손가락을 조금만
+ * 움직여도 컬링과 클러스터링을 다시 돌렸다.
+ */
+internal const val CenterStepDp = 16.0
+
+/**
+ * 카메라 중심 좌표를 [CenterStepDp] 격자에 맞춰 내린다.
+ *
+ * 경도와 위도에 같은 함수를 쓴다. 위도 쪽 어긋남이 화면 거리로 1.26배가 되지만
+ * ([degreesPerDp] 참고) 마진이 그걸 담을 만큼 넉넉하다.
+ */
+internal fun quantizeCenter(degrees: Double, zoom: Double): Double {
+    val step = CenterStepDp * degreesPerDp(zoom)
+    return floor(degrees / step) * step
+}
 
 /**
  * 컬링에 쓰는 사각 경계.

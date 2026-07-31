@@ -31,13 +31,7 @@ import kotlin.math.floor
  */
 private const val ClusterZoomStep = 0.25
 
-/**
- * 경계를 다시 계산하는 좌표 간격(도).
- *
- * 줌과 같은 이유로 양자화한다. 약 100m 로, 컬링 마진([ViewportCullMargin])이 이보다
- * 훨씬 넓어 잘린 마커가 튀어나오지 않는다.
- */
-private const val CenterStep = 0.001
+// 중심 양자화는 컬링 마진과 짝지어 봐야 해서 MapDetailViewport 에 있다. quantizeCenter 참고.
 
 /**
  * 클러스터링에 넣을 카메라 값을 양자화해 담은 것.
@@ -76,14 +70,16 @@ internal fun MapDetailMap(
             derivedStateOf {
                 val camera = mapViewportState.cameraState
                 val center = camera?.center
+                val zoom = floor((camera?.zoom ?: MapDetailDefaultZoom) / ClusterZoomStep) *
+                    ClusterZoomStep
                 ClusterCameraKey(
-                    zoom = floor((camera?.zoom ?: MapDetailDefaultZoom) / ClusterZoomStep) *
-                        ClusterZoomStep,
+                    zoom = zoom,
+                    // 경계도 이 줌으로 계산한다. 양자화에 쓰는 줌이 어긋나면 안 된다.
                     centerLongitude = center?.let { point ->
-                        floor(point.longitude() / CenterStep) * CenterStep
+                        quantizeCenter(point.longitude(), zoom)
                     },
                     centerLatitude = center?.let { point ->
-                        floor(point.latitude() / CenterStep) * CenterStep
+                        quantizeCenter(point.latitude(), zoom)
                     },
                 )
             }

@@ -28,12 +28,17 @@ class MapDetailMapperTest {
     }
 
     @Test
-    fun `PRIVATE 이 아닌 타입은 모두 커뮤니티로 본다`() {
-        // 화면의 판단 기준은 "프라이빗이냐" 하나뿐이다. 공식 지도는 이 화면으로 오지 않는다.
+    fun `서버 타입을 그대로 옮긴다`() {
         assertEquals(MapType.Private, MapDetailDto(type = "PRIVATE").toMapDetail(null).type)
         assertEquals(MapType.Community, MapDetailDto(type = "COMMUNITY").toMapDetail(null).type)
-        assertEquals(MapType.Community, MapDetailDto(type = "OFFICIAL").toMapDetail(null).type)
+        assertEquals(MapType.Official, MapDetailDto(type = "OFFICIAL").toMapDetail(null).type)
+    }
+
+    @Test
+    fun `모르는 타입은 커뮤니티로 본다`() {
+        // 서버가 종류를 하나 더 늘려도 화면은 열려야 한다.
         assertEquals(MapType.Community, MapDetailDto(type = null).toMapDetail(null).type)
+        assertEquals(MapType.Community, MapDetailDto(type = "SOMETHING").toMapDetail(null).type)
     }
 
     @Test

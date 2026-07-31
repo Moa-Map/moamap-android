@@ -44,6 +44,36 @@ class MapDetailUiStateTest {
         assertNull(selected.closePlaceDetail().selectedPlaceId)
     }
 
+    // ---------- 묶음 마커 펼치기 ----------
+
+    @Test
+    fun `묶음을 펼치면 그 장소들을 기억하고 닫으면 비운다`() {
+        val expanded = MapDetailUiState().expandCluster(listOf(7L, 8L))
+        assertEquals(listOf(7L, 8L), expanded.expandedClusterPlaceIds)
+
+        assertTrue(expanded.closeCluster().expandedClusterPlaceIds.isEmpty())
+    }
+
+    @Test
+    fun `묶음 목록에서 장소를 고르면 목록은 닫힌다`() {
+        // 두 시트가 겹쳐 뜨면 상세 뒤에 목록이 남아 뒤로가기가 두 번 필요해진다.
+        val state = MapDetailUiState()
+            .expandCluster(listOf(7L, 8L))
+            .selectPlace(8L)
+
+        assertEquals(8L, state.selectedPlaceId)
+        assertTrue(state.expandedClusterPlaceIds.isEmpty())
+    }
+
+    @Test
+    fun `상세를 닫아도 펼친 묶음은 건드리지 않는다`() {
+        // 상세는 묶음 목록 말고 마커에서도 열린다. 닫기가 목록까지 지우면 안 된다.
+        val state = MapDetailUiState(expandedClusterPlaceIds = listOf(7L, 8L))
+            .closePlaceDetail()
+
+        assertEquals(listOf(7L, 8L), state.expandedClusterPlaceIds)
+    }
+
     @Test
     fun `빈 검색어는 전부 남긴다`() {
         val places = listOf(place(1L, "커피나무"), place(2L, "달빛정원"))

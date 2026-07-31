@@ -5,10 +5,21 @@ import com.example.moamap.core.network.model.PageResponse
 
 private const val TAG = "PageCollector"
 
-/** 한 번에 받아 오는 장소 수. 서버 상한과 같은 값이라 왕복이 가장 적다. */
-const val PLACE_PAGE_SIZE = 100
+/**
+ * 한 번에 받아 오는 장소 수.
+ *
+ * 서버 상한은 2000 이다(Spring `spring.data.web.pageable.max-page-size` 기본값). 그보다 낮게
+ * 잡는 건 응답 하나가 지나치게 커지지 않게 하려는 것이다. 장소 5416곳인 공식 화장실 지도가
+ * 왕복 6번에 들어온다.
+ */
+const val PLACE_PAGE_SIZE = 1000
 
-/** 페이지를 이어 받는 횟수의 상한. 서버가 `last` 를 잘못 내려도 무한히 돌지 않게 한다. */
+/**
+ * 페이지를 이어 받는 횟수의 상한. 서버가 `last` 를 잘못 내려도 무한히 돌지 않게 한다.
+ *
+ * [PLACE_PAGE_SIZE] 와 곱하면 장소 2만 곳까지 받는다. 지금 가장 큰 지도의 네 배 가까이라
+ * 실제로 걸릴 일은 없고, 어디까지나 폭주를 막는 장치다.
+ */
 const val MAX_PAGES = 20
 
 /**
