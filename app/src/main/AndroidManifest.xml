@@ -36,18 +36,6 @@
                 android:resource="@xml/profile_image_paths" />
         </provider>
 
-        <service
-            android:name=".feature.footprint.data.WalkSessionReceiverService"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="com.google.android.gms.wearable.CHANNEL_EVENT" />
-                <data
-                    android:scheme="wear"
-                    android:host="*"
-                    android:pathPrefix="/walk-session" />
-            </intent-filter>
-        </service>
-
         <!--
           windowSoftInputMode 를 지정하지 않으면 시스템이 pan 을 골라 창을 통째로 밀어 올린다.
           그러면 Compose 의 imePadding 과 보정이 겹쳐서, 화면 아래쪽 입력창에 포커스할 때만

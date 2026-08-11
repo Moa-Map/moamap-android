@@ -29,7 +29,6 @@ import com.example.moamap.feature.collection.domain.model.PlaceImportSource
 import com.example.moamap.feature.collection.share.SharedLink
 import com.example.moamap.feature.collection.presentation.createmap.CreateMapScreen
 import com.example.moamap.feature.explore.ExploreScreen
-import com.example.moamap.feature.footprint.watchrecord.WatchRecordScreen
 import com.example.moamap.feature.mapdetail.MapDetailScreen
 import com.example.moamap.feature.mapdetail.presentation.intro.MapIntroScreen
 import com.example.moamap.feature.mypage.ProfileEditScreen
@@ -122,9 +121,6 @@ internal fun MoaMapNavHost(
                     },
                     onSettingsClick = {
                         navController.navigate(MoaMapRoute.Settings.route)
-                    },
-                    onWatchRecordClick = {
-                        navController.navigate(MoaMapRoute.WatchRecord.route)
                     },
                     onOfficialMapClick = {
                         navController.navigate(MoaMapRoute.OfficialMap.route)
@@ -247,32 +243,6 @@ internal fun MoaMapNavHost(
                 SettingsScreen(
                     onBackClick = navController::popBackStack,
                     onLoggedOut = { navController.navigateToLoginClearingStack() },
-                )
-            }
-            composable(MoaMapRoute.WatchRecord.route) {
-                WatchRecordScreen(
-                    onBackClick = navController::popBackStack,
-                    // 임시. 추천 API 가 붙기 전까지 하드코딩한 목록으로 흐름만 확인한다.
-                    // 한 곳이냐 여러 곳이냐는 화면이 기록 시간을 보고 정해서 넘겨준다.
-                    onRecommendClick = { multiplePlaces ->
-                        val source = if (multiplePlaces) {
-                            PlaceImportSource.WalkRecordMulti
-                        } else {
-                            PlaceImportSource.WalkRecordSingle
-                        }
-                        navController.navigate(
-                            MoaMapRoute.PlaceImport.createRoute(source.name),
-                        )
-                    },
-                    onFindPlaceClick = { lat, lng ->
-                        navController.navigate(
-                            MoaMapRoute.PlaceImport.createRoute(
-                                source = PlaceImportSource.WalkPoint.name,
-                                lat = lat,
-                                lng = lng,
-                            ),
-                        )
-                    },
                 )
             }
         }

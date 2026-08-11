@@ -34,23 +34,10 @@ internal fun PlaceImportLoadingScreen(
     val title = when (source) {
         PlaceImportSource.Instagram -> "장소 불러오는 중.."
         PlaceImportSource.MapShare -> "지도 불러오는 중.."
-
-        PlaceImportSource.WalkRecordSingle,
-        PlaceImportSource.WalkRecordMulti,
-        -> "추천 장소 찾는 중.."
-
-        PlaceImportSource.WalkPoint -> "장소 찾는 중.."
     }
     val description = when (source) {
         PlaceImportSource.Instagram -> "AI가 영상을 분석하고 있어요.\n최대 30초 정도 걸려요."
         PlaceImportSource.MapShare -> "외부 지도에서 장소를 불러오고 있어요.\n잠시만 기다려주세요."
-
-        PlaceImportSource.WalkRecordSingle,
-        PlaceImportSource.WalkRecordMulti,
-        -> "AI가 추천 장소를 분석하고 있어요.\n잠시만 기다려주세요."
-
-        PlaceImportSource.WalkPoint ->
-            "이 위치에 있는 장소를 확인하고 있어요.\n잠시만 기다려주세요."
     }
 
     // 뒤로가기는 진행 중이던 추출을 취소하고 URL 입력으로 되돌린다.
