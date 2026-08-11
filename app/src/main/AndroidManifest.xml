@@ -2,7 +2,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Mapbox 지도 타일/스타일 로딩 및 현재 위치 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.CAMERA" />
+
+    <!--
+      패키지 가시성 제한 때문에 이 선언이 없으면 카카오톡이 설치돼 있어도
+      isKakaoTalkLoginAvailable() 이 false 를 돌려주고 무조건 웹 로그인으로 빠진다.
+    -->
+    <queries>
+        <package android:name="com.kakao.talk" />
+    </queries>
+
     <application
+        android:name=".MoaMapApplication"
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
@@ -11,15 +26,72 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.MoaMap">
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/profile_image_paths" />
+        </provider>
+
+        <service
+            android:name=".feature.footprint.data.WalkSessionReceiverService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.google.android.gms.wearable.CHANNEL_EVENT" />
+                <data
+                    android:scheme="wear"
+                    android:host="*"
+                    android:pathPrefix="/walk-session" />
+            </intent-filter>
+        </service>
+
+        <!--
+          windowSoftInputMode 를 지정하지 않으면 시스템이 pan 을 골라 창을 통째로 밀어 올린다.
+          그러면 Compose 의 imePadding 과 보정이 겹쳐서, 화면 아래쪽 입력창에 포커스할 때만
+          하단 고정 버튼이 키보드보다 더 위로 뜬다. 창은 그대로 두고 inset 만 받아야 한다.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
-            android:theme="@style/Theme.MoaMap">
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.MoaMap"
+            android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+              인스타그램·네이버 지도·카카오맵·구글 지도의 공유가 모두 이 필터 하나로 들어온다.
+              네 앱 모두 전용 스킴 없이 링크를 text/plain 으로 보낸다.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <!-- 카카오계정(웹) 로그인이 끝난 뒤 앱으로 돌아오는 리다이렉트 수신처 -->
+        <activity
+            android:name="com.kakao.sdk.auth.AuthCodeHandlerActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="oauth"
+                    android:scheme="kakao${KAKAO_NATIVE_APP_KEY}" />
             </intent-filter>
         </activity>
     </application>

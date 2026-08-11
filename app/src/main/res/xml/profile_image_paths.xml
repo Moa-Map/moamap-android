@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path
+        name="profile_images"
+        path="profile_images/" />
+    <cache-path
+        name="map_images"
+        path="map_images/" />
+    <cache-path
+        name="place_photos"
+        path="place_photos/" />
+    <files-path
+        name="walk_sessions"
+        path="walk-sessions/" />
+    <cache-path
+        name="walk_session_exports"
+        path="walk-session-exports/" />
+</paths>

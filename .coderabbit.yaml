@@ -1,0 +1,18 @@
+# yaml-language-server: $schema=https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json
+language: "ko-KR"          # 리뷰 코멘트를 한국어로
+reviews:
+  profile: "chill"         # chill(관대) / assertive(깐깐)
+  request_changes_workflow: false
+  high_level_summary: true
+  poem: false
+  review_status: true
+  auto_review:
+    enabled: true
+    drafts: false          # Draft PR은 리뷰 제외
+    base_branches:
+      - "dev"
+  path_filters:
+    - "!**/build/**"
+    - "!**/generated/**"
+chat:
+  auto_reply: true
