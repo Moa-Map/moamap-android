@@ -82,8 +82,6 @@ android {
 }
 
 dependencies {
-    implementation(project(":core:walksession"))
-
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
@@ -130,8 +128,4 @@ dependencies {
 
     // 토큰 저장 (DataStore Preferences)
     implementation(libs.androidx.datastore.preferences)
-
-    // Wearable Data Layer (워치 세션 수신)
-    implementation(libs.play.services.wearable)
-    implementation(libs.kotlinx.coroutines.play.services)
 }

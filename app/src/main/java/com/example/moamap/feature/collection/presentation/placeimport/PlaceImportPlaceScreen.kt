@@ -61,12 +61,6 @@ internal fun PlaceImportPlaceScreen(
                     title = when (source) {
                         PlaceImportSource.Instagram -> "이 장소가 맞나요?"
                         PlaceImportSource.MapShare -> "지도의 장소들을 불러왔어요"
-
-                        PlaceImportSource.WalkRecordSingle,
-                        PlaceImportSource.WalkRecordMulti,
-                        -> "이런 장소는 어때요?"
-
-                        PlaceImportSource.WalkPoint -> "이 위치의 장소예요"
                     },
                     description = when (source) {
                         PlaceImportSource.Instagram ->
@@ -74,12 +68,6 @@ internal fun PlaceImportPlaceScreen(
 
                         PlaceImportSource.MapShare ->
                             "추가하고 싶지 않은 장소들은 선택 해제를 해주세요"
-
-                        PlaceImportSource.WalkRecordSingle,
-                        PlaceImportSource.WalkRecordMulti,
-                        -> "걸었던 길을 보고 ${places.size}곳을 골라봤어요!\n마음에 드는 곳만 남겨주세요."
-
-                        PlaceImportSource.WalkPoint -> "지도에 추가할 곳을 확인해주세요."
                     },
                 )
 

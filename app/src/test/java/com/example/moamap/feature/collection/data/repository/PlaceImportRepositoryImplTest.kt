@@ -1,8 +1,5 @@
 package com.example.moamap.feature.collection.data.repository
 
-import com.example.moamap.core.network.kakao.KakaoCoordToAddressDto
-import com.example.moamap.core.network.kakao.KakaoKeywordSearchDto
-import com.example.moamap.core.network.kakao.KakaoLocalService
 import com.example.moamap.core.network.model.PageResponse
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
 import com.example.moamap.feature.collection.domain.model.PlaceExtractionException
@@ -28,25 +25,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-
-/**
- * 좌표 검색은 이 테스트의 관심사가 아니다.
- * 부르면 실패시켜, 인스타그램·지도공유 경로가 몰래 이 API 를 타지 않는다는 것도 함께 지킨다.
- */
-private object UnusedKakaoLocalService : KakaoLocalService {
-
-    override suspend fun searchKeyword(
-        query: String,
-        size: Int?,
-        x: String?,
-        y: String?,
-        radius: Int?,
-        sort: String?,
-    ): KakaoKeywordSearchDto = TODO("사용하지 않음")
-
-    override suspend fun coordToAddress(lng: String, lat: String): KakaoCoordToAddressDto =
-        TODO("사용하지 않음")
-}
 
 private class FakeCaptionExtractor(private val result: CaptionResult) : CaptionExtractor {
 
@@ -149,7 +127,7 @@ class PlaceImportRepositoryImplTest {
         caption: CaptionResult = CaptionResult.Success("캡션 전문"),
         service: FakePlaceService = FakePlaceService(),
         extractor: FakeCaptionExtractor = FakeCaptionExtractor(caption),
-    ) = PlaceImportRepositoryImpl(extractor, service, CoordinatePlaceFinder(UnusedKakaoLocalService))
+    ) = PlaceImportRepositoryImpl(extractor, service)
 
     @Test
     fun `비공개 게시물이면 서버를 호출하지 않고 실패한다`() = runTest {

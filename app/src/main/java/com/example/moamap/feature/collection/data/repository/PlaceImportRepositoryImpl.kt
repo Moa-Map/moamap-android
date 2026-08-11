@@ -27,11 +27,7 @@ import javax.inject.Singleton
 class PlaceImportRepositoryImpl @Inject constructor(
     private val captionExtractor: CaptionExtractor,
     private val placeService: PlaceService,
-    private val coordinatePlaceFinder: CoordinatePlaceFinder,
 ) : PlaceImportRepository {
-
-    override suspend fun findPlaceAtCoordinate(lat: Double, lng: Double): List<ImportedPlace> =
-        coordinatePlaceFinder.find(lat = lat, lng = lng)
 
     override suspend fun extractPlaces(url: String): List<ImportedPlace> {
         // 캡션을 읽을 때와 서버에 보낼 때가 같은 URL 이어야 한다.
