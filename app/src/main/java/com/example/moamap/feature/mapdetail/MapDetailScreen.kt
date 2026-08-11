@@ -400,8 +400,10 @@ fun MapDetailScreen(
             onSearchQueryChange = { query -> uiState = uiState.search(query) },
             onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
             canReviewRequests = screenState.canReviewRequests,
-            // TODO: 장소 등록 요청은 아직 목데이터다. `GET api/v1/places/pending` 이 붙으면 여기만 바꾼다.
-            pendingRequests = SamplePendingRequests,
+            // TODO: `GET api/v1/places/pending` 이 붙으면 여기에 서버 값을 넣는다. 그전까지는
+            //  비운다 - 표본을 흘려보내면 없는 사람이 없는 장소를 신청한 것처럼 보이고,
+            //  수락·거절 버튼은 아무 데도 닿지 않는다.
+            pendingRequests = emptyList(),
             logs = logs,
             logsLoading = activityState.loading,
             logsErrorMessage = activityState.errorMessage,
