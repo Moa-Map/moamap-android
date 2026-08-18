@@ -6,6 +6,7 @@ import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.PATCH
 import retrofit2.http.POST
+import retrofit2.http.PUT
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -73,4 +74,16 @@ interface MapService {
         @Path("mapId") mapId: Long,
         @Path("userId") userId: Long,
     ): MapMemberRoleDto
+
+    /** 지도에 참여한 사람 전부. 페이지를 나누지 않고 한 번에 내려온다. */
+    @GET("api/v1/maps/{mapId}/members")
+    suspend fun getMembers(@Path("mapId") mapId: Long): MapMemberListDto
+
+    /** 멤버 역할 변경. OWNER 만 부를 수 있고, 서버가 권한을 다시 확인한다. */
+    @PUT("api/v1/maps/{mapId}/members/{userId}/role")
+    suspend fun updateMemberRole(
+        @Path("mapId") mapId: Long,
+        @Path("userId") userId: Long,
+        @Body request: MapMemberRoleUpdateRequestDto,
+    ): MapMemberRoleUpdateDto
 }
