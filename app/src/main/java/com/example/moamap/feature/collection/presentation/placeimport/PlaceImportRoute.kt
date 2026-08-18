@@ -1,5 +1,7 @@
 package com.example.moamap.feature.collection.presentation.placeimport
 
+import android.net.Uri
+
 /**
  * 장소 가져오기 중첩 그래프 안의 경로.
  *
@@ -12,4 +14,10 @@ internal object PlaceImportRoute {
     const val PLACE = "place_import/place"
     const val EDIT = "place_import/edit"
     const val MAP = "place_import/map"
+
+    /** 장소 하나를 편집하는 화면. */
+    const val ARG_PLACE_ID = "placeId"
+    const val EDIT_DETAIL = "place_import/edit/{$ARG_PLACE_ID}"
+
+    fun editDetail(placeId: String): String = "place_import/edit/${Uri.encode(placeId)}"
 }

@@ -20,6 +20,7 @@ import androidx.compose.ui.unit.dp
 import com.example.moamap.core.designsystem.theme.MoaMapDimens
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
+import com.example.moamap.feature.collection.domain.model.PlaceEdit
 
 /** 하단 버튼에 마지막 카드가 가리지 않도록 확보하는 여백. */
 private val BottomBarClearance = 88.dp
@@ -32,6 +33,7 @@ private val BottomBarClearance = 88.dp
 @Composable
 internal fun PlaceImportEditScreen(
     places: List<ImportedPlace>,
+    edits: Map<String, PlaceEdit>,
     onBackClick: () -> Unit,
     onEditClick: (String) -> Unit,
     onNextClick: () -> Unit,
@@ -65,6 +67,7 @@ internal fun PlaceImportEditScreen(
                     places.forEach { place ->
                         EditablePlaceCard(
                             place = place,
+                            edit = edits[place.id],
                             onEditClick = { onEditClick(place.id) },
                         )
                     }
@@ -97,6 +100,7 @@ private fun PlaceImportEditScreenPreview() {
     MoaMapTheme {
         PlaceImportEditScreen(
             places = PreviewPlaces,
+            edits = mapOf("2" to PlaceEdit(tags = listOf("카페"), memo = "창가 자리")),
             onBackClick = {},
             onEditClick = {},
             onNextClick = {},

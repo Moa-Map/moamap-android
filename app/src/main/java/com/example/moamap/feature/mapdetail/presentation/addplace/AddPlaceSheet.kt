@@ -63,7 +63,16 @@ private val GrabberShape = RoundedCornerShape(100.dp)
 private val SubmitButtonShape = RoundedCornerShape(8.dp)
 
 /** 촬영본을 담는 캐시 폴더. `res/xml/profile_image_paths.xml` 에 같은 이름이 있어야 한다. */
-private const val PLACE_PHOTO_CACHE_DIRECTORY = "place_photos"
+/**
+ * 촬영본을 담아 둘 캐시 폴더.
+ *
+ * **`res/xml/profile_image_paths.xml` 에 등록된 이름이어야 한다.** 등록되지 않은 폴더를 쓰면
+ * `FileProvider` 가 URI 를 만들지 못하고, 그 실패가 삼켜져 카메라가 조용히 안 뜬다.
+ *
+ * 링크로 가져온 장소를 편집할 때도 같은 폴더를 쓴다. 담기는 것이 똑같이 장소 사진이고,
+ * 이 폴더들을 비우는 코드가 어디에도 없어 서로 간섭하지 않는다. 파일 이름 앞머리로 구분한다.
+ */
+internal const val PLACE_PHOTO_CACHE_DIRECTORY = "place_photos"
 
 /**
  * 장소 추가 시트.
@@ -134,7 +143,8 @@ internal fun AddPlaceSheet(
                         )
                     } else {
                         PlaceFormContent(
-                            candidate = selected,
+                            placeName = selected.name,
+                            placeAddress = selected.displayAddress,
                             photos = uiState.photos,
                             tags = uiState.tags,
                             tagInput = uiState.tagInput,
