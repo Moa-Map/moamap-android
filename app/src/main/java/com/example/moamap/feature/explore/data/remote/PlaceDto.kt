@@ -52,6 +52,14 @@ data class PlaceBulkItemDto(
     val sourceUrl: String? = null,
     val description: String? = null,
     val tags: List<String>? = null,
+    /**
+     * 단건 등록과 같은 규격(최대 5장). **서버가 아직 받지 않을 수 있다.**
+     *
+     * 배포 스웨거에는 이 필드가 없어 백엔드에 추가를 요청해 둔 상태다. 그동안에도 안전한데,
+     * `Json` 이 `encodeDefaults` 를 켜지 않아 **사진을 붙였을 때만** 요청에 실리기 때문이다.
+     * 사진 없는 요청은 지금까지와 한 글자도 다르지 않다.
+     */
+    val photoUrls: List<String>? = null,
 )
 
 /** 일괄 등록 응답. 건별 부분 성공이라 실패한 건도 사유와 함께 온다. */
