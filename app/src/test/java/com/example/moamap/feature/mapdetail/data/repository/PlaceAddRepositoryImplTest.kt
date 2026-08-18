@@ -49,8 +49,12 @@ private class RecordingPlaceService : PlaceService {
     override suspend fun getPlaces(mapId: Long, page: Int?, size: Int?, sort: String?) =
         TODO("사용하지 않음")
 
-    override suspend fun getPendingPlaces(page: Int?, size: Int?, sort: String?): PageResponse<PlaceDto> =
-        TODO("사용하지 않음")
+    override suspend fun getPendingPlaces(
+        mapId: Long,
+        page: Int?,
+        size: Int?,
+        sort: String?,
+    ): PageResponse<PlaceDto> = TODO("사용하지 않음")
 
     override suspend fun getActivities(
         mapId: Long,
