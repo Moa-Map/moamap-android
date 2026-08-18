@@ -6,7 +6,10 @@ import com.example.moamap.feature.collection.data.remote.CoverUploadUrlRequestDt
 import com.example.moamap.feature.collection.data.remote.JoinByInviteCodeRequestDto
 import com.example.moamap.feature.collection.data.remote.MapCreateRequestDto
 import com.example.moamap.feature.collection.data.remote.MapDetailDto
+import com.example.moamap.feature.collection.data.remote.MapMemberListDto
 import com.example.moamap.feature.collection.data.remote.MapMemberRoleDto
+import com.example.moamap.feature.collection.data.remote.MapMemberRoleUpdateDto
+import com.example.moamap.feature.collection.data.remote.MapMemberRoleUpdateRequestDto
 import com.example.moamap.feature.collection.data.remote.MapService
 import com.example.moamap.feature.collection.data.remote.MapSummaryDto
 import com.example.moamap.feature.collection.data.remote.MapUpdateRequestDto
@@ -58,6 +61,12 @@ private class FakeMapService : MapService {
     override suspend fun deleteMap(mapId: Long): Unit = notUsed()
     override suspend fun leaveMap(mapId: Long): Unit = notUsed()
     override suspend fun getMemberRole(mapId: Long, userId: Long): MapMemberRoleDto = notUsed()
+    override suspend fun getMembers(mapId: Long): MapMemberListDto = notUsed()
+    override suspend fun updateMemberRole(
+        mapId: Long,
+        userId: Long,
+        request: MapMemberRoleUpdateRequestDto,
+    ): MapMemberRoleUpdateDto = notUsed()
 
     private fun notUsed(): Nothing = error("공식지도 저장소가 부를 일이 없는 호출이다")
 }

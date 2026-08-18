@@ -21,7 +21,7 @@ import com.example.moamap.feature.mapdetail.presentation.logs.SampleMapLogs
 import com.example.moamap.feature.mapdetail.presentation.logs.SamplePendingRequests
 import com.example.moamap.feature.mapdetail.presentation.logs.toMapLogUiModels
 import com.example.moamap.feature.mapdetail.presentation.members.MemberSheet
-import com.example.moamap.feature.mapdetail.presentation.members.SampleMembers
+import com.example.moamap.feature.mapdetail.presentation.members.MemberViewModel
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -123,9 +123,14 @@ fun MapDetailScreen(
     reviewViewModel: PlaceReviewViewModel = hiltViewModel(),
     activityViewModel: MapActivityViewModel = hiltViewModel(),
 ) {
+    // 멤버 화면 모델은 이 파일 밖으로 드러내지 않는다. 매개변수로 받으면 공개 함수가
+    // internal 타입을 노출하게 되고, 그걸 풀려면 카드 모델까지 공개로 넓혀야 한다.
+    val memberViewModel: MemberViewModel = hiltViewModel()
+
     val screenState by viewModel.uiState.collectAsStateWithLifecycle()
     val reviewState by reviewViewModel.uiState.collectAsStateWithLifecycle()
     val activityState by activityViewModel.uiState.collectAsStateWithLifecycle()
+    val memberState by memberViewModel.uiState.collectAsStateWithLifecycle()
 
     // 나가기가 끝나면 왔던 곳(탐색 또는 모음)으로 돌아간다.
     LaunchedEffect(screenState.left) {
@@ -400,8 +405,10 @@ fun MapDetailScreen(
             onSearchQueryChange = { query -> uiState = uiState.search(query) },
             onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
             canReviewRequests = screenState.canReviewRequests,
-            // TODO: 장소 등록 요청은 아직 목데이터다. `GET api/v1/places/pending` 이 붙으면 여기만 바꾼다.
-            pendingRequests = SamplePendingRequests,
+            // TODO: `GET api/v1/places/pending` 이 붙으면 여기에 서버 값을 넣는다. 그전까지는
+            //  비운다 - 표본을 흘려보내면 없는 사람이 없는 장소를 신청한 것처럼 보이고,
+            //  수락·거절 버튼은 아무 데도 닿지 않는다.
+            pendingRequests = emptyList(),
             logs = logs,
             logsLoading = activityState.loading,
             logsErrorMessage = activityState.errorMessage,
@@ -421,14 +428,16 @@ fun MapDetailScreen(
             },
         )
 
-        // 스낵바 자리는 하나뿐이라 두 출처를 한 줄로 모은다. 서버 실패가 먼저다.
+        // 스낵바 자리는 하나뿐이라 세 출처를 한 줄로 모은다. 서버 실패가 먼저다.
         ErrorSnackbar(
-            message = screenState.errorMessage ?: mapNotice,
+            message = screenState.errorMessage
+                ?: memberState.grantErrorMessage
+                ?: mapNotice,
             onShown = {
-                if (screenState.errorMessage != null) {
-                    viewModel.consumeErrorMessage()
-                } else {
-                    mapNotice = null
+                when {
+                    screenState.errorMessage != null -> viewModel.consumeErrorMessage()
+                    memberState.grantErrorMessage != null -> memberViewModel.consumeGrantError()
+                    else -> mapNotice = null
                 }
             },
             modifier = Modifier.align(Alignment.BottomCenter),
@@ -486,12 +495,18 @@ fun MapDetailScreen(
     }
 
     if (memberSheetVisible) {
+        // 시트를 열 때 읽는다.
+        LaunchedEffect(Unit) { memberViewModel.loadOnce() }
+
         MemberSheet(
-            // TODO: 멤버 목록도 아직 목데이터다. 서버 API 가 생기면 여기만 바꾼다.
-            members = SampleMembers,
+            members = memberState.members,
+            loading = memberState.loading,
+            errorMessage = memberState.errorMessage,
             showRoles = screenState.showMemberRoles,
             canGrantRole = screenState.canGrantRole,
-            onGrantRoleClick = {},
+            granting = memberState.granting,
+            onGrantRoleClick = memberViewModel::grantAdmin,
+            onRetryClick = memberViewModel::retry,
             onDismiss = { memberSheetVisible = false },
         )
     }

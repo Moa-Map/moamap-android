@@ -102,3 +102,36 @@ data class MapMemberRoleDto(
     // OWNER, ADMIN, MEMBER, NONE
     val role: String? = null,
 )
+
+/** GET api/v1/maps/{mapId}/members 응답 */
+@Serializable
+data class MapMemberListDto(
+    val memberCount: Int = 0,
+    val members: List<MapMemberSummaryDto> = emptyList(),
+)
+
+/** [MapMemberListDto] 의 한 사람. 등록한 장소 수는 아직 서버가 내려주지 않는다. */
+@Serializable
+data class MapMemberSummaryDto(
+    val userId: Long = 0,
+    val nickname: String? = null,
+    val profileImageUrl: String? = null,
+    // OWNER, ADMIN, MEMBER, NONE
+    val role: String? = null,
+)
+
+/** PUT api/v1/maps/{mapId}/members/{userId}/role 요청 */
+@Serializable
+data class MapMemberRoleUpdateRequestDto(
+    // OWNER, ADMIN, MEMBER, NONE
+    val role: String,
+)
+
+/** PUT api/v1/maps/{mapId}/members/{userId}/role 응답 */
+@Serializable
+data class MapMemberRoleUpdateDto(
+    val mapId: Long = 0,
+    val userId: Long = 0,
+    // OWNER, ADMIN, MEMBER, NONE
+    val role: String? = null,
+)
