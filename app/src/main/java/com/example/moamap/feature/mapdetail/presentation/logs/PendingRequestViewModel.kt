@@ -101,6 +101,16 @@ class PendingRequestViewModel @Inject constructor(
     }
 
     /**
+     * 조회 실패 안내도 한 번 띄우고 지운다.
+     *
+     * 요청 목록은 활동 내역 위에 얹히는 곁가지라 자기 자리에 오류와 재시도를 그릴 곳이 없다.
+     * 다시 읽는 일은 활동 내역의 재시도가 함께 맡는다.
+     */
+    fun consumeLoadError() {
+        _uiState.update { state -> state.copy(errorMessage = null) }
+    }
+
+    /**
      * 처리가 끝나면 목록을 다시 받지 않고 그 한 건만 뺀다.
      *
      * 다시 그리려고 통신을 한 번 더 하면, 그 조회가 실패했을 때 이미 처리된 요청이 없던

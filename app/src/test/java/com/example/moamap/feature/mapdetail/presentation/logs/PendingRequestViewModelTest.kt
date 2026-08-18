@@ -222,6 +222,22 @@ class PendingRequestViewModelTest {
         assertFalse(viewModel.uiState.value.processing)
     }
 
+    /**
+     * 요청 목록은 활동 내역 위에 얹히는 곁가지라 자기 자리에 오류를 띄울 곳이 없다.
+     * 스낵바로 한 번 알리고 지운다.
+     */
+    @Test
+    fun `조회 실패 메시지도 소비하면 사라진다`() = runTest {
+        val repository = FakePendingPlaceRepository()
+            .apply { listError = RuntimeException("boom") }
+        val viewModel = viewModel(repository).apply { loadOnce() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.consumeLoadError()
+
+        assertNull(viewModel.uiState.value.errorMessage)
+    }
+
     @Test
     fun `알림 메시지는 소비하면 사라진다`() = runTest {
         val repository = FakePendingPlaceRepository()

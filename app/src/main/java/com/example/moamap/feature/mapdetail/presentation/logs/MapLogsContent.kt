@@ -35,8 +35,9 @@ private val SectionGap = 20.dp
  * **지도 타입·역할 분기를 여기서 하지 않는다.** 알림을 보여줄지는 [pendingRequests] 를 넘기는
  * 쪽이 정한다. 그래야 프리뷰로 공개·프라이빗 두 경우를 모두 만들 수 있다.
  *
- * 활동 내역 자리만 [loading]·[errorMessage] 를 탄다. 장소 등록 요청은 아직 목데이터라
- * 기다릴 것도 실패할 것도 없다.
+ * 활동 내역 자리만 [loading]·[errorMessage] 를 탄다. 장소 등록 요청은 목록 위에 얹히는
+ * 곁가지라 자기 자리에 로딩과 오류를 그리지 않는다 - 못 읽으면 카드가 없고, 안내는 스낵바가
+ * 맡는다. 여기에 상태를 하나 더 두면 활동 내역이 다 떴는데도 화면이 계속 기다리는 것처럼 보인다.
  *
  * 항목 간격을 `verticalArrangement` 로 주지 않는다. 타임라인 항목 사이가 벌어지면 레일의
  * 세로선이 끊긴다. 간격은 각 항목이 아래쪽 여백으로 직접 들고 있고, 선은 그 여백까지 덮는다.
@@ -47,6 +48,8 @@ internal fun MapLogsContent(
     logs: List<MapLogUiModel>,
     loading: Boolean,
     errorMessage: String?,
+    /** 수락·거절이 오가는 중에는 모든 카드의 버튼을 잠근다. 한 번에 하나만 처리한다. */
+    requestActionEnabled: Boolean,
     onAcceptClick: (Long) -> Unit,
     onRejectClick: (Long) -> Unit,
     onRetryClick: () -> Unit,
@@ -64,6 +67,7 @@ internal fun MapLogsContent(
         items(pendingRequests, key = { request -> "request-${request.id}" }) { request ->
             PendingRequestCard(
                 request = request,
+                actionEnabled = requestActionEnabled,
                 onAcceptClick = { onAcceptClick(request.id) },
                 onRejectClick = { onRejectClick(request.id) },
                 modifier = Modifier.padding(bottom = SectionGap),
@@ -167,6 +171,7 @@ private fun MapLogsContentPreview() {
             logs = SampleMapLogs,
             loading = false,
             errorMessage = null,
+            requestActionEnabled = true,
             onAcceptClick = {},
             onRejectClick = {},
             onRetryClick = {},
@@ -184,6 +189,7 @@ private fun MapLogsContentPrivatePreview() {
             logs = SampleMapLogs,
             loading = false,
             errorMessage = null,
+            requestActionEnabled = true,
             onAcceptClick = {},
             onRejectClick = {},
             onRetryClick = {},
@@ -200,6 +206,7 @@ private fun MapLogsContentErrorPreview() {
             logs = emptyList(),
             loading = false,
             errorMessage = ACTIVITY_LOAD_FAILED_MESSAGE,
+            requestActionEnabled = true,
             onAcceptClick = {},
             onRejectClick = {},
             onRetryClick = {},
