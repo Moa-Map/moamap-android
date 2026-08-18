@@ -90,8 +90,12 @@ private class FakePlaceService(
         TODO("사용하지 않음")
 
     override suspend fun createPlace(request: PlaceCreateRequestDto) = TODO("사용하지 않음")
-    override suspend fun getPendingPlaces(page: Int?, size: Int?, sort: String?): PageResponse<PlaceDto> =
-        TODO("사용하지 않음")
+    override suspend fun getPendingPlaces(
+        mapId: Long,
+        page: Int?,
+        size: Int?,
+        sort: String?,
+    ): PageResponse<PlaceDto> = TODO("사용하지 않음")
 
     override suspend fun getPlace(id: Long) = TODO("사용하지 않음")
     override suspend fun updatePlace(id: Long, request: PlaceUpdateRequestDto) = TODO("사용하지 않음")

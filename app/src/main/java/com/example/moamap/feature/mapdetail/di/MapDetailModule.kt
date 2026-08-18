@@ -6,11 +6,13 @@ import com.example.moamap.feature.mapdetail.data.repository.KakaoPlaceSearchRepo
 import com.example.moamap.feature.mapdetail.data.repository.MapActivityRepositoryImpl
 import com.example.moamap.feature.mapdetail.data.repository.MapDetailRepositoryImpl
 import com.example.moamap.feature.mapdetail.data.repository.MapMemberRepositoryImpl
+import com.example.moamap.feature.mapdetail.data.repository.PendingPlaceRepositoryImpl
 import com.example.moamap.feature.mapdetail.data.repository.PlaceAddRepositoryImpl
 import com.example.moamap.feature.mapdetail.data.repository.PlaceReviewRepositoryImpl
 import com.example.moamap.feature.mapdetail.domain.repository.MapActivityRepository
 import com.example.moamap.feature.mapdetail.domain.repository.MapDetailRepository
 import com.example.moamap.feature.mapdetail.domain.repository.MapMemberRepository
+import com.example.moamap.feature.mapdetail.domain.repository.PendingPlaceRepository
 import com.example.moamap.feature.mapdetail.domain.repository.PlaceAddRepository
 import com.example.moamap.feature.mapdetail.domain.repository.PlaceReviewRepository
 import com.example.moamap.feature.mapdetail.domain.repository.PlaceSearchRepository
@@ -57,6 +59,12 @@ internal abstract class MapDetailModule {
     @Binds
     @Singleton
     abstract fun bindMapMemberRepository(impl: MapMemberRepositoryImpl): MapMemberRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPendingPlaceRepository(
+        impl: PendingPlaceRepositoryImpl,
+    ): PendingPlaceRepository
 
     companion object {
         @Provides

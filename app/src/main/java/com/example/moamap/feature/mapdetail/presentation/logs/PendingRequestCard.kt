@@ -37,6 +37,7 @@ private val ActionButtonHeight = 34.dp
 @Composable
 internal fun PendingRequestCard(
     request: PendingRequestUiModel,
+    actionEnabled: Boolean,
     onAcceptClick: () -> Unit,
     onRejectClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -75,11 +76,13 @@ internal fun PendingRequestCard(
                 RequestActionButton(
                     label = "수락",
                     background = MoaMapPrimitiveColors.Blue500,
+                    enabled = actionEnabled,
                     onClick = onAcceptClick,
                 )
                 RequestActionButton(
                     label = "거절",
                     background = MoaMapPrimitiveColors.Gray200,
+                    enabled = actionEnabled,
                     onClick = onRejectClick,
                 )
             }
@@ -91,6 +94,7 @@ internal fun PendingRequestCard(
 private fun RowScope.RequestActionButton(
     label: String,
     background: Color,
+    enabled: Boolean,
     onClick: () -> Unit,
 ) {
     Box(
@@ -99,7 +103,7 @@ private fun RowScope.RequestActionButton(
             .height(ActionButtonHeight)
             .clip(ActionButtonShape)
             .background(background)
-            .clickable(onClick = onClick),
+            .clickable(enabled = enabled, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Text(
@@ -116,6 +120,7 @@ private fun PendingRequestCardPreview() {
     MoaMapTheme {
         PendingRequestCard(
             request = SamplePendingRequests.first(),
+            actionEnabled = true,
             onAcceptClick = {},
             onRejectClick = {},
             modifier = Modifier.padding(20.dp),

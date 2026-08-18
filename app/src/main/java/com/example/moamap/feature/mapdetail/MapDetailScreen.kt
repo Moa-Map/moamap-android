@@ -17,9 +17,11 @@ import com.example.moamap.feature.mapdetail.presentation.logs.MapActivityViewMod
 import com.example.moamap.feature.mapdetail.presentation.logs.MapLogUiModel
 import com.example.moamap.feature.mapdetail.presentation.logs.MapLogsContent
 import com.example.moamap.feature.mapdetail.presentation.logs.PendingRequestUiModel
+import com.example.moamap.feature.mapdetail.presentation.logs.PendingRequestViewModel
 import com.example.moamap.feature.mapdetail.presentation.logs.SampleMapLogs
 import com.example.moamap.feature.mapdetail.presentation.logs.SamplePendingRequests
 import com.example.moamap.feature.mapdetail.presentation.logs.toMapLogUiModels
+import com.example.moamap.feature.mapdetail.presentation.logs.toPendingRequestUiModels
 import com.example.moamap.feature.mapdetail.presentation.members.MemberSheet
 import com.example.moamap.feature.mapdetail.presentation.members.MemberViewModel
 import androidx.compose.foundation.layout.Box
@@ -122,6 +124,7 @@ fun MapDetailScreen(
     addPlaceViewModel: AddPlaceViewModel = hiltViewModel(),
     reviewViewModel: PlaceReviewViewModel = hiltViewModel(),
     activityViewModel: MapActivityViewModel = hiltViewModel(),
+    pendingViewModel: PendingRequestViewModel = hiltViewModel(),
 ) {
     // 멤버 화면 모델은 이 파일 밖으로 드러내지 않는다. 매개변수로 받으면 공개 함수가
     // internal 타입을 노출하게 되고, 그걸 풀려면 카드 모델까지 공개로 넓혀야 한다.
@@ -130,6 +133,7 @@ fun MapDetailScreen(
     val screenState by viewModel.uiState.collectAsStateWithLifecycle()
     val reviewState by reviewViewModel.uiState.collectAsStateWithLifecycle()
     val activityState by activityViewModel.uiState.collectAsStateWithLifecycle()
+    val pendingState by pendingViewModel.uiState.collectAsStateWithLifecycle()
     val memberState by memberViewModel.uiState.collectAsStateWithLifecycle()
 
     // 나가기가 끝나면 왔던 곳(탐색 또는 모음)으로 돌아간다.
@@ -218,8 +222,19 @@ fun MapDetailScreen(
     }
 
     // 로그 탭을 처음 열 때 활동 내역을 읽는다. 장소 탭만 보고 나가면 조회가 아예 안 나간다.
-    LaunchedEffect(uiState.selectedTab) {
-        if (uiState.selectedTab == MapDetailTab.Logs) activityViewModel.loadOnce()
+    //
+    // 등록 요청은 수락·거절할 수 있을 때만 읽는다. 일반 멤버가 불러도 서버가 막지만, 볼 수
+    // 없는 목록을 받아 오는 통신이 남는다. 권한은 지도 응답이 온 뒤에야 정해져 열쇠에 함께 건다.
+    LaunchedEffect(uiState.selectedTab, screenState.canReviewRequests) {
+        if (uiState.selectedTab != MapDetailTab.Logs) return@LaunchedEffect
+
+        activityViewModel.loadOnce()
+        if (screenState.canReviewRequests) pendingViewModel.loadOnce()
+    }
+
+    // 수락한 장소는 지도에 새로 떠야 한다. 거절은 지도를 바꾸지 않아 신호가 오지 않는다.
+    LaunchedEffect(pendingState.approvedCount) {
+        if (pendingState.approvedCount > 0) viewModel.refresh()
     }
 
     // 후기가 하나 늘면 장소의 평점·후기 수도 달라진다. 시트 뒤의 목록이 옛 값을 들고 있으면 안 된다.
@@ -249,6 +264,10 @@ fun MapDetailScreen(
     // 시각을 새로 읽어 같은 값을 두고 목록 전체가 갈리는 일을 막는다.
     val logs = remember(activityState.activities) {
         activityState.activities.toMapLogUiModels(System.currentTimeMillis())
+    }
+
+    val pendingRequests = remember(pendingState.requests) {
+        pendingState.requests.toPendingRequestUiModels(System.currentTimeMillis())
     }
 
     val markers = remember(screenState.places) {
@@ -405,16 +424,21 @@ fun MapDetailScreen(
             onSearchQueryChange = { query -> uiState = uiState.search(query) },
             onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
             canReviewRequests = screenState.canReviewRequests,
-            // TODO: `GET api/v1/places/pending` 이 붙으면 여기에 서버 값을 넣는다. 그전까지는
-            //  비운다 - 표본을 흘려보내면 없는 사람이 없는 장소를 신청한 것처럼 보이고,
-            //  수락·거절 버튼은 아무 데도 닿지 않는다.
-            pendingRequests = emptyList(),
+            pendingRequests = pendingRequests,
             logs = logs,
             logsLoading = activityState.loading,
             logsErrorMessage = activityState.errorMessage,
-            onRequestAccept = {},
-            onRequestReject = {},
-            onLogsRetry = activityViewModel::retry,
+            // 처리 중에는 버튼을 잠근다. 두 번 눌러도 서버에는 한 번만 간다.
+            requestActionEnabled = !pendingState.processing,
+            onRequestAccept = pendingViewModel::approve,
+            onRequestReject = pendingViewModel::reject,
+            // 요청 목록에는 재시도 자리가 따로 없어 활동 내역을 다시 읽을 때 함께 읽는다.
+            // 수락·거절할 수 없는 사람은 빼고 부른다 - 서버가 403 으로 막을 뿐인데, 그 실패가
+            // 볼 수도 없는 목록의 안내로 스낵바에 뜬다.
+            onLogsRetry = {
+                activityViewModel.retry()
+                if (screenState.canReviewRequests) pendingViewModel.retry()
+            },
             onMembersClick = { memberSheetVisible = true },
             mapContent = {
                 MapDetailMap(
@@ -428,15 +452,22 @@ fun MapDetailScreen(
             },
         )
 
-        // 스낵바 자리는 하나뿐이라 세 출처를 한 줄로 모은다. 서버 실패가 먼저다.
+        // 스낵바 자리는 하나뿐이라 여러 출처를 한 줄로 모은다. 서버 실패가 먼저다.
+        //
+        // 요청 처리 실패가 조회 실패보다 앞선다. 버튼을 누른 직후라 사용자가 답을 기다리고
+        // 있고, 조회 실패는 곁가지 목록이 안 뜬 것뿐이다.
         ErrorSnackbar(
             message = screenState.errorMessage
                 ?: memberState.grantErrorMessage
+                ?: pendingState.actionErrorMessage
+                ?: pendingState.errorMessage
                 ?: mapNotice,
             onShown = {
                 when {
                     screenState.errorMessage != null -> viewModel.consumeErrorMessage()
                     memberState.grantErrorMessage != null -> memberViewModel.consumeGrantError()
+                    pendingState.actionErrorMessage != null -> pendingViewModel.consumeActionError()
+                    pendingState.errorMessage != null -> pendingViewModel.consumeLoadError()
                     else -> mapNotice = null
                 }
             },
@@ -540,6 +571,7 @@ internal fun MapDetailContent(
     logs: List<MapLogUiModel>,
     logsLoading: Boolean,
     logsErrorMessage: String?,
+    requestActionEnabled: Boolean,
     onRequestAccept: (Long) -> Unit,
     onRequestReject: (Long) -> Unit,
     onLogsRetry: () -> Unit,
@@ -596,6 +628,7 @@ internal fun MapDetailContent(
                             // 후기 로그를 넣어 보낸다.
                             logs = logs,
                             loading = logsLoading,
+                            requestActionEnabled = requestActionEnabled,
                             errorMessage = logsErrorMessage,
                             onAcceptClick = onRequestAccept,
                             onRejectClick = onRequestReject,
@@ -745,6 +778,7 @@ private fun MapDetailScreenPreview() {
             pendingRequests = SamplePendingRequests,
             logs = SampleMapLogs,
             logsLoading = false,
+            requestActionEnabled = true,
             logsErrorMessage = null,
             onRequestAccept = {},
             onRequestReject = {},
@@ -792,6 +826,7 @@ private fun MapDetailScreenNotJoinedPreview() {
             pendingRequests = SamplePendingRequests,
             logs = SampleMapLogs,
             logsLoading = false,
+            requestActionEnabled = true,
             logsErrorMessage = null,
             onRequestAccept = {},
             onRequestReject = {},

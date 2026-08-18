@@ -3,6 +3,7 @@ package com.example.moamap.feature.mapdetail.presentation.logs
 import androidx.compose.runtime.Immutable
 import com.example.moamap.feature.mapdetail.domain.model.MapActivity
 import com.example.moamap.feature.mapdetail.domain.model.MapActivityType
+import com.example.moamap.feature.mapdetail.domain.model.PendingPlace
 import com.example.moamap.feature.mapdetail.relativeTimeLabel
 
 /** 타임라인 점 색으로 구분되는 로그 종류. */
@@ -53,6 +54,36 @@ internal data class PendingRequestUiModel(
 /** 이름을 못 얻은 사용자. 이름 자리가 빈 줄로 보이지 않게 채운다. */
 private const val UNKNOWN_ACTOR = "알 수 없는 사용자"
 
+/**
+ * 이름을 모르는 신청자.
+ *
+ * 서버가 승인 대기 응답에 신청자 식별자만 넣어 주고 닉네임은 아직 내려주지 않아, 지금은 모든
+ * 카드가 이 문구를 쓴다. 서버가 닉네임을 더하면 저절로 실제 이름으로 바뀐다.
+ */
+internal const val UNKNOWN_REQUESTER = UNKNOWN_ACTOR
+
+/**
+ * 승인 대기 장소를 카드 모델로 옮긴다.
+ *
+ * 시각을 여기서 문구로 바꾼다. 활동 내역과 같은 방식이다 - 화면은 받은 것만 그린다.
+ */
+internal fun List<PendingPlace>.toPendingRequestUiModels(
+    nowMillis: Long,
+): List<PendingRequestUiModel> = map { pending ->
+    PendingRequestUiModel(
+        id = pending.id,
+        userName = pending.requesterName?.takeIf { it.isNotBlank() } ?: UNKNOWN_REQUESTER,
+        userImageUrl = pending.requesterImageUrl?.takeIf { it.isNotBlank() },
+        message = pending.toMessage(),
+        timeAgo = relativeTimeLabel(pending.requestedAtMillis, nowMillis),
+    )
+}
+
+/** 이름이 없으면 이름을 뺀 문장으로 바꾼다. 빈 따옴표(`‘’`)가 남으면 지워진 장소처럼 보인다. */
+private fun PendingPlace.toMessage(): String = placeName
+    ?.let { name -> "‘$name’ ${name.objectParticle()} 이 지도에 추가하고 싶어요" }
+    ?: "장소를 이 지도에 추가하고 싶어요"
+
 internal fun List<MapActivity>.toMapLogUiModels(nowMillis: Long): List<MapLogUiModel> =
     mapIndexed { index, activity ->
         MapLogUiModel(
@@ -101,9 +132,6 @@ private const val JONGSUNG_COUNT = 28
 
 /**
  * 목적격 조사. 받침이 있으면 "을", 없으면 "를".
- *
- * 한글로 끝나지 않는 이름은 "를" 로 둔다. 영문·숫자는 읽는 소리를 봐야 정할 수 있는데,
- * 그러자고 발음 사전을 들일 만한 자리가 아니다.
  */
 private fun String.objectParticle(): String {
     val last = lastOrNull() ?: return "를"

@@ -43,8 +43,14 @@ interface PlaceService {
         @Query("size") size: Int? = null,
     ): PageResponse<PlaceActivityDto>
 
+    /**
+     * 승인 대기 중인 장소. 공개 지도의 방장·관리자만 볼 수 있다.
+     *
+     * @param mapId 서버 필수값이라 빠뜨리면 400 이 난다.
+     */
     @GET("api/v1/places/pending")
     suspend fun getPendingPlaces(
+        @Query("mapId") mapId: Long,
         @Query("page") page: Int? = null,
         @Query("size") size: Int? = null,
         @Query("sort") sort: String? = null,
