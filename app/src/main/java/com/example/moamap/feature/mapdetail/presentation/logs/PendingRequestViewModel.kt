@@ -73,6 +73,15 @@ class PendingRequestViewModel @Inject constructor(
     /** 한 번이라도 읽기 시작했는가. 탭을 오갈 때마다 다시 받지 않으려고 본다. */
     private var started = false
 
+    /**
+     * 지금 유효한 조회의 세대.
+     *
+     * 조회를 시작할 때 올리고, 응답을 반영하기 전에 자기 세대가 아직 최신인지 본다. 수락·거절도
+     * 이 값을 올려 진행 중이던 조회를 무효로 만든다 - 처리 전에 떠난 조회가 뒤늦게 도착하면
+     * 서버 목록에는 방금 처리한 요청이 아직 남아 있어, 그대로 덮어쓰면 되살아난다.
+     */
+    private var loadGeneration = 0
+
     /** 로그 탭이 처음 열렸다. `init` 에서 읽으면 장소 탭만 보는 사용자도 요청을 받게 된다. */
     fun loadOnce() {
         if (started) return
@@ -80,7 +89,15 @@ class PendingRequestViewModel @Inject constructor(
         load()
     }
 
+    /**
+     * 처리 중에는 다시 읽지 않는다.
+     *
+     * 지금 띄운 조회의 응답이 처리 결과보다 늦게 오면 방금 뺀 요청이 되살아난다. 처리가 끝난
+     * 뒤에 다시 누르면 된다 - 몇 초 사이의 일이라 기다렸다 대신 눌러 줄 만큼의 값이 없다.
+     */
     fun retry() {
+        if (_uiState.value.processing) return
+
         _uiState.update { state -> state.copy(loading = true, errorMessage = null) }
         load()
     }
@@ -119,6 +136,10 @@ class PendingRequestViewModel @Inject constructor(
     private fun process(placeId: Long, approved: Boolean, block: suspend () -> Unit) {
         if (_uiState.value.processing) return
 
+        // 진행 중이던 조회를 무효로 만든다. 늦게 도착한 목록이 처리 결과를 덮지 못한다.
+        loadGeneration++
+        loadJob?.cancel()
+
         _uiState.update { state -> state.copy(processing = true, actionErrorMessage = null) }
         actionJob?.cancel()
         actionJob = viewModelScope.launch {
@@ -147,15 +168,21 @@ class PendingRequestViewModel @Inject constructor(
 
     private fun load() {
         loadJob?.cancel()
+
+        val generation = ++loadGeneration
         loadJob = viewModelScope.launch {
             try {
                 val pending = repository.getPendingPlaces(mapId)
+                if (generation != loadGeneration) return@launch
+
                 _uiState.update { state ->
                     state.copy(loading = false, requests = pending, errorMessage = null)
                 }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                if (generation != loadGeneration) return@launch
+
                 Log.w(TAG, "장소 등록 요청 조회 실패 (mapId=$mapId)", e)
                 _uiState.update { state ->
                     state.copy(

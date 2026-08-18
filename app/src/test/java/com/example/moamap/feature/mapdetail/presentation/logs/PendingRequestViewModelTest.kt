@@ -4,6 +4,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.example.moamap.core.navigation.MoaMapRoute
 import com.example.moamap.feature.mapdetail.domain.model.PendingPlace
 import com.example.moamap.feature.mapdetail.domain.repository.PendingPlaceRepository
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -38,13 +39,21 @@ private class FakePendingPlaceRepository(
     var listError: Exception? = null
     var actionError: Exception? = null
 
+    /** 열어 두면 조회가 여기서 멈춘다. 응답이 늦게 도착하는 상황을 만들 때 쓴다. */
+    var listGate: CompletableDeferred<Unit>? = null
+
+    /** 열어 두면 수락·거절이 여기서 멈춘다. */
+    var actionGate: CompletableDeferred<Unit>? = null
+
     override suspend fun getPendingPlaces(mapId: Long): List<PendingPlace> {
-        listError?.let { throw it }
         listCalls += mapId
+        listGate?.await()
+        listError?.let { throw it }
         return pending
     }
 
     override suspend fun approve(placeId: Long) {
+        actionGate?.await()
         actionError?.let { throw it }
         approved += placeId
     }
@@ -190,6 +199,53 @@ class PendingRequestViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(0, viewModel.uiState.value.approvedCount)
+    }
+
+    /**
+     * 처리 전에 시작된 조회가 처리 뒤에 도착하면, 서버 목록에는 방금 처리한 요청이 아직 남아
+     * 있다. 그대로 덮어쓰면 이미 수락한 요청이 카드로 되살아난다.
+     */
+    @Test
+    fun `처리 전에 시작된 조회가 늦게 와도 처리한 요청을 되살리지 않는다`() = runTest {
+        val repository = FakePendingPlaceRepository()
+        val viewModel = viewModel(repository).apply { loadOnce() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        // 재시도로 두 번째 조회를 띄워 두고, 응답이 오기 전에 수락을 끝낸다.
+        val gate = CompletableDeferred<Unit>()
+        repository.listGate = gate
+        viewModel.retry()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.approve(placeId = 101L)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        gate.complete(Unit)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf(102L), viewModel.uiState.value.requests.map { it.id })
+    }
+
+    /** 처리 중에 조회를 새로 띄우면 그 응답이 처리 결과를 덮는다. 아예 시작하지 않는다. */
+    @Test
+    fun `처리 중에는 재시도해도 조회하지 않는다`() = runTest {
+        val repository = FakePendingPlaceRepository()
+        val viewModel = viewModel(repository).apply { loadOnce() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val gate = CompletableDeferred<Unit>()
+        repository.actionGate = gate
+        viewModel.approve(placeId = 101L)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.retry()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, repository.listCalls.size)
+
+        gate.complete(Unit)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(listOf(102L), viewModel.uiState.value.requests.map { it.id })
     }
 
     /** 버튼을 연달아 눌러도 서버에는 한 번만 간다. */

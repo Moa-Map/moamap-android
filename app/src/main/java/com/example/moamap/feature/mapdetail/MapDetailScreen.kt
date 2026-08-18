@@ -432,10 +432,12 @@ fun MapDetailScreen(
             requestActionEnabled = !pendingState.processing,
             onRequestAccept = pendingViewModel::approve,
             onRequestReject = pendingViewModel::reject,
-            // 요청 목록에는 재시도 자리가 따로 없다. 활동 내역을 다시 읽을 때 함께 읽는다.
+            // 요청 목록에는 재시도 자리가 따로 없어 활동 내역을 다시 읽을 때 함께 읽는다.
+            // 수락·거절할 수 없는 사람은 빼고 부른다 - 서버가 403 으로 막을 뿐인데, 그 실패가
+            // 볼 수도 없는 목록의 안내로 스낵바에 뜬다.
             onLogsRetry = {
                 activityViewModel.retry()
-                pendingViewModel.retry()
+                if (screenState.canReviewRequests) pendingViewModel.retry()
             },
             onMembersClick = { memberSheetVisible = true },
             mapContent = {
