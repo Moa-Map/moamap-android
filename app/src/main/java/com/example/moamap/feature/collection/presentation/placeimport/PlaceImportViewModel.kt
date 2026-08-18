@@ -1,5 +1,6 @@
 package com.example.moamap.feature.collection.presentation.placeimport
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
@@ -9,12 +10,14 @@ import com.example.moamap.core.network.ApiException
 import com.example.moamap.core.network.ConnectionException
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
 import com.example.moamap.feature.collection.domain.model.MapType
+import com.example.moamap.feature.collection.domain.model.PlaceEdit
 import com.example.moamap.feature.collection.domain.model.PlaceExtractionException
 import com.example.moamap.feature.collection.domain.model.PlaceImportSource
 import com.example.moamap.feature.collection.domain.model.PlaceSaveResult
 import com.example.moamap.feature.collection.domain.repository.MapRepository
 import com.example.moamap.feature.collection.domain.repository.PlaceImportRepository
 import com.example.moamap.feature.collection.presentation.MyMapsState
+import com.example.moamap.feature.mapdetail.presentation.addplace.MAX_PLACE_PHOTOS
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -196,6 +199,58 @@ internal class PlaceImportViewModel @Inject constructor(
         }
     }
 
+    fun updateEditTags(placeId: String, tags: List<String>) {
+        updateEdit(placeId) { edit -> edit.copy(tags = tags) }
+    }
+
+    fun updateEditMemo(placeId: String, memo: String) {
+        updateEdit(placeId) { edit -> edit.copy(memo = memo) }
+    }
+
+    /** 서버가 한 장소에 [MAX_PLACE_PHOTOS] 장까지 받는다. 같은 사진을 두 번 넣지도 않는다. */
+    fun addEditPhoto(placeId: String, uri: Uri) {
+        updateEdit(placeId) { edit ->
+            if (edit.photos.size >= MAX_PLACE_PHOTOS || uri in edit.photos) {
+                edit
+            } else {
+                edit.copy(photos = edit.photos + uri)
+            }
+        }
+    }
+
+    fun removeEditPhoto(placeId: String, uri: Uri) {
+        updateEdit(placeId) { edit -> edit.copy(photos = edit.photos - uri) }
+    }
+
+    /**
+     * 사진 목록이 바뀌면 올려 둔 주소를 버린다.
+     *
+     * 남겨두면 저장에 한 번 실패한 뒤 사진을 바꿔도 예전 주소가 그대로 등록된다.
+     */
+    private fun PlaceImportUiState.discardUploadsIfPhotosChanged(
+        before: PlaceEdit,
+        after: PlaceEdit,
+    ): PlaceImportUiState =
+        if (before.photos == after.photos) this else copy(uploadedPhotoUrls = emptyMap())
+
+    /**
+     * 편집값을 고친다.
+     *
+     * 아직 편집한 적 없는 장소는 [PlaceImportUiState.editOf] 가 만든 기본값에서 시작한다.
+     * 외부 지도로 가져온 장소의 기존 메모가 그 기본값에 들어 있어, 사진만 붙여도 메모가
+     * 사라지지 않는다.
+     */
+    private fun updateEdit(placeId: String, transform: (PlaceEdit) -> PlaceEdit) {
+        _uiState.update { state ->
+            val place = state.places.firstOrNull { place -> place.id == placeId }
+                ?: return@update state
+            val before = state.editOf(place)
+            val after = transform(before)
+            state.copy(edits = state.edits + (placeId to after))
+                .discardUploadsIfPhotosChanged(before, after)
+        }
+    }
+
     /** 지도 목록을 읽지 못했을 때 다시 읽는다. */
     fun retryLoadMaps() = loadTargetMaps()
 
@@ -229,12 +284,21 @@ internal class PlaceImportViewModel @Inject constructor(
     fun savePlaces() {
         val current = _uiState.value
         if (!current.canSave || current.selectedPlaces.isEmpty()) return
+        val entries = current.selectedEntries
+
+        // 발급 권한만 확인하는 값이라 고른 지도 중 아무거나면 된다. 받은 주소는 모든 지도에 쓴다.
+        val photoMapId = current.selectedMapIds.first()
 
         _uiState.update { state -> state.copy(saving = true, errorMessage = null) }
 
         viewModelScope.launch {
             val result = try {
-                placeImportRepository.savePlaces(current.selectedMapIds, current.selectedPlaces)
+                val photoUrls = current.uploadedPhotoUrls.ifEmpty {
+                    placeImportRepository.uploadPhotos(photoMapId, entries).also { uploaded ->
+                        _uiState.update { state -> state.copy(uploadedPhotoUrls = uploaded) }
+                    }
+                }
+                placeImportRepository.savePlaces(current.selectedMapIds, entries, photoUrls)
             } catch (e: CancellationException) {
                 throw e
             } catch (throwable: Throwable) {

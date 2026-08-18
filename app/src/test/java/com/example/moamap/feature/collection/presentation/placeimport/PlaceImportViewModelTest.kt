@@ -11,6 +11,7 @@ import com.example.moamap.feature.collection.domain.model.PlaceExtractionExcepti
 import com.example.moamap.feature.collection.domain.model.PlaceImportSource
 import com.example.moamap.feature.collection.domain.model.PlaceSaveResult
 import com.example.moamap.feature.collection.domain.repository.MapRepository
+import com.example.moamap.feature.collection.domain.model.EditedPlace
 import com.example.moamap.feature.collection.domain.repository.PlaceImportRepository
 import com.example.moamap.feature.collection.presentation.MyMapsState
 import kotlinx.coroutines.CompletableDeferred
@@ -91,15 +92,34 @@ private class FakePlaceImportRepository : PlaceImportRepository {
     var savedMapIds: Set<Long>? = null
         private set
 
-    var savedPlaces: List<ImportedPlace>? = null
+    var savedPlaces: List<EditedPlace>? = null
         private set
+
+    var savedPhotoUrls: Map<String, List<String>>? = null
+        private set
+
+    /** 발급을 몇 번 불렀는지. 재시도 때 또 올리지 않는지 보는 데 쓴다. */
+    var uploadCallCount: Int = 0
+        private set
+
+    var uploadResult: Map<String, List<String>> = emptyMap()
+
+    override suspend fun uploadPhotos(
+        mapId: Long,
+        places: List<EditedPlace>,
+    ): Map<String, List<String>> {
+        uploadCallCount++
+        return uploadResult
+    }
 
     override suspend fun savePlaces(
         mapIds: Set<Long>,
-        places: List<ImportedPlace>,
+        places: List<EditedPlace>,
+        photoUrls: Map<String, List<String>>,
     ): PlaceSaveResult {
         savedMapIds = mapIds
         savedPlaces = places
+        savedPhotoUrls = photoUrls
         savePending?.await()
         saveFailure?.let { throw it }
         return saveResult
@@ -427,7 +447,80 @@ class PlaceImportViewModelTest {
         advanceUntilIdle()
 
         assertEquals(setOf(MyMaps[0].id), repository.savedMapIds)
-        assertEquals(listOf(Places[1]), repository.savedPlaces)
+        assertEquals(listOf(Places[1]), repository.savedPlaces?.map { it.place })
+    }
+
+    @Test
+    fun `편집한 태그와 메모를 저장 요청에 실어 보낸다`() = runTest(dispatcher) {
+        startExtraction()
+        advanceUntilIdle()
+        viewModel.togglePlace(Places[0].id)
+        viewModel.toggleMap(MyMaps[0].id)
+        viewModel.updateEditTags(Places[0].id, listOf("성수", "카페"))
+        viewModel.updateEditMemo(Places[0].id, "창가 자리")
+
+        viewModel.savePlaces()
+        advanceUntilIdle()
+
+        val entry = repository.savedPlaces?.single()
+        assertEquals(listOf("성수", "카페"), entry?.edit?.tags)
+        assertEquals("창가 자리", entry?.edit?.memo)
+    }
+
+    @Test
+    fun `편집하지 않은 장소는 가져온 메모를 그대로 넘긴다`() = runTest(dispatcher) {
+        // 외부 지도로 가져온 장소는 공유 리스트에 적힌 메모가 이미 들어 있다.
+        repository.places = listOf(Places[0].copy(description = "리스트 메모"))
+        startExtraction()
+        advanceUntilIdle()
+        viewModel.togglePlace(Places[0].id)
+        viewModel.toggleMap(MyMaps[0].id)
+
+        viewModel.savePlaces()
+        advanceUntilIdle()
+
+        assertEquals("리스트 메모", repository.savedPlaces?.single()?.edit?.memo)
+    }
+
+    @Test
+    fun `올린 사진 주소를 저장 요청에 함께 넘긴다`() = runTest(dispatcher) {
+        repository.uploadResult = mapOf(Places[0].id to listOf("https://cdn/1.jpg"))
+        startExtraction()
+        advanceUntilIdle()
+        viewModel.togglePlace(Places[0].id)
+        viewModel.toggleMap(MyMaps[0].id)
+
+        viewModel.savePlaces()
+        advanceUntilIdle()
+
+        assertEquals(
+            mapOf(Places[0].id to listOf("https://cdn/1.jpg")),
+            repository.savedPhotoUrls,
+        )
+    }
+
+    @Test
+    fun `저장에 실패해 다시 시도해도 사진을 또 올리지 않는다`() = runTest(dispatcher) {
+        // 올린 사진을 지울 API 가 없어, 시도할 때마다 올리면 고아 파일이 그만큼 쌓인다.
+        repository.uploadResult = mapOf(Places[0].id to listOf("https://cdn/1.jpg"))
+        repository.saveFailure = ConnectionException(RuntimeException("timeout"))
+        startExtraction()
+        advanceUntilIdle()
+        viewModel.togglePlace(Places[0].id)
+        viewModel.toggleMap(MyMaps[0].id)
+
+        viewModel.savePlaces()
+        advanceUntilIdle()
+        viewModel.consumeError()
+        repository.saveFailure = null
+        viewModel.savePlaces()
+        advanceUntilIdle()
+
+        assertEquals(1, repository.uploadCallCount)
+        assertEquals(
+            mapOf(Places[0].id to listOf("https://cdn/1.jpg")),
+            repository.savedPhotoUrls,
+        )
     }
 
     @Test
