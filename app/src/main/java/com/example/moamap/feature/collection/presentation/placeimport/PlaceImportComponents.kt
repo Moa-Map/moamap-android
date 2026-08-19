@@ -40,6 +40,7 @@ import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
 import com.example.moamap.core.designsystem.theme.withDesignLineHeight
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
+import com.example.moamap.feature.collection.domain.model.PlaceEdit
 
 internal val PlaceImportCardShape = RoundedCornerShape(12.dp)
 internal val PlaceImportButtonShape = RoundedCornerShape(8.dp)
@@ -300,6 +301,7 @@ internal fun ImportedPlaceCard(
 @Composable
 internal fun EditablePlaceCard(
     place: ImportedPlace,
+    edit: PlaceEdit?,
     onEditClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -317,6 +319,9 @@ internal fun EditablePlaceCard(
             PlaceLabels(
                 name = place.name,
                 address = place.displayAddress,
+                // 편집한 장소는 무엇을 붙였는지 한 줄로 알린다. 카드가 전부 같아 보이면
+                // 어디를 고쳤는지 되짚으려고 하나씩 다시 열어봐야 한다.
+                extra = edit?.summary(),
                 modifier = Modifier.weight(1f),
             )
             Text(
@@ -477,6 +482,8 @@ private fun PlaceLabels(
     name: String,
     address: String,
     modifier: Modifier = Modifier,
+    /** 주소 아래 한 줄 더. 편집 목록에서만 쓰고 다른 카드는 넘기지 않는다. */
+    extra: String? = null,
 ) {
     Column(
         modifier = modifier,
@@ -496,5 +503,28 @@ private fun PlaceLabels(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
+        if (extra != null) {
+            Text(
+                text = extra,
+                style = MoaMapTheme.typography.caption0,
+                color = MoaMapTheme.colors.primary,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
+}
+
+/**
+ * 편집 목록 카드에 붙일 한 줄 요약. 붙인 것이 없으면 `null` 이라 줄 자체가 생기지 않는다.
+ *
+ * 태그는 개수만 센다. 이름을 늘어놓으면 긴 태그 하나에 줄이 다 먹힌다.
+ */
+private fun PlaceEdit.summary(): String? {
+    val parts = buildList {
+        if (photos.isNotEmpty()) add("사진 ${photos.size}")
+        if (tags.isNotEmpty()) add("태그 ${tags.size}")
+        if (memo.isNotBlank()) add("메모")
+    }
+    return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }

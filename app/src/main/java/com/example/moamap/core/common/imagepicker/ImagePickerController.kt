@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -138,6 +139,14 @@ private object PersistableOpenDocument : ActivityResultContracts.OpenDocument() 
             )
 }
 
+/**
+ * 촬영본을 담을 파일과 그 공유 URI 를 만든다.
+ *
+ * [cacheDirectoryName] 은 **`res/xml/profile_image_paths.xml` 에 등록된 이름이어야 한다.**
+ * 등록되지 않은 폴더면 `FileProvider` 가 "Failed to find configured root" 로 던진다.
+ * 실패해도 부르는 쪽은 아무 일도 하지 않으므로 - 카메라가 뜨지 않을 뿐 오류도 안 보인다 -
+ * 사유를 남긴다.
+ */
 private fun createImageCaptureUri(
     context: Context,
     cacheDirectoryName: String,
@@ -154,4 +163,8 @@ private fun createImageCaptureUri(
         "${context.packageName}.fileprovider",
         imageFile,
     )
-}.getOrNull()
+}
+    .onFailure { throwable ->
+        Log.e("ImagePicker", "촬영 파일 URI 를 만들지 못했습니다: $cacheDirectoryName", throwable)
+    }
+    .getOrNull()

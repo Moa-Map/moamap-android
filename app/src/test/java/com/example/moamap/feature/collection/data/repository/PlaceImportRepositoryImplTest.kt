@@ -1,7 +1,12 @@
 package com.example.moamap.feature.collection.data.repository
 
+import android.net.Uri
+import com.example.moamap.core.common.upload.PhotoSpec
+import com.example.moamap.core.common.upload.PhotoUploader
 import com.example.moamap.core.network.model.PageResponse
+import com.example.moamap.feature.collection.domain.model.EditedPlace
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
+import com.example.moamap.feature.collection.domain.model.PlaceEdit
 import com.example.moamap.feature.collection.domain.model.PlaceExtractionException
 import com.example.moamap.feature.collection.instagram.CaptionExtractor
 import com.example.moamap.feature.collection.instagram.CaptionResult
@@ -113,6 +118,18 @@ private class FakePlaceService(
     ): PageResponse<PlaceActivityDto> = TODO("사용하지 않음")
 }
 
+/**
+ * 사진 경로는 `Uri` 가 필요해 JVM 테스트에서 만들 수 없다(모킹 라이브러리가 없다).
+ *
+ * 그래서 올리는 동작 자체는 검증하지 않고, 이미 올라간 주소를 넘겼을 때 요청에 실리는지와
+ * 사진이 없을 때 아예 부르지 않는지만 본다. 이 가짜는 불려서는 안 된다.
+ */
+private class UnusedPhotoUploader : PhotoUploader {
+    override suspend fun inspect(uri: Uri) = TODO("사진 없는 경로만 검증한다")
+    override suspend fun upload(uploadUrl: String, photo: PhotoSpec) =
+        TODO("사진 없는 경로만 검증한다")
+}
+
 class PlaceImportRepositoryImplTest {
 
     private fun candidate(
@@ -131,7 +148,7 @@ class PlaceImportRepositoryImplTest {
         caption: CaptionResult = CaptionResult.Success("캡션 전문"),
         service: FakePlaceService = FakePlaceService(),
         extractor: FakeCaptionExtractor = FakeCaptionExtractor(caption),
-    ) = PlaceImportRepositoryImpl(extractor, service)
+    ) = PlaceImportRepositoryImpl(extractor, service, UnusedPhotoUploader())
 
     @Test
     fun `비공개 게시물이면 서버를 호출하지 않고 실패한다`() = runTest {
@@ -313,6 +330,10 @@ class PlaceImportRepositoryImplTest {
         sourceUrl = "https://www.instagram.com/reel/ABC/",
     )
 
+    /** 화면이 편집값을 만드는 방식과 같다. 손대지 않은 장소는 원래 메모가 그대로 실린다. */
+    private fun edited(place: ImportedPlace, edit: PlaceEdit? = null) =
+        EditedPlace(place, edit ?: PlaceEdit(memo = place.description.orEmpty()))
+
     @Test
     fun `고른 지도마다 한 번씩 일괄 등록을 부른다`() = runTest {
         // 서버가 요청 하나에 지도 하나만 받는다.
@@ -320,7 +341,8 @@ class PlaceImportRepositoryImplTest {
 
         repository(service = service).savePlaces(
             mapIds = setOf(11L, 12L),
-            places = listOf(importedPlace("a"), importedPlace("b")),
+            places = listOf(edited(importedPlace("a")), edited(importedPlace("b"))),
+            photoUrls = emptyMap(),
         )
 
         assertEquals(listOf(11L, 12L), service.bulkRequests.map { it.mapId })
@@ -331,7 +353,8 @@ class PlaceImportRepositoryImplTest {
     fun `등록 요청에 장소 값을 그대로 담는다`() = runTest {
         val service = FakePlaceService()
 
-        repository(service = service).savePlaces(setOf(11L), listOf(importedPlace("kakao-9")))
+        repository(service = service)
+            .savePlaces(setOf(11L), listOf(edited(importedPlace("kakao-9"))), emptyMap())
 
         val item = service.bulkRequests.single().places.single()
         assertEquals("커피나무", item.name)
@@ -350,9 +373,9 @@ class PlaceImportRepositoryImplTest {
     fun `한 번에 보낼 수 있는 수를 넘으면 나눠 보낸다`() = runTest {
         // 서버가 요청당 100 개로 제한한다.
         val service = FakePlaceService()
-        val places = (1..101).map { index -> importedPlace("kakao-$index") }
+        val places = (1..101).map { index -> edited(importedPlace("kakao-$index")) }
 
-        repository(service = service).savePlaces(setOf(11L), places)
+        repository(service = service).savePlaces(setOf(11L), places, emptyMap())
 
         assertEquals(listOf(100, 1), service.bulkRequests.map { it.places.size })
     }
@@ -367,12 +390,92 @@ class PlaceImportRepositoryImplTest {
 
         val result = repository(service = service).savePlaces(
             mapIds = setOf(11L, 12L),
-            places = listOf(importedPlace("a"), importedPlace("b")),
+            places = listOf(edited(importedPlace("a")), edited(importedPlace("b"))),
+            photoUrls = emptyMap(),
         )
 
         assertEquals(2, result.created)
         assertEquals(1, result.duplicate)
         assertEquals(1, result.failed)
+    }
+
+    @Test
+    fun `편집한 태그와 메모를 등록 요청에 담는다`() = runTest {
+        val service = FakePlaceService()
+        val place = importedPlace("kakao-9")
+
+        repository(service = service).savePlaces(
+            mapIds = setOf(11L),
+            places = listOf(edited(place, PlaceEdit(tags = listOf("성수", "카페"), memo = "창가 자리"))),
+            photoUrls = emptyMap(),
+        )
+
+        val item = service.bulkRequests.single().places.single()
+        assertEquals(listOf("성수", "카페"), item.tags)
+        // 편집 화면의 메모가 곧 설명이다. 원래 값("메모")을 덮어쓴다.
+        assertEquals("창가 자리", item.description)
+    }
+
+    @Test
+    fun `붙인 것이 없으면 빈 값 대신 보내지 않는다`() = runTest {
+        // 빈 목록이나 빈 문자열을 보내면 서버가 "지우라는 뜻"으로 받을 수 있다.
+        val service = FakePlaceService()
+
+        repository(service = service).savePlaces(
+            mapIds = setOf(11L),
+            places = listOf(edited(importedPlace("kakao-9"), PlaceEdit())),
+            photoUrls = emptyMap(),
+        )
+
+        val item = service.bulkRequests.single().places.single()
+        assertNull(item.tags)
+        assertNull(item.description)
+        assertNull(item.photoUrls)
+    }
+
+    @Test
+    fun `올려 둔 사진 주소를 그 장소의 요청에만 담는다`() = runTest {
+        val service = FakePlaceService()
+
+        repository(service = service).savePlaces(
+            mapIds = setOf(11L),
+            places = listOf(edited(importedPlace("a")), edited(importedPlace("b"))),
+            photoUrls = mapOf("a" to listOf("https://cdn/1.jpg", "https://cdn/2.jpg")),
+        )
+
+        val items = service.bulkRequests.single().places
+        assertEquals(listOf("https://cdn/1.jpg", "https://cdn/2.jpg"), items[0].photoUrls)
+        assertNull(items[1].photoUrls)
+    }
+
+    @Test
+    fun `같은 사진 주소를 고른 지도 모두에 그대로 쓴다`() = runTest {
+        // 같은 파일이라 지도 수만큼 올릴 이유가 없다.
+        val service = FakePlaceService()
+
+        repository(service = service).savePlaces(
+            mapIds = setOf(11L, 12L),
+            places = listOf(edited(importedPlace("a"))),
+            photoUrls = mapOf("a" to listOf("https://cdn/1.jpg")),
+        )
+
+        assertEquals(2, service.bulkRequests.size)
+        service.bulkRequests.forEach { request ->
+            assertEquals(listOf("https://cdn/1.jpg"), request.places.single().photoUrls)
+        }
+    }
+
+    @Test
+    fun `사진을 붙이지 않았으면 발급을 부르지 않는다`() = runTest {
+        // FakePlaceService 의 발급은 TODO 라 불리면 터진다. 그게 이 테스트의 검증이다.
+        val service = FakePlaceService()
+
+        val urls = repository(service = service).uploadPhotos(
+            mapId = 11L,
+            places = listOf(edited(importedPlace("a")), edited(importedPlace("b"))),
+        )
+
+        assertTrue(urls.isEmpty())
     }
 
     private fun bulkResponse(vararg statuses: String) = PlaceBulkCreateResponseDto(

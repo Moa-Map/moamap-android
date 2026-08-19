@@ -42,7 +42,6 @@ import com.example.moamap.R
 import com.example.moamap.core.designsystem.component.ShadowedSurface
 import com.example.moamap.core.designsystem.theme.MoaMapPrimitiveColors
 import com.example.moamap.core.designsystem.theme.MoaMapTheme
-import com.example.moamap.feature.mapdetail.domain.model.PlaceCandidate
 
 private val SelectedCardShape = RoundedCornerShape(16.dp)
 private val InputShape = RoundedCornerShape(12.dp)
@@ -52,10 +51,16 @@ private val PhotoShape = RoundedCornerShape(12.dp)
 /** 새 지도 만들기의 사진 카드와 같은 비율(피그마 353x235.33 = 3:2)이다. */
 private const val PhotoCardAspectRatio = 3f / 2f
 
-/** 2단계. 고른 장소에 사진·태그·메모를 붙인다. 셋 다 선택이다. */
+/**
+ * 고른 장소에 사진·태그·메모를 붙인다. 셋 다 선택이다.
+ *
+ * 지도 상세의 장소 추가 2단계와 링크로 가져온 장소의 편집 화면이 함께 쓴다. 두 흐름이 서로
+ * 다른 도메인 모델을 들고 있어 장소는 [placeName]·[placeAddress] 로만 받는다.
+ */
 @Composable
 internal fun PlaceFormContent(
-    candidate: PlaceCandidate,
+    placeName: String,
+    placeAddress: String,
     photos: List<Uri>,
     tags: List<String>,
     tagInput: String,
@@ -82,7 +87,7 @@ internal fun PlaceFormContent(
             color = MoaMapTheme.colors.textNormal,
         )
 
-        SelectedPlaceCard(candidate = candidate)
+        SelectedPlaceCard(name = placeName, address = placeAddress)
 
         FormSection(title = "사진") {
             PhotoPicker(
@@ -161,7 +166,7 @@ private fun FormSection(
 }
 
 @Composable
-private fun SelectedPlaceCard(candidate: PlaceCandidate) {
+private fun SelectedPlaceCard(name: String, address: String) {
     ShadowedSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = SelectedCardShape,
@@ -180,15 +185,15 @@ private fun SelectedPlaceCard(candidate: PlaceCandidate) {
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
-                    text = candidate.name,
+                    text = name,
                     style = MoaMapTheme.typography.subtitle2,
                     color = MoaMapTheme.colors.textNormal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (candidate.displayAddress.isNotEmpty()) {
+                if (address.isNotEmpty()) {
                     Text(
-                        text = candidate.displayAddress,
+                        text = address,
                         style = MoaMapTheme.typography.caption0,
                         color = MoaMapTheme.colors.textNormal,
                         maxLines = 1,
@@ -356,24 +361,14 @@ private fun FormTextField(
     }
 }
 
-private val PreviewCandidate = PlaceCandidate(
-    kakaoPlaceId = "1",
-    name = "커피나무",
-    address = "서울 동작구 상도동 369",
-    roadAddress = "서울시 동작구 369",
-    latitude = 37.4963,
-    longitude = 126.9574,
-    category = "음식점 > 카페",
-    placeUrl = null,
-)
-
 @Preview(showBackground = true, widthDp = 393, heightDp = 800)
 @Composable
 private fun PlaceFormContentPreview() {
     MoaMapTheme {
         Box(modifier = Modifier.background(MoaMapTheme.colors.backgroundSecondary)) {
             PlaceFormContent(
-                candidate = PreviewCandidate,
+                placeName = "커피나무",
+                placeAddress = "서울시 동작구 369",
                 photos = emptyList(),
                 tags = listOf("성수", "카페", "데이트"),
                 tagInput = "",

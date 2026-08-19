@@ -1,5 +1,7 @@
 package com.example.moamap.feature.collection.data.repository
 
+import com.example.moamap.core.common.upload.PhotoUploader
+import com.example.moamap.feature.collection.domain.model.EditedPlace
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
 import com.example.moamap.feature.collection.domain.model.PlaceExtractionException
 import com.example.moamap.feature.collection.domain.model.PlaceSaveResult
@@ -14,6 +16,7 @@ import com.example.moamap.feature.explore.data.remote.PlaceBulkCreateRequestDto
 import com.example.moamap.feature.explore.data.remote.PlaceBulkItemDto
 import com.example.moamap.feature.explore.data.remote.PlaceCandidateDto
 import com.example.moamap.feature.explore.data.remote.PlaceService
+import com.example.moamap.feature.explore.data.remote.uploadPlacePhotos
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,9 +27,10 @@ import javax.inject.Singleton
  * 캡션을 못 읽으면 서버를 호출할 것도 없이 여기서 끝난다.
  */
 @Singleton
-class PlaceImportRepositoryImpl @Inject constructor(
+internal class PlaceImportRepositoryImpl @Inject constructor(
     private val captionExtractor: CaptionExtractor,
     private val placeService: PlaceService,
+    private val uploader: PhotoUploader,
 ) : PlaceImportRepository {
 
     override suspend fun extractPlaces(url: String): List<ImportedPlace> {
@@ -74,7 +78,8 @@ class PlaceImportRepositoryImpl @Inject constructor(
      */
     override suspend fun savePlaces(
         mapIds: Set<Long>,
-        places: List<ImportedPlace>,
+        places: List<EditedPlace>,
+        photoUrls: Map<String, List<String>>,
     ): PlaceSaveResult {
         var created = 0
         var duplicate = 0
@@ -85,7 +90,9 @@ class PlaceImportRepositoryImpl @Inject constructor(
                 val response = placeService.createPlacesBulk(
                     PlaceBulkCreateRequestDto(
                         mapId = mapId,
-                        places = chunk.map { place -> place.toBulkItem() },
+                        places = chunk.map { entry ->
+                            entry.toBulkItem(photoUrls[entry.place.id].orEmpty())
+                        },
                     ),
                 )
                 for (result in response.results) {
@@ -101,24 +108,47 @@ class PlaceImportRepositoryImpl @Inject constructor(
         return PlaceSaveResult(created = created, duplicate = duplicate, failed = failed)
     }
 
+    /** 발급이 한 번에 5장까지라 장소별로 나눠 부른다. 사진을 붙이지 않은 장소는 부르지 않는다. */
+    override suspend fun uploadPhotos(
+        mapId: Long,
+        places: List<EditedPlace>,
+    ): Map<String, List<String>> = places
+        .filter { entry -> entry.edit.photos.isNotEmpty() }
+        .associate { entry ->
+            entry.place.id to placeService.uploadPlacePhotos(
+                uploader = uploader,
+                mapId = mapId,
+                photos = entry.edit.photos,
+            )
+        }
+
     private companion object {
         const val CREATED = "CREATED"
         const val DUPLICATE = "DUPLICATE"
     }
 }
 
-private fun ImportedPlace.toBulkItem() = PlaceBulkItemDto(
-    name = name,
-    address = address,
-    roadAddress = roadAddress,
-    lat = lat,
-    lng = lng,
-    category = category,
+/**
+ * 편집값을 얹어 일괄 등록 항목으로 만든다.
+ *
+ * 비어 있는 값은 `null` 로 보낸다. 빈 목록이나 빈 문자열을 보내면 서버가 "지우라는 뜻"으로
+ * 받을 수 있고, 어차피 실을 내용이 없다.
+ */
+private fun EditedPlace.toBulkItem(photoUrls: List<String>) = PlaceBulkItemDto(
+    name = place.name,
+    address = place.address,
+    roadAddress = place.roadAddress,
+    lat = place.lat,
+    lng = place.lng,
+    category = place.category,
     // 고를 수 있었던 장소는 이 값을 갖고 있다. 없는 후보는 선택 단계에서 걸러진다.
-    kakaoPlaceId = kakaoPlaceId.orEmpty(),
-    sourceType = sourceType,
-    sourceUrl = sourceUrl,
-    description = description,
+    kakaoPlaceId = place.kakaoPlaceId.orEmpty(),
+    sourceType = place.sourceType,
+    sourceUrl = place.sourceUrl,
+    // 편집 화면의 메모가 곧 설명이다. 외부 지도에서 온 기존 메모도 이 값으로 흘러들어온다.
+    description = edit.memo.takeIf(String::isNotBlank),
+    tags = edit.tags.takeIf(List<String>::isNotEmpty),
+    photoUrls = photoUrls.takeIf(List<String>::isNotEmpty),
 )
 
 private fun PlaceCandidateDto.toImportedPlace(index: Int) = ImportedPlace(

@@ -1,7 +1,9 @@
 package com.example.moamap.feature.collection.presentation.placeimport
 
 import androidx.compose.runtime.Immutable
+import com.example.moamap.feature.collection.domain.model.EditedPlace
 import com.example.moamap.feature.collection.domain.model.ImportedPlace
+import com.example.moamap.feature.collection.domain.model.PlaceEdit
 import com.example.moamap.feature.collection.domain.model.PlaceImportSource
 import com.example.moamap.feature.collection.domain.model.PlaceSaveResult
 import com.example.moamap.feature.collection.presentation.MyMapsState
@@ -33,9 +35,23 @@ internal data class PlaceImportUiState(
     val url: String = "",
     val extraction: ExtractionState = ExtractionState.Idle,
     val selectedPlaceIds: Set<String> = emptySet(),
+    /**
+     * 장소 id 로 찾는 편집값. 한 번도 편집하지 않은 장소는 여기 없다.
+     *
+     * 없는 것과 비어 있는 것을 구분하지 않는다 - [editOf] 가 없으면 기본값을 만들어 준다.
+     */
+    val edits: Map<String, PlaceEdit> = emptyMap(),
     /** 저장할 곳으로 고를 수 있는 내 프라이빗 지도. 모음 화면의 프라이빗 탭과 같은 목록이다. */
     val targetMaps: MyMapsState = MyMapsState.Loading,
     val selectedMapIds: Set<Long> = emptySet(),
+    /**
+     * 이미 올려 둔 사진 주소. 장소 id 로 찾는다.
+     *
+     * 등록이 실패해도 올린 사진은 스토리지에 남는다(지울 API 가 없다). 다시 시도할 때 또 올리면
+     * 고아 파일이 시도할 때마다 쌓이므로, 한 번 올린 건 여기 두고 재사용한다. 사진을 더하거나
+     * 빼면 올려 둔 것과 어긋나므로 비운다.
+     */
+    val uploadedPhotoUrls: Map<String, List<String>> = emptyMap(),
     /** 등록 요청이 나가 있는 동안. 같은 장소가 두 번 등록되지 않게 버튼을 잠근다. */
     val saving: Boolean = false,
     /** 등록이 끝나면 채워진다. 흐름을 빠져나갈 신호도 겸한다. */
@@ -54,6 +70,19 @@ internal data class PlaceImportUiState(
      */
     val selectedPlaces: List<ImportedPlace>
         get() = places.filter { place -> place.id in selectedPlaceIds }
+
+    /**
+     * 그 장소의 편집값. 아직 편집하지 않았으면 기본값을 만들어 준다.
+     *
+     * 외부 지도로 가져온 장소는 공유 리스트에 적힌 메모가 이미 있다. 그 값을 메모 칸의
+     * 시작값으로 삼아, 사용자가 손대지 않으면 원래 메모가 그대로 등록되게 한다.
+     */
+    fun editOf(place: ImportedPlace): PlaceEdit =
+        edits[place.id] ?: PlaceEdit(memo = place.description.orEmpty())
+
+    /** 등록에 넘길 목록. 고른 순서가 아니라 화면에 나온 순서다. */
+    val selectedEntries: List<EditedPlace>
+        get() = selectedPlaces.map { place -> EditedPlace(place, editOf(place)) }
 
     /** URL 이 비어 있으면 검색할 것이 없다. */
     val canSearch: Boolean get() = url.isNotBlank()
