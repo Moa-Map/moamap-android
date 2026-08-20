@@ -16,6 +16,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.IOException
 
 private class FakeKakaoAuthClient : KakaoAuthClient {
     var logoutCount: Int = 0
@@ -72,6 +73,26 @@ class AuthRepositoryImplTest {
 
         assertEquals("a", tokenStore.token?.accessToken)
         assertEquals(42L, userStore.userId)
+    }
+
+    /**
+     * 토큰 쓰기가 세션이 성립하는 지점이다.
+     *
+     * 두 저장소가 각자 디스크에 쓰므로 하나만 성공할 수 있다. 토큰을 먼저 쓰면 신원 저장이
+     * 실패했을 때 토큰만 남아, [AuthRepository.hasSession] 이 참인데 신원이 없는 상태가 된다.
+     * 신원을 먼저 써 두면 그 경우 세션 자체가 열리지 않아 사용자가 다시 로그인하고, 그때 두
+     * 값이 함께 새로 쓰인다.
+     */
+    @Test
+    fun `신원을 저장하지 못하면 토큰도 남기지 않는다`() = runTest {
+        val tokenStore = FakeAuthTokenStore()
+        val userStore = FakeCurrentUserStore().apply { saveError = IOException("boom") }
+
+        runCatching {
+            repository(tokenStore = tokenStore, userStore = userStore).loginWithKakao(context)
+        }
+
+        assertNull(tokenStore.token)
     }
 
     /**

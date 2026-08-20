@@ -38,8 +38,11 @@ class AuthRepositoryImpl @Inject constructor(
         }
         check(response.userId > 0) { "로그인 응답에 사용자 식별자가 없습니다." }
 
-        tokenStore.save(AuthToken(accessToken = accessToken, refreshToken = refreshToken))
+        // 신원을 먼저 쓴다. 두 저장소가 각자 디스크에 써서 하나만 성공할 수 있는데,
+        // hasSession() 이 토큰만 보므로 토큰 쓰기가 세션이 성립하는 지점이 된다. 순서를
+        // 뒤집으면 신원 저장이 실패했을 때 토큰만 남아, 로그인된 채로 신원이 없는 상태가 된다.
         currentUserStore.save(response.userId)
+        tokenStore.save(AuthToken(accessToken = accessToken, refreshToken = refreshToken))
     }
 
     /**
@@ -58,6 +61,9 @@ class AuthRepositoryImpl @Inject constructor(
             }
             runIgnoringFailure { kakaoAuthClient.logout() }
         } finally {
+            // 지울 때는 토큰이 먼저다. 저장과 반대 순서인데, 신원을 먼저 지웠다가 토큰 삭제가
+            // 실패하면 로그인된 채로 신원만 없는 상태가 된다. 토큰을 먼저 지우면 남은 신원은
+            // 이미 로그아웃된 상태의 값이라, 다음 로그인이 덮어쓸 때까지 읽히지 않는다.
             tokenStore.clear()
             // 토큰 저장소가 저장소 전체를 비우는 데 기대지 않는다. 그 구현이 토큰 키만 지우도록
             // 좁혀지면 신원만 살아남아, 다른 계정으로 로그인했을 때 남의 글이 내 것으로 보인다.

@@ -32,9 +32,13 @@ class FakeCurrentUserStore(initial: Long? = null) : CurrentUserStore {
     var clearCount: Int = 0
         private set
 
+    /** 디스크 쓰기가 실패하는 상황을 만들 때 채운다. */
+    var saveError: Exception? = null
+
     override suspend fun load(): Long? = userId
 
     override suspend fun save(userId: Long) {
+        saveError?.let { throw it }
         if (userId > 0) this.userId = userId
     }
 
