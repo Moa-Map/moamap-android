@@ -1,6 +1,7 @@
 package com.example.moamap.core.network.di
 
 import com.example.moamap.core.auth.FakeAuthTokenStore
+import com.example.moamap.core.auth.FakeCurrentUserStore
 import com.example.moamap.core.auth.FakeTokenRefresher
 import com.example.moamap.core.network.ApiException
 import com.example.moamap.core.network.authenticator.TokenAuthenticator
@@ -53,6 +54,7 @@ class NetworkModuleTest {
             tokenStore = FakeAuthTokenStore(),
             tokenAuthenticator = TokenAuthenticator(
                 tokenStore = FakeAuthTokenStore(),
+                currentUserStore = FakeCurrentUserStore(),
                 tokenRefresher = { FakeTokenRefresher() },
             ),
         )

@@ -3,6 +3,7 @@ package com.example.moamap.feature.onboarding.data.repository
 import android.content.Context
 import com.example.moamap.core.auth.AuthToken
 import com.example.moamap.core.auth.AuthTokenStore
+import com.example.moamap.core.auth.CurrentUserStore
 import com.example.moamap.feature.onboarding.data.remote.AuthService
 import com.example.moamap.feature.onboarding.data.remote.KakaoAuthClient
 import com.example.moamap.feature.onboarding.data.remote.KakaoLoginRequestDto
@@ -17,8 +18,15 @@ class AuthRepositoryImpl @Inject constructor(
     private val kakaoAuthClient: KakaoAuthClient,
     private val authService: AuthService,
     private val tokenStore: AuthTokenStore,
+    private val currentUserStore: CurrentUserStore,
 ) : AuthRepository {
 
+    /**
+     * 토큰과 식별자 중 하나라도 빠지면 세션을 열지 않는다.
+     *
+     * 신원을 모른 채 들어가면 후기 목록에서 내 것과 남의 것을 가릴 수 없다. 수정·삭제가 붙어야
+     * 할 자리에 신고가 붙거나 그 반대가 되는데, 화면이 조용히 어긋나느니 여기서 멈추는 편이 낫다.
+     */
     override suspend fun loginWithKakao(context: Context) {
         val kakaoAccessToken = kakaoAuthClient.login(context)
         val response = authService.kakaoLogin(KakaoLoginRequestDto(kakaoAccessToken))
@@ -28,8 +36,10 @@ class AuthRepositoryImpl @Inject constructor(
         check(!accessToken.isNullOrEmpty() && !refreshToken.isNullOrEmpty()) {
             "로그인 응답에 토큰이 없습니다."
         }
+        check(response.userId > 0) { "로그인 응답에 사용자 식별자가 없습니다." }
 
         tokenStore.save(AuthToken(accessToken = accessToken, refreshToken = refreshToken))
+        currentUserStore.save(response.userId)
     }
 
     /**
@@ -49,6 +59,9 @@ class AuthRepositoryImpl @Inject constructor(
             runIgnoringFailure { kakaoAuthClient.logout() }
         } finally {
             tokenStore.clear()
+            // 토큰 저장소가 저장소 전체를 비우는 데 기대지 않는다. 그 구현이 토큰 키만 지우도록
+            // 좁혀지면 신원만 살아남아, 다른 계정으로 로그인했을 때 남의 글이 내 것으로 보인다.
+            currentUserStore.clear()
         }
     }
 
