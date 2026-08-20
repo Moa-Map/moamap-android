@@ -23,6 +23,14 @@ data class LogoutRequestDto(
 /** 로그인·토큰 갱신 응답 */
 @Serializable
 data class TokenDto(
+    /**
+     * 로그인한 사용자 식별자.
+     *
+     * 갱신 응답도 같은 스키마를 쓰지만 거기서는 읽지 않는다. 신원은 토큰을 갱신해도 그대로다.
+     *
+     * 빠져 있으면 0 이다. 로그인 경로가 이 값을 검사해 세션 자체를 막는다.
+     */
+    val userId: Long = 0,
     val accessToken: String? = null,
     val refreshToken: String? = null,
     val tokenType: String? = null,

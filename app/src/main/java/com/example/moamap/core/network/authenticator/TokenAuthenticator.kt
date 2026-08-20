@@ -1,6 +1,7 @@
 package com.example.moamap.core.network.authenticator
 
 import com.example.moamap.core.auth.AuthTokenStore
+import com.example.moamap.core.auth.CurrentUserStore
 import com.example.moamap.core.auth.TokenRefreshResult
 import com.example.moamap.core.auth.TokenRefresher
 import com.example.moamap.core.network.interceptor.AUTHORIZATION_HEADER
@@ -29,6 +30,7 @@ import javax.inject.Singleton
 @Singleton
 class TokenAuthenticator @Inject constructor(
     private val tokenStore: AuthTokenStore,
+    private val currentUserStore: CurrentUserStore,
     private val tokenRefresher: Provider<TokenRefresher>,
 ) : Authenticator {
 
@@ -54,12 +56,16 @@ class TokenAuthenticator @Inject constructor(
                 when (val result = tokenRefresher.get().refresh(current.refreshToken)) {
                     is TokenRefreshResult.Success -> {
                         tokenStore.save(result.token)
+                        // 신원은 건드리지 않는다. 갱신으로 사람이 바뀌지는 않는다.
                         result.token.accessToken
                     }
 
                     // 서버가 거부했다. 남겨두면 매 요청마다 갱신을 재시도하게 된다.
                     TokenRefreshResult.Rejected -> {
                         tokenStore.clear()
+                        // 세션이 끝났으니 신원도 함께 버린다. 남겨두면 다음 사람이 이 기기에
+                        // 로그인했을 때 남의 글이 자기 것으로 보인다.
+                        currentUserStore.clear()
                         null
                     }
 

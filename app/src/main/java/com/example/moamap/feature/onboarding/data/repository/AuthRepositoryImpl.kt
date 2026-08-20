@@ -3,6 +3,7 @@ package com.example.moamap.feature.onboarding.data.repository
 import android.content.Context
 import com.example.moamap.core.auth.AuthToken
 import com.example.moamap.core.auth.AuthTokenStore
+import com.example.moamap.core.auth.CurrentUserStore
 import com.example.moamap.feature.onboarding.data.remote.AuthService
 import com.example.moamap.feature.onboarding.data.remote.KakaoAuthClient
 import com.example.moamap.feature.onboarding.data.remote.KakaoLoginRequestDto
@@ -17,8 +18,15 @@ class AuthRepositoryImpl @Inject constructor(
     private val kakaoAuthClient: KakaoAuthClient,
     private val authService: AuthService,
     private val tokenStore: AuthTokenStore,
+    private val currentUserStore: CurrentUserStore,
 ) : AuthRepository {
 
+    /**
+     * 토큰과 식별자 중 하나라도 빠지면 세션을 열지 않는다.
+     *
+     * 신원을 모른 채 들어가면 후기 목록에서 내 것과 남의 것을 가릴 수 없다. 수정·삭제가 붙어야
+     * 할 자리에 신고가 붙거나 그 반대가 되는데, 화면이 조용히 어긋나느니 여기서 멈추는 편이 낫다.
+     */
     override suspend fun loginWithKakao(context: Context) {
         val kakaoAccessToken = kakaoAuthClient.login(context)
         val response = authService.kakaoLogin(KakaoLoginRequestDto(kakaoAccessToken))
@@ -28,7 +36,12 @@ class AuthRepositoryImpl @Inject constructor(
         check(!accessToken.isNullOrEmpty() && !refreshToken.isNullOrEmpty()) {
             "로그인 응답에 토큰이 없습니다."
         }
+        check(response.userId > 0) { "로그인 응답에 사용자 식별자가 없습니다." }
 
+        // 신원을 먼저 쓴다. 두 저장소가 각자 디스크에 써서 하나만 성공할 수 있는데,
+        // hasSession() 이 토큰만 보므로 토큰 쓰기가 세션이 성립하는 지점이 된다. 순서를
+        // 뒤집으면 신원 저장이 실패했을 때 토큰만 남아, 로그인된 채로 신원이 없는 상태가 된다.
+        currentUserStore.save(response.userId)
         tokenStore.save(AuthToken(accessToken = accessToken, refreshToken = refreshToken))
     }
 
@@ -48,7 +61,13 @@ class AuthRepositoryImpl @Inject constructor(
             }
             runIgnoringFailure { kakaoAuthClient.logout() }
         } finally {
+            // 지울 때는 토큰이 먼저다. 저장과 반대 순서인데, 신원을 먼저 지웠다가 토큰 삭제가
+            // 실패하면 로그인된 채로 신원만 없는 상태가 된다. 토큰을 먼저 지우면 남은 신원은
+            // 이미 로그아웃된 상태의 값이라, 다음 로그인이 덮어쓸 때까지 읽히지 않는다.
             tokenStore.clear()
+            // 토큰 저장소가 저장소 전체를 비우는 데 기대지 않는다. 그 구현이 토큰 키만 지우도록
+            // 좁혀지면 신원만 살아남아, 다른 계정으로 로그인했을 때 남의 글이 내 것으로 보인다.
+            currentUserStore.clear()
         }
     }
 

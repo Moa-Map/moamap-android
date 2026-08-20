@@ -6,7 +6,9 @@ import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import com.example.moamap.core.auth.AuthTokenStore
+import com.example.moamap.core.auth.CurrentUserStore
 import com.example.moamap.core.auth.DataStoreAuthTokenStore
+import com.example.moamap.core.auth.DataStoreCurrentUserStore
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -31,6 +33,10 @@ internal abstract class AuthModule {
     @Binds
     @Singleton
     abstract fun bindAuthTokenStore(impl: DataStoreAuthTokenStore): AuthTokenStore
+
+    @Binds
+    @Singleton
+    abstract fun bindCurrentUserStore(impl: DataStoreCurrentUserStore): CurrentUserStore
 
     companion object {
         private const val AUTH_PREFERENCES_NAME = "auth"
