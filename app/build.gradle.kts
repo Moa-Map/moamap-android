@@ -17,11 +17,11 @@ val localProperties = Properties().apply {
 fun localProperty(key: String): String = localProperties.getProperty(key).orEmpty()
 
 android {
-    namespace = "com.example.moamap"
+    namespace = "com.moamap.app"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "com.example.moamap"
+        applicationId = "com.moamap.app"
         minSdk = 24
         targetSdk = 37
         versionCode = 1
