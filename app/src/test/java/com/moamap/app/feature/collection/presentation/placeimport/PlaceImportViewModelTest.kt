@@ -1,6 +1,8 @@
 package com.moamap.app.feature.collection.presentation.placeimport
 
 import androidx.lifecycle.SavedStateHandle
+import com.moamap.app.core.common.upload.ImageUploadException
+import com.moamap.app.core.common.upload.MAX_PLACE_PHOTO_FILE_SIZE
 import com.moamap.app.core.navigation.MoaMapRoute
 import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.collection.domain.model.ImportedPlace
@@ -104,11 +106,15 @@ private class FakePlaceImportRepository : PlaceImportRepository {
 
     var uploadResult: Map<String, List<String>> = emptyMap()
 
+    /** 발급 전 검증에 걸린 경우를 흉내 낸다. */
+    var uploadFailure: Throwable? = null
+
     override suspend fun uploadPhotos(
         mapId: Long,
         places: List<EditedPlace>,
     ): Map<String, List<String>> {
         uploadCallCount++
+        uploadFailure?.let { throw it }
         return uploadResult
     }
 
@@ -590,6 +596,23 @@ class PlaceImportViewModelTest {
         assertEquals("네트워크에 연결할 수 없어요", viewModel.uiState.value.errorMessage)
         assertNull(viewModel.uiState.value.saveResult)
         assertFalse(viewModel.uiState.value.saving)
+        assertTrue(viewModel.uiState.value.canSave)
+    }
+
+    /** "저장하지 못했어요" 로 뭉개면 사진을 바꿔야 한다는 것을 알 수 없다. */
+    @Test
+    fun `사진이 한도를 넘으면 그 이유를 그대로 알린다`() = runTest(dispatcher) {
+        repository.uploadFailure = ImageUploadException.TooLarge(MAX_PLACE_PHOTO_FILE_SIZE)
+        startExtraction()
+        advanceUntilIdle()
+        viewModel.togglePlace(Places[0].id)
+        viewModel.toggleMap(MyMaps[0].id)
+
+        viewModel.savePlaces()
+        advanceUntilIdle()
+
+        assertEquals("사진 크기는 5MB 이하여야 해요", viewModel.uiState.value.errorMessage)
+        assertNull(viewModel.uiState.value.saveResult)
         assertTrue(viewModel.uiState.value.canSave)
     }
 

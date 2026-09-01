@@ -1,7 +1,9 @@
 package com.moamap.app.feature.explore.data.remote
 
 import android.net.Uri
+import com.moamap.app.core.common.upload.MAX_PLACE_PHOTO_FILE_SIZE
 import com.moamap.app.core.common.upload.PhotoUploader
+import com.moamap.app.core.common.upload.validateImageUpload
 
 /**
  * 장소 사진을 올리고 등록 요청에 실을 접근 주소를 돌려준다.
@@ -11,6 +13,9 @@ import com.moamap.app.core.common.upload.PhotoUploader
  * 들고 있으면 터진다. 업로드는 한 장씩, 그 순간에 흘려보낸다.
  *
  * 한 장이라도 실패하면 예외를 던진다. 사진이 빠진 채로 장소가 등록되면 사용자가 알아챌 방법이 없다.
+ *
+ * 살펴본 뒤 곧바로 검증한다. 발급을 받고 나서 걸러도 늦다 - 한 장이라도 올린 뒤에 막히면 지울
+ * 방법이 없어 스토리지에 고아 파일이 남는다.
  *
  * 지도 상세의 장소 추가와 링크로 가져온 장소의 일괄 등록이 함께 쓴다.
  *
@@ -23,7 +28,15 @@ internal suspend fun PlaceService.uploadPlacePhotos(
 ): List<String> {
     if (photos.isEmpty()) return emptyList()
 
-    val specs = photos.map { uri -> uploader.inspect(uri) }
+    val specs = photos.map { uri ->
+        uploader.inspect(uri).also { photo ->
+            validateImageUpload(
+                contentType = photo.contentType,
+                fileSize = photo.size,
+                maxFileSize = MAX_PLACE_PHOTO_FILE_SIZE,
+            )
+        }
+    }
 
     val issued = createPhotoUploadUrls(
         PhotoUploadUrlRequestDto(

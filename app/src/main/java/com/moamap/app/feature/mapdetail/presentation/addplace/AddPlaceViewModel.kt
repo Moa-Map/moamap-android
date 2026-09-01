@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moamap.app.core.common.upload.ImageUploadException
 import com.moamap.app.core.navigation.MoaMapRoute
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
@@ -43,6 +44,16 @@ private const val DUPLICATE_PLACE_CODE = "PLACE_010"
 private fun Throwable.toAddPlaceMessage(): String =
     if (this is ApiException && code == DUPLICATE_PLACE_CODE) DUPLICATE_MESSAGE
     else toUserMessage(ADD_FAILED_MESSAGE)
+
+/**
+ * 사진 업로드 실패는 등록 실패와 다르게 안내한다.
+ *
+ * 형식이나 크기 때문에 걸린 것은 사용자가 사진을 바꿔야 하는 일이라, 예외가 들고 있는 이유를
+ * 그대로 보여준다. "사진을 올리지 못했어요" 로 뭉개면 무엇을 고쳐야 하는지 알 수 없다.
+ */
+private fun Throwable.toPhotoMessage(): String =
+    if (this is ImageUploadException) message ?: PHOTO_UPLOAD_FAILED_MESSAGE
+    else toUserMessage(PHOTO_UPLOAD_FAILED_MESSAGE)
 
 /**
  * 검색어를 치는 동안 기다리는 시간.
@@ -212,7 +223,7 @@ class AddPlaceViewModel @Inject constructor(
                     throw e
                 } catch (e: Exception) {
                     Log.w(TAG, "사진 업로드 실패 (mapId=$mapId)", e)
-                    fail(e.toUserMessage(PHOTO_UPLOAD_FAILED_MESSAGE))
+                    fail(e.toPhotoMessage())
                     return@launch
                 }
             }

@@ -2,6 +2,8 @@ package com.moamap.app.feature.mapdetail.presentation.addplace
 
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
+import com.moamap.app.core.common.upload.ImageUploadException
+import com.moamap.app.core.common.upload.MAX_PLACE_PHOTO_FILE_SIZE
 import com.moamap.app.core.navigation.MoaMapRoute
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.collection.domain.model.MapType
@@ -309,6 +311,22 @@ class AddPlaceViewModelTest {
         assertTrue(add.calls.none { call -> call == "addPlace" })
         assertNotNull(viewModel.uiState.value.errorMessage)
         assertNull(viewModel.uiState.value.addedMessage)
+    }
+
+    /** 고정 문구로 뭉개면 사진을 바꿔야 한다는 것을 알 수 없다. */
+    @Test
+    fun `사진이 한도를 넘으면 그 이유를 그대로 알린다`() = runTest {
+        val add = object : FakeAddRepository() {
+            override suspend fun uploadPhotos(mapId: Long, photos: List<Uri>): List<String> =
+                throw ImageUploadException.TooLarge(MAX_PLACE_PHOTO_FILE_SIZE)
+        }
+        val viewModel = viewModel(add = add)
+        viewModel.selectCandidate(candidate("1"))
+
+        viewModel.submit(communityMap())
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("사진 크기는 5MB 이하여야 해요", viewModel.uiState.value.errorMessage)
     }
 
     @Test
