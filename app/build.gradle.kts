@@ -16,6 +16,11 @@ val localProperties = Properties().apply {
 }
 fun localProperty(key: String): String = localProperties.getProperty(key).orEmpty()
 
+// 서버 주소는 빌드 타입별로 나눠 주입한다.
+private val DefaultGatewayUrl = "http://125.6.39.211/"
+
+fun baseUrlOf(key: String): String = localProperty(key).ifEmpty { DefaultGatewayUrl }
+
 android {
     namespace = "com.moamap.app"
     compileSdk = 37
@@ -42,19 +47,17 @@ android {
         // 패키지명·키 해시를 검증하지 않아서다. 서버가 검색을 대신하는 엔드포인트가 생기면
         // 앱에서 걷어낸다 - 검색은 PlaceSearchRepository 뒤에 있어 구현체만 바꾸면 된다.
         buildConfigField("String", "KAKAO_REST_API_KEY", "\"${localProperty("KAKAO_REST_API_KEY")}\"")
-
-        // 디버그 게이트웨이. 로컬 백엔드를 보려면 local.properties 에 BASE_URL 을 넣어 덮어쓴다.
-        // 예) BASE_URL=http://10.0.2.2:8083/
-        val baseUrl = localProperty("BASE_URL").ifEmpty { "http://125.6.39.211/" }
-        buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
     }
 
     buildTypes {
         debug {
-            // BASE_URL 은 defaultConfig 에서 주입한다.
+            // 로컬 백엔드를 보려면 local.properties 에 DEBUG_BASE_URL 을 넣어 덮어쓴다.
+            // 예) DEBUG_BASE_URL=http://10.0.2.2:8083/
+            buildConfigField("String", "BASE_URL", "\"${baseUrlOf("DEBUG_BASE_URL")}\"")
         }
         release {
-            // TODO: https 도메인 확보 후 local.properties 대신 서명 파이프라인에서 주입
+            // TODO: https 도메인이 준비되면 RELEASE_BASE_URL 로 교체한다.
+            buildConfigField("String", "BASE_URL", "\"${baseUrlOf("RELEASE_BASE_URL")}\"")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
