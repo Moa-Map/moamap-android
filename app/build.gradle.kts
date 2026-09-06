@@ -17,9 +17,10 @@ val localProperties = Properties().apply {
 fun localProperty(key: String): String = localProperties.getProperty(key).orEmpty()
 
 // 서버 주소는 빌드 타입별로 나눠 주입한다.
-private val DefaultGatewayUrl = "http://125.6.39.211/"
+private val DefaultReleaseBaseUrl = "https://api.moamap.co.kr/"
+private val DefaultDebugBaseUrl = "https://dev-api.moamap.co.kr/"
 
-fun baseUrlOf(key: String): String = localProperty(key).ifEmpty { DefaultGatewayUrl }
+fun baseUrlOf(key: String, fallback: String): String = localProperty(key).ifEmpty { fallback }
 
 android {
     namespace = "com.moamap.app"
@@ -51,13 +52,10 @@ android {
 
     buildTypes {
         debug {
-            // 로컬 백엔드를 보려면 local.properties 에 DEBUG_BASE_URL 을 넣어 덮어쓴다.
-            // 예) DEBUG_BASE_URL=http://10.0.2.2:8083/
-            buildConfigField("String", "BASE_URL", "\"${baseUrlOf("DEBUG_BASE_URL")}\"")
+            buildConfigField("String", "BASE_URL", "\"${baseUrlOf("DEBUG_BASE_URL", DefaultDebugBaseUrl)}\"")
         }
         release {
-            // TODO: https 도메인이 준비되면 RELEASE_BASE_URL 로 교체한다.
-            buildConfigField("String", "BASE_URL", "\"${baseUrlOf("RELEASE_BASE_URL")}\"")
+            buildConfigField("String", "BASE_URL", "\"${baseUrlOf("RELEASE_BASE_URL", DefaultReleaseBaseUrl)}\"")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
