@@ -1,3 +1,4 @@
+import java.net.URI
 import java.util.Properties
 
 plugins {
@@ -20,7 +21,20 @@ fun localProperty(key: String): String = localProperties.getProperty(key).orEmpt
 private val DefaultReleaseBaseUrl = "https://api.moamap.co.kr/"
 private val DefaultDebugBaseUrl = "https://api-dev.moamap.co.kr/"
 
-fun baseUrlOf(key: String, fallback: String): String = localProperty(key).ifEmpty { fallback }
+// 릴리즈 AAB 는 로컬에서 빌드되고 CI 는 testDebugUnitTest 만 돌린다. 그래서 local.properties 의
+// 잘못된 오버라이드는 BaseUrlTest 에 걸리지 않고, Retrofit 이 baseUrl 을 받는 앱 실행 시점에야
+// IllegalArgumentException 으로 터진다. 빌드에서 먼저 막는다.
+fun baseUrlOf(key: String, fallback: String): String {
+    val value = localProperty(key).ifEmpty { fallback }
+    val uri = runCatching { URI(value) }.getOrNull()
+    require(uri != null && uri.scheme.equals("https", ignoreCase = true) && !uri.host.isNullOrBlank()) {
+        "$key 는 https 절대 주소여야 한다. 현재값=$value"
+    }
+    require(value.endsWith("/")) {
+        "$key 는 / 로 끝나야 한다 (Retrofit baseUrl 요구사항). 현재값=$value"
+    }
+    return value
+}
 
 android {
     namespace = "com.moamap.app"
