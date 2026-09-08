@@ -18,7 +18,7 @@ fun localProperty(key: String): String = localProperties.getProperty(key).orEmpt
 
 // 서버 주소는 빌드 타입별로 나눠 주입한다.
 private val DefaultReleaseBaseUrl = "https://api.moamap.co.kr/"
-private val DefaultDebugBaseUrl = "https://dev-api.moamap.co.kr/"
+private val DefaultDebugBaseUrl = "https://api-dev.moamap.co.kr/"
 
 fun baseUrlOf(key: String, fallback: String): String = localProperty(key).ifEmpty { fallback }
 
