@@ -1,3 +1,4 @@
+import java.net.URI
 import java.util.Properties
 
 plugins {
@@ -15,6 +16,25 @@ val localProperties = Properties().apply {
     if (file.exists()) file.inputStream().use { load(it) }
 }
 fun localProperty(key: String): String = localProperties.getProperty(key).orEmpty()
+
+// 서버 주소는 빌드 타입별로 나눠 주입한다.
+private val DefaultReleaseBaseUrl = "https://api.moamap.co.kr/"
+private val DefaultDebugBaseUrl = "https://api-dev.moamap.co.kr/"
+
+// 릴리즈 AAB 는 로컬에서 빌드되고 CI 는 testDebugUnitTest 만 돌린다. 그래서 local.properties 의
+// 잘못된 오버라이드는 BaseUrlTest 에 걸리지 않고, Retrofit 이 baseUrl 을 받는 앱 실행 시점에야
+// IllegalArgumentException 으로 터진다. 빌드에서 먼저 막는다.
+fun baseUrlOf(key: String, fallback: String): String {
+    val value = localProperty(key).ifEmpty { fallback }
+    val uri = runCatching { URI(value) }.getOrNull()
+    require(uri != null && uri.scheme.equals("https", ignoreCase = true) && !uri.host.isNullOrBlank()) {
+        "$key 는 https 절대 주소여야 한다. 현재값=$value"
+    }
+    require(value.endsWith("/")) {
+        "$key 는 / 로 끝나야 한다 (Retrofit baseUrl 요구사항). 현재값=$value"
+    }
+    return value
+}
 
 android {
     namespace = "com.moamap.app"
@@ -42,19 +62,14 @@ android {
         // 패키지명·키 해시를 검증하지 않아서다. 서버가 검색을 대신하는 엔드포인트가 생기면
         // 앱에서 걷어낸다 - 검색은 PlaceSearchRepository 뒤에 있어 구현체만 바꾸면 된다.
         buildConfigField("String", "KAKAO_REST_API_KEY", "\"${localProperty("KAKAO_REST_API_KEY")}\"")
-
-        // 디버그 게이트웨이. 로컬 백엔드를 보려면 local.properties 에 BASE_URL 을 넣어 덮어쓴다.
-        // 예) BASE_URL=http://10.0.2.2:8083/
-        val baseUrl = localProperty("BASE_URL").ifEmpty { "http://125.6.39.211/" }
-        buildConfigField("String", "BASE_URL", "\"$baseUrl\"")
     }
 
     buildTypes {
         debug {
-            // BASE_URL 은 defaultConfig 에서 주입한다.
+            buildConfigField("String", "BASE_URL", "\"${baseUrlOf("DEBUG_BASE_URL", DefaultDebugBaseUrl)}\"")
         }
         release {
-            // TODO: https 도메인 확보 후 local.properties 대신 서명 파이프라인에서 주입
+            buildConfigField("String", "BASE_URL", "\"${baseUrlOf("RELEASE_BASE_URL", DefaultReleaseBaseUrl)}\"")
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
