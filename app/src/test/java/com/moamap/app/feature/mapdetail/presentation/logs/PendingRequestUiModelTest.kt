@@ -18,7 +18,6 @@ class PendingRequestUiModelTest {
     ) = PendingPlace(
         id = id,
         placeName = placeName,
-        requesterId = 3L,
         requesterName = requesterName,
         requesterImageUrl = requesterImageUrl,
         requestedAtMillis = requestedAtMillis,
@@ -50,7 +49,7 @@ class PendingRequestUiModelTest {
     }
 
     /**
-     * 서버가 아직 신청자 닉네임을 내려주지 않는다.
+     * 서버가 신청자 프로필을 못 찾으면 닉네임이 비어 온다.
      *
      * 이름 줄이 빈 채로 남으면 카드가 깨져 보여, 활동 내역이 쓰는 문구로 자리를 채운다.
      */
@@ -62,7 +61,6 @@ class PendingRequestUiModelTest {
         assertNull(card.userImageUrl)
     }
 
-    /** 서버가 닉네임을 내려주기 시작하면 그대로 쓴다. */
     @Test
     fun `신청자 이름이 있으면 그대로 쓴다`() {
         val card = listOf(pending(requesterName = "박지훈", requesterImageUrl = "https://cdn/3.jpg"))

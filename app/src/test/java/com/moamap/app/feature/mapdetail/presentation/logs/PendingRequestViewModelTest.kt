@@ -23,7 +23,6 @@ import org.junit.Test
 private fun pending(id: Long) = PendingPlace(
     id = id,
     placeName = "장소$id",
-    requesterId = 3L,
     requesterName = null,
     requesterImageUrl = null,
     requestedAtMillis = null,
