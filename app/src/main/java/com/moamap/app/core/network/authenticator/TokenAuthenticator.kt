@@ -2,6 +2,7 @@ package com.moamap.app.core.network.authenticator
 
 import com.moamap.app.core.auth.AuthTokenStore
 import com.moamap.app.core.auth.CurrentUserStore
+import com.moamap.app.core.auth.SessionEvents
 import com.moamap.app.core.auth.TokenRefreshResult
 import com.moamap.app.core.auth.TokenRefresher
 import com.moamap.app.core.network.interceptor.AUTHORIZATION_HEADER
@@ -31,6 +32,7 @@ import javax.inject.Singleton
 class TokenAuthenticator @Inject constructor(
     private val tokenStore: AuthTokenStore,
     private val currentUserStore: CurrentUserStore,
+    private val sessionEvents: SessionEvents,
     private val tokenRefresher: Provider<TokenRefresher>,
 ) : Authenticator {
 
@@ -66,6 +68,8 @@ class TokenAuthenticator @Inject constructor(
                         // 세션이 끝났으니 신원도 함께 버린다. 남겨두면 다음 사람이 이 기기에
                         // 로그인했을 때 남의 글이 자기 것으로 보인다.
                         currentUserStore.clear()
+                        // 지우기만 하면 보던 화면에 남아 이후 요청이 전부 401 로 실패한다.
+                        sessionEvents.notifySessionExpired()
                         null
                     }
 
