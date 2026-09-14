@@ -4,6 +4,7 @@ import com.moamap.app.core.network.model.PageResponse
 import com.moamap.app.feature.explore.data.remote.InstagramExtractRequestDto
 import com.moamap.app.feature.explore.data.remote.MapShareExtractRequestDto
 import com.moamap.app.feature.explore.data.remote.MapShareExtractResponseDto
+import com.moamap.app.feature.explore.data.remote.PendingPlaceDto
 import com.moamap.app.feature.explore.data.remote.PhotoUploadUrlDto
 import com.moamap.app.feature.explore.data.remote.PhotoUploadUrlRequestDto
 import com.moamap.app.feature.explore.data.remote.PlaceActivityDto
@@ -20,7 +21,7 @@ import org.junit.Test
 
 /** 이 저장소가 [PlaceService] 에서 쓰는 건 승인 대기 조회와 승인·반려뿐이다. */
 private class FakePlaceService(
-    private val pages: List<PageResponse<PlaceDto>> = emptyList(),
+    private val pages: List<PageResponse<PendingPlaceDto>> = emptyList(),
 ) : PlaceService {
 
     val pendingCalls = mutableListOf<Triple<Long, Int?, Int?>>()
@@ -34,7 +35,7 @@ private class FakePlaceService(
         page: Int?,
         size: Int?,
         sort: String?,
-    ): PageResponse<PlaceDto> {
+    ): PageResponse<PendingPlaceDto> {
         pendingError?.let { throw it }
         pendingCalls += Triple(mapId, page, size)
         return pages.getOrElse(page ?: 0) { PageResponse(content = emptyList(), last = true) }
@@ -86,7 +87,7 @@ private class FakePlaceService(
     ): MapShareExtractResponseDto = TODO("사용하지 않음")
 }
 
-private fun page(vararg places: PlaceDto, last: Boolean) =
+private fun page(vararg places: PendingPlaceDto, last: Boolean) =
     PageResponse(content = places.toList(), last = last)
 
 class PendingPlaceRepositoryImplTest {
@@ -96,8 +97,8 @@ class PendingPlaceRepositoryImplTest {
         val service = FakePlaceService(
             pages = listOf(
                 page(
-                    PlaceDto(id = 101, name = "성수 브루어리", createdBy = 3),
-                    PlaceDto(id = 102, name = "연남 책방", createdBy = 4),
+                    PendingPlaceDto(id = 101, name = "성수 브루어리", createdByNickname = "박지훈"),
+                    PendingPlaceDto(id = 102, name = "연남 책방", createdByNickname = "김서연"),
                     last = true,
                 ),
             ),
@@ -107,7 +108,7 @@ class PendingPlaceRepositoryImplTest {
 
         assertEquals(listOf(101L, 102L), pending.map { it.id })
         assertEquals("성수 브루어리", pending[0].placeName)
-        assertEquals(3L, pending[0].requesterId)
+        assertEquals("박지훈", pending[0].requesterName)
     }
 
     /** 서버가 필수로 받는 값이라 빠뜨리면 400 이 난다. */
@@ -124,8 +125,8 @@ class PendingPlaceRepositoryImplTest {
     fun `마지막 페이지까지 이어 받는다`() = runTest {
         val service = FakePlaceService(
             pages = listOf(
-                page(PlaceDto(id = 1), last = false),
-                page(PlaceDto(id = 2), last = true),
+                page(PendingPlaceDto(id = 1), last = false),
+                page(PendingPlaceDto(id = 2), last = true),
             ),
         )
 
