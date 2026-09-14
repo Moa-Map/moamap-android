@@ -3,6 +3,7 @@ package com.moamap.app.core.network.di
 import com.moamap.app.core.auth.FakeAuthTokenStore
 import com.moamap.app.core.auth.FakeCurrentUserStore
 import com.moamap.app.core.auth.FakeTokenRefresher
+import com.moamap.app.core.auth.SessionEvents
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.core.network.authenticator.TokenAuthenticator
 import kotlinx.coroutines.test.runTest
@@ -55,6 +56,7 @@ class NetworkModuleTest {
             tokenAuthenticator = TokenAuthenticator(
                 tokenStore = FakeAuthTokenStore(),
                 currentUserStore = FakeCurrentUserStore(),
+                sessionEvents = SessionEvents(),
                 tokenRefresher = { FakeTokenRefresher() },
             ),
         )

@@ -4,14 +4,19 @@ import com.moamap.app.core.auth.AuthToken
 import com.moamap.app.core.auth.FakeAuthTokenStore
 import com.moamap.app.core.auth.FakeCurrentUserStore
 import com.moamap.app.core.auth.FakeTokenRefresher
+import com.moamap.app.core.auth.SessionEvents
 import com.moamap.app.core.auth.TokenRefreshResult
 import com.moamap.app.core.network.interceptor.AuthInterceptor
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withTimeoutOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
@@ -35,9 +40,10 @@ class TokenAuthenticatorTest {
         store: FakeAuthTokenStore,
         refresher: FakeTokenRefresher,
         userStore: FakeCurrentUserStore = FakeCurrentUserStore(),
+        sessionEvents: SessionEvents = SessionEvents(),
     ): OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(AuthInterceptor(store))
-        .authenticator(TokenAuthenticator(store, userStore) { refresher })
+        .authenticator(TokenAuthenticator(store, userStore, sessionEvents) { refresher })
         .build()
 
     private fun OkHttpClient.get() =
@@ -133,6 +139,52 @@ class TokenAuthenticatorTest {
         assertNull(store.token)
         assertEquals(1, store.clearCount)
         assertEquals(1, server.requestCount)
+    }
+
+    /** 세션을 지우기만 하면 보던 화면에 남아 이후 요청이 전부 401 로 실패한다. */
+    @Test
+    fun `서버가 리프레시 토큰을 거부하면 세션 만료를 알린다`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(401))
+
+        val store = FakeAuthTokenStore(AuthToken("old-access", "old-refresh"))
+        val sessionEvents = SessionEvents()
+
+        clientFor(store, FakeTokenRefresher(TokenRefreshResult.Rejected), sessionEvents = sessionEvents)
+            .get()
+            .close()
+
+        assertNotNull(withTimeoutOrNull(1_000) { sessionEvents.sessionExpired.first() })
+    }
+
+    /** 통신이 잠깐 끊긴 것뿐이라 세션이 살아 있다. 로그인 화면으로 보내면 안 된다. */
+    @Test
+    fun `일시적인 갱신 실패에는 세션 만료를 알리지 않는다`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(401))
+
+        val store = FakeAuthTokenStore(AuthToken("old-access", "old-refresh"))
+        val sessionEvents = SessionEvents()
+
+        clientFor(store, FakeTokenRefresher(TokenRefreshResult.Failed), sessionEvents = sessionEvents)
+            .get()
+            .close()
+
+        assertNull(withTimeoutOrNull(1_000) { sessionEvents.sessionExpired.first() })
+    }
+
+    @Test
+    fun `갱신에 성공하면 세션 만료를 알리지 않는다`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(401))
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val store = FakeAuthTokenStore(AuthToken("old-access", "old-refresh"))
+        val refresher = FakeTokenRefresher(
+            TokenRefreshResult.Success(AuthToken("new-access", "new-refresh")),
+        )
+        val sessionEvents = SessionEvents()
+
+        clientFor(store, refresher, sessionEvents = sessionEvents).get().close()
+
+        assertNull(withTimeoutOrNull(1_000) { sessionEvents.sessionExpired.first() })
     }
 
     @Test
