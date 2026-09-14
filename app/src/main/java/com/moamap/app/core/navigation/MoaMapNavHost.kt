@@ -37,10 +37,13 @@ import com.moamap.app.feature.officialmap.OfficialMapScreen
 import com.moamap.app.feature.officialmap.presentation.DensityMapDetailScreen
 import com.moamap.app.feature.onboarding.presentation.LoginScreen
 import com.moamap.app.feature.onboarding.presentation.SplashScreen
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emptyFlow
 
 /**
  * @param pendingShare 다른 앱이 공유해 온 링크. 소비할 수 있을 때까지 상위가 들고 있는다.
  * @param onShareHandled [pendingShare] 를 처리했음을 알린다. 같은 링크로 두 번 들어가지 않게 한다.
+ * @param sessionExpired 서버가 세션을 끝냈다는 신호. 받으면 로그인 화면으로 보낸다.
  */
 @Composable
 internal fun MoaMapNavHost(
@@ -48,9 +51,27 @@ internal fun MoaMapNavHost(
     navController: NavHostController = rememberNavController(),
     pendingShare: SharedLink? = null,
     onShareHandled: () -> Unit = {},
+    sessionExpired: Flow<Unit> = emptyFlow(),
 ) {
     val currentRoute by navController.currentBackStackEntryAsState()
     val destination = currentRoute?.destination?.route
+
+    /**
+     * 세션이 끝나면 로그인 화면으로 보낸다.
+     *
+     * 스플래시와 로그인 화면에서는 무시한다. 스플래시는 토큰이 없으면 스스로 로그인으로 가고,
+     * 로그인 화면은 이미 도착한 곳이다. 지금 목적지는 수집 시점에 읽는다 - [destination] 을 키로
+     * 두면 화면이 바뀔 때마다 수집이 끊겼다 다시 붙는다.
+     */
+    LaunchedEffect(sessionExpired) {
+        sessionExpired.collect {
+            val route = navController.currentDestination?.route
+            if (route == MoaMapRoute.Splash.route || route == MoaMapRoute.Login.route) {
+                return@collect
+            }
+            navController.navigateToLoginClearingStack()
+        }
+    }
 
     /** 공유가 지원하지 않는 링크였을 때의 안내. 어느 화면에도 매이지 않아 여기서 든다. */
     var shareError by remember { mutableStateOf<String?>(null) }
@@ -283,7 +304,7 @@ private fun NavHostController.replaceSplashWith(destination: MoaMapRoute) {
 }
 
 /**
- * 로그아웃 후 로그인 화면으로 보낸다.
+ * 로그아웃하거나 세션이 끝난 뒤 로그인 화면으로 보낸다.
  *
  * 로그인 이후 화면의 뿌리는 [MoaMapRoute.Explore] 다. 여기까지 inclusive 로 비우면
  * 뒤로가기로 로그인 전 화면에 접근할 수 없다.

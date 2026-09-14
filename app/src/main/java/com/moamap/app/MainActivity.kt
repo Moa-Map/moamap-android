@@ -10,14 +10,19 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import com.moamap.app.core.auth.SessionEvents
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.navigation.MoaMapNavHost
 import com.moamap.app.feature.collection.share.SharedLink
 import com.moamap.app.feature.collection.share.SharedLinkParser
 import dagger.hilt.android.AndroidEntryPoint
+import javax.inject.Inject
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    @Inject
+    lateinit var sessionEvents: SessionEvents
 
     /** 다른 앱이 공유해 온 링크. 화면이 소비할 때까지 들고 있는다. */
     private var pendingShare by mutableStateOf<SharedLink?>(null)
@@ -48,6 +53,7 @@ class MainActivity : ComponentActivity() {
                         shareHandled = true
                         pendingShare = null
                     },
+                    sessionExpired = sessionEvents.sessionExpired,
                 )
             }
         }
