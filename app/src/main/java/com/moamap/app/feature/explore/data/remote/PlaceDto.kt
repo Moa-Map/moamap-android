@@ -163,6 +163,24 @@ data class PlaceDto(
 )
 
 /**
+ * GET api/v1/places/pending 응답 항목.
+ *
+ * [PlaceDto] 와 달리 등록자 식별자 대신 닉네임·프로필을 담는다. 서버가 프로필을 못 찾으면 둘 다
+ * null 로 온다.
+ */
+@Serializable
+data class PendingPlaceDto(
+    val id: Long = 0,
+    val name: String? = null,
+    val address: String? = null,
+    val description: String? = null,
+    val photoUrls: List<String> = emptyList(),
+    val createdByNickname: String? = null,
+    val createdByProfileImageUrl: String? = null,
+    val createdAt: String? = null,
+)
+
+/**
  * GET api/v1/places/activities 응답 항목.
  *
  * 서버가 로그 테이블을 따로 두지 않고 `places`·`place_reviews` 의 시각 컬럼에서 이벤트를
