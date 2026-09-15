@@ -205,8 +205,9 @@ private fun SelectedPlaceCard(name: String, address: String) {
     }
 }
 
+/** 첨부한 사진 줄. 게시물 작성도 같은 모양을 쓴다. */
 @Composable
-private fun PhotoPicker(
+internal fun PhotoPicker(
     photos: List<Uri>,
     canAddPhoto: Boolean,
     onAddPhotoClick: () -> Unit,

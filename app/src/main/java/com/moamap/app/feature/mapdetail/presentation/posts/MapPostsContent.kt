@@ -51,6 +51,9 @@ import kotlinx.coroutines.flow.filter
 /** 탭바가 위에 겹쳐 있어 그만큼 내려서 시작한다. */
 private val TabBarClearance = 90.dp
 
+/** 오른쪽 아래 새 게시물 버튼(48dp)과 그 여백(20dp)을 비켜 가는 목록 아래 여백. */
+private val BottomClearance = 88.dp
+
 /** 시안의 카드 간격. 가로·세로가 같다. */
 private val CardGap = 12.dp
 
@@ -93,7 +96,8 @@ internal fun MapPostsContent(
             start = MoaMapDimens.ScreenHorizontalPadding,
             end = MoaMapDimens.ScreenHorizontalPadding,
             top = TabBarClearance,
-            bottom = 32.dp,
+            // 새 게시물 버튼이 떠 있어도 마지막 카드가 가리지 않게 버튼 높이만큼 더 띄운다.
+            bottom = BottomClearance,
         ),
         horizontalArrangement = Arrangement.spacedBy(CardGap),
         verticalItemSpacing = CardGap,

@@ -7,7 +7,14 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Icon
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
+import com.moamap.app.R
 import androidx.compose.ui.input.pointer.pointerInput
 import com.moamap.app.feature.mapdetail.presentation.logs.MapActivityViewModel
 import com.moamap.app.feature.mapdetail.presentation.logs.PendingRequestViewModel
@@ -18,6 +25,8 @@ import com.moamap.app.feature.mapdetail.presentation.members.MemberSheet
 import com.moamap.app.feature.mapdetail.presentation.members.MemberViewModel
 import com.moamap.app.feature.mapdetail.domain.model.MapPostSort
 import com.moamap.app.feature.mapdetail.presentation.posts.MapPostListUiState
+import com.moamap.app.feature.mapdetail.presentation.posts.MapPostCreateScreen
+import com.moamap.app.feature.mapdetail.presentation.posts.MapPostCreateViewModel
 import com.moamap.app.feature.mapdetail.presentation.posts.MapPostListViewModel
 import com.moamap.app.feature.mapdetail.presentation.posts.MapPostsContent
 import com.moamap.app.feature.mapdetail.presentation.posts.SampleMapPosts
@@ -123,6 +132,7 @@ fun MapDetailScreen(
     activityViewModel: MapActivityViewModel = hiltViewModel(),
     pendingViewModel: PendingRequestViewModel = hiltViewModel(),
     postListViewModel: MapPostListViewModel = hiltViewModel(),
+    postCreateViewModel: MapPostCreateViewModel = hiltViewModel(),
 ) {
     // 멤버 화면 모델은 이 파일 밖으로 드러내지 않는다. 매개변수로 받으면 공개 함수가
     // internal 타입을 노출하게 되고, 그걸 풀려면 카드 모델까지 공개로 넓혀야 한다.
@@ -133,6 +143,7 @@ fun MapDetailScreen(
     val activityState by activityViewModel.uiState.collectAsStateWithLifecycle()
     val pendingState by pendingViewModel.uiState.collectAsStateWithLifecycle()
     val postListState by postListViewModel.uiState.collectAsStateWithLifecycle()
+    val postCreateState by postCreateViewModel.uiState.collectAsStateWithLifecycle()
     val memberState by memberViewModel.uiState.collectAsStateWithLifecycle()
 
     // 나가기가 끝나면 왔던 곳(탐색 또는 모음)으로 돌아간다.
@@ -194,6 +205,7 @@ fun MapDetailScreen(
     // 메뉴는 화면을 돌리면 닫혀도 된다. 지도 관리는 들어가 있던 화면이라 되살린다.
     var menuVisible by remember { mutableStateOf(false) }
     var mapManageVisible by rememberSaveable { mutableStateOf(false) }
+    var postCreateVisible by rememberSaveable { mutableStateOf(false) }
 
     // 코드는 상세 응답에 실려 있다. 여는지 마는지만 화면이 들고 있으면 된다.
     var inviteCodeDialogVisible by rememberSaveable { mutableStateOf(false) }
@@ -222,6 +234,13 @@ fun MapDetailScreen(
     LaunchedEffect(uiState.selectedPlaceId) {
         val placeId = uiState.selectedPlaceId
         if (placeId == null) reviewViewModel.close() else reviewViewModel.open(placeId)
+    }
+
+    // 게시물을 올리면 폼을 닫고 목록을 첫 페이지부터 다시 읽는다. 새 글이 맨 위(최신순)나 맨 아래(등록순)에 붙는다.
+    LaunchedEffect(postCreateState.postedCount) {
+        if (postCreateState.postedCount == 0) return@LaunchedEffect
+        postCreateVisible = false
+        postListViewModel.retry()
     }
 
     // 로그 탭을 처음 열 때 게시물을 읽는다. 장소 탭만 보고 나가면 조회가 아예 안 나간다.
@@ -436,6 +455,13 @@ fun MapDetailScreen(
             onPostSortSelect = postListViewModel::selectSort,
             onPostsRetry = postListViewModel::retry,
             onPostsLoadMore = postListViewModel::loadMore,
+            // 장소를 더할 수 있는 지도(참여한 커뮤니티·프라이빗)와 같은 기준이다. 서버도 멤버만 받는다.
+            canWritePost = screenState.canAddPlace,
+            onWritePostClick = {
+                // 폼을 닫아도 ViewModel 은 이 화면에 매여 살아남는다. 지우지 않으면 쓰다 만 글이 남는다.
+                postCreateViewModel.reset()
+                postCreateVisible = true
+            },
             mapContent = {
                 MapDetailMap(
                     mapViewportState = mapViewportState,
@@ -447,6 +473,21 @@ fun MapDetailScreen(
                 )
             },
         )
+
+        if (postCreateVisible) {
+            MapPostCreateScreen(
+                state = postCreateState,
+                places = screenState.places,
+                onContentChange = postCreateViewModel::updateContent,
+                onAddPhoto = postCreateViewModel::addPhoto,
+                onRemovePhoto = postCreateViewModel::removePhoto,
+                onAddPlace = postCreateViewModel::addPlace,
+                onRemovePlace = postCreateViewModel::removePlace,
+                onSubmitClick = postCreateViewModel::submit,
+                onErrorShown = postCreateViewModel::consumeErrorMessage,
+                onBackClick = { postCreateVisible = false },
+            )
+        }
 
         if (mapManageVisible) {
             MapManageScreen(
@@ -526,6 +567,7 @@ fun MapDetailScreen(
     }
 
     // 나중에 선언한 쪽이 먼저 받는다. 메뉴가 떠 있으면 메뉴부터 닫는다.
+    BackHandler(enabled = postCreateVisible) { postCreateVisible = false }
     BackHandler(enabled = mapManageVisible) { mapManageVisible = false }
     BackHandler(enabled = menuVisible) { menuVisible = false }
 
@@ -626,6 +668,8 @@ internal fun MapDetailContent(
     onPostSortSelect: (MapPostSort) -> Unit,
     onPostsRetry: () -> Unit,
     onPostsLoadMore: () -> Unit,
+    canWritePost: Boolean,
+    onWritePostClick: () -> Unit,
     modifier: Modifier = Modifier,
     mapContent: @Composable () -> Unit,
 ) {
@@ -686,10 +730,37 @@ internal fun MapDetailContent(
                                 .align(Alignment.TopCenter)
                                 .padding(start = 20.dp, top = 16.dp, end = 20.dp),
                         )
+                        if (canWritePost) {
+                            WritePostFab(
+                                onClick = onWritePostClick,
+                                modifier = Modifier
+                                    .align(Alignment.BottomEnd)
+                                    .padding(end = 20.dp, bottom = 20.dp),
+                            )
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+/** 새 게시물 진입. 로그 탭에만 있다 - 장소 탭은 같은 자리를 3D·장소 추가가 쓴다. */
+@Composable
+private fun WritePostFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .clip(CircleShape)
+            .background(MoaMapPrimitiveColors.Blue500)
+            .clickable(onClick = onClick)
+            .padding(8.dp),
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_add),
+            contentDescription = "새 게시물",
+            tint = MoaMapTheme.colors.textWhite,
+            modifier = Modifier.size(32.dp),
+        )
     }
 }
 
@@ -800,6 +871,8 @@ private fun MapDetailScreenPreview() {
             onPostSortSelect = {},
             onPostsRetry = {},
             onPostsLoadMore = {},
+            canWritePost = true,
+            onWritePostClick = {},
             mapContent = {
                 Box(
                     modifier = Modifier
@@ -844,6 +917,8 @@ private fun MapDetailScreenNotJoinedPreview() {
             onPostSortSelect = {},
             onPostsRetry = {},
             onPostsLoadMore = {},
+            canWritePost = true,
+            onWritePostClick = {},
             mapContent = {
                 Box(
                     modifier = Modifier
