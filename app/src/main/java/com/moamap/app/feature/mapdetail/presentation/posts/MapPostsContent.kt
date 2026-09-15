@@ -27,13 +27,18 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -49,10 +54,16 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 
 /** 탭바가 위에 겹쳐 있어 그만큼 내려서 시작한다. */
-private val TabBarClearance = 90.dp
+internal val TabBarClearance = 90.dp
 
 /** 오른쪽 아래 새 게시물 버튼(48dp)과 그 여백(20dp)을 비켜 가는 목록 아래 여백. */
-private val BottomClearance = 88.dp
+internal val BottomClearance = 88.dp
+
+/** 로그 탭 게시물을 보는 방식. */
+enum class MapPostViewMode(val label: String) {
+    Card("카드 형식"),
+    Calendar("달력 형식"),
+}
 
 /** 시안의 카드 간격. 가로·세로가 같다. */
 private val CardGap = 12.dp
@@ -80,6 +91,7 @@ private const val LOAD_MORE_THRESHOLD = 4
 @Composable
 internal fun MapPostsContent(
     state: MapPostListUiState,
+    onViewModeSelect: (MapPostViewMode) -> Unit,
     onSortSelect: (MapPostSort) -> Unit,
     onRetryClick: () -> Unit,
     onLoadMore: () -> Unit,
@@ -104,6 +116,8 @@ internal fun MapPostsContent(
     ) {
         item(key = "toolbar", span = StaggeredGridItemSpan.FullLine) {
             PostsToolbar(
+                viewMode = MapPostViewMode.Card,
+                onViewModeSelect = onViewModeSelect,
                 sort = state.sort,
                 onSortSelect = onSortSelect,
                 modifier = Modifier.padding(bottom = 8.dp),
@@ -178,51 +192,95 @@ private fun LoadMoreEffect(gridState: LazyStaggeredGridState, onLoadMore: () -> 
     }
 }
 
-/** 보기 방식 칩과 정렬. 달력 형식은 아직 없어 칩은 카드 형식에 고정이다. */
+/**
+ * 보기 방식 칩과 정렬.
+ *
+ * 칩을 누르면 아래로 다른 보기 방식이 펼쳐진다. 달력 형식에는 정렬이 없어 [sort] 를 null 로 넘기면 숨긴다.
+ */
 @Composable
-private fun PostsToolbar(
-    sort: MapPostSort,
-    onSortSelect: (MapPostSort) -> Unit,
+internal fun PostsToolbar(
+    viewMode: MapPostViewMode,
+    onViewModeSelect: (MapPostViewMode) -> Unit,
     modifier: Modifier = Modifier,
+    sort: MapPostSort? = null,
+    onSortSelect: (MapPostSort) -> Unit = {},
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
+        verticalAlignment = Alignment.Top,
+    ) {
+        ViewModeChip(viewMode = viewMode, onViewModeSelect = onViewModeSelect)
+
+        if (sort != null) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                SortOption(
+                    label = "등록순",
+                    selected = sort == MapPostSort.Oldest,
+                    onClick = { onSortSelect(MapPostSort.Oldest) },
+                )
+                SortOption(
+                    label = "최신순",
+                    selected = sort == MapPostSort.Latest,
+                    onClick = { onSortSelect(MapPostSort.Latest) },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ViewModeChip(
+    viewMode: MapPostViewMode,
+    onViewModeSelect: (MapPostViewMode) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .clip(ChipShape)
+            .background(MoaMapTheme.colors.textWhite)
+            .border(1.dp, MoaMapPrimitiveColors.Gray300, ChipShape),
     ) {
         Row(
             modifier = Modifier
-                .clip(ChipShape)
-                .background(MoaMapTheme.colors.textWhite)
-                .border(1.dp, MoaMapPrimitiveColors.Gray300, ChipShape)
+                .clickable { expanded = !expanded }
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "카드 형식",
+                text = viewMode.label,
                 style = MoaMapTheme.typography.button3,
                 color = MoaMapTheme.colors.textNormal,
             )
             Icon(
                 painter = painterResource(R.drawable.ic_arrow_right),
-                contentDescription = null,
+                contentDescription = if (expanded) "보기 방식 닫기" else "보기 방식 펼치기",
                 tint = MoaMapTheme.colors.textNormal,
-                modifier = Modifier.size(20.dp),
+                // 시안은 오른쪽 화살표를 돌려 쓴다. 닫혀 있으면 아래, 펼치면 위를 가리킨다.
+                modifier = Modifier
+                    .size(20.dp)
+                    .rotate(if (expanded) -90f else 90f),
             )
         }
 
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SortOption(
-                label = "등록순",
-                selected = sort == MapPostSort.Oldest,
-                onClick = { onSortSelect(MapPostSort.Oldest) },
-            )
-            SortOption(
-                label = "최신순",
-                selected = sort == MapPostSort.Latest,
-                onClick = { onSortSelect(MapPostSort.Latest) },
-            )
+        if (expanded) {
+            MapPostViewMode.entries
+                .filterNot { mode -> mode == viewMode }
+                .forEach { mode ->
+                    Text(
+                        text = mode.label,
+                        style = MoaMapTheme.typography.button3,
+                        color = MoaMapTheme.colors.textNormal,
+                        modifier = Modifier
+                            .clickable {
+                                expanded = false
+                                onViewModeSelect(mode)
+                            }
+                            .padding(start = 12.dp, end = 12.dp, bottom = 8.dp),
+                    )
+                }
         }
     }
 }
@@ -300,10 +358,14 @@ internal fun MapPostCard(post: MapPost, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun PlacePill(name: String, modifier: Modifier = Modifier) {
+internal fun PlacePill(
+    name: String,
+    modifier: Modifier = Modifier,
+    textStyle: TextStyle = MoaMapTheme.typography.caption0,
+) {
     Text(
         text = name,
-        style = MoaMapTheme.typography.caption0,
+        style = textStyle,
         color = MoaMapTheme.colors.textNormal,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
@@ -315,7 +377,7 @@ private fun PlacePill(name: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Progress() {
+internal fun Progress() {
     CircularProgressIndicator(
         color = MoaMapTheme.colors.textAssistive,
         strokeWidth = 2.dp,
@@ -324,7 +386,7 @@ private fun Progress() {
 }
 
 @Composable
-private fun ErrorNotice(message: String, onRetryClick: () -> Unit) {
+internal fun ErrorNotice(message: String, onRetryClick: () -> Unit) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -347,7 +409,7 @@ private fun ErrorNotice(message: String, onRetryClick: () -> Unit) {
 
 /** 목록 자리를 대신 채우는 안내. 세 상태가 같은 높이를 써야 오갈 때 덜컹이지 않는다. */
 @Composable
-private fun CenteredNotice(content: @Composable () -> Unit) {
+internal fun CenteredNotice(content: @Composable () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -399,6 +461,7 @@ private fun MapPostsContentPreview() {
     MoaMapTheme {
         MapPostsContent(
             state = MapPostListUiState(loading = false, posts = SampleMapPosts, endReached = true),
+            onViewModeSelect = {},
             onSortSelect = {},
             onRetryClick = {},
             onLoadMore = {},
@@ -412,6 +475,7 @@ private fun MapPostsContentEmptyPreview() {
     MoaMapTheme {
         MapPostsContent(
             state = MapPostListUiState(loading = false),
+            onViewModeSelect = {},
             onSortSelect = {},
             onRetryClick = {},
             onLoadMore = {},
@@ -429,6 +493,7 @@ private fun MapPostsContentErrorPreview() {
                 loading = false,
                 errorMessage = POST_LOAD_FAILED_MESSAGE,
             ),
+            onViewModeSelect = {},
             onSortSelect = {},
             onRetryClick = {},
             onLoadMore = {},

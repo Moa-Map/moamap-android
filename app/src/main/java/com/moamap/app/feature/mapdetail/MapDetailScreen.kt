@@ -25,7 +25,13 @@ import com.moamap.app.feature.mapdetail.presentation.members.MemberSheet
 import com.moamap.app.feature.mapdetail.presentation.members.MemberViewModel
 import com.moamap.app.feature.mapdetail.domain.model.MapPostSort
 import com.moamap.app.feature.mapdetail.presentation.posts.MapPostListUiState
+import com.moamap.app.feature.mapdetail.presentation.posts.CalendarDay
+import com.moamap.app.feature.mapdetail.presentation.posts.MapPostCalendarContent
+import com.moamap.app.feature.mapdetail.presentation.posts.MapPostCalendarUiState
+import com.moamap.app.feature.mapdetail.presentation.posts.MapPostCalendarViewModel
 import com.moamap.app.feature.mapdetail.presentation.posts.MapPostCreateScreen
+import com.moamap.app.feature.mapdetail.presentation.posts.MapPostViewMode
+import com.moamap.app.feature.mapdetail.presentation.posts.todayCalendarDay
 import com.moamap.app.feature.mapdetail.presentation.posts.MapPostCreateViewModel
 import com.moamap.app.feature.mapdetail.presentation.posts.MapPostListViewModel
 import com.moamap.app.feature.mapdetail.presentation.posts.MapPostsContent
@@ -133,6 +139,7 @@ fun MapDetailScreen(
     pendingViewModel: PendingRequestViewModel = hiltViewModel(),
     postListViewModel: MapPostListViewModel = hiltViewModel(),
     postCreateViewModel: MapPostCreateViewModel = hiltViewModel(),
+    postCalendarViewModel: MapPostCalendarViewModel = hiltViewModel(),
 ) {
     // 멤버 화면 모델은 이 파일 밖으로 드러내지 않는다. 매개변수로 받으면 공개 함수가
     // internal 타입을 노출하게 되고, 그걸 풀려면 카드 모델까지 공개로 넓혀야 한다.
@@ -144,6 +151,7 @@ fun MapDetailScreen(
     val pendingState by pendingViewModel.uiState.collectAsStateWithLifecycle()
     val postListState by postListViewModel.uiState.collectAsStateWithLifecycle()
     val postCreateState by postCreateViewModel.uiState.collectAsStateWithLifecycle()
+    val postCalendarState by postCalendarViewModel.uiState.collectAsStateWithLifecycle()
     val memberState by memberViewModel.uiState.collectAsStateWithLifecycle()
 
     // 나가기가 끝나면 왔던 곳(탐색 또는 모음)으로 돌아간다.
@@ -206,6 +214,7 @@ fun MapDetailScreen(
     var menuVisible by remember { mutableStateOf(false) }
     var mapManageVisible by rememberSaveable { mutableStateOf(false) }
     var postCreateVisible by rememberSaveable { mutableStateOf(false) }
+    var postViewMode by rememberSaveable { mutableStateOf(MapPostViewMode.Card) }
 
     // 코드는 상세 응답에 실려 있다. 여는지 마는지만 화면이 들고 있으면 된다.
     var inviteCodeDialogVisible by rememberSaveable { mutableStateOf(false) }
@@ -241,11 +250,18 @@ fun MapDetailScreen(
         if (postCreateState.postedCount == 0) return@LaunchedEffect
         postCreateVisible = false
         postListViewModel.retry()
+        // 달력은 아직 열지 않았으면 아무것도 하지 않는다. 열어 둔 달력은 새 글이 들어간 날을 다시 그린다.
+        postCalendarViewModel.refresh()
     }
 
     // 로그 탭을 처음 열 때 게시물을 읽는다. 장소 탭만 보고 나가면 조회가 아예 안 나간다.
-    LaunchedEffect(uiState.selectedTab) {
-        if (uiState.selectedTab == MapDetailTab.Logs) postListViewModel.loadOnce()
+    // 보기 방식마다 처음 열 때 한 번씩만 읽는다. 달력은 오늘이 있는 달을 보여준다.
+    LaunchedEffect(uiState.selectedTab, postViewMode) {
+        if (uiState.selectedTab != MapDetailTab.Logs) return@LaunchedEffect
+        when (postViewMode) {
+            MapPostViewMode.Card -> postListViewModel.loadOnce()
+            MapPostViewMode.Calendar -> postCalendarViewModel.open(todayCalendarDay())
+        }
     }
 
     // 지도 관리를 처음 열 때 활동 내역을 읽는다. 들어가 보지 않으면 조회가 아예 안 나간다.
@@ -455,6 +471,13 @@ fun MapDetailScreen(
             onPostSortSelect = postListViewModel::selectSort,
             onPostsRetry = postListViewModel::retry,
             onPostsLoadMore = postListViewModel::loadMore,
+            postViewMode = postViewMode,
+            onPostViewModeSelect = { mode -> postViewMode = mode },
+            postCalendar = postCalendarState,
+            onCalendarPreviousMonth = postCalendarViewModel::showPreviousMonth,
+            onCalendarNextMonth = postCalendarViewModel::showNextMonth,
+            onCalendarDayClick = postCalendarViewModel::selectDay,
+            onCalendarRetry = postCalendarViewModel::retry,
             // 장소를 더할 수 있는 지도(참여한 커뮤니티·프라이빗)와 같은 기준이다. 서버도 멤버만 받는다.
             canWritePost = screenState.canAddPlace,
             onWritePostClick = {
@@ -668,6 +691,13 @@ internal fun MapDetailContent(
     onPostSortSelect: (MapPostSort) -> Unit,
     onPostsRetry: () -> Unit,
     onPostsLoadMore: () -> Unit,
+    postViewMode: MapPostViewMode,
+    onPostViewModeSelect: (MapPostViewMode) -> Unit,
+    postCalendar: MapPostCalendarUiState,
+    onCalendarPreviousMonth: () -> Unit,
+    onCalendarNextMonth: () -> Unit,
+    onCalendarDayClick: (CalendarDay) -> Unit,
+    onCalendarRetry: () -> Unit,
     canWritePost: Boolean,
     onWritePostClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -717,12 +747,24 @@ internal fun MapDetailContent(
                 }
                 MapDetailTab.Logs -> {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        MapPostsContent(
-                            state = postList,
-                            onSortSelect = onPostSortSelect,
-                            onRetryClick = onPostsRetry,
-                            onLoadMore = onPostsLoadMore,
-                        )
+                        when (postViewMode) {
+                            MapPostViewMode.Card -> MapPostsContent(
+                                state = postList,
+                                onViewModeSelect = onPostViewModeSelect,
+                                onSortSelect = onPostSortSelect,
+                                onRetryClick = onPostsRetry,
+                                onLoadMore = onPostsLoadMore,
+                            )
+
+                            MapPostViewMode.Calendar -> MapPostCalendarContent(
+                                state = postCalendar,
+                                onViewModeSelect = onPostViewModeSelect,
+                                onPreviousMonthClick = onCalendarPreviousMonth,
+                                onNextMonthClick = onCalendarNextMonth,
+                                onDayClick = onCalendarDayClick,
+                                onRetryClick = onCalendarRetry,
+                            )
+                        }
                         MapDetailTabBar(
                             selectedTab = selectedTab,
                             onTabSelected = onTabSelected,
@@ -871,6 +913,13 @@ private fun MapDetailScreenPreview() {
             onPostSortSelect = {},
             onPostsRetry = {},
             onPostsLoadMore = {},
+            postViewMode = MapPostViewMode.Card,
+            onPostViewModeSelect = {},
+            postCalendar = MapPostCalendarUiState(),
+            onCalendarPreviousMonth = {},
+            onCalendarNextMonth = {},
+            onCalendarDayClick = {},
+            onCalendarRetry = {},
             canWritePost = true,
             onWritePostClick = {},
             mapContent = {
@@ -917,6 +966,13 @@ private fun MapDetailScreenNotJoinedPreview() {
             onPostSortSelect = {},
             onPostsRetry = {},
             onPostsLoadMore = {},
+            postViewMode = MapPostViewMode.Card,
+            onPostViewModeSelect = {},
+            postCalendar = MapPostCalendarUiState(),
+            onCalendarPreviousMonth = {},
+            onCalendarNextMonth = {},
+            onCalendarDayClick = {},
+            onCalendarRetry = {},
             canWritePost = true,
             onWritePostClick = {},
             mapContent = {
