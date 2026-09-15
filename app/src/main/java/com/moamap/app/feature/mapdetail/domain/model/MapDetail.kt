@@ -66,7 +66,12 @@ val MapDetail.shareableInviteCode: String?
         type == MapType.Private && joined && !personal
     }
 
-/** 상세 화면 우측 위에 놓일 액션. */
+/**
+ * 참여·나가기 가능 여부.
+ *
+ * 참여하기는 상단바에 글자로 뜨고, 나가기는 참여한 뒤 상단바 메뉴 안에 들어간다 - [showsMenu],
+ * [canLeaveFromMenu] 참고.
+ */
 enum class MapDetailAction {
     /** 참여하기. 아직 참여하지 않은 공개 지도. */
     Join,
@@ -102,6 +107,23 @@ val MapDetail.topBarAction: MapDetailAction
         type == MapType.Private && memberCount <= 1 -> MapDetailAction.Leave
         else -> MapDetailAction.LeaveDisabled
     }
+
+/**
+ * 상단바 메뉴(멤버 관리·지도 관리·나가기)를 띄울지.
+ *
+ * 참여한 지도에만 띄운다. 참여 전에는 그 자리를 참여하기가 쓴다.
+ */
+val MapDetail.showsMenu: Boolean
+    get() = joined
+
+/**
+ * 메뉴에 나가기를 넣을지.
+ *
+ * 누를 수 없는 나가기(방장)와 나갈 대상이 아닌 나만의 지도는 메뉴에서 뺀다. 비활성 줄로 남겨
+ * 봐야 왜 누를 수 없는지 설명할 자리가 메뉴에는 없다.
+ */
+val MapDetail.canLeaveFromMenu: Boolean
+    get() = topBarAction == MapDetailAction.Leave
 
 /**
  * 나가기가 지도 삭제로 처리되는 경우.
