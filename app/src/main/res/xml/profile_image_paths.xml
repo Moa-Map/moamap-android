@@ -9,6 +9,9 @@
     <cache-path
         name="place_photos"
         path="place_photos/" />
+    <cache-path
+        name="post_photos"
+        path="post_photos/" />
     <files-path
         name="walk_sessions"
         path="walk-sessions/" />

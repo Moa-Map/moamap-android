@@ -1,10 +1,12 @@
 package com.moamap.app.feature.mapdetail.presentation.posts
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import com.moamap.app.core.navigation.MoaMapRoute
 import com.moamap.app.feature.mapdetail.domain.model.MapPost
 import com.moamap.app.feature.mapdetail.domain.model.MapPostPage
 import com.moamap.app.feature.mapdetail.domain.model.MapPostSort
+import com.moamap.app.feature.mapdetail.domain.model.NewMapPost
 import com.moamap.app.feature.mapdetail.domain.repository.MapPostRepository
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -53,6 +55,11 @@ private class FakeMapPostRepository(
         if (page == failingPage) throw RuntimeException("boom")
         return pages[sort]?.getOrNull(page) ?: MapPostPage(emptyList(), isLast = true)
     }
+
+    override suspend fun uploadPhotos(mapId: Long, photos: List<Uri>): List<String> =
+        TODO("목록 화면은 올리지 않는다")
+
+    override suspend fun createPost(mapId: Long, post: NewMapPost) = TODO("목록 화면은 올리지 않는다")
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)

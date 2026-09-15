@@ -25,6 +25,20 @@ enum class MapPostSort {
     Oldest,
 }
 
+/** 게시물에 태그할 장소. 이름은 태그하는 시점의 것을 그대로 보낸다. */
+@Immutable
+data class MapPostPlaceTag(
+    val placeId: Long,
+    val name: String,
+)
+
+/** 새로 올릴 게시물. 사진은 이미 올려 받은 주소다. */
+data class NewMapPost(
+    val content: String,
+    val photoUrls: List<String>,
+    val placeTags: List<MapPostPlaceTag>,
+)
+
 /** 게시물 목록 한 페이지. */
 data class MapPostPage(
     val posts: List<MapPost>,
