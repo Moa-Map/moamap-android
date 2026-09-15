@@ -174,6 +174,35 @@ class MapDetailRuleTest {
         assertFalse(map(MapType.Private, MapRole.Member, joined = true).leavingDeletesMap)
     }
 
+    // ---------- 상단바 메뉴 ----------
+
+    @Test
+    fun `참여한 지도에만 메뉴를 띄운다`() {
+        assertTrue(map(MapType.Community, MapRole.Member, joined = true).showsMenu)
+        assertTrue(map(MapType.Private, MapRole.Owner, joined = true).showsMenu)
+        // 참여 전에는 그 자리를 참여하기가 쓴다.
+        assertFalse(map(MapType.Community, MapRole.None, joined = false).showsMenu)
+        assertFalse(map(MapType.Private, MapRole.None, joined = false).showsMenu)
+    }
+
+    @Test
+    fun `나갈 수 있는 사람의 메뉴에만 나가기가 있다`() {
+        assertTrue(map(MapType.Community, MapRole.Member, joined = true).canLeaveFromMenu)
+        assertTrue(map(MapType.Private, MapRole.Member, joined = true, memberCount = 3).canLeaveFromMenu)
+        // 혼자 남은 프라이빗 방장의 나가기는 지도 삭제로 처리돼 메뉴에 남는다.
+        assertTrue(map(MapType.Private, MapRole.Owner, joined = true, memberCount = 1).canLeaveFromMenu)
+    }
+
+    /** 누를 수 없는 줄을 남겨 봐야 이유를 설명할 자리가 메뉴에는 없다. */
+    @Test
+    fun `나갈 수 없으면 메뉴에서 나가기를 뺀다`() {
+        assertFalse(map(MapType.Community, MapRole.Owner, joined = true).canLeaveFromMenu)
+        assertFalse(map(MapType.Private, MapRole.Owner, joined = true, memberCount = 3).canLeaveFromMenu)
+        assertFalse(
+            map(MapType.Private, MapRole.Owner, joined = true, personal = true).canLeaveFromMenu,
+        )
+    }
+
     // ---------- 초대 코드 ----------
 
     @Test
