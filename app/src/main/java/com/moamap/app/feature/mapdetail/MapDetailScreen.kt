@@ -16,7 +16,11 @@ import com.moamap.app.feature.mapdetail.presentation.logs.toPendingRequestUiMode
 import com.moamap.app.feature.mapdetail.presentation.manage.MapManageScreen
 import com.moamap.app.feature.mapdetail.presentation.members.MemberSheet
 import com.moamap.app.feature.mapdetail.presentation.members.MemberViewModel
+import com.moamap.app.feature.mapdetail.domain.model.MapPostSort
+import com.moamap.app.feature.mapdetail.presentation.posts.MapPostListUiState
+import com.moamap.app.feature.mapdetail.presentation.posts.MapPostListViewModel
 import com.moamap.app.feature.mapdetail.presentation.posts.MapPostsContent
+import com.moamap.app.feature.mapdetail.presentation.posts.SampleMapPosts
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -118,6 +122,7 @@ fun MapDetailScreen(
     reviewViewModel: PlaceReviewViewModel = hiltViewModel(),
     activityViewModel: MapActivityViewModel = hiltViewModel(),
     pendingViewModel: PendingRequestViewModel = hiltViewModel(),
+    postListViewModel: MapPostListViewModel = hiltViewModel(),
 ) {
     // 멤버 화면 모델은 이 파일 밖으로 드러내지 않는다. 매개변수로 받으면 공개 함수가
     // internal 타입을 노출하게 되고, 그걸 풀려면 카드 모델까지 공개로 넓혀야 한다.
@@ -127,6 +132,7 @@ fun MapDetailScreen(
     val reviewState by reviewViewModel.uiState.collectAsStateWithLifecycle()
     val activityState by activityViewModel.uiState.collectAsStateWithLifecycle()
     val pendingState by pendingViewModel.uiState.collectAsStateWithLifecycle()
+    val postListState by postListViewModel.uiState.collectAsStateWithLifecycle()
     val memberState by memberViewModel.uiState.collectAsStateWithLifecycle()
 
     // 나가기가 끝나면 왔던 곳(탐색 또는 모음)으로 돌아간다.
@@ -216,6 +222,11 @@ fun MapDetailScreen(
     LaunchedEffect(uiState.selectedPlaceId) {
         val placeId = uiState.selectedPlaceId
         if (placeId == null) reviewViewModel.close() else reviewViewModel.open(placeId)
+    }
+
+    // 로그 탭을 처음 열 때 게시물을 읽는다. 장소 탭만 보고 나가면 조회가 아예 안 나간다.
+    LaunchedEffect(uiState.selectedTab) {
+        if (uiState.selectedTab == MapDetailTab.Logs) postListViewModel.loadOnce()
     }
 
     // 지도 관리를 처음 열 때 활동 내역을 읽는다. 들어가 보지 않으면 조회가 아예 안 나간다.
@@ -421,6 +432,10 @@ fun MapDetailScreen(
             searchQuery = uiState.searchQuery,
             onSearchQueryChange = { query -> uiState = uiState.search(query) },
             onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
+            postList = postListState,
+            onPostSortSelect = postListViewModel::selectSort,
+            onPostsRetry = postListViewModel::retry,
+            onPostsLoadMore = postListViewModel::loadMore,
             mapContent = {
                 MapDetailMap(
                     mapViewportState = mapViewportState,
@@ -607,6 +622,10 @@ internal fun MapDetailContent(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onPlaceClick: (Long) -> Unit,
+    postList: MapPostListUiState,
+    onPostSortSelect: (MapPostSort) -> Unit,
+    onPostsRetry: () -> Unit,
+    onPostsLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
     mapContent: @Composable () -> Unit,
 ) {
@@ -654,7 +673,12 @@ internal fun MapDetailContent(
                 }
                 MapDetailTab.Logs -> {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        MapPostsContent()
+                        MapPostsContent(
+                            state = postList,
+                            onSortSelect = onPostSortSelect,
+                            onRetryClick = onPostsRetry,
+                            onLoadMore = onPostsLoadMore,
+                        )
                         MapDetailTabBar(
                             selectedTab = selectedTab,
                             onTabSelected = onTabSelected,
@@ -772,6 +796,10 @@ private fun MapDetailScreenPreview() {
             searchQuery = "",
             onSearchQueryChange = {},
             onPlaceClick = {},
+            postList = MapPostListUiState(loading = false, posts = SampleMapPosts, endReached = true),
+            onPostSortSelect = {},
+            onPostsRetry = {},
+            onPostsLoadMore = {},
             mapContent = {
                 Box(
                     modifier = Modifier
@@ -812,6 +840,10 @@ private fun MapDetailScreenNotJoinedPreview() {
             searchQuery = "",
             onSearchQueryChange = {},
             onPlaceClick = {},
+            postList = MapPostListUiState(loading = false, posts = SampleMapPosts, endReached = true),
+            onPostSortSelect = {},
+            onPostsRetry = {},
+            onPostsLoadMore = {},
             mapContent = {
                 Box(
                     modifier = Modifier
