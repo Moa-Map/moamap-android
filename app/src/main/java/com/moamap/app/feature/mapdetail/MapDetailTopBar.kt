@@ -29,6 +29,9 @@ import com.moamap.app.feature.mapdetail.domain.model.MapDetailAction
 
 private val RoleBadgeShape = RoundedCornerShape(999.dp)
 
+/** 상단바 높이. 메뉴를 바로 아래에 띄울 때도 쓴다. */
+internal val MapDetailTopBarHeight = 58.dp
+
 /**
  * 제목을 좌우에서 밀어 두는 여백.
  *
@@ -52,11 +55,10 @@ private val ActionTouchPadding = 12.dp
 /**
  * 지도 상세 상단바.
  *
- * 우측은 아이콘이 아니라 텍스트다. 참여 여부와 역할에 따라 참여하기·나가기가 오가고,
- * 서버가 거절할 게 뻔한 경우에는 비활성으로 남는다 - `MapDetail.topBarAction` 참고.
+ * 우측은 참여 전에는 참여하기 글자, 참여한 뒤에는 메뉴 아이콘이다. 나가기는 메뉴 안으로
+ * 들어갔다 - `MapDetail.showsMenu` 참고.
  *
- * 프라이빗 지도에 참여한 사람에게는 그 왼쪽에 초대코드가 하나 더 붙는다. 나가기를 밀어내지
- * 않고 왼쪽에 세우는 건, 되돌릴 수 없는 쪽을 늘 같은 자리에 두기 위해서다.
+ * 프라이빗 지도에 참여한 사람에게는 그 왼쪽에 초대코드가 하나 더 붙는다.
  */
 @Composable
 internal fun MapDetailTopBar(
@@ -71,11 +73,13 @@ internal fun MapDetailTopBar(
     onInviteCodeClick: () -> Unit = {},
     /** 요청이 도는 동안 잠근다. 라벨은 그대로 두고 누를 수만 없게 한다. */
     actionEnabled: Boolean = true,
+    showMenu: Boolean = false,
+    onMenuClick: () -> Unit = {},
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(58.dp)
+            .height(MapDetailTopBarHeight)
             .background(MoaMapTheme.colors.backgroundSecondary),
     ) {
         Box(
@@ -157,44 +161,51 @@ internal fun MapDetailTopBar(
                 )
             }
 
-            MapDetailTopBarAction(
-                action = action,
-                enabled = actionEnabled,
-                onClick = onActionClick,
-            )
+            when {
+                action == MapDetailAction.Join -> JoinAction(
+                    enabled = actionEnabled,
+                    onClick = onActionClick,
+                )
+                // 나가기가 도는 동안에도 잠근다. 메뉴를 다시 열어 두 번 누를 수 없게 한다.
+                showMenu -> MenuButton(
+                    enabled = actionEnabled,
+                    onClick = onMenuClick,
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun MapDetailTopBarAction(
-    action: MapDetailAction,
+private fun JoinAction(
     enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val label = when (action) {
-        MapDetailAction.Join -> "참여하기"
-        MapDetailAction.Leave, MapDetailAction.LeaveDisabled -> "나가기"
-        MapDetailAction.None -> return
-    }
-
-    // 비활성은 두 갈래다. 서버가 거절할 경우(LeaveDisabled)와 요청이 도는 중(!enabled).
-    val clickable = enabled && action != MapDetailAction.LeaveDisabled
-    val color = when {
-        !clickable -> MoaMapTheme.colors.textDisable
-        action == MapDetailAction.Join -> MoaMapPrimitiveColors.Blue600
-        else -> MoaMapTheme.colors.statusAlert
-    }
-
     Text(
-        text = label,
+        text = "참여하기",
         style = MoaMapTheme.typography.button2,
-        color = color,
+        color = if (enabled) MoaMapPrimitiveColors.Blue600 else MoaMapTheme.colors.textDisable,
         maxLines = 1,
         modifier = modifier
-            .clickable(enabled = clickable, onClick = onClick)
+            .clickable(enabled = enabled, onClick = onClick)
             .padding(vertical = ActionTouchPadding),
+    )
+}
+
+@Composable
+private fun MenuButton(
+    enabled: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Icon(
+        painter = painterResource(R.drawable.ic_menu),
+        contentDescription = "지도 메뉴",
+        tint = if (enabled) MoaMapTheme.colors.textNormal else MoaMapTheme.colors.textDisable,
+        modifier = modifier
+            .clickable(enabled = enabled, onClick = onClick)
+            .size(32.dp),
     )
 }
 
@@ -214,14 +225,15 @@ private fun MapDetailTopBarJoinPreview() {
 
 @Preview(showBackground = true, widthDp = 393)
 @Composable
-private fun MapDetailTopBarLeavePreview() {
+private fun MapDetailTopBarMenuPreview() {
     MoaMapTheme {
         MapDetailTopBar(
             mapTitle = "서울 데이트 지도",
             roleBadge = "방장",
-            action = MapDetailAction.Leave,
+            action = MapDetailAction.LeaveDisabled,
             onBackClick = {},
             onActionClick = {},
+            showMenu = true,
         )
     }
 }
@@ -233,10 +245,11 @@ private fun MapDetailTopBarPrivatePreview() {
         MapDetailTopBar(
             mapTitle = "우리끼리 맛집",
             roleBadge = null,
-            action = MapDetailAction.LeaveDisabled,
+            action = MapDetailAction.Leave,
             onBackClick = {},
             onActionClick = {},
             inviteCode = "A1B2C3",
+            showMenu = true,
         )
     }
 }
@@ -252,6 +265,7 @@ private fun MapDetailTopBarPrivateLongTitlePreview() {
             onBackClick = {},
             onActionClick = {},
             inviteCode = "A1B2C3",
+            showMenu = true,
         )
     }
 }

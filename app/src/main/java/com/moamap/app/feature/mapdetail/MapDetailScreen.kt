@@ -3,27 +3,20 @@ package com.moamap.app.feature.mapdetail
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Icon
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
-import com.moamap.app.R
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import com.moamap.app.feature.mapdetail.presentation.logs.MapActivityViewModel
-import com.moamap.app.feature.mapdetail.presentation.logs.MapLogUiModel
-import com.moamap.app.feature.mapdetail.presentation.logs.MapLogsContent
-import com.moamap.app.feature.mapdetail.presentation.logs.PendingRequestUiModel
 import com.moamap.app.feature.mapdetail.presentation.logs.PendingRequestViewModel
-import com.moamap.app.feature.mapdetail.presentation.logs.SampleMapLogs
-import com.moamap.app.feature.mapdetail.presentation.logs.SamplePendingRequests
 import com.moamap.app.feature.mapdetail.presentation.logs.toMapLogUiModels
 import com.moamap.app.feature.mapdetail.presentation.logs.toPendingRequestUiModels
+import com.moamap.app.feature.mapdetail.presentation.manage.MapManageScreen
 import com.moamap.app.feature.mapdetail.presentation.members.MemberSheet
 import com.moamap.app.feature.mapdetail.presentation.members.MemberViewModel
+import com.moamap.app.feature.mapdetail.presentation.posts.MapPostsContent
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -192,6 +185,10 @@ fun MapDetailScreen(
     var addPlaceSheetVisible by rememberSaveable { mutableStateOf(false) }
     var memberSheetVisible by rememberSaveable { mutableStateOf(false) }
 
+    // 메뉴는 화면을 돌리면 닫혀도 된다. 지도 관리는 들어가 있던 화면이라 되살린다.
+    var menuVisible by remember { mutableStateOf(false) }
+    var mapManageVisible by rememberSaveable { mutableStateOf(false) }
+
     // 코드는 상세 응답에 실려 있다. 여는지 마는지만 화면이 들고 있으면 된다.
     var inviteCodeDialogVisible by rememberSaveable { mutableStateOf(false) }
 
@@ -221,12 +218,12 @@ fun MapDetailScreen(
         if (placeId == null) reviewViewModel.close() else reviewViewModel.open(placeId)
     }
 
-    // 로그 탭을 처음 열 때 활동 내역을 읽는다. 장소 탭만 보고 나가면 조회가 아예 안 나간다.
+    // 지도 관리를 처음 열 때 활동 내역을 읽는다. 들어가 보지 않으면 조회가 아예 안 나간다.
     //
     // 등록 요청은 수락·거절할 수 있을 때만 읽는다. 일반 멤버가 불러도 서버가 막지만, 볼 수
     // 없는 목록을 받아 오는 통신이 남는다. 권한은 지도 응답이 온 뒤에야 정해져 열쇠에 함께 건다.
-    LaunchedEffect(uiState.selectedTab, screenState.canReviewRequests) {
-        if (uiState.selectedTab != MapDetailTab.Logs) return@LaunchedEffect
+    LaunchedEffect(mapManageVisible, screenState.canReviewRequests) {
+        if (!mapManageVisible) return@LaunchedEffect
 
         activityViewModel.loadOnce()
         if (screenState.canReviewRequests) pendingViewModel.loadOnce()
@@ -407,9 +404,10 @@ fun MapDetailScreen(
             myLocationInProgress = myLocationInProgress,
             selectedTab = uiState.selectedTab,
             onBackClick = onBackClick,
-            onActionClick = {
-                if (screenState.action == MapDetailAction.Join) viewModel.join() else viewModel.leave()
-            },
+            // 상단바에 글자로 남은 액션은 참여하기뿐이다. 나가기는 메뉴로 들어갔다.
+            onActionClick = viewModel::join,
+            showMenu = screenState.showMenu,
+            onMenuClick = { menuVisible = true },
             on3dToggleClick = on3dToggleClick,
             onAddPlaceClick = {
                 // 시트를 닫아도 ViewModel 은 이 화면에 매여 살아남는다. 지우지 않으면
@@ -423,23 +421,6 @@ fun MapDetailScreen(
             searchQuery = uiState.searchQuery,
             onSearchQueryChange = { query -> uiState = uiState.search(query) },
             onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
-            canReviewRequests = screenState.canReviewRequests,
-            pendingRequests = pendingRequests,
-            logs = logs,
-            logsLoading = activityState.loading,
-            logsErrorMessage = activityState.errorMessage,
-            // 처리 중에는 버튼을 잠근다. 두 번 눌러도 서버에는 한 번만 간다.
-            requestActionEnabled = !pendingState.processing,
-            onRequestAccept = pendingViewModel::approve,
-            onRequestReject = pendingViewModel::reject,
-            // 요청 목록에는 재시도 자리가 따로 없어 활동 내역을 다시 읽을 때 함께 읽는다.
-            // 수락·거절할 수 없는 사람은 빼고 부른다 - 서버가 403 으로 막을 뿐인데, 그 실패가
-            // 볼 수도 없는 목록의 안내로 스낵바에 뜬다.
-            onLogsRetry = {
-                activityViewModel.retry()
-                if (screenState.canReviewRequests) pendingViewModel.retry()
-            },
-            onMembersClick = { memberSheetVisible = true },
             mapContent = {
                 MapDetailMap(
                     mapViewportState = mapViewportState,
@@ -451,6 +432,60 @@ fun MapDetailScreen(
                 )
             },
         )
+
+        if (mapManageVisible) {
+            MapManageScreen(
+                // 알림을 띄울지는 여기서 정한다. 지도 관리 화면은 받은 것만 그린다.
+                pendingRequests = if (screenState.canReviewRequests) pendingRequests else emptyList(),
+                // 지도 타입별로 거르지 않는다. 서버가 이미 프라이빗 지도에만 후기 로그를 넣어 보낸다.
+                logs = logs,
+                loading = activityState.loading,
+                errorMessage = activityState.errorMessage,
+                // 처리 중에는 버튼을 잠근다. 두 번 눌러도 서버에는 한 번만 간다.
+                requestActionEnabled = !pendingState.processing,
+                onAcceptClick = pendingViewModel::approve,
+                onRejectClick = pendingViewModel::reject,
+                // 요청 목록에는 재시도 자리가 따로 없어 활동 내역을 다시 읽을 때 함께 읽는다.
+                // 수락·거절할 수 없는 사람은 빼고 부른다 - 서버가 403 으로 막을 뿐인데, 그 실패가
+                // 볼 수도 없는 목록의 안내로 스낵바에 뜬다.
+                onRetryClick = {
+                    activityViewModel.retry()
+                    if (screenState.canReviewRequests) pendingViewModel.retry()
+                },
+                onBackClick = { mapManageVisible = false },
+            )
+        }
+
+        // 나가서 참여가 풀리면 메뉴도 함께 닫힌다.
+        if (menuVisible && screenState.showMenu) {
+            // 메뉴 밖을 누르면 닫는다.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures(onTap = { menuVisible = false })
+                    },
+            )
+            MapDetailMenu(
+                canLeave = screenState.canLeave,
+                onMembersClick = {
+                    menuVisible = false
+                    memberSheetVisible = true
+                },
+                onManageClick = {
+                    menuVisible = false
+                    mapManageVisible = true
+                },
+                onLeaveClick = {
+                    menuVisible = false
+                    viewModel.leave()
+                },
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = MapDetailTopBarHeight, end = 20.dp),
+            )
+        }
 
         // 스낵바 자리는 하나뿐이라 여러 출처를 한 줄로 모은다. 서버 실패가 먼저다.
         //
@@ -474,6 +509,10 @@ fun MapDetailScreen(
             modifier = Modifier.align(Alignment.BottomCenter),
         )
     }
+
+    // 나중에 선언한 쪽이 먼저 받는다. 메뉴가 떠 있으면 메뉴부터 닫는다.
+    BackHandler(enabled = mapManageVisible) { mapManageVisible = false }
+    BackHandler(enabled = menuVisible) { menuVisible = false }
 
     // 상세보다 먼저 그린다. 목록에서 하나를 고르면 목록은 닫히고 상세만 남는다.
     if (expandedClusterPlaces.isNotEmpty()) {
@@ -558,6 +597,8 @@ internal fun MapDetailContent(
     selectedTab: MapDetailTab,
     onBackClick: () -> Unit,
     onActionClick: () -> Unit,
+    showMenu: Boolean,
+    onMenuClick: () -> Unit,
     on3dToggleClick: () -> Unit,
     onAddPlaceClick: () -> Unit,
     onMyLocationClick: () -> Unit,
@@ -566,16 +607,6 @@ internal fun MapDetailContent(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onPlaceClick: (Long) -> Unit,
-    canReviewRequests: Boolean,
-    pendingRequests: List<PendingRequestUiModel>,
-    logs: List<MapLogUiModel>,
-    logsLoading: Boolean,
-    logsErrorMessage: String?,
-    requestActionEnabled: Boolean,
-    onRequestAccept: (Long) -> Unit,
-    onRequestReject: (Long) -> Unit,
-    onLogsRetry: () -> Unit,
-    onMembersClick: () -> Unit,
     modifier: Modifier = Modifier,
     mapContent: @Composable () -> Unit,
 ) {
@@ -594,6 +625,8 @@ internal fun MapDetailContent(
             onInviteCodeClick = onInviteCodeClick,
             onBackClick = onBackClick,
             onActionClick = onActionClick,
+            showMenu = showMenu,
+            onMenuClick = onMenuClick,
         )
 
         Box(
@@ -621,19 +654,7 @@ internal fun MapDetailContent(
                 }
                 MapDetailTab.Logs -> {
                     Box(modifier = Modifier.fillMaxSize()) {
-                        MapLogsContent(
-                            // 알림을 띄울지는 여기서 정한다. MapLogsContent 는 받은 것만 그린다.
-                            pendingRequests = if (canReviewRequests) pendingRequests else emptyList(),
-                            // 지도 타입별로 거르지 않는다. 서버가 이미 프라이빗 지도에만
-                            // 후기 로그를 넣어 보낸다.
-                            logs = logs,
-                            loading = logsLoading,
-                            requestActionEnabled = requestActionEnabled,
-                            errorMessage = logsErrorMessage,
-                            onAcceptClick = onRequestAccept,
-                            onRejectClick = onRequestReject,
-                            onRetryClick = onLogsRetry,
-                        )
+                        MapPostsContent()
                         MapDetailTabBar(
                             selectedTab = selectedTab,
                             onTabSelected = onTabSelected,
@@ -641,35 +662,10 @@ internal fun MapDetailContent(
                                 .align(Alignment.TopCenter)
                                 .padding(start = 20.dp, top = 16.dp, end = 20.dp),
                         )
-                        MemberSheetFab(
-                            onClick = onMembersClick,
-                            modifier = Modifier
-                                .align(Alignment.BottomEnd)
-                                .padding(end = 20.dp, bottom = 20.dp),
-                        )
                     }
                 }
             }
         }
-    }
-}
-
-/** 멤버 관리 진입. 로그 탭에만 있다 - 장소 탭은 같은 자리를 3D·장소 추가가 쓴다. */
-@Composable
-private fun MemberSheetFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .clip(CircleShape)
-            .background(MoaMapPrimitiveColors.Blue500)
-            .clickable(onClick = onClick)
-            .padding(8.dp),
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_person),
-            contentDescription = "멤버 관리",
-            tint = MoaMapTheme.colors.textWhite,
-            modifier = Modifier.size(32.dp),
-        )
     }
 }
 
@@ -766,6 +762,8 @@ private fun MapDetailScreenPreview() {
             selectedTab = MapDetailTab.Places,
             onBackClick = {},
             onActionClick = {},
+            showMenu = true,
+            onMenuClick = {},
             on3dToggleClick = {},
             onAddPlaceClick = {},
             onMyLocationClick = {},
@@ -774,16 +772,6 @@ private fun MapDetailScreenPreview() {
             searchQuery = "",
             onSearchQueryChange = {},
             onPlaceClick = {},
-            canReviewRequests = true,
-            pendingRequests = SamplePendingRequests,
-            logs = SampleMapLogs,
-            logsLoading = false,
-            requestActionEnabled = true,
-            logsErrorMessage = null,
-            onRequestAccept = {},
-            onRequestReject = {},
-            onLogsRetry = {},
-            onMembersClick = {},
             mapContent = {
                 Box(
                     modifier = Modifier
@@ -814,6 +802,8 @@ private fun MapDetailScreenNotJoinedPreview() {
             selectedTab = MapDetailTab.Places,
             onBackClick = {},
             onActionClick = {},
+            showMenu = false,
+            onMenuClick = {},
             on3dToggleClick = {},
             onAddPlaceClick = {},
             onMyLocationClick = {},
@@ -822,16 +812,6 @@ private fun MapDetailScreenNotJoinedPreview() {
             searchQuery = "",
             onSearchQueryChange = {},
             onPlaceClick = {},
-            canReviewRequests = true,
-            pendingRequests = SamplePendingRequests,
-            logs = SampleMapLogs,
-            logsLoading = false,
-            requestActionEnabled = true,
-            logsErrorMessage = null,
-            onRequestAccept = {},
-            onRequestReject = {},
-            onLogsRetry = {},
-            onMembersClick = {},
             mapContent = {
                 Box(
                     modifier = Modifier

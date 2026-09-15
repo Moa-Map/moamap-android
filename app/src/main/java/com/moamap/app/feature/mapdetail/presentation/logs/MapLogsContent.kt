@@ -23,14 +23,14 @@ import androidx.compose.ui.unit.dp
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 
-/** 탭바가 위에 겹쳐 있어 그만큼 목록을 내려서 시작한다. */
-private val TabBarClearance = 90.dp
+/** 상단바 아래 첫 줄까지의 여백. */
+private val ContentTopPadding = 20.dp
 
 /** 시안의 섹션 간 간격. */
 private val SectionGap = 20.dp
 
 /**
- * 로그 탭 내용.
+ * 지도 관리 내용. 장소 등록 요청 알림과 활동 내역이다.
  *
  * **지도 타입·역할 분기를 여기서 하지 않는다.** 알림을 보여줄지는 [pendingRequests] 를 넘기는
  * 쪽이 정한다. 그래야 프리뷰로 공개·프라이빗 두 경우를 모두 만들 수 있다.
@@ -60,7 +60,7 @@ internal fun MapLogsContent(
         contentPadding = PaddingValues(
             start = MoaMapDimens.ScreenHorizontalPadding,
             end = MoaMapDimens.ScreenHorizontalPadding,
-            top = TabBarClearance,
+            top = ContentTopPadding,
             bottom = 32.dp,
         ),
     ) {

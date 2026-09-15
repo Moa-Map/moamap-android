@@ -11,8 +11,10 @@ import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.domain.model.leavingDeletesMap
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
+import com.moamap.app.feature.mapdetail.domain.model.canLeaveFromMenu
 import com.moamap.app.feature.mapdetail.domain.model.roleBadge
 import com.moamap.app.feature.mapdetail.domain.model.shareableInviteCode
+import com.moamap.app.feature.mapdetail.domain.model.showsMenu
 import com.moamap.app.feature.mapdetail.domain.model.topBarAction
 import com.moamap.app.feature.mapdetail.domain.repository.MapDetailRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -62,6 +64,11 @@ data class MapDetailScreenState(
 
     val action: MapDetailAction get() = map.mapOrNull?.topBarAction ?: MapDetailAction.None
 
+    /** 상단바 메뉴를 띄울지. 지도를 아직 못 읽었으면 띄우지 않는다. */
+    val showMenu: Boolean get() = map.mapOrNull?.showsMenu ?: false
+
+    val canLeave: Boolean get() = map.mapOrNull?.canLeaveFromMenu ?: false
+
     /** 상단바 초대코드 버튼에 실을 코드. null 이면 버튼을 띄우지 않는다. */
     val inviteCode: String? get() = map.mapOrNull?.shareableInviteCode
 
@@ -83,7 +90,7 @@ data class MapDetailScreenState(
     val placeCount: Int? get() = map.mapOrNull?.placeCount
 
     /**
-     * 로그 탭에 장소 등록 요청 알림을 띄울 수 있는가.
+     * 지도 관리에 장소 등록 요청 알림을 띄울 수 있는가.
      *
      * 프라이빗 지도에는 권한이 없어 수락·거절할 사람 자체가 없다.
      */
