@@ -9,6 +9,7 @@ package com.moamap.app.core.common.upload
  * | --- | --- |
  * | 지도 커버, 프로필 이미지 | [MAX_IMAGE_FILE_SIZE] |
  * | 장소 사진 | [MAX_PLACE_PHOTO_FILE_SIZE] |
+ * | 지도 로그 게시물 사진 | [MAX_POST_PHOTO_FILE_SIZE] |
  *
  * **한 곳에만 둔다.** 갤러리 선택기가 거르는 형식과 발급 전에 검증하는 형식이 따로 놀면,
  * 서버 계약이 바뀔 때 한쪽만 고쳐도 티가 나지 않는다.
@@ -27,6 +28,9 @@ internal const val MAX_IMAGE_FILE_SIZE = 10L * BYTES_IN_MEGABYTE
  * 검증을 붙이고도 서버 400 을 그대로 받는다.
  */
 internal const val MAX_PLACE_PHOTO_FILE_SIZE = 5L * BYTES_IN_MEGABYTE
+
+/** 지도 로그 게시물 사진. 지금은 장소 사진과 같지만 서버가 따로 두고 있어 따로 둔다. */
+internal const val MAX_POST_PHOTO_FILE_SIZE = 5L * BYTES_IN_MEGABYTE
 
 /**
  * 고른 사진을 올릴 수 없다.

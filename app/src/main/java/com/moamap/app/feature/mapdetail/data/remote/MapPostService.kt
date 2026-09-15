@@ -1,7 +1,9 @@
 package com.moamap.app.feature.mapdetail.data.remote
 
 import com.moamap.app.core.network.model.PageResponse
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
 
@@ -25,4 +27,22 @@ interface MapPostService {
         @Query("size") size: Int? = null,
         @Query("sort") sort: String? = null,
     ): PageResponse<MapPostDto>
+
+    /** 게시물 작성. 지도 멤버만 쓸 수 있고, 읽기가 열린 커뮤니티 지도도 멤버여야 한다. */
+    @POST("api/v1/maps/{mapId}/posts")
+    suspend fun createPost(
+        @Path("mapId") mapId: Long,
+        @Body request: MapPostCreateRequestDto,
+    ): MapPostDto
+
+    /**
+     * 게시물 사진 업로드용 presigned PUT URL 을 **한 장** 발급받는다.
+     *
+     * 장소 사진과 달리 여러 장을 한 번에 발급하지 않는다. 허용 형식은 jpeg/png/webp, 장당 최대 5MB.
+     */
+    @POST("api/v1/maps/{mapId}/posts/photo-upload-url")
+    suspend fun createPhotoUploadUrl(
+        @Path("mapId") mapId: Long,
+        @Body request: MapPostPhotoUploadUrlRequestDto,
+    ): MapPostPhotoUploadUrlDto
 }

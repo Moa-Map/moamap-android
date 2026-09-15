@@ -25,3 +25,37 @@ data class MapPostPlaceTagDto(
     val placeId: Long = 0,
     val name: String? = null,
 )
+
+/**
+ * POST api/v1/maps/{mapId}/posts 요청.
+ *
+ * [placeTags] 는 서버가 검증하지 않고 받은 이름을 그대로 저장한다. 고른 장소의 이름을 보낸다.
+ */
+@Serializable
+data class MapPostCreateRequestDto(
+    val content: String,
+    val imageUrls: List<String> = emptyList(),
+    val placeTags: List<MapPostPlaceTagRequestDto> = emptyList(),
+)
+
+@Serializable
+data class MapPostPlaceTagRequestDto(
+    val placeId: Long,
+    val name: String,
+)
+
+/** POST api/v1/maps/{mapId}/posts/photo-upload-url 요청. 한 장씩 발급한다. */
+@Serializable
+data class MapPostPhotoUploadUrlRequestDto(
+    val contentType: String,
+    val fileSize: Long,
+)
+
+/** POST api/v1/maps/{mapId}/posts/photo-upload-url 응답. [fileUrl] 을 게시물 작성 요청에 담는다. */
+@Serializable
+data class MapPostPhotoUploadUrlDto(
+    val uploadUrl: String = "",
+    val objectKey: String? = null,
+    val fileUrl: String = "",
+    val expiresInSeconds: Long = 0,
+)
