@@ -1,9 +1,11 @@
 package com.moamap.app.feature.mapdetail.presentation.review
 
+import android.net.Uri
 import android.util.Log
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moamap.app.core.common.upload.ImageUploadException
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.mapdetail.domain.model.PlaceReview
 import com.moamap.app.feature.mapdetail.domain.repository.PlaceReviewRepository
@@ -23,12 +25,10 @@ private const val TAG = "PlaceReviewViewModel"
 internal const val REVIEW_LOAD_FAILED_MESSAGE = "후기를 불러오지 못했어요"
 internal const val REVIEW_SUBMIT_FAILED_MESSAGE = "후기를 남기지 못했어요"
 internal const val NOT_MAP_MEMBER_MESSAGE = "지도에 참여해야 후기를 남길 수 있어요"
-internal const val RATING_REQUIRED_MESSAGE = "별점을 눌러주세요"
+internal const val REVIEW_EMPTY_MESSAGE = "내용이나 사진을 남겨주세요"
 
 /** `[403] PLACE_002: 해당 지도의 멤버가 아닙니다.` */
 private const val NOT_MAP_MEMBER_CODE = "PLACE_002"
-
-private val VALID_RATINGS = 1..5
 
 /**
  * 후기 작성 실패 안내.
@@ -37,9 +37,12 @@ private val VALID_RATINGS = 1..5
  * 같은 글을 계속 다시 보내게 된다. 화면이 참여 여부를 보고 미리 막지만, 다른 기기에서
  * 나간 뒤라면 여기까지 온다.
  */
-private fun Throwable.toSubmitMessage(): String =
-    if (this is ApiException && code == NOT_MAP_MEMBER_CODE) NOT_MAP_MEMBER_MESSAGE
-    else toUserMessage(REVIEW_SUBMIT_FAILED_MESSAGE)
+private fun Throwable.toSubmitMessage(): String = when {
+    this is ApiException && code == NOT_MAP_MEMBER_CODE -> NOT_MAP_MEMBER_MESSAGE
+    // 형식·크기 안내는 그대로 보여준다. "남기지 못했어요" 로는 사진을 바꿔야 한다는 걸 알 수 없다.
+    this is ImageUploadException -> message ?: REVIEW_SUBMIT_FAILED_MESSAGE
+    else -> toUserMessage(REVIEW_SUBMIT_FAILED_MESSAGE)
+}
 
 /**
  * 장소 상세 시트에 띄우는 후기 상태.
@@ -59,7 +62,7 @@ data class PlaceReviewUiState(
     /**
      * 서버가 받아들인 후기 수.
      *
-     * 값이 늘어난 것만 신호로 쓴다. 입력창은 이때 비우고, 화면은 장소의 평점·후기 수를
+     * 값이 늘어난 것만 신호로 쓴다. 입력창은 이때 비우고, 화면은 장소의 후기 수를
      * 다시 읽는다. 보내자마자 지우면 실패했을 때 적어 둔 게 날아간다.
      */
     val submittedCount: Int = 0,
@@ -110,15 +113,14 @@ class PlaceReviewViewModel @Inject constructor(
      * 보냈는지가 아니라 **보내기 시작했는지**를 돌려준다. 서버 응답을 기다리지 않으므로
      * 입력창은 이 값으로 비우지 않는다 - [PlaceReviewUiState.submittedCount] 가 그 신호다.
      *
-     * 별점은 필수다. 서버도 1~5 를 요구해 안 고르고 보내면 400 으로 돌아오는데, 그 왕복을
-     * 하지 않고 여기서 막는다.
+     * 글과 사진 중 하나는 있어야 한다. 둘 다 없는 후기는 목록에 빈 줄로만 남는다.
      */
-    fun submit(rating: Int, content: String): Boolean {
+    fun submit(content: String, photo: Uri?): Boolean {
         val placeId = _uiState.value.placeId ?: return false
         if (_uiState.value.submitting) return false
 
-        if (rating !in VALID_RATINGS) {
-            _uiState.update { state -> state.copy(submitErrorMessage = RATING_REQUIRED_MESSAGE) }
+        if (content.isBlank() && photo == null) {
+            _uiState.update { state -> state.copy(submitErrorMessage = REVIEW_EMPTY_MESSAGE) }
             return false
         }
 
@@ -126,7 +128,7 @@ class PlaceReviewViewModel @Inject constructor(
         submitJob?.cancel()
         submitJob = viewModelScope.launch {
             try {
-                repository.createReview(placeId, rating, content.trim())
+                repository.createReview(placeId, content.trim(), photo)
                 _uiState.update { state ->
                     state.copy(submitting = false, submittedCount = state.submittedCount + 1)
                 }
