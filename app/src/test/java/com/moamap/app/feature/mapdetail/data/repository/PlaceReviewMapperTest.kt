@@ -22,8 +22,10 @@ class PlaceReviewMapperTest {
     }
 
     @Test
-    fun `별점은 별 다섯 칸을 벗어나지 않는다`() {
-        assertEquals(5, PlaceReviewDto(rating = 9).toPlaceReview(null).rating)
-        assertEquals(0, PlaceReviewDto(rating = -1).toPlaceReview(null).rating)
+    fun `빈 사진 주소는 걸러 낸다`() {
+        assertEquals(
+            listOf("https://img/1.jpg"),
+            PlaceReviewDto(imageUrls = listOf(" ", "https://img/1.jpg")).toPlaceReview(null).imageUrls,
+        )
     }
 }

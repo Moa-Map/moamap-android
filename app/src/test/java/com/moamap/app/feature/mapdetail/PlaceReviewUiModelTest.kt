@@ -50,6 +50,14 @@ class PlaceReviewUiModelTest {
         assertEquals("민지", review(authorName = "민지").toPlaceReviewUiModel(NOW).userName)
     }
 
+    @Test
+    fun `첨부 사진은 첫 장만 보여준다`() {
+        val review = review(authorName = "민지").copy(imageUrls = listOf("https://img/1.jpg", "https://img/2.jpg"))
+
+        assertEquals("https://img/1.jpg", review.toPlaceReviewUiModel(NOW).photoUrl)
+        assertEquals(null, review(authorName = "민지").toPlaceReviewUiModel(NOW).photoUrl)
+    }
+
     private fun label(elapsedMillis: Long): String =
         relativeTimeLabel(createdAtMillis = NOW - elapsedMillis, nowMillis = NOW)
 
@@ -57,7 +65,6 @@ class PlaceReviewUiModelTest {
         id = 1L,
         authorId = 1L,
         authorName = authorName,
-        rating = 5,
         content = "좋았어요",
         createdAtMillis = NOW,
     )
