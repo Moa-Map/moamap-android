@@ -57,4 +57,5 @@ fun PlaceDto.toMapPlace(): MapPlace = MapPlace(
     // 아직 아무도 안 매긴 장소는 avgRating 이 null 로 온다. 화면은 0.0 으로 읽는다.
     rating = avgRating ?: 0.0,
     reviewCount = commentCount,
+    kakaoPlaceId = kakaoPlaceId?.trim().orEmpty(),
 )

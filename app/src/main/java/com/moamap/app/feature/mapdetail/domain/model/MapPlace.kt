@@ -24,10 +24,16 @@ data class MapPlace(
      * 경로 그대로 담는다. 화면에 띄울 땐 [categoryLabel] 로 마지막 토막만 꺼내 쓴다.
      */
     val category: String = "",
-    /** 평균 평점. 아직 아무도 안 매겼으면 0.0 이다. */
+    /**
+     * 평균 평점. 아직 아무도 안 매겼으면 0.0 이다.
+     *
+     * 화면에서 별점을 없애 지금은 쓰지 않는다. 후기가 고정 별점으로 쌓여 의미 있는 값도 아니다.
+     */
     val rating: Double = 0.0,
     /** 댓글 수. */
     val reviewCount: Int = 0,
+    /** 카카오 장소 id. 카카오맵으로 열 때 쓴다. 서버 필수값이라 보통 채워져 온다. */
+    val kakaoPlaceId: String = "",
 )
 
 /**
