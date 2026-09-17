@@ -76,6 +76,7 @@ import com.moamap.app.feature.mapdetail.presentation.addplace.AddPlaceSheet
 import com.moamap.app.feature.mapdetail.presentation.addplace.AddPlaceViewModel
 import com.moamap.app.feature.mapdetail.presentation.MapLoadState
 import com.moamap.app.feature.mapdetail.presentation.mapOrNull
+import com.moamap.app.feature.mapdetail.presentation.personal.PersonalMapAddViewModel
 import com.moamap.app.feature.mapdetail.presentation.review.PlaceReviewViewModel
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.dsl.cameraOptions
@@ -135,6 +136,7 @@ fun MapDetailScreen(
     viewModel: MapDetailViewModel = hiltViewModel(),
     addPlaceViewModel: AddPlaceViewModel = hiltViewModel(),
     reviewViewModel: PlaceReviewViewModel = hiltViewModel(),
+    personalMapViewModel: PersonalMapAddViewModel = hiltViewModel(),
     activityViewModel: MapActivityViewModel = hiltViewModel(),
     pendingViewModel: PendingRequestViewModel = hiltViewModel(),
     postListViewModel: MapPostListViewModel = hiltViewModel(),
@@ -147,6 +149,7 @@ fun MapDetailScreen(
 
     val screenState by viewModel.uiState.collectAsStateWithLifecycle()
     val reviewState by reviewViewModel.uiState.collectAsStateWithLifecycle()
+    val personalMapState by personalMapViewModel.uiState.collectAsStateWithLifecycle()
     val activityState by activityViewModel.uiState.collectAsStateWithLifecycle()
     val pendingState by pendingViewModel.uiState.collectAsStateWithLifecycle()
     val postListState by postListViewModel.uiState.collectAsStateWithLifecycle()
@@ -240,9 +243,16 @@ fun MapDetailScreen(
     val closePlaceDetail = { uiState = uiState.closePlaceDetail() }
 
     // 시트를 연 장소의 후기를 읽는다. 닫으면 비워, 다음에 열 때 서버에서 다시 읽는다.
+    // 나만의 지도 추가 안내도 장소마다 새로 시작한다.
     LaunchedEffect(uiState.selectedPlaceId) {
         val placeId = uiState.selectedPlaceId
-        if (placeId == null) reviewViewModel.close() else reviewViewModel.open(placeId)
+        if (placeId == null) {
+            reviewViewModel.close()
+            personalMapViewModel.close()
+        } else {
+            reviewViewModel.open(placeId)
+            personalMapViewModel.open(placeId)
+        }
     }
 
     // 게시물을 올리면 폼을 닫고 목록을 첫 페이지부터 다시 읽는다. 새 글이 맨 위(최신순)나 맨 아래(등록순)에 붙는다.
@@ -280,7 +290,7 @@ fun MapDetailScreen(
         if (pendingState.approvedCount > 0) viewModel.refresh()
     }
 
-    // 후기가 하나 늘면 장소의 평점·후기 수도 달라진다. 시트 뒤의 목록이 옛 값을 들고 있으면 안 된다.
+    // 후기가 하나 늘면 장소의 후기 수도 달라진다. 시트 뒤의 목록이 옛 값을 들고 있으면 안 된다.
     LaunchedEffect(reviewState.submittedCount) {
         if (reviewState.submittedCount > 0) viewModel.refresh()
     }
@@ -604,14 +614,31 @@ fun MapDetailScreen(
     }
 
     selectedPlace?.let { place ->
+        // 나만의 지도를 보고 있으면 담을 곳이 자기 자신이라 버튼을 뺀다. 지도를 아직 못 읽었으면
+        // 나만의 지도인지 모르니 띄우지 않는다.
+        val personalMapAction = when {
+            screenState.map.mapOrNull?.personal != false -> null
+            // 안내가 다른 장소의 것이면 빈 버튼으로 그린다. 여는 순간 한 프레임 스쳐 가지 않게.
+            personalMapState.placeId != place.id -> PersonalMapActionUiModel()
+            else -> PersonalMapActionUiModel(
+                adding = personalMapState.adding,
+                message = personalMapState.message,
+                failed = personalMapState.failed,
+            )
+        }
         PlaceDetailSheet(
             place = place,
             reviews = reviews,
             onDismiss = closePlaceDetail,
+            onExternalLinkClick = {
+                openKakaoMap(context, kakaoPlaceId = place.kakaoPlaceId, placeName = place.name)
+            },
             onRetryReviews = reviewViewModel::retry,
+            personalMapAction = personalMapAction,
+            onAddToPersonalMapClick = personalMapViewModel::add,
             // 참여 중인 지도에만 후기를 남길 수 있다. 서버도 같은 기준으로 막는다.
             onSubmitReview = if (screenState.canAddPlace) {
-                { rating, reviewText -> reviewViewModel.submit(rating, reviewText) }
+                { reviewText, photo -> reviewViewModel.submit(reviewText, photo) }
             } else {
                 null
             },
