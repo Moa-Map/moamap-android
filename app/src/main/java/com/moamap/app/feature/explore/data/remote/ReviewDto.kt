@@ -18,6 +18,23 @@ data class PlaceReviewUpdateRequestDto(
     val imageUrls: List<String>? = null,
 )
 
+/** POST api/v1/places/{placeId}/reviews/photo-upload-url 요청. 서버가 한 장만 받는다. */
+@Serializable
+data class PlaceReviewPhotoUploadUrlRequestDto(
+    val contentType: String,
+    val fileSize: Long,
+)
+
+/** POST api/v1/places/{placeId}/reviews/photo-upload-url 응답 */
+@Serializable
+data class PlaceReviewPhotoUploadUrlDto(
+    // 기본값을 두지 않는다. 빈 주소로 업로드를 시도하기 전에 역직렬화에서 걸리게 한다.
+    val uploadUrl: String,
+    val fileUrl: String,
+    val objectKey: String? = null,
+    val expiresInSeconds: Long = 0,
+)
+
 /** 리뷰 조회/작성/수정 응답 */
 @Serializable
 data class PlaceReviewDto(

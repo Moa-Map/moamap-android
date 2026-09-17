@@ -19,6 +19,17 @@ interface ReviewService {
         @Query("sort") sort: String? = null,
     ): PageResponse<PlaceReviewDto>
 
+    /**
+     * 후기 사진 한 장을 올릴 주소. 발급 권한은 후기 작성과 같다(지도 멤버).
+     *
+     * [PlaceReviewPhotoUploadUrlDto.uploadUrl] 로 직접 PUT 한 뒤 `fileUrl` 을 작성 요청에 담는다.
+     */
+    @POST("api/v1/places/{placeId}/reviews/photo-upload-url")
+    suspend fun createPhotoUploadUrl(
+        @Path("placeId") placeId: Long,
+        @Body request: PlaceReviewPhotoUploadUrlRequestDto,
+    ): PlaceReviewPhotoUploadUrlDto
+
     @POST("api/v1/places/{placeId}/reviews")
     suspend fun createReview(
         @Path("placeId") placeId: Long,

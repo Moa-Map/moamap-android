@@ -1,7 +1,12 @@
 package com.moamap.app.feature.mapdetail.data.repository
 
+import android.net.Uri
 import android.util.Log
+import com.moamap.app.core.common.upload.MAX_REVIEW_PHOTO_FILE_SIZE
+import com.moamap.app.core.common.upload.PhotoUploader
+import com.moamap.app.core.common.upload.validateImageUpload
 import com.moamap.app.feature.explore.data.remote.PlaceReviewCreateRequestDto
+import com.moamap.app.feature.explore.data.remote.PlaceReviewPhotoUploadUrlRequestDto
 import com.moamap.app.feature.explore.data.remote.ReviewService
 import com.moamap.app.feature.mapdetail.domain.model.PlaceReview
 import com.moamap.app.feature.mapdetail.domain.repository.PlaceReviewRepository
@@ -21,10 +26,19 @@ private const val NEWEST_FIRST = "createdAt,desc"
 /** 프로필 벌크 조회가 한 번에 받는 식별자 수. 서버 상한이다. */
 private const val PROFILE_CHUNK_SIZE = 100
 
+/**
+ * 후기에 싣는 별점.
+ *
+ * 화면에서 별점을 없앴지만 서버는 1~5 를 필수로 받는다. 평균 별점도 더는 보여주지 않아
+ * 어떤 값이든 화면에 드러나지 않는다. 서버가 선택값으로 바꾸면 이 값과 함께 지운다.
+ */
+internal const val FIXED_REVIEW_RATING = 5
+
 @Singleton
-class PlaceReviewRepositoryImpl @Inject constructor(
+internal class PlaceReviewRepositoryImpl @Inject constructor(
     private val reviewService: ReviewService,
     private val userService: UserService,
+    private val uploader: PhotoUploader,
 ) : PlaceReviewRepository {
 
     override suspend fun getReviews(placeId: Long): List<PlaceReview> {
@@ -42,15 +56,40 @@ class PlaceReviewRepositoryImpl @Inject constructor(
         return dtos.map { dto -> dto.toPlaceReview(authorName = nicknames[dto.userId]) }
     }
 
-    override suspend fun createReview(placeId: Long, rating: Int, content: String) {
+    override suspend fun createReview(placeId: Long, content: String, photo: Uri?) {
+        val imageUrl = photo?.let { uri -> uploadPhoto(placeId, uri) }
         reviewService.createReview(
             placeId = placeId,
             request = PlaceReviewCreateRequestDto(
-                rating = rating,
-                // 별점만 남기는 것도 서버가 받아 준다. 빈 문자열 대신 자리를 비워 보낸다.
+                rating = FIXED_REVIEW_RATING,
+                // 사진만 남기는 것도 서버가 받아 준다. 빈 문자열 대신 자리를 비워 보낸다.
                 content = content.takeIf { text -> text.isNotBlank() },
+                imageUrls = imageUrl?.let { url -> listOf(url) },
             ),
         )
+    }
+
+    /** 형식·크기를 먼저 거른 뒤 발급받아 올린다. 서버 400 을 받고 나서는 이유를 알려줄 수 없다. */
+    private suspend fun uploadPhoto(placeId: Long, uri: Uri): String {
+        val photo = uploader.inspect(uri)
+        validateImageUpload(
+            contentType = photo.contentType,
+            fileSize = photo.size,
+            maxFileSize = MAX_REVIEW_PHOTO_FILE_SIZE,
+        )
+
+        val issued = reviewService.createPhotoUploadUrl(
+            placeId = placeId,
+            request = PlaceReviewPhotoUploadUrlRequestDto(
+                contentType = photo.contentType,
+                fileSize = photo.size,
+            ),
+        )
+        require(issued.uploadUrl.isNotBlank() && issued.fileUrl.isNotBlank()) {
+            "사진 업로드 주소가 비어 있습니다"
+        }
+        uploader.upload(uploadUrl = issued.uploadUrl, photo = photo)
+        return issued.fileUrl
     }
 
     /**
