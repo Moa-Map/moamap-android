@@ -2,6 +2,7 @@ package com.moamap.app.feature.mapdetail
 
 import androidx.compose.runtime.Immutable
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
+import com.moamap.app.feature.mapdetail.domain.model.PlaceCategoryGroup
 import com.mapbox.geojson.Point
 
 /** 장소도 위치도 없을 때 마지막으로 기대는 좌표. 숭실대 캠퍼스 중심이다. */
@@ -27,6 +28,8 @@ internal data class PlaceMarker(
     val latitude: Double,
     /** 장소 사진. 없으면 마커에 플레이스홀더를 띄운다. */
     val photoUrl: String?,
+    /** 사진 대신 띄울 아이콘의 그룹. 어느 그룹에도 들지 않으면 null 이고 로고를 띄운다. */
+    val categoryGroup: PlaceCategoryGroup? = null,
 )
 
 internal fun MapPlace.toPlaceMarker(): PlaceMarker = PlaceMarker(
@@ -35,6 +38,7 @@ internal fun MapPlace.toPlaceMarker(): PlaceMarker = PlaceMarker(
     longitude = longitude,
     latitude = latitude,
     photoUrl = photoUrl,
+    categoryGroup = PlaceCategoryGroup.fromCategoryPath(category),
 )
 
 /** 미리보기 전용 마커. 프리뷰는 네트워크를 타지 않아 사진 자리는 플레이스홀더로 뜬다. */
@@ -45,6 +49,7 @@ internal val PreviewPlaceMarkers = listOf(
         longitude = 126.9570,
         latitude = 37.4960,
         photoUrl = null,
+        categoryGroup = PlaceCategoryGroup.Cafe,
     ),
     PlaceMarker(
         placeId = 2L,

@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,11 +27,13 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import coil3.compose.AsyncImage
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.feature.mapdetail.domain.model.PlaceCategoryGroup
 
 private val MarkerPhotoSize = 56.dp
 private val MarkerRingWidth = 3.dp
@@ -40,15 +43,24 @@ private val MarkerElevation = 6.dp
 private val FacepileAvatarSize = 40.dp
 private val FacepileOverlap = 14.dp
 
+/** 원 지름 대비 아이콘 크기. 단독 마커(안쪽 50dp)에서 약 28dp 가 된다. */
+private const val CategoryIconRatio = 0.56f
+
 /**
  * 사진 자리를 채우는 대체 그림. 로드 전·실패·URL 없음을 한 모양으로 다룬다.
+ *
+ * 장소 분류를 알면 그 카테고리 아이콘을, 모르면 moa 로고를 깐다.
  *
  * 로고를 코드에서 자르지 않는다. moa 로고는 가로로 긴 워드마크(1.88:1)라 원형 마커에
  * 맞추려면 확대·정렬을 손으로 맞춰야 하고, 투명한 자리가 원 가장자리에 비친다. 그래서
  * 잘라 낸 결과를 정사각 불투명 에셋으로 미리 구워 두고 여기서는 그대로 깐다.
  */
 @Composable
-private fun AvatarPlaceholder() {
+private fun AvatarPlaceholder(categoryGroup: PlaceCategoryGroup?) {
+    if (categoryGroup != null) {
+        CategoryIconPlaceholder(categoryGroup)
+        return
+    }
     Image(
         painter = painterResource(R.drawable.img_marker_placeholder),
         contentDescription = null,
@@ -57,6 +69,29 @@ private fun AvatarPlaceholder() {
             .fillMaxSize()
             .clip(CircleShape),
     )
+}
+
+/**
+ * 카테고리 아이콘을 넣은 원. 아이콘 마커 시안이 없어 연한 회색 바탕에 본문 색 아이콘으로 둔다.
+ *
+ * 아이콘 크기는 원 지름에 비례시킨다. 같은 원을 단독 마커(56dp)와 묶음 마커(40dp)가 함께 쓴다.
+ */
+@Composable
+private fun CategoryIconPlaceholder(categoryGroup: PlaceCategoryGroup) {
+    BoxWithConstraints(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier
+            .fillMaxSize()
+            .clip(CircleShape)
+            .background(MoaMapPrimitiveColors.Gray50),
+    ) {
+        Icon(
+            painter = painterResource(categoryGroup.iconRes),
+            contentDescription = null,
+            tint = MoaMapPrimitiveColors.TextNormal,
+            modifier = Modifier.size(maxWidth * CategoryIconRatio),
+        )
+    }
 }
 
 /**
@@ -76,6 +111,7 @@ private fun Modifier.markerClickable(onClick: () -> Unit): Modifier = clickable(
 @Composable
 private fun AvatarCircle(
     photoUrl: String?,
+    categoryGroup: PlaceCategoryGroup?,
     contentDescription: String?,
     size: Dp,
     ringWidth: Dp,
@@ -90,7 +126,7 @@ private fun AvatarCircle(
     ) {
         // 항상 뒤에 깔아 둔다. URL 이 없을 때, 받는 중일 때, 실패했을 때를 한 번에 덮는다.
         // AsyncImage 는 세 경우 모두 아무것도 그리지 않아, 없으면 흰 원만 남는다.
-        AvatarPlaceholder()
+        AvatarPlaceholder(categoryGroup)
 
         AsyncImage(
             model = photoUrl,
@@ -115,6 +151,7 @@ internal fun PlacePhotoMarker(
     ) {
         AvatarCircle(
             photoUrl = marker.photoUrl,
+            categoryGroup = marker.categoryGroup,
             contentDescription = marker.name,
             size = MarkerPhotoSize,
             ringWidth = MarkerRingWidth,
@@ -165,6 +202,7 @@ internal fun PlaceFacepileMarker(
         visible.forEachIndexed { index, member ->
             AvatarCircle(
                 photoUrl = member.photoUrl,
+                categoryGroup = member.categoryGroup,
                 contentDescription = member.name,
                 size = FacepileAvatarSize,
                 ringWidth = 2.dp,
