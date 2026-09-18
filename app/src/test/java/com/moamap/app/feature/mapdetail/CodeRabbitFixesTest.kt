@@ -18,8 +18,8 @@ class CodeRabbitFixesTest {
     fun `review is not submitted when no submission callback is connected`() {
         assertFalse(
             trySubmitReview(
-                rating = 5,
                 reviewText = "좋았어요",
+                photo = null,
                 onSubmitReview = null,
             ),
         )
@@ -27,21 +27,18 @@ class CodeRabbitFixesTest {
 
     @Test
     fun `review text can be cleared only after a successful submission`() {
-        var submittedRating = 0
         var submittedText = ""
 
         val succeeded = trySubmitReview(
-            rating = 4,
             reviewText = "다시 가고 싶어요",
-            onSubmitReview = { rating, text ->
-                submittedRating = rating
+            photo = null,
+            onSubmitReview = { text, _ ->
                 submittedText = text
                 true
             },
         )
 
         assertTrue(succeeded)
-        assertEquals(4, submittedRating)
         assertEquals("다시 가고 싶어요", submittedText)
     }
 

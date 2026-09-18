@@ -39,15 +39,15 @@ class MapLogUiModelTest {
     }
 
     @Test
-    fun `후기 로그는 별점을 함께 적는다`() {
+    fun `후기 로그는 별점을 적지 않는다`() {
         assertEquals(
-            "‘대림창고’ 에 별점 4점 후기를 남겼어요",
+            "‘대림창고’ 에 후기를 남겼어요",
             messageOf(MapActivityType.ReviewCreated, placeName = "대림창고", rating = 4),
         )
     }
 
     @Test
-    fun `별점이 없으면 그 자리를 비운다`() {
+    fun `별점이 없어도 같은 문장이다`() {
         assertEquals(
             "‘대림창고’ 에 후기를 남겼어요",
             messageOf(MapActivityType.ReviewCreated, placeName = "대림창고", rating = null),
@@ -63,7 +63,7 @@ class MapLogUiModelTest {
             messageOf(MapActivityType.PlaceRemoved, placeName = null),
         )
         assertEquals(
-            "별점 5점 후기를 남겼어요",
+            "후기를 남겼어요",
             messageOf(MapActivityType.ReviewCreated, placeName = null, rating = 5),
         )
     }

@@ -163,6 +163,12 @@ class MapDetailMapperTest {
     }
 
     @Test
+    fun `카카오 장소 id 는 공백을 걷어 옮기고 없으면 빈 문자열이다`() {
+        assertEquals("76206032", PlaceDto(kakaoPlaceId = " 76206032 ").toMapPlace().kakaoPlaceId)
+        assertEquals("", PlaceDto(kakaoPlaceId = null).toMapPlace().kakaoPlaceId)
+    }
+
+    @Test
     fun `주소가 없으면 지역도 빈 문자열이다`() {
         assertEquals("", PlaceDto().toMapPlace().areaLabel)
     }

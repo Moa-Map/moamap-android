@@ -1,5 +1,7 @@
 package com.moamap.app.feature.mapdetail.presentation.review
 
+import android.net.Uri
+import com.moamap.app.core.common.upload.ImageUploadException
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.mapdetail.domain.model.PlaceReview
 import com.moamap.app.feature.mapdetail.domain.repository.PlaceReviewRepository
@@ -22,7 +24,6 @@ private fun testReview(id: Long) = PlaceReview(
     id = id,
     authorId = id,
     authorName = "작성자$id",
-    rating = 5,
     content = "후기$id",
     createdAtMillis = null,
 )
@@ -47,8 +48,8 @@ private class FakePlaceReviewRepository(
         return reviews(placeId)
     }
 
-    override suspend fun createReview(placeId: Long, rating: Int, content: String) {
-        calls += "createReview($placeId, $rating, $content)"
+    override suspend fun createReview(placeId: Long, content: String, photo: Uri?) {
+        calls += "createReview($placeId, $content, $photo)"
         delay(responseDelayMillis)
         onCreate()
     }
@@ -151,18 +152,33 @@ class PlaceReviewViewModelTest {
     }
 
     @Test
-    fun `별점을 안 고르면 보내지 않는다`() = runTest {
+    fun `글도 사진도 없으면 보내지 않는다`() = runTest {
         val repository = FakePlaceReviewRepository()
         val viewModel = PlaceReviewViewModel(repository)
         viewModel.open(placeId = 7L)
         dispatcher.scheduler.advanceUntilIdle()
         repository.calls.clear()
 
-        assertFalse(viewModel.submit(rating = 0, content = "좋았어요"))
+        assertFalse(viewModel.submit(content = "   ", photo = null))
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(emptyList<String>(), repository.calls)
-        assertEquals(RATING_REQUIRED_MESSAGE, viewModel.uiState.value.submitErrorMessage)
+        assertEquals(REVIEW_EMPTY_MESSAGE, viewModel.uiState.value.submitErrorMessage)
+    }
+
+    @Test
+    fun `사진 형식·크기 안내는 그대로 보여준다`() = runTest {
+        val repository = FakePlaceReviewRepository(
+            onCreate = { throw ImageUploadException.TooLarge(5L * 1024 * 1024) },
+        )
+        val viewModel = PlaceReviewViewModel(repository)
+        viewModel.open(placeId = 7L)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.submit(content = "좋았어요", photo = null)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals("사진 크기는 5MB 이하여야 해요", viewModel.uiState.value.submitErrorMessage)
     }
 
     @Test
@@ -173,10 +189,10 @@ class PlaceReviewViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
         repository.calls.clear()
 
-        assertTrue(viewModel.submit(rating = 4, content = " 좋았어요 "))
+        assertTrue(viewModel.submit(content = " 좋았어요 ", photo = null))
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(listOf("createReview(7, 4, 좋았어요)", "getReviews(7)"), repository.calls)
+        assertEquals(listOf("createReview(7, 좋았어요, null)", "getReviews(7)"), repository.calls)
         assertEquals(1, viewModel.uiState.value.submittedCount)
         assertFalse(viewModel.uiState.value.submitting)
         assertNull(viewModel.uiState.value.submitErrorMessage)
@@ -190,8 +206,8 @@ class PlaceReviewViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
         repository.calls.clear()
 
-        assertTrue(viewModel.submit(rating = 4, content = "좋았어요"))
-        assertFalse(viewModel.submit(rating = 5, content = "또 왔어요"))
+        assertTrue(viewModel.submit(content = "좋았어요", photo = null))
+        assertFalse(viewModel.submit(content = "또 왔어요", photo = null))
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(1, repository.calls.count { call -> call.startsWith("createReview") })
@@ -207,7 +223,7 @@ class PlaceReviewViewModelTest {
         viewModel.open(placeId = 7L)
         dispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.submit(rating = 4, content = "좋았어요")
+        viewModel.submit(content = "좋았어요", photo = null)
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(NOT_MAP_MEMBER_MESSAGE, viewModel.uiState.value.submitErrorMessage)
@@ -224,7 +240,7 @@ class PlaceReviewViewModelTest {
         viewModel.open(placeId = 7L)
         dispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.submit(rating = 4, content = "좋았어요")
+        viewModel.submit(content = "좋았어요", photo = null)
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(REVIEW_SUBMIT_FAILED_MESSAGE, viewModel.uiState.value.submitErrorMessage)

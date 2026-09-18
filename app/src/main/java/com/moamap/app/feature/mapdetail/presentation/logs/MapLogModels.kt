@@ -115,12 +115,10 @@ private fun MapActivity.toMessage(): String = when (type) {
         ?.let { name -> "‘$name’ ${name.objectParticle()} 지도에서 삭제했어요" }
         ?: "장소를 지도에서 삭제했어요"
 
-    MapActivityType.ReviewCreated -> {
-        val stars = rating?.let { score -> "별점 ${score}점 " }.orEmpty()
-        placeName
-            ?.let { name -> "‘$name’ 에 ${stars}후기를 남겼어요" }
-            ?: "${stars}후기를 남겼어요"
-    }
+    // 별점은 적지 않는다. 화면에서 별점을 없앴고, 새 후기는 고정 별점이라 의미가 없다.
+    MapActivityType.ReviewCreated -> placeName
+        ?.let { name -> "‘$name’ 에 후기를 남겼어요" }
+        ?: "후기를 남겼어요"
 }
 
 /** 한글 음절 영역. 이 밖의 글자는 받침을 따질 수 없다. */

@@ -54,11 +54,12 @@ internal data class PlaceUiModel(
     val category: String,
     val area: String,
     val address: String,
-    val rating: Double,
     val reviewCount: Int,
     val favorite: Boolean,
     /** 목록 썸네일. 없으면 플레이스홀더를 띄운다. */
     val photoUrl: String? = null,
+    /** 카카오맵으로 열 때 쓴다. 비어 있으면 이름으로 찾는다. */
+    val kakaoPlaceId: String = "",
 )
 
 /**
@@ -74,10 +75,10 @@ internal fun MapPlace.toPlaceUiModel(): PlaceUiModel = PlaceUiModel(
     category = categoryLabel,
     area = areaLabel,
     address = address,
-    rating = rating,
     reviewCount = reviewCount,
     favorite = false,
     photoUrl = photoUrl,
+    kakaoPlaceId = kakaoPlaceId,
 )
 
 /**
@@ -102,9 +103,10 @@ internal fun searchPlaces(
 internal data class PlaceReviewUiModel(
     val id: Long,
     val userName: String,
-    val rating: Int,
     val message: String,
     val relativeTime: String,
+    /** 첨부 사진. 서버가 한 장까지만 받아 첫 장만 보여준다. */
+    val photoUrl: String? = null,
 )
 
 /**
@@ -130,9 +132,9 @@ internal fun PlaceReview.toPlaceReviewUiModel(nowMillis: Long): PlaceReviewUiMod
     PlaceReviewUiModel(
         id = id,
         userName = authorName ?: ANONYMOUS_REVIEWER,
-        rating = rating,
         message = content,
         relativeTime = relativeTimeLabel(createdAtMillis, nowMillis),
+        photoUrl = imageUrls.firstOrNull(),
     )
 
 private const val MINUTE_MILLIS = 60_000L
@@ -169,7 +171,6 @@ internal val SamplePlaces = listOf(
         category = "카페",
         area = "성수",
         address = "서울 성동구 성수이로 12",
-        rating = 4.8,
         reviewCount = 124,
         favorite = true,
     ),
@@ -180,7 +181,6 @@ internal val SamplePlaces = listOf(
         category = "식당",
         area = "한남",
         address = "서울 용산구 한남대로 21",
-        rating = 4.6,
         reviewCount = 87,
         favorite = false,
     ),
@@ -191,7 +191,6 @@ internal val SamplePlaces = listOf(
         category = "데이트",
         area = "연남",
         address = "서울 마포구 동교로5길 8",
-        rating = 4.7,
         reviewCount = 63,
         favorite = true,
     ),
@@ -202,7 +201,6 @@ internal val SamplePlaces = listOf(
         category = "놀거리",
         area = "이태원",
         address = "서울 용산구 이태원로 30",
-        rating = 4.5,
         reviewCount = 51,
         favorite = false,
     ),
@@ -212,28 +210,24 @@ internal val SamplePlaceReviews = listOf(
     PlaceReviewUiModel(
         id = 1L,
         userName = "민지",
-        rating = 5,
         message = "분위기가 편안하고 커피 향이 정말 좋았어요.",
         relativeTime = "2시간 전",
     ),
     PlaceReviewUiModel(
         id = 2L,
         userName = "준호",
-        rating = 4,
         message = "조용해서 대화하기 좋고 공간도 아늑해요.",
         relativeTime = "1일 전",
     ),
     PlaceReviewUiModel(
         id = 3L,
         userName = "서연",
-        rating = 5,
         message = "직원분들이 친절하고 메뉴도 만족스러웠어요.",
         relativeTime = "3일 전",
     ),
     PlaceReviewUiModel(
         id = 4L,
         userName = "지우",
-        rating = 4,
         message = "다음에는 친구들과 다시 방문하고 싶어요.",
         relativeTime = "1주일 전",
     ),
