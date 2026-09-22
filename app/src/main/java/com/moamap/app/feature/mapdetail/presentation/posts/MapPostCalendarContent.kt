@@ -191,7 +191,7 @@ private fun MonthArrow(iconRes: Int, contentDescription: String, onClick: () -> 
             painter = painterResource(iconRes),
             contentDescription = contentDescription,
             tint = MoaMapTheme.colors.textNormal,
-            modifier = Modifier.size(28.dp),
+            modifier = Modifier.size(24.dp),
         )
     }
 }

@@ -93,7 +93,7 @@ private fun MapManageTopBar(onBackClick: () -> Unit) {
                 painter = painterResource(R.drawable.ic_arrow_left),
                 contentDescription = "뒤로가기",
                 tint = MoaMapTheme.colors.textNormal,
-                modifier = Modifier.size(32.dp),
+                modifier = Modifier.size(24.dp),
             )
         }
 

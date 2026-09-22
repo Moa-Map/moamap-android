@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -18,6 +17,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
@@ -28,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -41,16 +43,20 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.R
 import com.moamap.app.core.common.imagepicker.rememberImagePickerController
 import com.moamap.app.core.common.imagepicker.rememberImagePickerState
+import com.moamap.app.core.common.upload.ALLOWED_IMAGE_CONTENT_TYPES
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.component.ImageSourceMenu
+import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
+import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
-import com.moamap.app.core.common.upload.ALLOWED_IMAGE_CONTENT_TYPES
+import com.moamap.app.core.designsystem.theme.withDesignLineHeight
+import com.moamap.app.feature.collection.ImportActionCard
 import com.moamap.app.feature.collection.domain.model.MapVisibility
+import com.moamap.app.feature.mapdetail.MapInviteCodeDialog
 import kotlinx.coroutines.flow.collectLatest
 
 /** 촬영본이 쌓이는 캐시 위치. `res/xml/profile_image_paths.xml` 의 `cache-path` 와 맞춰야 한다. */
@@ -86,10 +92,11 @@ internal fun CreateMapScreen(
     }
 
     if (submit is SubmitState.ShowingInviteCode) {
-        InviteCodeDialog(
+        MapInviteCodeDialog(
             mapName = uiState.name,
             inviteCode = submit.inviteCode,
             onDismiss = viewModel::dismissInviteCode,
+            title = "프라이빗 지도가 만들어졌어요",
         )
     }
 
@@ -129,12 +136,15 @@ private fun CreateMapContent(
 
     val scrollState = rememberScrollState()
     var isTagFieldFocused by remember { mutableStateOf(false) }
+    val tagBringIntoViewRequester = remember { BringIntoViewRequester() }
+    // UI 단계의 설정값. 지도 생성 API 연결 시 요청 상태로 옮긴다.
+    var allowUrlImport by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(isKeyboardVisible, isTagFieldFocused) {
         if (!isKeyboardVisible || !isTagFieldFocused) return@LaunchedEffect
 
         snapshotFlow { scrollState.maxValue }
-            .collectLatest { maxValue -> scrollState.animateScrollTo(maxValue) }
+            .collectLatest { tagBringIntoViewRequester.bringIntoView() }
     }
 
     val pickerState = rememberImagePickerState()
@@ -168,11 +178,10 @@ private fun CreateMapContent(
                     .navigationBarsPadding()
                     .padding(bottom = SubmitButtonAreaHeight)
                     .verticalScroll(scrollState)
-                    .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding),
+                    .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding)
+                    .padding(top = 14.dp, bottom = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                Spacer(Modifier.height(20.dp))
-
                 Box {
                     MapPhotoField(
                         imageUri = uiState.imageUri,
@@ -221,7 +230,9 @@ private fun CreateMapContent(
                     value = uiState.tagInput,
                     onValueChange = onTagInputChange,
                     placeholder = "태그 입력 후 스페이스 또는 엔터",
-                    modifier = Modifier.onFocusChanged { isTagFieldFocused = it.hasFocus },
+                    modifier = Modifier
+                        .bringIntoViewRequester(tagBringIntoViewRequester)
+                        .onFocusChanged { isTagFieldFocused = it.hasFocus },
                     imeAction = ImeAction.Done,
                     keyboardActions = KeyboardActions(onDone = { onTagCommit() }),
                     betweenLabelAndInput = if (uiState.tags.isEmpty()) {
@@ -236,7 +247,22 @@ private fun CreateMapContent(
                     },
                 )
 
-                Spacer(Modifier.height(20.dp))
+                UrlImportPermissionSection(
+                    checked = allowUrlImport,
+                    onCheckedChange = { allowUrlImport = it },
+                )
+
+                ImportActionCard(
+                    iconRes = R.drawable.ic_map,
+                    title = "외부 지도",
+                    subtitle = "불러오기",
+                    backgroundColor = MoaMapPrimitiveColors.Yellow50,
+                    titleColor = MoaMapPrimitiveColors.Yellow800,
+                    iconTint = MoaMapPrimitiveColors.Yellow500,
+                    // UI 우선 구현: 가져오기 흐름은 후속 단계에서 연결한다.
+                    onClick = null,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
 
@@ -272,7 +298,7 @@ private fun CreateMapTopBar(onBackClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp),
+            .height(58.dp),
     ) {
         Box(
             modifier = Modifier
@@ -306,7 +332,7 @@ private fun VisibilitySection(
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             text = "공개 범위",
-            style = MoaMapTheme.typography.subtitle1,
+            style = MoaMapTheme.typography.subtitle1.withDesignLineHeight(),
             color = MoaMapTheme.colors.textNormal,
         )
         Row(
@@ -333,7 +359,8 @@ private fun VisibilitySection(
     }
 }
 
-@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Preview(name = "Phone", showBackground = true, widthDp = 393, heightDp = 852)
+@Preview(name = "Figma full layout", showBackground = true, widthDp = 393, heightDp = 1244)
 @Composable
 private fun CreateMapScreenPreview() {
     MoaMapTheme {
