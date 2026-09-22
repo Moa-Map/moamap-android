@@ -14,23 +14,20 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
@@ -95,57 +92,45 @@ internal data class PersonalMapActionUiModel(
     val failed: Boolean = false,
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * 장소 상세. 지도 화면 위를 덮는 한 장이다.
+ *
+ * 바텀시트로 띄우면 지도 화면이 이미 깔아 둔 장소 목록 시트 위에 시트가 겹쳐 지저분하다.
+ * 지도 관리·게시물 작성과 같은 방식으로 맞췄다 - 뒤 지도로 터치가 새지 않게 막고, 닫는 길은
+ * 머리의 뒤로가기·닫기와 기기 뒤로가기다.
+ */
 @Composable
-internal fun PlaceDetailSheet(
+internal fun PlaceDetailScreen(
     place: PlaceUiModel,
     reviews: PlaceReviewsUiModel,
-    onDismiss: () -> Unit,
+    onBackClick: () -> Unit,
+    /** 지도 상세에 처음 들어왔을 때의 화면으로 돌아간다. */
+    onCloseClick: () -> Unit,
     onExternalLinkClick: () -> Unit,
+    modifier: Modifier = Modifier,
     onRetryReviews: () -> Unit = {},
     /** null 이면 「나만의 지도에 추가」를 띄우지 않는다. 나만의 지도를 보고 있을 때다. */
     personalMapAction: PersonalMapActionUiModel? = null,
     onAddToPersonalMapClick: () -> Unit = {},
     onSubmitReview: ((reviewText: String, photo: Uri?) -> Boolean)? = null,
 ) {
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = sheetState,
-        shape = PlaceDetailSheetShape,
-        containerColor = MoaMapTheme.colors.backgroundSecondary,
-        tonalElevation = 0.dp,
-        dragHandle = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(25.dp)
-                    .dismissKeyboardOnBackgroundTap(),
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(width = 35.dp, height = 5.dp)
-                        .background(
-                            color = MoaMapPrimitiveColors.Gray100,
-                            shape = PlaceDetailGrabberShape,
-                        ),
-                )
-            }
-        },
-    ) {
-        PlaceDetailSheetContent(
-            place = place,
-            reviews = reviews,
-            onDismiss = onDismiss,
-            onExternalLinkClick = onExternalLinkClick,
-            onRetryReviews = onRetryReviews,
-            personalMapAction = personalMapAction,
-            onAddToPersonalMapClick = onAddToPersonalMapClick,
-            onSubmitReview = onSubmitReview,
-        )
-    }
+    PlaceDetailContent(
+        place = place,
+        reviews = reviews,
+        onBackClick = onBackClick,
+        onCloseClick = onCloseClick,
+        onExternalLinkClick = onExternalLinkClick,
+        onRetryReviews = onRetryReviews,
+        personalMapAction = personalMapAction,
+        onAddToPersonalMapClick = onAddToPersonalMapClick,
+        onSubmitReview = onSubmitReview,
+        modifier = modifier
+            .fillMaxSize()
+            .background(MoaMapTheme.colors.backgroundSecondary)
+            // 뒤에 깔린 지도로 터치가 새지 않게 빈 자리의 탭을 여기서 받는다.
+            .pointerInput(Unit) { detectTapGestures() }
+            .statusBarsPadding(),
+    )
 }
 
 internal fun favoriteIconRes(favorite: Boolean): Int = if (favorite) {
@@ -167,10 +152,11 @@ internal fun trySubmitReview(
  * 눌렀을 때 시트까지 함께 닫힌다.
  */
 @Composable
-private fun PlaceDetailSheetContent(
+private fun PlaceDetailContent(
     place: PlaceUiModel,
     reviews: PlaceReviewsUiModel,
-    onDismiss: () -> Unit,
+    onBackClick: () -> Unit,
+    onCloseClick: () -> Unit,
     onExternalLinkClick: () -> Unit,
     modifier: Modifier = Modifier,
     onRetryReviews: () -> Unit = {},
@@ -189,21 +175,24 @@ private fun PlaceDetailSheetContent(
         onImageSelected = { uri -> reviewPhoto = uri },
     )
 
+    // 시트가 아니라 화면이라 높이를 제한하지 않는다. 목록이 남은 자리를 다 쓴다.
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(max = 852.dp)
             .dismissKeyboardOnBackgroundTap(),
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f, fill = false),
+                    .weight(1f),
                 contentPadding = PaddingValues(bottom = 16.dp),
             ) {
                 item {
-                    PlaceDetailControls(onDismiss = onDismiss)
+                    PlaceDetailControls(
+                        onBackClick = onBackClick,
+                        onCloseClick = onCloseClick,
+                    )
                     PlaceHeader(place = place)
                     PlaceActions(
                         personalMapAction = personalMapAction,
@@ -322,7 +311,10 @@ private fun ReviewLoadError(message: String, onRetryClick: () -> Unit) {
 }
 
 @Composable
-private fun PlaceDetailControls(onDismiss: () -> Unit) {
+private fun PlaceDetailControls(
+    onBackClick: () -> Unit,
+    onCloseClick: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -334,7 +326,7 @@ private fun PlaceDetailControls(onDismiss: () -> Unit) {
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .clickable(onClick = onDismiss),
+                .clickable(onClick = onBackClick),
             contentAlignment = Alignment.CenterStart,
         ) {
             Icon(
@@ -348,7 +340,7 @@ private fun PlaceDetailControls(onDismiss: () -> Unit) {
         Box(
             modifier = Modifier
                 .size(48.dp)
-                .clickable(onClick = onDismiss),
+                .clickable(onClick = onCloseClick),
             contentAlignment = Alignment.CenterEnd,
         ) {
             Icon(
@@ -862,10 +854,11 @@ private fun ReviewRow(review: PlaceReviewUiModel) {
 private fun PlaceDetailSheetPreview() {
     MoaMapTheme {
         Surface(color = MoaMapTheme.colors.backgroundSecondary) {
-            PlaceDetailSheetContent(
+            PlaceDetailContent(
                 place = SamplePlaces.first(),
                 reviews = PlaceReviewsUiModel(items = SamplePlaceReviews),
-                onDismiss = {},
+                onBackClick = {},
+                onCloseClick = {},
                 onExternalLinkClick = {},
                 personalMapAction = PersonalMapActionUiModel(message = "나만의 지도에 추가했어요"),
                 onSubmitReview = { _, _ -> true },
@@ -881,10 +874,11 @@ private fun PlaceDetailSheetPreview() {
 private fun PlaceDetailSheetPersonalMapPreview() {
     MoaMapTheme {
         Surface(color = MoaMapTheme.colors.backgroundSecondary) {
-            PlaceDetailSheetContent(
+            PlaceDetailContent(
                 place = SamplePlaces.first(),
                 reviews = PlaceReviewsUiModel(),
-                onDismiss = {},
+                onBackClick = {},
+                onCloseClick = {},
                 onExternalLinkClick = {},
                 modifier = Modifier.fillMaxSize(),
             )
