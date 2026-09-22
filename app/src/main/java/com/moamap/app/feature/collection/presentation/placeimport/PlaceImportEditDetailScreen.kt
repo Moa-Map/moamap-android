@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.tooling.preview.Preview
+import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.common.imagepicker.rememberImagePickerController
 import com.moamap.app.core.common.imagepicker.rememberImagePickerState
 import com.moamap.app.core.designsystem.component.ImageSourceMenu
@@ -63,6 +64,7 @@ internal fun PlaceImportEditDetailScreen(
 
     Box(
         modifier = modifier
+            .dismissKeyboardOnBackgroundTap()
             .fillMaxSize()
             .background(MoaMapTheme.colors.backgroundSecondary)
             .statusBarsPadding(),

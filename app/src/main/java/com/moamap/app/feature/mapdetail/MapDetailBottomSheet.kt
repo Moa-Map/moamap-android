@@ -36,6 +36,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -82,6 +83,7 @@ internal fun MapDetailBottomSheet(
 
     Column(
         modifier = modifier
+            .dismissKeyboardOnBackgroundTap()
             .fillMaxWidth()
             .heightIn(max = if (imeVisible) SheetSearchingHeight else SheetExpandedHeight)
             .background(MoaMapTheme.colors.backgroundSecondary)

@@ -8,6 +8,8 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.Modifier
 import com.mapbox.maps.ViewAnnotationAnchor
 import com.mapbox.maps.extension.compose.MapboxMap
@@ -59,6 +61,8 @@ internal fun MapDetailMap(
     onClusterClick: (MarkerCluster) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     BoxWithConstraints(modifier = modifier) {
         val widthDp = maxWidth.value.toDouble()
         val heightDp = maxHeight.value.toDouble()
@@ -118,6 +122,11 @@ internal fun MapDetailMap(
         MapboxMap(
             modifier = Modifier.matchParentSize(),
             mapViewportState = mapViewportState,
+            onMapClickListener = {
+                focusManager.clearFocus()
+                keyboardController?.hide()
+                false
+            },
             // 축척과 나침반을 띄우지 않는다. 로고와 저작권 표시는 약관상 남긴다.
             compass = {},
             scaleBar = {},

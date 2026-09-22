@@ -41,6 +41,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.R
 import com.moamap.app.core.common.imagepicker.rememberImagePickerController
 import com.moamap.app.core.common.imagepicker.rememberImagePickerState
@@ -150,6 +151,7 @@ private fun CreateMapContent(
     // 버튼에만 걸면 버튼 혼자 키보드를 타고 올라가고 입력창은 가려진 채로 남는다.
     Box(
         modifier = modifier
+            .dismissKeyboardOnBackgroundTap()
             .fillMaxSize()
             .background(MoaMapTheme.colors.backgroundSecondary)
             .statusBarsPadding()

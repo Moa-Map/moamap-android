@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 
 private val DialogShape = RoundedCornerShape(16.dp)
@@ -53,6 +54,7 @@ fun MoaMapDialog(
     ) {
         Surface(
             modifier = modifier
+                .dismissKeyboardOnBackgroundTap()
                 .width(width)
                 .imePadding(),
             shape = DialogShape,

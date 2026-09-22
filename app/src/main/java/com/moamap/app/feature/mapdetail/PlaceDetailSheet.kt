@@ -53,6 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.R
 import com.moamap.app.core.common.imagepicker.rememberImagePickerController
 import com.moamap.app.core.common.imagepicker.rememberImagePickerState
@@ -119,7 +120,8 @@ internal fun PlaceDetailSheet(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(25.dp),
+                    .height(25.dp)
+                    .dismissKeyboardOnBackgroundTap(),
                 contentAlignment = Alignment.Center,
             ) {
                 Box(
@@ -190,7 +192,8 @@ private fun PlaceDetailSheetContent(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(max = 852.dp),
+            .heightIn(max = 852.dp)
+            .dismissKeyboardOnBackgroundTap(),
     ) {
         Column(modifier = Modifier.fillMaxWidth()) {
             LazyColumn(
