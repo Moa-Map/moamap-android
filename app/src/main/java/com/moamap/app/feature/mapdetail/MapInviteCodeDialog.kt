@@ -10,6 +10,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -30,8 +31,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.moamap.app.R
@@ -44,7 +47,7 @@ private val DialogWidth = 300.dp
 private val DialogContentPadding = PaddingValues(horizontal = 24.dp, vertical = 20.dp)
 
 private val CodeBoxShape = RoundedCornerShape(12.dp)
-private val CodeBoxPadding = PaddingValues(horizontal = 60.dp, vertical = 20.dp)
+private val CodeBoxPadding = PaddingValues(horizontal = 24.dp, vertical = 20.dp)
 
 private val ButtonHeight = 44.dp
 private val ButtonShape = RoundedCornerShape(8.dp)
@@ -52,20 +55,17 @@ private val ButtonShape = RoundedCornerShape(8.dp)
 private val CopyIconSize = 16.dp
 
 /**
- * 프라이빗 지도 안에서 초대 코드를 다시 꺼내 보는 모달.
+ * 프라이빗 지도 생성 직후와 지도 상세에서 함께 사용하는 초대 코드 모달.
  *
- * 지도를 만든 직후 뜨는
- * [com.moamap.app.feature.collection.presentation.createmap.InviteCodeDialog] 와 생김새가
- * 비슷하지만 쓰임이 다르다. 저쪽은 방금 만든 걸 알리는 자리라 코드를 눌러 복사하라는 안내를
- * 말풍선으로 띄우고, 여기는 코드를 보러 일부러 연 자리라 복사 줄을 박스 안에 둔다.
- *
- * 코드는 상세 조회 응답에 실려 오므로 여기서 따로 조회하지 않는다.
+ * 호출 화면에서 전달한 코드를 표시하며, 복사·공유 동작을 제공한다.
+ * 닫은 뒤의 화면 전환은 호출 화면의 [onDismiss] 에서 처리한다.
  */
 @Composable
 internal fun MapInviteCodeDialog(
     mapName: String,
     inviteCode: String,
     onDismiss: () -> Unit,
+    title: String = "초대코드",
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
@@ -87,7 +87,7 @@ internal fun MapInviteCodeDialog(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = "초대코드",
+                    text = title,
                     style = MoaMapTheme.typography.title3,
                     color = MoaMapTheme.colors.textNormal,
                     textAlign = TextAlign.Center,
@@ -163,11 +163,7 @@ private fun InviteCodeBox(
             style = MoaMapTheme.typography.subtitle4,
             color = MoaMapPrimitiveColors.Gray500,
         )
-        Text(
-            text = inviteCode,
-            style = MoaMapTheme.typography.display1,
-            color = MoaMapTheme.colors.textNormal,
-        )
+        SingleLineInviteCode(inviteCode)
 
         Row(
             modifier = Modifier.clickable(onClick = onCopyClick),
@@ -186,6 +182,39 @@ private fun InviteCodeBox(
                 color = MoaMapPrimitiveColors.Gray300,
             )
         }
+    }
+}
+
+@Composable
+private fun SingleLineInviteCode(inviteCode: String) {
+    val textMeasurer = rememberTextMeasurer()
+    val style = MoaMapTheme.typography.display1
+    val density = LocalDensity.current
+
+    BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+        val availableWidth = with(density) { maxWidth.toPx() }
+        val textWidth = textMeasurer.measure(
+            text = inviteCode,
+            style = style,
+            softWrap = false,
+            maxLines = 1,
+        ).size.width
+        // 글꼴 확대나 폭이 넓은 코드도 생략하지 않고 한 줄에 전부 표시한다.
+        val scale = ((availableWidth - 1f).coerceAtLeast(1f) / textWidth.coerceAtLeast(1))
+            .coerceAtMost(1f)
+
+        Text(
+            text = inviteCode,
+            style = style.copy(
+                fontSize = style.fontSize * scale,
+                lineHeight = style.lineHeight * scale,
+            ),
+            color = MoaMapTheme.colors.textNormal,
+            textAlign = TextAlign.Center,
+            maxLines = 1,
+            softWrap = false,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 
@@ -222,12 +251,13 @@ private fun Context.shareInviteCode(mapName: String, inviteCode: String) {
 }
 
 @Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Preview(name = "Large font", showBackground = true, fontScale = 2f, widthDp = 393, heightDp = 852)
 @Composable
 private fun MapInviteCodeDialogPreview() {
     MoaMapTheme {
         MapInviteCodeDialog(
             mapName = "우리끼리 맛집",
-            inviteCode = "A1B2C3",
+            inviteCode = "WWWWWW",
             onDismiss = {},
         )
     }

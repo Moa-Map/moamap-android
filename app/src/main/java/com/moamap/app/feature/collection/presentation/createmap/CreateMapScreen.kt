@@ -56,6 +56,7 @@ import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.collection.ImportActionCard
 import com.moamap.app.feature.collection.domain.model.MapVisibility
+import com.moamap.app.feature.mapdetail.MapInviteCodeDialog
 import kotlinx.coroutines.flow.collectLatest
 
 /** 촬영본이 쌓이는 캐시 위치. `res/xml/profile_image_paths.xml` 의 `cache-path` 와 맞춰야 한다. */
@@ -91,10 +92,11 @@ internal fun CreateMapScreen(
     }
 
     if (submit is SubmitState.ShowingInviteCode) {
-        InviteCodeDialog(
+        MapInviteCodeDialog(
             mapName = uiState.name,
             inviteCode = submit.inviteCode,
             onDismiss = viewModel::dismissInviteCode,
+            title = "프라이빗 지도가 만들어졌어요",
         )
     }
 
