@@ -2,6 +2,7 @@ package com.moamap.app.feature.mapdetail
 
 import androidx.compose.runtime.Immutable
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
+import com.moamap.app.feature.mapdetail.domain.model.PlaceCategoryGroup
 import com.moamap.app.feature.mapdetail.domain.model.PlaceReview
 import com.moamap.app.feature.mapdetail.domain.model.areaLabel
 import com.moamap.app.feature.mapdetail.domain.model.categoryLabel
@@ -25,6 +26,8 @@ internal data class MapDetailUiState(
      * 따로 등록되는 경우가 그렇다. 그래서 묶음을 누르면 목록으로 펼친다.
      */
     val expandedClusterPlaceIds: List<Long> = emptyList(),
+    /** 고른 카테고리 칩. 기본은 전체다. */
+    val selectedCategory: PlaceCategoryFilter = PlaceCategoryFilter.All,
 )
 
 internal fun MapDetailUiState.selectTab(tab: MapDetailTab): MapDetailUiState =
@@ -46,6 +49,9 @@ internal fun MapDetailUiState.closeCluster(): MapDetailUiState =
 internal fun MapDetailUiState.search(query: String): MapDetailUiState =
     copy(searchQuery = query)
 
+internal fun MapDetailUiState.selectCategory(filter: PlaceCategoryFilter): MapDetailUiState =
+    copy(selectedCategory = filter)
+
 @Immutable
 internal data class PlaceUiModel(
     val id: Long,
@@ -60,6 +66,8 @@ internal data class PlaceUiModel(
     val photoUrl: String? = null,
     /** 카카오맵으로 열 때 쓴다. 비어 있으면 이름으로 찾는다. */
     val kakaoPlaceId: String = "",
+    /** 분류가 카카오 18종 어디에도 안 들면 null 이고, 필터에서는 「기타」로 묶인다. */
+    val categoryGroup: PlaceCategoryGroup? = null,
 )
 
 /**
@@ -79,6 +87,7 @@ internal fun MapPlace.toPlaceUiModel(): PlaceUiModel = PlaceUiModel(
     favorite = false,
     photoUrl = photoUrl,
     kakaoPlaceId = kakaoPlaceId,
+    categoryGroup = PlaceCategoryGroup.fromCategoryPath(category),
 )
 
 /**
@@ -98,6 +107,81 @@ internal fun searchPlaces(
 
     return places.filter { place -> place.name.contains(keyword, ignoreCase = true) }
 }
+
+/**
+ * 장소 목록 위의 카테고리 칩 하나.
+ *
+ * 카카오 18종에 없는 장소도 필터로 찾을 수 있어야 해서 [Other] 를 둔다. 없으면 그 장소들은
+ * 「전체」에서만 보인다.
+ */
+internal sealed interface PlaceCategoryFilter {
+
+    val label: String
+
+    data object All : PlaceCategoryFilter {
+        override val label: String = "전체"
+    }
+
+    data class Group(val group: PlaceCategoryGroup) : PlaceCategoryFilter {
+        override val label: String get() = group.label
+    }
+
+    data object Other : PlaceCategoryFilter {
+        override val label: String = "기타"
+    }
+}
+
+/** 화면 회전에도 고른 칩이 남도록 한 칸에 담는다. */
+internal fun PlaceCategoryFilter.saveKey(): String = when (this) {
+    PlaceCategoryFilter.All -> ""
+    PlaceCategoryFilter.Other -> OTHER_CATEGORY_KEY
+    is PlaceCategoryFilter.Group -> group.name
+}
+
+/** 모르는 값이면 전체로 돌아간다. 앱을 고치며 enum 이름이 바뀌어도 복원이 깨지지 않는다. */
+internal fun placeCategoryFilterOf(key: String?): PlaceCategoryFilter = when (key) {
+    null, "" -> PlaceCategoryFilter.All
+    OTHER_CATEGORY_KEY -> PlaceCategoryFilter.Other
+    else -> PlaceCategoryGroup.entries
+        .firstOrNull { group -> group.name == key }
+        ?.let(PlaceCategoryFilter::Group)
+        ?: PlaceCategoryFilter.All
+}
+
+private const val OTHER_CATEGORY_KEY = "OTHER"
+
+/** 이 필터가 장소를 통과시키는지. */
+internal fun PlaceCategoryFilter.matches(place: PlaceUiModel): Boolean = when (this) {
+    PlaceCategoryFilter.All -> true
+    PlaceCategoryFilter.Other -> place.categoryGroup == null
+    is PlaceCategoryFilter.Group -> place.categoryGroup == group
+}
+
+/**
+ * 띄울 칩 목록.
+ *
+ * 「전체」 뒤에 **이 지도에 실제로 있는 카테고리만** 붙인다. 18종을 늘 늘어놓으면 대부분 빈 칩이다.
+ * 순서는 enum 순서(카카오 코드 순)라 장소가 늘어도 칩이 자리를 바꾸지 않는다.
+ */
+internal fun categoryFilters(places: List<PlaceUiModel>): List<PlaceCategoryFilter> {
+    val groups = places.mapNotNullTo(mutableSetOf()) { place -> place.categoryGroup }
+    val hasOther = places.any { place -> place.categoryGroup == null }
+
+    return buildList {
+        add(PlaceCategoryFilter.All)
+        PlaceCategoryGroup.entries
+            .filter { group -> group in groups }
+            .forEach { group -> add(PlaceCategoryFilter.Group(group)) }
+        if (hasOther) add(PlaceCategoryFilter.Other)
+    }
+}
+
+/** 카테고리와 검색어를 함께 적용한다. 지도 마커와 목록이 같은 결과를 본다. */
+internal fun filterPlaces(
+    places: List<PlaceUiModel>,
+    category: PlaceCategoryFilter,
+    query: String,
+): List<PlaceUiModel> = searchPlaces(places.filter { place -> category.matches(place) }, query)
 
 @Immutable
 internal data class PlaceReviewUiModel(

@@ -1,30 +1,33 @@
 package com.moamap.app.feature.mapdetail.domain.model
 
 /**
- * 카카오 카테고리 그룹. 마커에 넣을 아이콘을 고르는 기준이다.
+ * 카카오 카테고리 그룹. 마커 아이콘과 장소 목록 필터가 이 기준을 함께 쓴다.
  *
  * 서버는 카카오의 `category_group_code` 를 저장하지 않고 분류 경로(`category_name`)만
  * 내려준다. 그래서 코드 대신 경로 앞부분으로 그룹을 되짚는다 - [fromCategoryPath] 참고.
  */
-enum class PlaceCategoryGroup {
-    Mart,
-    ConvenienceStore,
-    Childcare,
-    School,
-    Academy,
-    Parking,
-    GasStation,
-    Subway,
-    Bank,
-    Culture,
-    RealEstate,
-    PublicOffice,
-    Attraction,
-    Lodging,
-    Restaurant,
-    Cafe,
-    Hospital,
-    Pharmacy,
+enum class PlaceCategoryGroup(
+    /** 필터 칩에 띄우는 이름. 카카오가 코드에 붙여 둔 이름을 그대로 쓴다. */
+    val label: String,
+) {
+    Mart("대형마트"),
+    ConvenienceStore("편의점"),
+    Childcare("어린이집·유치원"),
+    School("학교"),
+    Academy("학원"),
+    Parking("주차장"),
+    GasStation("주유소"),
+    Subway("지하철역"),
+    Bank("은행"),
+    Culture("문화시설"),
+    RealEstate("중개업소"),
+    PublicOffice("공공기관"),
+    Attraction("관광명소"),
+    Lodging("숙박"),
+    Restaurant("음식점"),
+    Cafe("카페"),
+    Hospital("병원"),
+    Pharmacy("약국"),
     ;
 
     companion object {
