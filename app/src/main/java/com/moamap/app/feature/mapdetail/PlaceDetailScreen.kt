@@ -65,13 +65,11 @@ import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.mapdetail.presentation.addplace.PLACE_PHOTO_CACHE_DIRECTORY
 
-private val PlaceDetailSheetShape = RoundedCornerShape(topStart = 38.dp, topEnd = 38.dp)
 private val PlaceImageShape = RoundedCornerShape(16.dp)
 private val PlaceCategoryShape = RoundedCornerShape(100.dp)
 private val PlaceActionShape = RoundedCornerShape(8.dp)
 private val ReviewInputShape = RoundedCornerShape(100.dp)
 private val ReviewPhotoShape = RoundedCornerShape(8.dp)
-private val PlaceDetailGrabberShape = RoundedCornerShape(100.dp)
 
 /** 후기 자리의 로딩·오류·빈 상태가 함께 쓰는 높이. 상태가 바뀌어도 시트가 튀지 않는다. */
 private val ReviewPlaceholderHeight = 140.dp
