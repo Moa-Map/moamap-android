@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -135,8 +136,15 @@ internal fun MoaMapNavHost(
                     },
                 )
             }
-            composable(MoaMapRoute.Explore.route) {
+            composable(MoaMapRoute.Explore.route) { entry ->
+                // 모음에서 로고로 들어오면 보던 자리가 아니라 맨 위에서 시작한다.
+                val scrollToTop by entry.savedStateHandle
+                    .getStateFlow(ScrollToTopKey, false)
+                    .collectAsStateWithLifecycle()
+
                 ExploreScreen(
+                    scrollToTop = scrollToTop,
+                    onScrolledToTop = { entry.savedStateHandle[ScrollToTopKey] = false },
                     onProfileEditClick = {
                         navController.navigate(MoaMapRoute.ProfileEdit.route)
                     },
@@ -162,6 +170,13 @@ internal fun MoaMapNavHost(
             }
             composable(MoaMapRoute.Collection.route) {
                 CollectionScreen(
+                    // 로고는 홈(탐색)으로 가는 버튼이다. 하단 탭으로 옮기는 것과 같게 옮기되,
+                    // 홈은 보던 자리 대신 맨 위에서 시작한다.
+                    onHomeClick = {
+                        navController.navigateToTab(MoaMapRoute.Explore)
+                        navController.getBackStackEntry(MoaMapRoute.Explore.route)
+                            .savedStateHandle[ScrollToTopKey] = true
+                    },
                     onNewMapClick = {
                         navController.navigate(MoaMapRoute.CreateMap.route)
                     },
@@ -294,6 +309,14 @@ internal fun MoaMapNavHost(
 }
 
 private const val UNSUPPORTED_SHARE_MESSAGE = "인스타그램과 네이버·카카오·구글 지도 링크만 가져올 수 있어요"
+
+/**
+ * 홈을 맨 위로 올리라는 신호. 탐색 화면이 읽고 나서 스스로 끈다.
+ *
+ * 탭 이동은 보던 자리를 복원하는데(`navigateToTab`), 로고로 들어올 때는 홈을 처음 모습으로
+ * 보여줘야 해서 한 번짜리 신호를 남긴다.
+ */
+private const val ScrollToTopKey = "explore_scroll_to_top"
 
 /** 스플래시는 뒤로가기로 돌아올 곳이 아니므로 백스택에서 지우고 이동한다. */
 private fun NavHostController.replaceSplashWith(destination: MoaMapRoute) {
