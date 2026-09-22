@@ -16,6 +16,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -28,6 +30,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
@@ -47,18 +51,10 @@ private val VisibilityCardShape = RoundedCornerShape(16.dp)
 private val SubmitButtonShape = RoundedCornerShape(8.dp)
 private val ChipShape = RoundedCornerShape(100.dp)
 
-/**
- * 사진 카드의 가로:세로. 피그마가 353x235.33 으로 그렸는데 정확히 3:2 다.
- *
- * 높이를 dp 로 못 박으면 폭이 좁은 기기에서 카드만 세로로 길어 보인다. 커버 사진을
- * 미리보기로 채우는 자리라 비율을 지키는 쪽이 맞다.
- */
 private const val PhotoCardAspectRatio = 3f / 2f
 
 private val VisibilityCardHeight = 113.dp
 private val SubmitButtonHeight = 54.dp
-
-private val PhotoCardShadowColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.1f)
 
 /** 제목과 그 아래 내용 사이 간격. 피그마의 섹션 공통값이다. */
 private val SectionTitleGap = 6.dp
@@ -67,7 +63,7 @@ private val SectionTitleGap = 6.dp
 internal fun CreateMapSectionTitle(text: String) {
     Text(
         text = text,
-        style = MoaMapTheme.typography.subtitle1,
+        style = MoaMapTheme.typography.subtitle1.withDesignLineHeight(),
         color = MoaMapTheme.colors.textNormal,
     )
 }
@@ -95,7 +91,6 @@ internal fun MapPhotoField(
                 .aspectRatio(PhotoCardAspectRatio),
             shape = FieldShape,
             shadowBlurRadius = CardShadowBlurRadius,
-            shadowColor = PhotoCardShadowColor,
             onClick = onClick,
         ) {
             if (imageUri == null) {
@@ -111,7 +106,7 @@ internal fun MapPhotoField(
                     )
                     Text(
                         text = "사진 추가하기",
-                        style = MoaMapTheme.typography.body2,
+                        style = MoaMapTheme.typography.body2.withDesignLineHeight(),
                         color = MoaMapTheme.colors.textAssistive,
                     )
                 }
@@ -151,7 +146,7 @@ internal fun CreateMapInputField(
     ) {
         Text(
             text = label,
-            style = MoaMapTheme.typography.subtitle2,
+            style = MoaMapTheme.typography.subtitle2.withDesignLineHeight(),
             color = MoaMapTheme.colors.textNormal,
             modifier = Modifier.padding(start = 2.dp),
         )
@@ -165,7 +160,7 @@ internal fun CreateMapInputField(
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
-                textStyle = MoaMapTheme.typography.body2.copy(
+                textStyle = MoaMapTheme.typography.body2.withDesignLineHeight().copy(
                     color = MoaMapTheme.colors.textNormal,
                 ),
                 cursorBrush = SolidColor(MoaMapTheme.colors.primary),
@@ -180,7 +175,7 @@ internal fun CreateMapInputField(
                         if (value.isEmpty()) {
                             Text(
                                 text = placeholder,
-                                style = MoaMapTheme.typography.body2,
+                                style = MoaMapTheme.typography.body2.withDesignLineHeight(),
                                 color = MoaMapTheme.colors.textAssistive,
                             )
                         }
@@ -292,7 +287,7 @@ private fun TagChip(
     ) {
         Text(
             text = tag,
-            style = MoaMapTheme.typography.caption0,
+            style = MoaMapTheme.typography.caption0.withDesignLineHeight(),
             color = MoaMapPrimitiveColors.Yellow900,
         )
         Icon(
@@ -342,3 +337,45 @@ internal fun CreateMapSubmitButton(
     }
 }
 
+
+/** URL 가져오기 설정의 UI. 전체 행을 눌러도 스위치를 전환할 수 있다. */
+@Composable
+internal fun UrlImportPermissionSection(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            CreateMapSectionTitle("URL로 장소 추가 허용하기")
+            Text(
+                text = "URL을 붙여넣어 장소를 추가할 수 있어요",
+                style = MoaMapTheme.typography.body2.withDesignLineHeight(),
+                color = MoaMapTheme.colors.textAssistive,
+            )
+        }
+        Box(
+            modifier = Modifier
+                .size(width = 48.dp, height = 24.dp)
+                .clip(CircleShape)
+                .background(if (checked) MoaMapTheme.colors.primary else Color(0xFFB1B3B4))
+                .padding(3.dp),
+            contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(18.dp)
+                    .background(MoaMapPrimitiveColors.White, CircleShape),
+            )
+        }
+    }
+}

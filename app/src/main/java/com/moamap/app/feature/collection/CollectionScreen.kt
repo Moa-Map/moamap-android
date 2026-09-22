@@ -62,7 +62,6 @@ import com.moamap.app.feature.explore.presentation.MapThumbnail
 /** 카드 썸네일과 같은 높이를 유지해 제목/메타가 위아래로 벌어지도록 한다. */
 private val CardThumbnailSize = 64.dp
 
-/** 시안의 "장소 이미지" 프레임과 같은 값. */
 private val CardThumbnailShape = RoundedCornerShape(4.dp)
 
 /** 인스타그램 브랜드 색. 디자인 시스템 팔레트가 아니라서 토큰으로 승격하지 않는다. */
@@ -75,13 +74,6 @@ private val ActionCardHeight = 72.dp
 /** 목록 자리에 로딩·오류·빈 상태를 같은 높이로 앉혀 화면이 튀지 않게 한다. */
 private val ListPlaceholderHeight = 200.dp
 
-/**
- * 모음 화면이 탭으로 내거는 지도 종류.
- *
- * `MapType.entries` 를 쓰지 않는다. enum 에는 공식지도(`MapType.Official`)도 있는데, 그건
- * 사용자가 참여해 모으는 지도가 아니라 공식지도 탭에서만 보는 공공데이터 지도다. enum 을
- * 그대로 순회하면 여기에 "공식" 탭이 딸려 나온다.
- */
 private val CollectionTabs = listOf(MapType.Community, MapType.Private)
 
 private val MapType.label: String
@@ -182,7 +174,6 @@ private fun CollectionContent(
     val scrollState = when (selectedTab) {
         MapType.Community -> communityScrollState
         MapType.Private -> privateScrollState
-        // 탭이 없는 종류다. [CollectionTabs] 참고.
         MapType.Official -> communityScrollState
     }
 
@@ -489,7 +480,7 @@ private fun PrivateActionCards(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        PrivateActionCard(
+        ImportActionCard(
             iconRes = R.drawable.ic_instagram_logo,
             title = "인스타그램",
             subtitle = "장소 찾기",
@@ -500,7 +491,7 @@ private fun PrivateActionCards(
             onClick = onInstagramImportClick,
             modifier = Modifier.weight(1f),
         )
-        PrivateActionCard(
+        ImportActionCard(
             iconRes = R.drawable.ic_map,
             title = "외부 지도",
             subtitle = "불러오기",
@@ -514,14 +505,14 @@ private fun PrivateActionCards(
 }
 
 @Composable
-private fun PrivateActionCard(
+internal fun ImportActionCard(
     @DrawableRes iconRes: Int,
     title: String,
     subtitle: String,
     backgroundColor: Color,
     titleColor: Color,
     iconTint: Color,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
 ) {
     ShadowedSurface(
