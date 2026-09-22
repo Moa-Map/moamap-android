@@ -32,6 +32,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.R
 import com.moamap.app.core.common.imagepicker.rememberImagePickerController
 import com.moamap.app.core.common.imagepicker.rememberImagePickerState
@@ -121,7 +122,8 @@ internal fun AddPlaceSheet(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(sheetHeight),
+                .height(sheetHeight)
+                .dismissKeyboardOnBackgroundTap(),
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 if (uiState.isFormStep) {
@@ -209,7 +211,8 @@ private fun SheetGrabber() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(25.dp),
+            .height(25.dp)
+            .dismissKeyboardOnBackgroundTap(),
         contentAlignment = Alignment.Center,
     ) {
         Box(

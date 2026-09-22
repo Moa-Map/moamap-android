@@ -47,6 +47,7 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.R
 import com.moamap.app.core.common.imagepicker.rememberImagePickerController
 import com.moamap.app.core.common.imagepicker.rememberImagePickerState
@@ -127,6 +128,7 @@ private fun ProfileEditContent(
 
     Box(
         modifier = modifier
+            .dismissKeyboardOnBackgroundTap()
             .fillMaxSize()
             .background(MoaMapTheme.colors.backgroundSecondary),
     ) {
