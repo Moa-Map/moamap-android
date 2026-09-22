@@ -145,6 +145,7 @@ private fun DensityMapContent(
         MapboxMap(
             modifier = Modifier.fillMaxSize(),
             mapViewportState = mapViewportState,
+            compass = {},
             style = {
                 MapboxStandardStyle(standardStyleState = standardStyleState)
             },
