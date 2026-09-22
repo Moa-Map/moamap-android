@@ -226,6 +226,14 @@ fun MapDetailScreen(
     var postCreateVisible by rememberSaveable { mutableStateOf(false) }
     var postViewMode by rememberSaveable { mutableStateOf(MapPostViewMode.Card) }
 
+    /**
+     * 장소 목록 시트를 접으라는 신호. 올라간 횟수만 세고, 시트는 값이 바뀔 때마다 접는다.
+     *
+     * 시트 상태는 장소 탭 안에서만 산다(`MapDetailPlacesContent`). 여기서는 값만 올리고
+     * 실제로 접는 일은 그쪽이 한다.
+     */
+    var collapseSheetSignal by rememberSaveable { mutableIntStateOf(0) }
+
     // 코드는 상세 응답에 실려 있다. 여는지 마는지만 화면이 들고 있으면 된다.
     var inviteCodeDialogVisible by rememberSaveable { mutableStateOf(false) }
 
@@ -486,6 +494,7 @@ fun MapDetailScreen(
             onMyLocationClick = onMyLocationClick,
             onTabSelected = { tab -> uiState = uiState.selectTab(tab) },
             places = visiblePlaces,
+            collapseSheetSignal = collapseSheetSignal,
             categoryFilters = categoryFilters,
             selectedCategory = uiState.selectedCategory,
             onCategorySelect = { filter -> uiState = uiState.selectCategory(filter) },
@@ -591,6 +600,44 @@ fun MapDetailScreen(
             )
         }
 
+        selectedPlace?.let { place ->
+            // 나만의 지도를 보고 있으면 담을 곳이 자기 자신이라 버튼을 뺀다. 지도를 아직 못 읽었으면
+            // 나만의 지도인지 모르니 띄우지 않는다.
+            val personalMapAction = when {
+                screenState.map.mapOrNull?.personal != false -> null
+                // 안내가 다른 장소의 것이면 빈 버튼으로 그린다. 여는 순간 한 프레임 스쳐 가지 않게.
+                personalMapState.placeId != place.id -> PersonalMapActionUiModel()
+                else -> PersonalMapActionUiModel(
+                    adding = personalMapState.adding,
+                    message = personalMapState.message,
+                    failed = personalMapState.failed,
+                )
+            }
+            PlaceDetailScreen(
+                place = place,
+                reviews = reviews,
+                onBackClick = closePlaceDetail,
+                // 닫기는 지도 상세에 처음 들어왔을 때로 되돌린다 - 장소 탭, 검색어 없음,
+                // 카테고리 전체, 그리고 접힌 장소 목록 시트.
+                onCloseClick = {
+                    uiState = MapDetailUiState()
+                    collapseSheetSignal++
+                },
+                onExternalLinkClick = {
+                    openKakaoMap(context, kakaoPlaceId = place.kakaoPlaceId, placeName = place.name)
+                },
+                onRetryReviews = reviewViewModel::retry,
+                personalMapAction = personalMapAction,
+                onAddToPersonalMapClick = personalMapViewModel::add,
+                // 참여 중인 지도에만 후기를 남길 수 있다. 서버도 같은 기준으로 막는다.
+                onSubmitReview = if (screenState.canAddPlace) {
+                    { reviewText, photo -> reviewViewModel.submit(reviewText, photo) }
+                } else {
+                    null
+                },
+            )
+        }
+
         // 스낵바 자리는 하나뿐이라 여러 출처를 한 줄로 모은다. 서버 실패가 먼저다.
         //
         // 요청 처리 실패가 조회 실패보다 앞선다. 버튼을 누른 직후라 사용자가 답을 기다리고
@@ -618,6 +665,8 @@ fun MapDetailScreen(
     BackHandler(enabled = postCreateVisible) { postCreateVisible = false }
     BackHandler(enabled = mapManageVisible) { mapManageVisible = false }
     BackHandler(enabled = menuVisible) { menuVisible = false }
+    // 장소 상세가 가장 위에 떠 있다. 기기 뒤로가기는 이걸 먼저 닫는다.
+    BackHandler(enabled = uiState.selectedPlaceId != null) { closePlaceDetail() }
 
     // 상세보다 먼저 그린다. 목록에서 하나를 고르면 목록은 닫히고 상세만 남는다.
     if (expandedClusterPlaces.isNotEmpty()) {
@@ -625,38 +674,6 @@ fun MapDetailScreen(
             places = expandedClusterPlaces,
             onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
             onDismiss = { uiState = uiState.closeCluster() },
-        )
-    }
-
-    selectedPlace?.let { place ->
-        // 나만의 지도를 보고 있으면 담을 곳이 자기 자신이라 버튼을 뺀다. 지도를 아직 못 읽었으면
-        // 나만의 지도인지 모르니 띄우지 않는다.
-        val personalMapAction = when {
-            screenState.map.mapOrNull?.personal != false -> null
-            // 안내가 다른 장소의 것이면 빈 버튼으로 그린다. 여는 순간 한 프레임 스쳐 가지 않게.
-            personalMapState.placeId != place.id -> PersonalMapActionUiModel()
-            else -> PersonalMapActionUiModel(
-                adding = personalMapState.adding,
-                message = personalMapState.message,
-                failed = personalMapState.failed,
-            )
-        }
-        PlaceDetailSheet(
-            place = place,
-            reviews = reviews,
-            onDismiss = closePlaceDetail,
-            onExternalLinkClick = {
-                openKakaoMap(context, kakaoPlaceId = place.kakaoPlaceId, placeName = place.name)
-            },
-            onRetryReviews = reviewViewModel::retry,
-            personalMapAction = personalMapAction,
-            onAddToPersonalMapClick = personalMapViewModel::add,
-            // 참여 중인 지도에만 후기를 남길 수 있다. 서버도 같은 기준으로 막는다.
-            onSubmitReview = if (screenState.canAddPlace) {
-                { reviewText, photo -> reviewViewModel.submit(reviewText, photo) }
-            } else {
-                null
-            },
         )
     }
 
@@ -726,6 +743,8 @@ internal fun MapDetailContent(
     onMyLocationClick: () -> Unit,
     onTabSelected: (MapDetailTab) -> Unit,
     places: List<PlaceUiModel>,
+    /** 값이 바뀌면 장소 목록 시트를 접는다. */
+    collapseSheetSignal: Int,
     categoryFilters: List<PlaceCategoryFilter>,
     selectedCategory: PlaceCategoryFilter,
     onCategorySelect: (PlaceCategoryFilter) -> Unit,
@@ -777,6 +796,7 @@ internal fun MapDetailContent(
                     MapDetailPlacesContent(
                         places = places,
                         placeCount = placeCount,
+                        collapseSheetSignal = collapseSheetSignal,
                         categoryFilters = categoryFilters,
                         selectedCategory = selectedCategory,
                         onCategorySelect = onCategorySelect,
@@ -859,6 +879,7 @@ private fun WritePostFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
 private fun MapDetailPlacesContent(
     places: List<PlaceUiModel>,
     placeCount: Int?,
+    collapseSheetSignal: Int,
     categoryFilters: List<PlaceCategoryFilter>,
     selectedCategory: PlaceCategoryFilter,
     onCategorySelect: (PlaceCategoryFilter) -> Unit,
@@ -884,6 +905,11 @@ private fun MapDetailPlacesContent(
 
     // 접혔을 때 카테고리 칩까지 보이는 높이. 시트가 머리 부분을 재서 알려 준다.
     var peekHeight by remember { mutableStateOf(DefaultSheetPeekHeight) }
+
+    // 장소 상세를 닫기(X)로 나오면 처음 들어왔을 때처럼 시트가 접혀 있어야 한다.
+    LaunchedEffect(collapseSheetSignal) {
+        if (collapseSheetSignal > 0) scaffoldState.bottomSheetState.partialExpand()
+    }
 
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
@@ -964,6 +990,7 @@ private fun MapDetailScreenPreview() {
             onMyLocationClick = {},
             onTabSelected = {},
             places = SamplePlaces,
+            collapseSheetSignal = 0,
             categoryFilters = categoryFilters(SamplePlaces),
             selectedCategory = PlaceCategoryFilter.All,
             onCategorySelect = {},
@@ -1020,6 +1047,7 @@ private fun MapDetailScreenNotJoinedPreview() {
             onMyLocationClick = {},
             onTabSelected = {},
             places = SamplePlaces,
+            collapseSheetSignal = 0,
             categoryFilters = categoryFilters(SamplePlaces),
             selectedCategory = PlaceCategoryFilter.All,
             onCategorySelect = {},
