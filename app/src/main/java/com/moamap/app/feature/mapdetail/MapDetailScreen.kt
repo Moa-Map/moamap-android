@@ -87,8 +87,13 @@ import kotlinx.coroutines.launch
 /** 시트가 가리지 않도록 지도 컨트롤을 시트 위로 띄우는 여백. */
 private val MapControlsBottomGap = 16.dp
 
-/** 접힌 시트 높이. 제목·검색창까지만 보이고 장소 카드는 올려야 나온다. */
-private val SheetPeekHeight = 187.dp
+/**
+ * 접힌 시트 높이의 첫 값. 제목·검색창·카테고리 칩까지 보이는 높이다.
+ *
+ * 실제 높이는 시트가 머리 부분을 재서 알려 준다 - 글자 크기를 키운 기기에서 칩이 잘리지
+ * 않게 하려는 것이고, 재기 전 첫 프레임에만 이 값을 쓴다.
+ */
+private val DefaultSheetPeekHeight = 237.dp
 
 private val LocationPermissions = arrayOf(
     Manifest.permission.ACCESS_FINE_LOCATION,
@@ -110,6 +115,7 @@ private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
             state.selectedPlaceId?.toString().orEmpty(),
             state.searchQuery,
             state.expandedClusterPlaceIds.joinToString(ClusterIdSeparator),
+            state.selectedCategory.saveKey(),
         )
     },
     restore = { values ->
@@ -123,6 +129,7 @@ private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
                 ?.split(ClusterIdSeparator)
                 ?.mapNotNull { id -> id.toLongOrNull() }
                 .orEmpty(),
+            selectedCategory = placeCategoryFilterOf(values.getOrNull(4)),
         )
     },
 )
@@ -228,8 +235,9 @@ fun MapDetailScreen(
     val places = remember(screenState.places) {
         screenState.places.map { place -> place.toPlaceUiModel() }
     }
-    val visiblePlaces = remember(places, uiState.searchQuery) {
-        searchPlaces(places, uiState.searchQuery)
+    val categoryFilters = remember(places) { categoryFilters(places) }
+    val visiblePlaces = remember(places, uiState.selectedCategory, uiState.searchQuery) {
+        filterPlaces(places, uiState.selectedCategory, uiState.searchQuery)
     }
     // 검색으로 목록에서 빠진 장소라도, 마커로 눌러 열어 둔 상세는 닫히면 안 된다.
     val selectedPlace = places.firstOrNull { place ->
@@ -323,8 +331,12 @@ fun MapDetailScreen(
         pendingState.requests.toPendingRequestUiModels(System.currentTimeMillis())
     }
 
-    val markers = remember(screenState.places) {
-        screenState.places.map { place -> place.toPlaceMarker() }
+    // 목록과 같은 결과를 지도에도 그린다. 목록만 걸러지면 지도와 어긋나 보인다.
+    val markers = remember(screenState.places, visiblePlaces) {
+        val visibleIds = visiblePlaces.mapTo(mutableSetOf()) { place -> place.id }
+        screenState.places
+            .filter { place -> place.id in visibleIds }
+            .map { place -> place.toPlaceMarker() }
     }
     val mapViewportState = rememberMapViewportState {
         setCameraOptions {
@@ -349,7 +361,7 @@ fun MapDetailScreen(
         EdgeInsets(
             80.dp.toPx().toDouble(),
             40.dp.toPx().toDouble(),
-            (SheetPeekHeight + 40.dp).toPx().toDouble(),
+            (DefaultSheetPeekHeight + 40.dp).toPx().toDouble(),
             40.dp.toPx().toDouble(),
         )
     }
@@ -474,6 +486,9 @@ fun MapDetailScreen(
             onMyLocationClick = onMyLocationClick,
             onTabSelected = { tab -> uiState = uiState.selectTab(tab) },
             places = visiblePlaces,
+            categoryFilters = categoryFilters,
+            selectedCategory = uiState.selectedCategory,
+            onCategorySelect = { filter -> uiState = uiState.selectCategory(filter) },
             searchQuery = uiState.searchQuery,
             onSearchQueryChange = { query -> uiState = uiState.search(query) },
             onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
@@ -711,6 +726,9 @@ internal fun MapDetailContent(
     onMyLocationClick: () -> Unit,
     onTabSelected: (MapDetailTab) -> Unit,
     places: List<PlaceUiModel>,
+    categoryFilters: List<PlaceCategoryFilter>,
+    selectedCategory: PlaceCategoryFilter,
+    onCategorySelect: (PlaceCategoryFilter) -> Unit,
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onPlaceClick: (Long) -> Unit,
@@ -759,6 +777,9 @@ internal fun MapDetailContent(
                     MapDetailPlacesContent(
                         places = places,
                         placeCount = placeCount,
+                        categoryFilters = categoryFilters,
+                        selectedCategory = selectedCategory,
+                        onCategorySelect = onCategorySelect,
                         searchQuery = searchQuery,
                         is3d = is3d,
                         canAddPlace = canAddPlace,
@@ -838,6 +859,9 @@ private fun WritePostFab(onClick: () -> Unit, modifier: Modifier = Modifier) {
 private fun MapDetailPlacesContent(
     places: List<PlaceUiModel>,
     placeCount: Int?,
+    categoryFilters: List<PlaceCategoryFilter>,
+    selectedCategory: PlaceCategoryFilter,
+    onCategorySelect: (PlaceCategoryFilter) -> Unit,
     searchQuery: String,
     is3d: Boolean,
     canAddPlace: Boolean,
@@ -858,20 +882,27 @@ private fun MapDetailPlacesContent(
     )
     val scope = rememberCoroutineScope()
 
+    // 접혔을 때 카테고리 칩까지 보이는 높이. 시트가 머리 부분을 재서 알려 준다.
+    var peekHeight by remember { mutableStateOf(DefaultSheetPeekHeight) }
+
     BottomSheetScaffold(
         scaffoldState = scaffoldState,
         sheetContent = {
             MapDetailBottomSheet(
                 places = places,
                 placeCount = placeCount,
+                categoryFilters = categoryFilters,
+                selectedCategory = selectedCategory,
+                onCategorySelect = onCategorySelect,
                 searchQuery = searchQuery,
                 onSearchQueryChange = onSearchQueryChange,
                 // 접힌 시트에서 검색창을 누르면 목록이 안 보인다. 눌린 김에 끝까지 올린다.
                 onSearchFocused = { scope.launch { scaffoldState.bottomSheetState.expand() } },
                 onPlaceClick = onPlaceClick,
+                onHeaderHeightChange = { height -> peekHeight = height },
             )
         },
-        sheetPeekHeight = SheetPeekHeight,
+        sheetPeekHeight = peekHeight,
         sheetShape = RoundedCornerShape(topStart = 38.dp, topEnd = 38.dp),
         sheetContainerColor = MoaMapTheme.colors.backgroundSecondary,
         sheetTonalElevation = 0.dp,
@@ -893,7 +924,7 @@ private fun MapDetailPlacesContent(
                 onClick = onMyLocationClick,
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(start = 20.dp, bottom = SheetPeekHeight + MapControlsBottomGap),
+                    .padding(start = 20.dp, bottom = peekHeight + MapControlsBottomGap),
             )
             MapDetailMapControls(
                 is3d = is3d,
@@ -902,7 +933,7 @@ private fun MapDetailPlacesContent(
                 onAddPlaceClick = onAddPlaceClick,
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = SheetPeekHeight + MapControlsBottomGap),
+                    .padding(end = 20.dp, bottom = peekHeight + MapControlsBottomGap),
             )
         }
     }
@@ -933,6 +964,9 @@ private fun MapDetailScreenPreview() {
             onMyLocationClick = {},
             onTabSelected = {},
             places = SamplePlaces,
+            categoryFilters = categoryFilters(SamplePlaces),
+            selectedCategory = PlaceCategoryFilter.All,
+            onCategorySelect = {},
             searchQuery = "",
             onSearchQueryChange = {},
             onPlaceClick = {},
@@ -986,6 +1020,9 @@ private fun MapDetailScreenNotJoinedPreview() {
             onMyLocationClick = {},
             onTabSelected = {},
             places = SamplePlaces,
+            categoryFilters = categoryFilters(SamplePlaces),
+            selectedCategory = PlaceCategoryFilter.All,
+            onCategorySelect = {},
             searchQuery = "",
             onSearchQueryChange = {},
             onPlaceClick = {},
