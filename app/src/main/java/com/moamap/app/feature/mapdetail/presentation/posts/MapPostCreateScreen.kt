@@ -2,6 +2,7 @@ package com.moamap.app.feature.mapdetail.presentation.posts
 
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -23,11 +24,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
-import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,6 +33,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
@@ -111,7 +110,7 @@ internal fun MapPostCreateScreen(
             .imePadding(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            PostCreateTopBar(onBackClick = onBackClick)
+            PostCreateTopBar(title = "새 게시물", onBackClick = onBackClick)
 
             Column(
                 modifier = Modifier
@@ -177,25 +176,29 @@ internal fun MapPostCreateScreen(
                 onBackClick = { galleryVisible = false },
             )
         }
+
+        if (placeSheetVisible) {
+            PlacePickerScreen(
+                // 이미 고른 장소는 목록에서 뺀다. 같은 장소를 두 번 태그하면 서버가 거절한다.
+                places = places.filterNot { place -> state.places.any { it.placeId == place.id } },
+                onPlaceClick = { place ->
+                    placeSheetVisible = false
+                    onAddPlace(place)
+                },
+                onBackClick = { placeSheetVisible = false },
+            )
+        }
     }
 
     BackHandler(enabled = galleryVisible) { galleryVisible = false }
-
-    if (placeSheetVisible) {
-        PlacePickerSheet(
-            // 이미 고른 장소는 목록에서 뺀다. 같은 장소를 두 번 태그하면 서버가 거절한다.
-            places = places.filterNot { place -> state.places.any { it.placeId == place.id } },
-            onPlaceClick = { place ->
-                placeSheetVisible = false
-                onAddPlace(place)
-            },
-            onDismiss = { placeSheetVisible = false },
-        )
-    }
+    BackHandler(enabled = placeSheetVisible) { placeSheetVisible = false }
 }
 
 @Composable
-private fun PostCreateTopBar(onBackClick: () -> Unit) {
+private fun PostCreateTopBar(
+    title: String,
+    onBackClick: () -> Unit,
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -218,7 +221,7 @@ private fun PostCreateTopBar(onBackClick: () -> Unit) {
         }
 
         Text(
-            text = "새 게시물",
+            text = title,
             style = MoaMapTheme.typography.title3,
             color = MoaMapTheme.colors.textNormal,
             modifier = Modifier.align(Alignment.Center),
@@ -390,28 +393,27 @@ private fun SubmitButton(
     }
 }
 
-/** 이 지도에 등록된 장소에서 고른다. 게시물은 지도 안의 장소만 태그할 수 있다. */
-@OptIn(ExperimentalMaterial3Api::class)
+/**
+ * 이 지도에 등록된 장소에서 고른다. 게시물은 지도 안의 장소만 태그할 수 있다.
+ *
+ * 작성 화면 위를 덮는 한 장이다. 갤러리와 같은 방식으로 맞췄다 - 작성 화면 자체가 이미
+ * 덮는 화면이라, 그 위에 시트를 또 띄우면 겹쳐 보인다.
+ */
 @Composable
-private fun PlacePickerSheet(
+private fun PlacePickerScreen(
     places: List<MapPlace>,
     onPlaceClick: (MapPlace) -> Unit,
-    onDismiss: () -> Unit,
+    onBackClick: () -> Unit,
 ) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = MoaMapTheme.colors.backgroundSecondary,
-        tonalElevation = 0.dp,
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MoaMapTheme.colors.backgroundSecondary)
+            // 뒤에 깔린 작성 화면으로 터치가 새지 않게 빈 자리의 탭을 여기서 받는다.
+            .pointerInput(Unit) { detectTapGestures() }
+            .statusBarsPadding(),
     ) {
-        Text(
-            text = "장소 추가",
-            style = MoaMapTheme.typography.title3,
-            color = MoaMapTheme.colors.textNormal,
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(bottom = 12.dp),
-        )
+        PostCreateTopBar(title = "장소 선택", onBackClick = onBackClick)
 
         if (places.isEmpty()) {
             Box(
@@ -426,11 +428,13 @@ private fun PlacePickerSheet(
                     color = MoaMapTheme.colors.textAssistive,
                 )
             }
-            return@ModalBottomSheet
+            return@Column
         }
 
         LazyColumn(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding(),
         ) {
             items(places, key = { place -> place.id }) { place ->
                 Column(
