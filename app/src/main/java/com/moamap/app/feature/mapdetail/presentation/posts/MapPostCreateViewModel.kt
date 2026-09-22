@@ -27,8 +27,15 @@ private const val TAG = "MapPostCreateViewModel"
 
 /** 서버가 게시물 하나에 받는 한도. */
 internal const val MAX_POST_PHOTOS = 5
-internal const val MAX_POST_PLACE_TAGS = 10
 internal const val MAX_POST_CONTENT_LENGTH = 1000
+
+/**
+ * 게시물에 태그할 장소 수.
+ *
+ * 서버는 10개까지 받지만 시안은 한 곳만 보여준다. 화면 기준을 따라 하나로 막는다 -
+ * 여러 곳을 태그하면 카드에 무엇을 띄울지부터 정해져 있지 않다.
+ */
+internal const val MAX_POST_PLACE_TAGS = 1
 
 internal const val POST_PHOTO_UPLOAD_FAILED_MESSAGE = "사진을 올리지 못했어요"
 internal const val POST_CREATE_FAILED_MESSAGE = "게시물을 올리지 못했어요"

@@ -104,25 +104,22 @@ class MapPostCreateViewModelTest {
     }
 
     @Test
-    fun `같은 장소는 한 번만 태그하고 뺄 수 있다`() {
+    fun `장소는 한 곳만 태그하고 빼면 다시 고를 수 있다`() {
         val viewModel = viewModel()
 
         viewModel.addPlace(place(1))
-        viewModel.addPlace(place(1))
-        viewModel.addPlace(place(2))
-        viewModel.removePlace(1)
-
-        assertEquals(listOf(2L), viewModel.uiState.value.places.map { it.placeId })
-    }
-
-    @Test
-    fun `장소는 한도까지만 태그한다`() {
-        val viewModel = viewModel()
-
-        (1..MAX_POST_PLACE_TAGS + 2).forEach { id -> viewModel.addPlace(place(id.toLong())) }
-
-        assertEquals(MAX_POST_PLACE_TAGS, viewModel.uiState.value.places.size)
+        // 한 곳을 고른 뒤로는 화면에서 「장소 추가」 줄이 사라진다.
         assertFalse(viewModel.uiState.value.canAddPlace)
+
+        viewModel.addPlace(place(2))
+        assertEquals(listOf(1L), viewModel.uiState.value.places.map { it.placeId })
+
+        viewModel.removePlace(1)
+        assertTrue(viewModel.uiState.value.places.isEmpty())
+        assertTrue(viewModel.uiState.value.canAddPlace)
+
+        viewModel.addPlace(place(2))
+        assertEquals(listOf(2L), viewModel.uiState.value.places.map { it.placeId })
     }
 
     @Test
