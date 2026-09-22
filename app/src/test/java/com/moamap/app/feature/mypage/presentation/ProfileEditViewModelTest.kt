@@ -134,6 +134,19 @@ class ProfileEditViewModelTest {
     }
 
     @Test
+    fun `자기소개는 상한까지만 받는다`() = runTest(dispatcher) {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onIntroductionChange("가".repeat(MAX_INTRODUCTION_LENGTH + 10))
+
+        assertEquals(
+            MAX_INTRODUCTION_LENGTH,
+            viewModel.uiState.value.introduction.length,
+        )
+    }
+
+    @Test
     fun `저장에 성공하면 화면을 닫으라고 알린다`() = runTest(dispatcher) {
         val viewModel = createViewModel()
         advanceUntilIdle()

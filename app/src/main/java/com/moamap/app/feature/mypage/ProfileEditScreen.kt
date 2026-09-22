@@ -11,15 +11,19 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.SnackbarHost
@@ -105,6 +109,12 @@ internal fun ProfileEditScreen(
     }
 }
 
+/** 자기소개가 자라도 이 줄 수까지만 보이고, 그 뒤로는 칸 안에서 스크롤한다. */
+private const val IntroductionMaxLines = 6
+
+/** 스크롤 영역 아래 여백. 마지막 칸이 저장 버튼에 가리지 않게 한다. */
+private val FieldsBottomGap = 96.dp
+
 @Composable
 private fun ProfileEditContent(
     uiState: ProfileEditUiState,
@@ -139,54 +149,67 @@ private fun ProfileEditContent(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             ProfileEditTopBar(onBackClick = onBackClick)
-            Spacer(Modifier.height(37.dp))
-            ProfileImageEditor(
-                imageModel = uiState.pickedImageUri ?: serverImageUrl,
-                enabled = !uiState.saving,
-                isSourceMenuVisible = pickerState.isSourceMenuVisible,
-                onCameraBadgeClick = pickerState::showSourceMenu,
-                onMenuDismissRequest = pickerState::dismissSourceMenu,
-                onCameraClick = pickerController::requestCamera,
-                onGalleryClick = pickerController::requestGallery,
-            )
-            Spacer(Modifier.height(26.dp))
 
-            when (val load = uiState.load) {
-                ProfileLoadState.Loading -> ProfileEditPlaceholder {
-                    CircularProgressIndicator(
-                        color = MoaMapTheme.colors.primary,
-                        modifier = Modifier.size(28.dp),
-                    )
-                }
+            // 키보드가 뜨면 이 영역만 줄어든다. 스크롤이 있어야 포커스된 입력칸이 가려지지
+            // 않게 스스로 올라온다. 저장 버튼은 화면 아래 자리에 그대로 둔다.
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .imePadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(bottom = FieldsBottomGap),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Spacer(Modifier.height(37.dp))
+                ProfileImageEditor(
+                    imageModel = uiState.pickedImageUri ?: serverImageUrl,
+                    enabled = !uiState.saving,
+                    isSourceMenuVisible = pickerState.isSourceMenuVisible,
+                    onCameraBadgeClick = pickerState::showSourceMenu,
+                    onMenuDismissRequest = pickerState::dismissSourceMenu,
+                    onCameraClick = pickerController::requestCamera,
+                    onGalleryClick = pickerController::requestGallery,
+                )
+                Spacer(Modifier.height(26.dp))
 
-                is ProfileLoadState.Error -> ProfileEditPlaceholder {
-                    Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text(
-                            text = load.message,
-                            style = MoaMapTheme.typography.body2,
-                            color = MoaMapTheme.colors.textAlternative,
-                        )
-                        Text(
-                            text = "다시 시도",
-                            style = MoaMapTheme.typography.subtitle2,
+                when (val load = uiState.load) {
+                    ProfileLoadState.Loading -> ProfileEditPlaceholder {
+                        CircularProgressIndicator(
                             color = MoaMapTheme.colors.primary,
-                            modifier = Modifier.clickable(onClick = onRetryClick),
+                            modifier = Modifier.size(28.dp),
                         )
                     }
-                }
 
-                is ProfileLoadState.Success -> ProfileEditFields(
-                    nickname = uiState.nickname,
-                    introduction = uiState.introduction,
-                    // 카카오 로그인에서 이메일 동의 항목을 못 받고 있어 보여줄 값이 없다.
-                    // 권한이 풀리면 아래 인자와 ProfileEditFields 의 이메일 칸을 되살린다.
-                    // email = load.email,
-                    onNicknameChange = onNicknameChange,
-                    onIntroductionChange = onIntroductionChange,
-                )
+                    is ProfileLoadState.Error -> ProfileEditPlaceholder {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Text(
+                                text = load.message,
+                                style = MoaMapTheme.typography.body2,
+                                color = MoaMapTheme.colors.textAlternative,
+                            )
+                            Text(
+                                text = "다시 시도",
+                                style = MoaMapTheme.typography.subtitle2,
+                                color = MoaMapTheme.colors.primary,
+                                modifier = Modifier.clickable(onClick = onRetryClick),
+                            )
+                        }
+                    }
+
+                    is ProfileLoadState.Success -> ProfileEditFields(
+                        nickname = uiState.nickname,
+                        introduction = uiState.introduction,
+                        // 카카오 로그인에서 이메일 동의 항목을 못 받고 있어 보여줄 값이 없다.
+                        // 권한이 풀리면 아래 인자와 ProfileEditFields 의 이메일 칸을 되살린다.
+                        // email = load.email,
+                        onNicknameChange = onNicknameChange,
+                        onIntroductionChange = onIntroductionChange,
+                    )
+                }
             }
         }
 
@@ -218,11 +241,11 @@ private fun ProfileEditPlaceholder(content: @Composable () -> Unit) {
 private fun ProfileEditTopBar(
     onBackClick: () -> Unit,
 ) {
+    // 배경을 깔지 않는다. 시안의 상단 바는 화면 배경 위에 글자와 아이콘만 얹혀 있다.
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp)
-            .background(MoaMapPrimitiveColors.White),
+            .height(52.dp),
     ) {
         Box(
             modifier = Modifier
@@ -342,7 +365,7 @@ private fun ProfileEditFields(
     ) {
         ProfileField(
             label = "이름",
-            height = 45.dp,
+            minHeight = 45.dp,
         ) {
             ProfileTextField(
                 value = nickname,
@@ -355,14 +378,16 @@ private fun ProfileEditFields(
         ProfileField(
             label = "자기소개",
             optional = true,
-            height = 88.dp,
+            minHeight = 88.dp,
             contentAlignment = Alignment.TopStart,
         ) {
+            // 두 줄이 넘으면 칸이 함께 자란다. [IntroductionMaxLines] 줄부터는 칸 안에서 스크롤한다.
             ProfileTextField(
                 value = introduction,
                 onValueChange = onIntroductionChange,
                 placeholder = "나를 소개하는 한마디를 입력해보세요",
                 singleLine = false,
+                maxLines = IntroductionMaxLines,
             )
         }
 
@@ -407,6 +432,7 @@ private fun ProfileTextField(
     onValueChange: (String) -> Unit,
     placeholder: String,
     singleLine: Boolean,
+    maxLines: Int = Int.MAX_VALUE,
 ) {
     BasicTextField(
         value = value,
@@ -416,6 +442,7 @@ private fun ProfileTextField(
         ),
         cursorBrush = SolidColor(MoaMapTheme.colors.primary),
         singleLine = singleLine,
+        maxLines = maxLines,
         modifier = Modifier.fillMaxWidth(),
         decorationBox = { innerTextField ->
             Box {
@@ -435,7 +462,8 @@ private fun ProfileTextField(
 @Composable
 private fun ProfileField(
     label: String,
-    height: Dp,
+    /** 최소 높이. 글이 길어지면 칸이 이만큼에서 더 자란다. */
+    minHeight: Dp,
     optional: Boolean = false,
     backgroundColor: Color = MoaMapPrimitiveColors.White,
     contentAlignment: Alignment = Alignment.CenterStart,
@@ -464,7 +492,7 @@ private fun ProfileField(
         ShadowedContainer(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(height),
+                .heightIn(min = minHeight),
             shape = ProfileFieldShape,
             backgroundColor = backgroundColor,
             shadowRadius = 5.dp,
@@ -528,7 +556,9 @@ private fun ShadowedContainer(
     horizontalContentPadding: Dp = contentPadding,
     content: @Composable BoxScope.() -> Unit,
 ) {
-    Box(modifier = modifier) {
+    // 내용이 상자 크기를 정한다. 내용까지 matchParentSize 로 두면 자기소개가 길어져도 칸이
+    // 최소 높이에 묶인다. 최소 높이는 propagateMinConstraints 로 내용에 그대로 전해진다.
+    Box(modifier = modifier, propagateMinConstraints = true) {
         Box(
             modifier = Modifier
                 .matchParentSize()
@@ -540,7 +570,7 @@ private fun ShadowedContainer(
         )
         Box(
             modifier = Modifier
-                .matchParentSize()
+                .fillMaxWidth()
                 .clip(shape)
                 .background(backgroundColor)
                 .padding(

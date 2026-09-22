@@ -18,6 +18,14 @@ private const val TAG = "ProfileEditViewModel"
 private const val LOAD_ERROR = "프로필을 불러오지 못했어요. 잠시 후 다시 시도해주세요."
 private const val SAVE_ERROR = "저장하지 못했어요. 잠시 후 다시 시도해주세요."
 
+/**
+ * 자기소개 글자 수 상한.
+ *
+ * 서버가 정한 값을 확인하지 못해 앱에서 먼저 막는다. 칸이 화면을 다 먹을 만큼 길어지는 것도
+ * 함께 막힌다. 서버 제한이 확인되면 그 값으로 맞춘다.
+ */
+internal const val MAX_INTRODUCTION_LENGTH = 100
+
 @HiltViewModel
 class ProfileEditViewModel @Inject constructor(
     private val userRepository: UserRepository,
@@ -60,7 +68,7 @@ class ProfileEditViewModel @Inject constructor(
     }
 
     fun onIntroductionChange(value: String) {
-        _uiState.update { it.copy(introduction = value) }
+        _uiState.update { it.copy(introduction = value.take(MAX_INTRODUCTION_LENGTH)) }
     }
 
     /**
