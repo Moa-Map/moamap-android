@@ -124,6 +124,7 @@ internal fun MyMap.toPrivateUiModel() = CollectionMapUiModel(
 
 @Composable
 fun CollectionScreen(
+    onHomeClick: () -> Unit = {},
     onNewMapClick: () -> Unit = {},
     onInstagramImportClick: () -> Unit = {},
     onMapShareImportClick: () -> Unit = {},
@@ -153,6 +154,7 @@ fun CollectionScreen(
         uiState = uiState,
         onTabClick = viewModel::selectTab,
         onRetryClick = viewModel::retry,
+        onHomeClick = onHomeClick,
         onInviteCodeClick = viewModel::openJoinDialog,
         onNewMapClick = onNewMapClick,
         onInstagramImportClick = onInstagramImportClick,
@@ -167,6 +169,7 @@ private fun CollectionContent(
     uiState: CollectionUiState,
     onTabClick: (MapType) -> Unit,
     onRetryClick: () -> Unit,
+    onHomeClick: () -> Unit,
     onInviteCodeClick: () -> Unit,
     onNewMapClick: () -> Unit,
     onInstagramImportClick: () -> Unit,
@@ -193,6 +196,7 @@ private fun CollectionContent(
             .statusBarsPadding(),
     ) {
         CollectionTopBar(
+            onHomeClick = onHomeClick,
             onInviteCodeClick = onInviteCodeClick,
             onNewMapClick = onNewMapClick,
         )
@@ -238,6 +242,7 @@ private fun CollectionContent(
 
 @Composable
 private fun CollectionTopBar(
+    onHomeClick: () -> Unit,
     onInviteCodeClick: () -> Unit,
     onNewMapClick: () -> Unit,
 ) {
@@ -251,8 +256,10 @@ private fun CollectionTopBar(
     ) {
         Image(
             painter = painterResource(R.drawable.img_moa_logo),
-            contentDescription = "모아맵",
-            modifier = Modifier.size(width = 74.dp, height = 44.dp),
+            contentDescription = "홈으로",
+            modifier = Modifier
+                .size(width = 74.dp, height = 44.dp)
+                .clickable(role = Role.Button, onClick = onHomeClick),
         )
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -741,6 +748,7 @@ private fun CollectionScreenPreview() {
             ),
             onTabClick = {},
             onRetryClick = {},
+            onHomeClick = {},
             onInviteCodeClick = {},
             onNewMapClick = {},
             onInstagramImportClick = {},

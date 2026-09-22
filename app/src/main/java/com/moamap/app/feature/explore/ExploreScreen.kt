@@ -20,6 +20,8 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -32,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -39,6 +42,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
+import kotlinx.coroutines.launch
 import com.moamap.app.core.designsystem.component.BannerShadowBlurRadius
 // TODO: SearchBar 복구 시 함께 되살린다.
 // import com.moamap.app.core.designsystem.component.CardShadowBlurRadius
@@ -72,6 +76,9 @@ private const val DEFAULT_NICKNAME = "회원"
 
 @Composable
 fun ExploreScreen(
+    /** 보던 자리 대신 맨 위에서 시작해야 하는지. 모음에서 로고로 들어온 경우다. */
+    scrollToTop: Boolean = false,
+    onScrolledToTop: () -> Unit = {},
     onProfileEditClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
     onOfficialMapClick: () -> Unit = {},
@@ -89,6 +96,8 @@ fun ExploreScreen(
 
     ExploreContent(
         uiState = uiState,
+        scrollToTop = scrollToTop,
+        onScrolledToTop = onScrolledToTop,
         onProfileEditClick = onProfileEditClick,
         onSettingsClick = onSettingsClick,
         onOfficialMapClick = onOfficialMapClick,
@@ -104,6 +113,8 @@ fun ExploreScreen(
 private fun ExploreContent(
     uiState: ExploreUiState,
     onProfileEditClick: () -> Unit,
+    scrollToTop: Boolean = false,
+    onScrolledToTop: () -> Unit = {},
     onSettingsClick: () -> Unit,
     onOfficialMapClick: () -> Unit,
     onCommunityMapClick: (CommunityMap) -> Unit,
@@ -113,9 +124,19 @@ private fun ExploreContent(
     modifier: Modifier = Modifier,
 ) {
     val profileMenuState = rememberProfileMenuState()
+    // 로고는 홈으로 돌아가는 버튼이다. 여기가 이미 홈이라 갈 곳이 없어 맨 위로 올린다.
+    val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
 
     BackHandler(enabled = profileMenuState.isVisible) {
         profileMenuState.dismiss()
+    }
+
+    // 로고로 들어온 경우. 신호를 받으면 맨 위로 올리고 바로 신호를 끈다.
+    LaunchedEffect(scrollToTop) {
+        if (!scrollToTop) return@LaunchedEffect
+        scrollState.scrollTo(0)
+        onScrolledToTop()
     }
 
     Box(
@@ -128,12 +149,15 @@ private fun ExploreContent(
                 .fillMaxSize()
                 .statusBarsPadding(),
         ) {
-            ExploreTopBar(onProfileClick = profileMenuState::show)
+            ExploreTopBar(
+                onLogoClick = { scope.launch { scrollState.animateScrollTo(0) } },
+                onProfileClick = profileMenuState::show,
+            )
 
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
+                    .verticalScroll(scrollState)
                     .padding(top = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
@@ -190,6 +214,7 @@ private fun ExploreContent(
 
 @Composable
 private fun ExploreTopBar(
+    onLogoClick: () -> Unit,
     onProfileClick: () -> Unit,
 ) {
     Row(
@@ -202,8 +227,10 @@ private fun ExploreTopBar(
     ) {
         Image(
             painter = painterResource(R.drawable.img_moa_logo),
-            contentDescription = "모아맵",
-            modifier = Modifier.size(width = 74.dp, height = 44.dp),
+            contentDescription = "홈으로",
+            modifier = Modifier
+                .size(width = 74.dp, height = 44.dp)
+                .clickable(role = Role.Button, onClick = onLogoClick),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             // TODO: 알림 API 연동 후 복구
