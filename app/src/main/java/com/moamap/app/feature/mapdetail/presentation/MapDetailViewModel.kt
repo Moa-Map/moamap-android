@@ -56,6 +56,13 @@ data class MapDetailScreenState(
     val errorMessage: String? = null,
     /** 나가기가 끝났다. 화면이 이 신호를 보고 이전 화면으로 돌아간다. */
     val left: Boolean = false,
+    /**
+     * 이 화면에서 참여했는지.
+     *
+     * 미리보기를 거쳐 들어와 참여하면 소개 화면은 더 볼 일이 없다. 뒤로 갈 때 그 화면을
+     * 건너뛰라는 신호로 쓴다. 참여했다가 다시 나가면 멤버가 아니므로 꺼 둔다.
+     */
+    val joinedHere: Boolean = false,
 ) {
     /** 서버 이름. 아직 응답이 없으면 null 이고, 화면은 라우트로 받은 초기값을 쓴다. */
     val title: String? get() = map.mapOrNull?.title
@@ -162,7 +169,7 @@ class MapDetailViewModel @Inject constructor(
      */
     fun join() = runAction(JOIN_FAILED_MESSAGE) {
         repository.joinMap(mapId)
-        _uiState.update { state -> state.copy(actionInProgress = false) }
+        _uiState.update { state -> state.copy(actionInProgress = false, joinedHere = true) }
         loadMap()
     }
 
@@ -185,7 +192,9 @@ class MapDetailViewModel @Inject constructor(
             } else {
                 repository.leaveMap(mapId)
             }
-            _uiState.update { state -> state.copy(actionInProgress = false, left = true) }
+            _uiState.update { state ->
+                state.copy(actionInProgress = false, left = true, joinedHere = false)
+            }
         }
     }
 

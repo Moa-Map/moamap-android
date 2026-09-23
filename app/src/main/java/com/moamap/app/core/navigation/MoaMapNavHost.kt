@@ -266,7 +266,14 @@ internal fun MoaMapNavHost(
                 ),
             ) { backStackEntry ->
                 MapDetailScreen(
-                    onBackClick = navController::popBackStack,
+                    // 미리보기를 거쳐 들어와 참여했으면 소개 화면은 볼 일이 없다. 함께 지워
+                    // 들어왔던 화면(탐색 또는 모음)으로 돌려보낸다. 소개를 거치지 않았으면
+                    // 지울 것이 없어 한 칸만 돌아간다.
+                    onBackClick = { joinedHere ->
+                        val skippedIntro = joinedHere &&
+                            navController.popBackStack(MoaMapRoute.MapIntro.route, inclusive = true)
+                        if (!skippedIntro) navController.popBackStack()
+                    },
                     initialTitle = backStackEntry.arguments
                         ?.getString(MoaMapRoute.MapDetail.ARG_MAP_TITLE)
                         .orEmpty(),
