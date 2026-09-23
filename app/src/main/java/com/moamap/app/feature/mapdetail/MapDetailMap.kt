@@ -13,6 +13,7 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.Modifier
 import com.mapbox.maps.ViewAnnotationAnchor
 import com.mapbox.maps.extension.compose.MapboxMap
+import com.mapbox.maps.extension.compose.MapboxMapComposable
 import com.mapbox.maps.extension.compose.animation.viewport.MapViewportState
 import com.mapbox.maps.extension.compose.annotation.ViewAnnotation
 import com.mapbox.maps.extension.compose.style.BooleanValue
@@ -67,49 +68,12 @@ internal fun MapDetailMap(
         val widthDp = maxWidth.value.toDouble()
         val heightDp = maxHeight.value.toDouble()
 
-        // 카메라를 바디에서 직접 읽으면 팬·줌·회전 매 프레임마다 리컴포지션된다.
-        // derivedStateOf 로 감싸 결과가 실제로 달라질 때만 리컴포지션되게 한다.
-        // 여기 담기는 일은 floor 몇 번뿐이다. 이 람다는 매 프레임 도니까.
-        val cameraKey by remember(mapViewportState) {
-            derivedStateOf {
-                val camera = mapViewportState.cameraState
-                val center = camera?.center
-                val zoom = floor((camera?.zoom ?: MapDetailDefaultZoom) / ClusterZoomStep) *
-                    ClusterZoomStep
-                ClusterCameraKey(
-                    zoom = zoom,
-                    // 경계도 이 줌으로 계산한다. 양자화에 쓰는 줌이 어긋나면 안 된다.
-                    centerLongitude = center?.let { point ->
-                        quantizeCenter(point.longitude(), zoom)
-                    },
-                    centerLatitude = center?.let { point ->
-                        quantizeCenter(point.latitude(), zoom)
-                    },
-                )
-            }
-        }
-
-        // 양자화한 카메라가 실제로 한 칸 움직였을 때만 다시 센다.
-        val clusters = remember(markers, widthDp, heightDp, cameraKey) {
-            val longitude = cameraKey.centerLongitude
-            val latitude = cameraKey.centerLatitude
-            val visible = if (longitude == null || latitude == null) {
-                markers
-            } else {
-                cullToViewport(
-                    markers = markers,
-                    bounds = viewportBounds(
-                        centerLongitude = longitude,
-                        centerLatitude = latitude,
-                        zoom = cameraKey.zoom,
-                        widthDp = widthDp,
-                        heightDp = heightDp,
-                    ),
-                )
-            }
-
-            clusterMarkers(visible, cameraKey.zoom)
-        }
+        val clusters = rememberMarkerClusters(
+            mapViewportState = mapViewportState,
+            markers = markers,
+            widthDp = widthDp,
+            heightDp = heightDp,
+        )
 
         val standardStyleState = rememberStandardStyleState {
             configurationsState.lightPreset = LightPresetValue.DAY
@@ -134,28 +98,101 @@ internal fun MapDetailMap(
                 MapboxStandardStyle(standardStyleState = standardStyleState)
             },
         ) {
-            clusters.forEach { cluster ->
-                key(cluster.id) {
-                    ViewAnnotation(
-                        options = viewAnnotationOptions {
-                            geometry(cluster.anchorPoint())
-                            allowOverlap(true)
-                            annotationAnchor { anchor(ViewAnnotationAnchor.BOTTOM) }
-                        },
-                    ) {
-                        if (cluster.isSingle) {
-                            val marker = cluster.members.first()
-                            PlacePhotoMarker(
-                                marker = marker,
-                                onClick = { onMarkerClick(marker.placeId) },
-                            )
-                        } else {
-                            PlaceFacepileMarker(
-                                cluster = cluster,
-                                onClick = { onClusterClick(cluster) },
-                            )
-                        }
-                    }
+            PlaceMarkerAnnotations(
+                clusters = clusters,
+                onMarkerClick = onMarkerClick,
+                onClusterClick = onClusterClick,
+            )
+        }
+    }
+}
+
+/**
+ * 지금 화면에 그릴 마커 묶음.
+ *
+ * 카메라를 바디에서 직접 읽으면 팬·줌·회전 매 프레임마다 리컴포지션된다. `derivedStateOf` 로
+ * 감싸 결과가 실제로 달라질 때만 리컴포지션되게 한다. 여기 담기는 일은 floor 몇 번뿐이다 -
+ * 이 람다는 매 프레임 돈다.
+ *
+ * 지도 상세와 설명 화면의 미리보기가 함께 쓴다.
+ */
+@Composable
+internal fun rememberMarkerClusters(
+    mapViewportState: MapViewportState,
+    markers: List<PlaceMarker>,
+    widthDp: Double,
+    heightDp: Double,
+): List<MarkerCluster> {
+    val cameraKey by remember(mapViewportState) {
+        derivedStateOf {
+            val camera = mapViewportState.cameraState
+            val center = camera?.center
+            val zoom = floor((camera?.zoom ?: MapDetailDefaultZoom) / ClusterZoomStep) *
+                ClusterZoomStep
+            ClusterCameraKey(
+                zoom = zoom,
+                // 경계도 이 줌으로 계산한다. 양자화에 쓰는 줌이 어긋나면 안 된다.
+                centerLongitude = center?.let { point ->
+                    quantizeCenter(point.longitude(), zoom)
+                },
+                centerLatitude = center?.let { point ->
+                    quantizeCenter(point.latitude(), zoom)
+                },
+            )
+        }
+    }
+
+    // 양자화한 카메라가 실제로 한 칸 움직였을 때만 다시 센다.
+    return remember(markers, widthDp, heightDp, cameraKey) {
+        val longitude = cameraKey.centerLongitude
+        val latitude = cameraKey.centerLatitude
+        val visible = if (longitude == null || latitude == null) {
+            markers
+        } else {
+            cullToViewport(
+                markers = markers,
+                bounds = viewportBounds(
+                    centerLongitude = longitude,
+                    centerLatitude = latitude,
+                    zoom = cameraKey.zoom,
+                    widthDp = widthDp,
+                    heightDp = heightDp,
+                ),
+            )
+        }
+
+        clusterMarkers(visible, cameraKey.zoom)
+    }
+}
+
+/** 묶음은 겹친 얼굴로, 한 곳짜리는 사진 마커로 그린다. 지도 콘텐츠 안에서만 부를 수 있다. */
+@Composable
+@MapboxMapComposable
+internal fun PlaceMarkerAnnotations(
+    clusters: List<MarkerCluster>,
+    onMarkerClick: (Long) -> Unit,
+    onClusterClick: (MarkerCluster) -> Unit,
+) {
+    clusters.forEach { cluster ->
+        key(cluster.id) {
+            ViewAnnotation(
+                options = viewAnnotationOptions {
+                    geometry(cluster.anchorPoint())
+                    allowOverlap(true)
+                    annotationAnchor { anchor(ViewAnnotationAnchor.BOTTOM) }
+                },
+            ) {
+                if (cluster.isSingle) {
+                    val marker = cluster.members.first()
+                    PlacePhotoMarker(
+                        marker = marker,
+                        onClick = { onMarkerClick(marker.placeId) },
+                    )
+                } else {
+                    PlaceFacepileMarker(
+                        cluster = cluster,
+                        onClick = { onClusterClick(cluster) },
+                    )
                 }
             }
         }

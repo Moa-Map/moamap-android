@@ -3,7 +3,6 @@ package com.moamap.app.feature.mapdetail.presentation
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
-import com.moamap.app.feature.mapdetail.domain.model.MapPlacePreview
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
 import com.moamap.app.feature.mapdetail.domain.repository.MapDetailRepository
 import kotlinx.coroutines.delay
@@ -51,7 +50,6 @@ internal fun testPlace(id: Long) = MapPlace(
 internal open class FakeMapDetailRepository(
     private val responseDelayMillis: Long = 0L,
     var map: () -> MapDetail = { testMap() },
-    var places: () -> MapPlacePreview = { MapPlacePreview() },
     var allPlaces: () -> List<MapPlace> = { emptyList() },
 ) : MapDetailRepository {
 
@@ -61,12 +59,6 @@ internal open class FakeMapDetailRepository(
         calls += "getMapDetail"
         delay(responseDelayMillis)
         return map()
-    }
-
-    override suspend fun getPlacePreview(mapId: Long, visibleCount: Int): MapPlacePreview {
-        calls += "getPlacePreview($visibleCount)"
-        delay(responseDelayMillis)
-        return places()
     }
 
     override suspend fun getPlaces(mapId: Long): List<MapPlace> {

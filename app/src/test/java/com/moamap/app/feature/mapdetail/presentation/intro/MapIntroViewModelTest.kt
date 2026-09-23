@@ -2,7 +2,7 @@ package com.moamap.app.feature.mapdetail.presentation.intro
 
 import androidx.lifecycle.SavedStateHandle
 import com.moamap.app.core.navigation.MoaMapRoute
-import com.moamap.app.feature.mapdetail.domain.model.MapPlacePreview
+import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.presentation.FakeMapDetailRepository
 import com.moamap.app.feature.mapdetail.presentation.MapLoadState
 import com.moamap.app.feature.mapdetail.presentation.testMap
@@ -55,32 +55,43 @@ class MapIntroViewModelTest {
     @Test
     fun `지도와 장소를 함께 읽는다`() = runTest {
         val repository = FakeMapDetailRepository(
-            places = { MapPlacePreview(places = listOf(testPlace(1L)), hasMore = true) },
+            // 목록에 쓸 개수보다 하나 많게 둔다. `더보기` 가 뜨는 조건이다.
+            allPlaces = { (1..INTRO_PLACE_COUNT + 1).map { id -> testPlace(id.toLong()) } },
         )
         val viewModel = viewModel(repository).apply { refresh() }
         dispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.map is MapLoadState.Success)
         assertEquals("지도1", viewModel.uiState.value.title)
-        assertEquals(1, viewModel.uiState.value.places.places.size)
+        // 지도는 전부, 목록은 피그마의 4개까지만.
+        assertEquals(INTRO_PLACE_COUNT + 1, viewModel.uiState.value.mapPlaces.size)
+        assertEquals(INTRO_PLACE_COUNT, viewModel.uiState.value.places.places.size)
         assertTrue(viewModel.uiState.value.places.hasMore)
-        // 보여줄 개수는 피그마의 4개다.
-        assertTrue(repository.calls.contains("getPlacePreview($INTRO_PLACE_COUNT)"))
+        assertTrue(repository.calls.contains("getPlaces"))
+    }
+
+    @Test
+    fun `장소가 적으면 더보기를 띄우지 않는다`() = runTest {
+        val repository = FakeMapDetailRepository(allPlaces = { listOf(testPlace(1L)) })
+        val viewModel = viewModel(repository).apply { refresh() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, viewModel.uiState.value.places.places.size)
+        assertFalse(viewModel.uiState.value.places.hasMore)
     }
 
     @Test
     fun `장소 조회만 실패해도 지도는 보여준다`() = runTest {
         val repository = object : FakeMapDetailRepository() {
-            override suspend fun getPlacePreview(
-                mapId: Long,
-                visibleCount: Int,
-            ): MapPlacePreview = throw RuntimeException("boom")
+            override suspend fun getPlaces(mapId: Long): List<MapPlace> =
+                throw RuntimeException("boom")
         }
         val viewModel = viewModel(repository).apply { refresh() }
         dispatcher.scheduler.advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.map is MapLoadState.Success)
         assertTrue(viewModel.uiState.value.places.places.isEmpty())
+        assertTrue(viewModel.uiState.value.mapPlaces.isEmpty())
     }
 
     @Test

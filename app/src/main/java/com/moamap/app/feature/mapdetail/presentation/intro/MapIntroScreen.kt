@@ -23,8 +23,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -112,6 +117,7 @@ internal fun MapIntroContent(
                 MapIntroBody(
                     map = state.map,
                     places = uiState.places,
+                    mapPlaces = uiState.mapPlaces,
                     onPreviewClick = onPreviewClick,
                     mapContent = mapContent,
                 )
@@ -156,13 +162,22 @@ internal fun MapIntroContent(
 private fun MapIntroBody(
     map: MapDetail,
     places: MapPlacePreview,
+    mapPlaces: List<MapPlace>,
     onPreviewClick: () -> Unit,
     mapContent: (@Composable (List<MapPlace>) -> Unit)?,
 ) {
+    /**
+     * 지도를 만지는 동안인지.
+     *
+     * 지도는 세로 스크롤 안에 들어 있어, 잠그지 않으면 지도를 끌 때 화면이 같이 움직인다.
+     * 손이 지도에 닿아 있는 동안만 스크롤을 멈춘다.
+     */
+    var mapTouched by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState(), enabled = !mapTouched),
     ) {
         MapIntroHero(
             title = map.title,
@@ -204,14 +219,23 @@ private fun MapIntroBody(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(MapIntroMapHeight)
-                        .clip(RoundedCornerShape(8.dp)),
+                        .clip(RoundedCornerShape(8.dp))
+                        // 손이 닿는 동안만 바깥 스크롤을 멈춘다. 이벤트를 가로채지는 않아
+                        // 지도는 그대로 받는다.
+                        .pointerInput(Unit) {
+                            awaitPointerEventScope {
+                                while (true) {
+                                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                                    mapTouched = event.changes.any { change -> change.pressed }
+                                }
+                            }
+                        },
                 ) {
                     if (mapContent != null) {
-                        mapContent(places.places)
+                        mapContent(mapPlaces)
                     } else {
                         MapIntroMap(
-                            places = places.places,
-                            onClick = onPreviewClick,
+                            places = mapPlaces,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -407,6 +431,7 @@ private fun MapIntroScreenPreview() {
             uiState = MapIntroUiState(
                 map = MapLoadState.Success(PreviewMap),
                 places = PreviewPlaces,
+                mapPlaces = PreviewPlaces.places,
             ),
             onBackClick = {},
             onPreviewClick = {},
