@@ -1,70 +1,62 @@
 package com.moamap.app.feature.mapdetail.presentation.intro
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
-import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
+import com.moamap.app.feature.mapdetail.InitialCamera
 import com.moamap.app.feature.mapdetail.MapDetailCenter
+import com.moamap.app.feature.mapdetail.PlaceMarkerAnnotations
+import com.moamap.app.feature.mapdetail.rememberMarkerClusters
+import com.moamap.app.feature.mapdetail.toPlaceMarker
+import com.moamap.app.feature.mapdetail.initialCamera
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.mapbox.geojson.Point
-import com.mapbox.maps.ViewAnnotationAnchor
+import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
-import com.mapbox.maps.extension.compose.annotation.ViewAnnotation
 import com.mapbox.maps.extension.compose.rememberMapState
 import com.mapbox.maps.extension.compose.style.BooleanValue
 import com.mapbox.maps.extension.compose.style.standard.LightPresetValue
 import com.mapbox.maps.extension.compose.style.standard.MapboxStandardStyle
 import com.mapbox.maps.extension.compose.style.standard.rememberStandardStyleState
 import com.mapbox.maps.plugin.gestures.generated.GesturesSettings
-import com.mapbox.maps.viewannotation.annotationAnchor
-import com.mapbox.maps.viewannotation.geometry
-import com.mapbox.maps.viewannotation.viewAnnotationOptions
 
-/** 장소들이 한눈에 들어오도록 잡는 줌. 상세(16.5)보다 한 단계 넓게 본다. */
+/** 장소가 하나뿐이거나 없을 때 쓰는 줌. 여러 곳이면 전부 담기도록 따로 맞춘다. */
 private const val IntroMapZoom = 14.0
+
+/** 마커가 가장자리에 붙지 않도록 카메라에 두는 여백. */
+private val IntroFitPadding = 32.dp
 
 /**
  * 설명 화면의 지도 미리보기.
  *
- * 상세와 같은 Mapbox 스타일을 쓰되 조작할 수 없다. 이 영역은 탭하면 상세로 넘어가는
- * 자리이고, 세로 스크롤 안에 들어 있어 제스처를 살려 두면 스크롤 도중 지도가 끌려간다.
+ * 참여 전에도 이 지도에 무엇이 모여 있는지 볼 수 있어야 해서 이동·확대를 연다. 회전과 기울기는
+ * 닫아 둔다 - 돌려 볼 일이 없고, 한번 기울면 되돌릴 버튼이 이 화면에 없다.
  *
- * 3D 를 끄는 이유도 같다 - 기울인 시점은 돌려볼 수 있을 때나 쓸모가 있다.
+ * 지도를 누르면 상세로 가던 동작은 없앴다. 이제 지도를 끄는 손짓과 부딪힌다 - 상세로 가는 길은
+ * 지도 위의 「미리보기」 버튼이다.
+ *
+ * 마커는 상세와 같은 사진 마커를 쓰고, 겹치면 상세처럼 묶어 보여준다. 누르는 동작만 없다 -
+ * 참여 전에는 장소 상세를 열지 않는다.
  */
 @Composable
 internal fun MapIntroMap(
     places: List<MapPlace>,
-    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val center = places.centerPoint()
-    // 장소를 늦게 받아오므로, 중심이 바뀌면 카메라를 새 좌표로 다시 잡아야 한다.
-    val mapViewportState = rememberMapViewportState(key = center.toJson()) {
-        setCameraOptions {
-            center(center)
-            zoom(IntroMapZoom)
-        }
-    }
+    val mapViewportState = rememberMapViewportState()
     val mapState = rememberMapState {
         gesturesSettings = GesturesSettings {
-            scrollEnabled = false
-            pinchToZoomEnabled = false
-            pinchScrollEnabled = false
             rotateEnabled = false
             pitchEnabled = false
-            quickZoomEnabled = false
-            doubleTapToZoomInEnabled = false
-            doubleTouchToZoomOutEnabled = false
         }
     }
     val standardStyleState = rememberStandardStyleState {
@@ -72,58 +64,70 @@ internal fun MapIntroMap(
         configurationsState.show3dObjects = BooleanValue(false)
     }
 
-    Box(modifier = modifier) {
-        MapboxMap(
-            modifier = Modifier.fillMaxSize(),
-            mapViewportState = mapViewportState,
-            mapState = mapState,
-            style = { MapboxStandardStyle(standardStyleState = standardStyleState) },
-        ) {
-            places.forEach { place ->
-                key(place.id) {
-                    ViewAnnotation(
-                        options = viewAnnotationOptions {
-                            geometry(Point.fromLngLat(place.longitude, place.latitude))
-                            allowOverlap(true)
-                            annotationAnchor { anchor(ViewAnnotationAnchor.CENTER) }
-                        },
-                    ) {
-                        MapIntroMarker()
-                    }
-                }
+    val fitPadding = with(LocalDensity.current) {
+        val padding = IntroFitPadding.toPx().toDouble()
+        EdgeInsets(padding, padding, padding, padding)
+    }
+
+    /** 장소는 지도가 붙은 뒤에 도착한다. 처음 한 번만 맞추고, 그다음은 사용자가 움직인 대로 둔다. */
+    var cameraSettled by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(places) {
+        if (cameraSettled || places.isEmpty()) return@LaunchedEffect
+
+        when (val camera = initialCamera(places, deviceLocation = null)) {
+            is InitialCamera.Fit -> mapViewportState.setCameraOptions(
+                mapViewportState.cameraForCoordinates(
+                    coordinates = camera.points,
+                    coordinatesPadding = fitPadding,
+                    maxZoom = IntroMapZoom,
+                ),
+            )
+
+            is InitialCamera.Center -> mapViewportState.setCameraOptions {
+                center(camera.point)
+                zoom(IntroMapZoom)
             }
         }
+        cameraSettled = true
+    }
 
-        // 지도 전체가 상세로 가는 탭 영역이다. 마커를 눌러도 같은 곳으로 간다.
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(onClick = onClick),
+    // 장소가 하나도 없으면 맞출 대상이 없다. 기본 좌표를 잡아 빈 지도라도 자리를 지킨다.
+    LaunchedEffect(Unit) {
+        if (places.isEmpty()) {
+            mapViewportState.setCameraOptions {
+                center(MapDetailCenter)
+                zoom(IntroMapZoom)
+            }
+        }
+    }
+
+    val markers = remember(places) { places.map { place -> place.toPlaceMarker() } }
+
+    BoxWithConstraints(modifier = modifier) {
+        val widthDp = maxWidth.value.toDouble()
+        val heightDp = maxHeight.value.toDouble()
+        val clusters = rememberMarkerClusters(
+            mapViewportState = mapViewportState,
+            markers = markers,
+            widthDp = widthDp,
+            heightDp = heightDp,
         )
+
+        MapboxMap(
+            modifier = Modifier.matchParentSize(),
+            mapViewportState = mapViewportState,
+            mapState = mapState,
+            // 축척과 나침반을 띄우지 않는다. 로고와 저작권 표시는 약관상 남긴다.
+            compass = {},
+            scaleBar = {},
+            style = { MapboxStandardStyle(standardStyleState = standardStyleState) },
+        ) {
+            PlaceMarkerAnnotations(
+                clusters = clusters,
+                // 참여 전에는 장소 상세도, 묶음 펼치기도 열지 않는다. 그릴 뿐이다.
+                onMarkerClick = {},
+                onClusterClick = {},
+            )
+        }
     }
 }
-
-/** 장소 위치를 알리는 점. 사진 마커는 상세에서 쓰고 여기는 위치만 보이면 된다. */
-@Composable
-private fun MapIntroMarker(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .size(18.dp)
-            .clip(CircleShape)
-            .background(MoaMapPrimitiveColors.White)
-            .padding(3.dp)
-            .clip(CircleShape)
-            .background(MoaMapPrimitiveColors.Blue500),
-    )
-}
-
-/** 장소가 없으면 상세 화면과 같은 기본 좌표를 쓴다. 빈 바다를 보여줄 수는 없다. */
-private fun List<MapPlace>.centerPoint(): Point =
-    if (isEmpty()) {
-        MapDetailCenter
-    } else {
-        Point.fromLngLat(
-            sumOf { place -> place.longitude } / size,
-            sumOf { place -> place.latitude } / size,
-        )
-    }
