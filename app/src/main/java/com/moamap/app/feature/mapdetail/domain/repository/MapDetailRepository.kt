@@ -2,19 +2,11 @@ package com.moamap.app.feature.mapdetail.domain.repository
 
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
-import com.moamap.app.feature.mapdetail.domain.model.MapPlacePreview
 
 interface MapDetailRepository {
 
     /** 지도 한 건. 제작자 닉네임까지 채워서 돌려준다. */
     suspend fun getMapDetail(mapId: Long): MapDetail
-
-    /**
-     * 지도 설명 화면에 얹을 장소 목록.
-     *
-     * @param visibleCount 화면에 보여줄 개수. 더 있는지 알아내려고 한 건 더 받아 온다.
-     */
-    suspend fun getPlacePreview(mapId: Long, visibleCount: Int): MapPlacePreview
 
     /**
      * 지도에 등록된 장소 전부.

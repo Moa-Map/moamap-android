@@ -6,6 +6,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.navigation.MoaMapRoute
+import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.domain.model.MapPlacePreview
 import com.moamap.app.feature.mapdetail.domain.repository.MapDetailRepository
 import com.moamap.app.feature.mapdetail.presentation.JOIN_FAILED_MESSAGE
@@ -30,10 +31,23 @@ private const val TAG = "MapIntroViewModel"
 /** 설명 화면 장소 목록에 보여줄 개수. 피그마가 4개 + `더보기` 다. */
 const val INTRO_PLACE_COUNT = 4
 
+/** 받은 장소에서 목록에 쓸 만큼만 잘라 낸다. */
+private fun List<MapPlace>.toPreview(): MapPlacePreview = MapPlacePreview(
+    places = take(INTRO_PLACE_COUNT),
+    hasMore = size > INTRO_PLACE_COUNT,
+)
+
 @Immutable
 data class MapIntroUiState(
     val map: MapLoadState = MapLoadState.Loading,
     val places: MapPlacePreview = MapPlacePreview(),
+    /**
+     * 지도에 찍을 장소 전부.
+     *
+     * 아래 목록은 [INTRO_PLACE_COUNT] 개만 보여주지만 지도는 다 보여준다 - 참여 전에도
+     * 이 지도에 무엇이 모여 있는지가 참여를 정하는 근거다.
+     */
+    val mapPlaces: List<MapPlace> = emptyList(),
     /** 참여 요청 진행 중. 버튼을 두 번 누르지 못하게 막는다. */
     val joining: Boolean = false,
     /** 한 번 보여주고 지우는 실패 안내. */
@@ -136,13 +150,20 @@ class MapIntroViewModel @Inject constructor(
         _uiState.update { state ->
             state.copy(
                 map = mapState ?: state.map,
-                places = places ?: state.places,
+                places = places?.toPreview() ?: state.places,
+                mapPlaces = places ?: state.mapPlaces,
             )
         }
     }
 
-    private suspend fun runCatchingPlaces(): MapPlacePreview? = try {
-        repository.getPlacePreview(mapId, visibleCount = INTRO_PLACE_COUNT)
+    /**
+     * 장소를 한 번에 다 읽는다.
+     *
+     * 미리보기용으로 네 개만 받던 것을 전부로 넓혔다. 지도가 전부를 찍어야 해서인데,
+     * 목록에 쓸 네 개는 받은 것에서 잘라 쓰면 되므로 왕복이 늘지는 않는다.
+     */
+    private suspend fun runCatchingPlaces(): List<MapPlace>? = try {
+        repository.getPlaces(mapId)
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {

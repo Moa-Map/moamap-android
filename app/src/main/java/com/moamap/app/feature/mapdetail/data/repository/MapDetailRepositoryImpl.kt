@@ -5,7 +5,6 @@ import com.moamap.app.feature.collection.data.remote.MapService
 import com.moamap.app.feature.explore.data.remote.PlaceService
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
-import com.moamap.app.feature.mapdetail.domain.model.MapPlacePreview
 import com.moamap.app.feature.mapdetail.domain.repository.MapDetailRepository
 import com.moamap.app.feature.mypage.data.remote.UserService
 import kotlinx.coroutines.CancellationException
@@ -24,24 +23,6 @@ class MapDetailRepositoryImpl @Inject constructor(
     override suspend fun getMapDetail(mapId: Long): MapDetail {
         val dto = mapService.getMap(mapId)
         return dto.toMapDetail(ownerName = fetchOwnerName(dto.ownerId))
-    }
-
-    /**
-     * 보여줄 개수보다 한 건 더 받아, 그 한 건의 유무로 `더보기` 를 띄울지 정한다.
-     *
-     * 총 개수(`placeCount`)로 판단하지 않는 이유는 승인 대기 중인 장소가 목록에서 빠져
-     * 두 값이 어긋날 수 있기 때문이다.
-     */
-    override suspend fun getPlacePreview(mapId: Long, visibleCount: Int): MapPlacePreview {
-        val places = placeService
-            .getPlaces(mapId = mapId, size = visibleCount + 1)
-            .content
-            .map { dto -> dto.toMapPlace() }
-
-        return MapPlacePreview(
-            places = places.take(visibleCount),
-            hasMore = places.size > visibleCount,
-        )
     }
 
     override suspend fun getPlaces(mapId: Long): List<MapPlace> = collectAllPages { page ->
