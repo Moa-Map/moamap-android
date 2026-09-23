@@ -140,3 +140,24 @@ val MapDetail.leavingDeletesMap: Boolean
         type == MapType.Private &&
         role == MapRole.Owner &&
         memberCount <= 1
+
+/** 나가면 어떻게 되는지. 나가기 확인 팝업이 이 값으로 안내 문구를 고른다. */
+enum class LeaveOutcome {
+    /** 멤버에서 빠진다. 공개 지도라 언제든 다시 참여할 수 있다. */
+    Leave,
+
+    /** 멤버에서 빠진다. 프라이빗 지도는 초대 코드로만 합류해서, 다시 들어오려면 코드가 있어야 한다. */
+    LeaveNeedsInviteCode,
+
+    /** 지도가 삭제된다. 되돌릴 수 없다 - [leavingDeletesMap] 참고. */
+    DeleteMap,
+}
+
+/** 메뉴의 나가기를 눌렀을 때 일어날 일. 나갈 수 없으면 null 이다. */
+val MapDetail.leaveOutcome: LeaveOutcome?
+    get() = when {
+        !canLeaveFromMenu -> null
+        leavingDeletesMap -> LeaveOutcome.DeleteMap
+        type == MapType.Private -> LeaveOutcome.LeaveNeedsInviteCode
+        else -> LeaveOutcome.Leave
+    }

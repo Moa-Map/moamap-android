@@ -6,8 +6,10 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.navigation.MoaMapRoute
+import com.moamap.app.feature.mapdetail.domain.model.LeaveOutcome
 import com.moamap.app.feature.mapdetail.domain.model.MapDetailAction
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
+import com.moamap.app.feature.mapdetail.domain.model.leaveOutcome
 import com.moamap.app.feature.mapdetail.domain.model.leavingDeletesMap
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
@@ -75,6 +77,9 @@ data class MapDetailScreenState(
     val showMenu: Boolean get() = map.mapOrNull?.showsMenu ?: false
 
     val canLeave: Boolean get() = map.mapOrNull?.canLeaveFromMenu ?: false
+
+    /** 나가기 확인 팝업이 고를 안내. 나갈 수 없거나 지도를 아직 못 읽었으면 null 이다. */
+    val leaveOutcome: LeaveOutcome? get() = map.mapOrNull?.leaveOutcome
 
     /** 상단바 초대코드 버튼에 실을 코드. null 이면 버튼을 띄우지 않는다. */
     val inviteCode: String? get() = map.mapOrNull?.shareableInviteCode
