@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -31,6 +32,7 @@ private val DialogBorderWidth = 2.dp
  * 키보드가 올라오는 모달도 있어 [imePadding] 으로 카드가 가리지 않게 한다.
  *
  * @param dismissible 바깥을 누르거나 뒤로가기로 닫을 수 있는지. 요청이 진행 중일 때 잠근다.
+ * @param shape 카드 모서리. 시안마다 달라서 받는다(확인 팝업은 12).
  */
 @Composable
 fun MoaMapDialog(
@@ -41,6 +43,7 @@ fun MoaMapDialog(
     modifier: Modifier = Modifier,
     dismissible: Boolean = true,
     backgroundColor: Color = MoaMapPrimitiveColors.White,
+    shape: Shape = DialogShape,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Dialog(
@@ -57,7 +60,7 @@ fun MoaMapDialog(
                 .dismissKeyboardOnBackgroundTap()
                 .width(width)
                 .imePadding(),
-            shape = DialogShape,
+            shape = shape,
             color = backgroundColor,
             border = BorderStroke(DialogBorderWidth, MoaMapPrimitiveColors.Blue500),
         ) {

@@ -244,6 +244,9 @@ fun MapDetailScreen(
     // 코드는 상세 응답에 실려 있다. 여는지 마는지만 화면이 들고 있으면 된다.
     var inviteCodeDialogVisible by rememberSaveable { mutableStateOf(false) }
 
+    // 나가기는 바로 하지 않고 이 팝업에서 한 번 더 묻는다.
+    var leaveDialogVisible by rememberSaveable { mutableStateOf(false) }
+
     var uiState by rememberSaveable(stateSaver = MapDetailUiStateSaver) {
         mutableStateOf(MapDetailUiState())
     }
@@ -598,7 +601,7 @@ fun MapDetailScreen(
                 },
                 onLeaveClick = {
                     menuVisible = false
-                    viewModel.leave()
+                    leaveDialogVisible = true
                 },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
@@ -709,6 +712,21 @@ fun MapDetailScreen(
             mapName = screenState.title ?: initialTitle,
             inviteCode = inviteCode,
             onDismiss = { inviteCodeDialogVisible = false },
+        )
+    }
+
+    // 초대 코드 팝업과 같다. 나갈 수 없는 상태가 되면 같이 닫힌다.
+    val leaveOutcome = screenState.leaveOutcome
+    if (leaveDialogVisible && leaveOutcome != null) {
+        MapLeaveDialog(
+            mapName = screenState.title ?: initialTitle,
+            outcome = leaveOutcome,
+            onConfirm = {
+                // 바로 닫고 진행한다. 성공하면 화면을 떠나고, 실패하면 스낵바로 알린다.
+                leaveDialogVisible = false
+                viewModel.leave()
+            },
+            onDismiss = { leaveDialogVisible = false },
         )
     }
 

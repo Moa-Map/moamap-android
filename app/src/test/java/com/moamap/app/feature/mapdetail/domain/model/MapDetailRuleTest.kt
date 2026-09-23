@@ -203,6 +203,48 @@ class MapDetailRuleTest {
         )
     }
 
+    // ---------- 나가면 일어날 일 ----------
+
+    @Test
+    fun `공개 지도에서 나가면 그냥 빠진다`() {
+        assertEquals(
+            LeaveOutcome.Leave,
+            map(MapType.Community, MapRole.Member, joined = true).leaveOutcome,
+        )
+        assertEquals(
+            LeaveOutcome.Leave,
+            map(MapType.Community, MapRole.Admin, joined = true).leaveOutcome,
+        )
+        assertEquals(
+            LeaveOutcome.Leave,
+            map(MapType.Official, MapRole.Member, joined = true).leaveOutcome,
+        )
+    }
+
+    @Test
+    fun `프라이빗 멤버가 나가면 다시 들어올 때 초대 코드가 필요하다`() {
+        assertEquals(
+            LeaveOutcome.LeaveNeedsInviteCode,
+            map(MapType.Private, MapRole.Member, joined = true, memberCount = 3).leaveOutcome,
+        )
+    }
+
+    @Test
+    fun `프라이빗 지도에 혼자 남은 방장이 나가면 지도가 삭제된다`() {
+        assertEquals(
+            LeaveOutcome.DeleteMap,
+            map(MapType.Private, MapRole.Owner, joined = true, memberCount = 1).leaveOutcome,
+        )
+    }
+
+    @Test
+    fun `나갈 수 없는 지도는 물어볼 것이 없다`() {
+        assertNull(map(MapType.Community, MapRole.Owner, joined = true).leaveOutcome)
+        assertNull(map(MapType.Private, MapRole.Owner, joined = true, memberCount = 3).leaveOutcome)
+        assertNull(map(MapType.Private, MapRole.Owner, joined = true, personal = true).leaveOutcome)
+        assertNull(map(MapType.Community, MapRole.None, joined = false).leaveOutcome)
+    }
+
     // ---------- 초대 코드 ----------
 
     @Test
