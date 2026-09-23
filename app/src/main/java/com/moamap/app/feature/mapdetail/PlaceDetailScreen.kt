@@ -254,7 +254,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.reviewItems(
         reviews.items.isEmpty() -> item {
             ReviewPlaceholder {
                 Text(
-                    text = "아직 후기가 없어요",
+                    text = "아직 댓글이 없어요",
                     style = MoaMapTheme.typography.body2,
                     color = MoaMapTheme.colors.textAssistive,
                 )
@@ -675,7 +675,7 @@ private fun ReviewComposer(
                                 if (reviewText.isEmpty()) {
                                     Text(
                                         text = if (onSubmitReview == null) {
-                                            "지도에 참여하면 후기를 남길 수 있어요"
+                                            "지도에 참여하면 댓글을 남길 수 있어요"
                                         } else {
                                             "이 장소에 대한 경험을 공유해주세요"
                                         },
@@ -705,7 +705,7 @@ private fun ReviewComposer(
                         // 입력은 여기서 비우지 않는다. 서버가 받아들였는지는 아직 모른다.
                         onClick = { trySubmitReview(reviewText, photo, onSubmitReview) },
                     )
-                    .semantics { contentDescription = "후기 보내기" },
+                    .semantics { contentDescription = "댓글 보내기" },
                 contentAlignment = Alignment.Center,
             ) {
                 if (reviews.submitting) {
@@ -828,7 +828,7 @@ private fun ReviewRow(review: PlaceReviewUiModel) {
                 review.photoUrl?.let { url ->
                     AsyncImage(
                         model = url,
-                        contentDescription = "후기 사진",
+                        contentDescription = "댓글 사진",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .padding(top = 4.dp)

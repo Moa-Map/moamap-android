@@ -117,8 +117,8 @@ private fun MapActivity.toMessage(): String = when (type) {
 
     // 별점은 적지 않는다. 화면에서 별점을 없앴고, 새 후기는 고정 별점이라 의미가 없다.
     MapActivityType.ReviewCreated -> placeName
-        ?.let { name -> "‘$name’ 에 후기를 남겼어요" }
-        ?: "후기를 남겼어요"
+        ?.let { name -> "‘$name’ 에 댓글을 남겼어요" }
+        ?: "댓글을 남겼어요"
 }
 
 /** 한글 음절 영역. 이 밖의 글자는 받침을 따질 수 없다. */

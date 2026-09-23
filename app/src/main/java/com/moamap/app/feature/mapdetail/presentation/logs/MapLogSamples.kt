@@ -32,7 +32,7 @@ internal val SampleMapLogs = listOf(
         type = MapLogType.ReviewCreated,
         userName = "박지훈",
         userImageUrl = null,
-        message = "‘대림창고’ 에 별점 4점 후기를 남겼어요",
+        message = "‘대림창고’ 에 댓글을 남겼어요",
         timeAgo = "5시간 전",
     ),
     MapLogUiModel(
