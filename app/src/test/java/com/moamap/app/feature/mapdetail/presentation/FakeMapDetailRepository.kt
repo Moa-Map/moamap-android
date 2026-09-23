@@ -67,9 +67,13 @@ internal open class FakeMapDetailRepository(
         return allPlaces()
     }
 
+    /** 참여를 실패시켜야 하는 테스트가 있다. 비어 있으면 성공한다. */
+    var joinFailure: Throwable? = null
+
     override suspend fun joinMap(mapId: Long) {
         calls += "joinMap"
         delay(responseDelayMillis)
+        joinFailure?.let { throw it }
     }
 
     override suspend fun leaveMap(mapId: Long) {

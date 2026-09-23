@@ -161,6 +161,41 @@ class MapDetailViewModelTest {
         assertEquals(MapDetailAction.Leave, viewModel.uiState.value.action)
         assertTrue(viewModel.uiState.value.canAddPlace)
         assertFalse(viewModel.uiState.value.left)
+        // 미리보기를 거쳐 들어왔다면 뒤로 갈 때 그 화면을 건너뛰어야 한다.
+        assertTrue(viewModel.uiState.value.joinedHere)
+    }
+
+    @Test
+    fun `참여에 실패하면 건너뛸 이유도 없다`() = runTest {
+        val repository = FakeMapDetailRepository(map = { testMap() })
+        repository.joinFailure = RuntimeException("boom")
+        val viewModel = viewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.join()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.joinedHere)
+    }
+
+    @Test
+    fun `참여했다가 나가면 건너뛰기를 끈다`() = runTest {
+        var joined = false
+        val repository = FakeMapDetailRepository(
+            map = { testMap(joined = joined, role = if (joined) MapRole.Member else MapRole.None) },
+        )
+        val viewModel = viewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        joined = true
+        viewModel.join()
+        dispatcher.scheduler.advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.joinedHere)
+
+        viewModel.leave()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.joinedHere)
     }
 
     @Test
