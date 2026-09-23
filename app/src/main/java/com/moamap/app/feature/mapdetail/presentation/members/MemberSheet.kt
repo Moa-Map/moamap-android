@@ -252,7 +252,7 @@ private fun RoleGuideTooltip() {
     ) {
         RoleGuideColumn("방장", "장소 신청 수락·거절,\n권한 위임, 강퇴")
         RoleGuideColumn("관리자", "장소 신청 수락·거절")
-        RoleGuideColumn("멤버", "장소 신청,\n별점·댓글")
+        RoleGuideColumn("멤버", "장소 신청,\n댓글")
     }
 }
 

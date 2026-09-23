@@ -22,9 +22,9 @@ import javax.inject.Inject
 
 private const val TAG = "PlaceReviewViewModel"
 
-internal const val REVIEW_LOAD_FAILED_MESSAGE = "후기를 불러오지 못했어요"
-internal const val REVIEW_SUBMIT_FAILED_MESSAGE = "후기를 남기지 못했어요"
-internal const val NOT_MAP_MEMBER_MESSAGE = "지도에 참여해야 후기를 남길 수 있어요"
+internal const val REVIEW_LOAD_FAILED_MESSAGE = "댓글을 불러오지 못했어요"
+internal const val REVIEW_SUBMIT_FAILED_MESSAGE = "댓글을 남기지 못했어요"
+internal const val NOT_MAP_MEMBER_MESSAGE = "지도에 참여해야 댓글을 남길 수 있어요"
 internal const val REVIEW_EMPTY_MESSAGE = "내용이나 사진을 남겨주세요"
 
 /** `[403] PLACE_002: 해당 지도의 멤버가 아닙니다.` */
