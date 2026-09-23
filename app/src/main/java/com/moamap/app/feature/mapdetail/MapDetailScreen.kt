@@ -136,7 +136,13 @@ private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
 
 @Composable
 fun MapDetailScreen(
-    onBackClick: () -> Unit,
+    /**
+     * 뒤로 갈 때. 이 화면에서 참여했는지를 함께 넘긴다.
+     *
+     * 미리보기를 거쳐 들어와 참여했으면 소개 화면을 건너뛰어야 하는데, 어디까지 되돌릴지는
+     * 백스택을 아는 쪽(내비게이션)이 정한다.
+     */
+    onBackClick: (joinedHere: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     /** 서버 응답이 오기 전 상단바를 채우는 초기값. 응답이 도착하면 덮어쓴다. */
     initialTitle: String = "",
@@ -166,7 +172,8 @@ fun MapDetailScreen(
 
     // 나가기가 끝나면 왔던 곳(탐색 또는 모음)으로 돌아간다.
     LaunchedEffect(screenState.left) {
-        if (screenState.left) onBackClick()
+        // 나간 뒤에는 멤버가 아니다. 소개 화면이 남아 있으면 그쪽으로 돌아가는 게 맞다.
+        if (screenState.left) onBackClick(false)
     }
 
     val context = LocalContext.current
@@ -479,7 +486,7 @@ fun MapDetailScreen(
             canAddPlace = screenState.canAddPlace,
             myLocationInProgress = myLocationInProgress,
             selectedTab = uiState.selectedTab,
-            onBackClick = onBackClick,
+            onBackClick = { onBackClick(screenState.joinedHere) },
             // 상단바에 글자로 남은 액션은 참여하기뿐이다. 나가기는 메뉴로 들어갔다.
             onActionClick = viewModel::join,
             showMenu = screenState.showMenu,
@@ -662,6 +669,8 @@ fun MapDetailScreen(
     }
 
     // 나중에 선언한 쪽이 먼저 받는다. 메뉴가 떠 있으면 메뉴부터 닫는다.
+    // 이 화면에서 참여했으면 기기 뒤로가기도 상단 바 뒤로가기와 같은 길로 보낸다.
+    BackHandler(enabled = screenState.joinedHere) { onBackClick(true) }
     BackHandler(enabled = postCreateVisible) { postCreateVisible = false }
     BackHandler(enabled = mapManageVisible) { mapManageVisible = false }
     BackHandler(enabled = menuVisible) { menuVisible = false }
