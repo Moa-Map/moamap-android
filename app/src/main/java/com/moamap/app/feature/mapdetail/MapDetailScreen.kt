@@ -21,7 +21,7 @@ import com.moamap.app.feature.mapdetail.presentation.logs.PendingRequestViewMode
 import com.moamap.app.feature.mapdetail.presentation.logs.toMapLogUiModels
 import com.moamap.app.feature.mapdetail.presentation.logs.toPendingRequestUiModels
 import com.moamap.app.feature.mapdetail.presentation.manage.MapManageScreen
-import com.moamap.app.feature.mapdetail.presentation.members.MemberSheet
+import com.moamap.app.feature.mapdetail.presentation.members.MemberScreen
 import com.moamap.app.feature.mapdetail.presentation.members.MemberViewModel
 import com.moamap.app.feature.mapdetail.domain.model.MapPostSort
 import com.moamap.app.feature.mapdetail.presentation.posts.MapPostListUiState
@@ -225,7 +225,7 @@ fun MapDetailScreen(
     }
 
     var addPlaceSheetVisible by rememberSaveable { mutableStateOf(false) }
-    var memberSheetVisible by rememberSaveable { mutableStateOf(false) }
+    var memberPageVisible by rememberSaveable { mutableStateOf(false) }
 
     // 메뉴는 화면을 돌리면 닫혀도 된다. 지도 관리는 들어가 있던 화면이라 되살린다.
     var menuVisible by remember { mutableStateOf(false) }
@@ -579,6 +579,23 @@ fun MapDetailScreen(
             )
         }
 
+        if (memberPageVisible) {
+            // 페이지를 열 때 읽는다.
+            LaunchedEffect(Unit) { memberViewModel.loadOnce() }
+
+            MemberScreen(
+                members = memberState.members,
+                loading = memberState.loading,
+                errorMessage = memberState.errorMessage,
+                roleDisplay = screenState.memberRoleDisplay,
+                canGrantRole = screenState.canGrantRole,
+                granting = memberState.granting,
+                onGrantRoleClick = memberViewModel::grantAdmin,
+                onRetryClick = memberViewModel::retry,
+                onBackClick = { memberPageVisible = false },
+            )
+        }
+
         // 나가서 참여가 풀리면 메뉴도 함께 닫힌다.
         if (menuVisible && screenState.showMenu) {
             // 메뉴 밖을 누르면 닫는다.
@@ -593,7 +610,7 @@ fun MapDetailScreen(
                 canLeave = screenState.canLeave,
                 onMembersClick = {
                     menuVisible = false
-                    memberSheetVisible = true
+                    memberPageVisible = true
                 },
                 onManageClick = {
                     menuVisible = false
@@ -676,6 +693,7 @@ fun MapDetailScreen(
     BackHandler(enabled = screenState.joinedHere) { onBackClick(true) }
     BackHandler(enabled = postCreateVisible) { postCreateVisible = false }
     BackHandler(enabled = mapManageVisible) { mapManageVisible = false }
+    BackHandler(enabled = memberPageVisible) { memberPageVisible = false }
     BackHandler(enabled = menuVisible) { menuVisible = false }
     // 장소 상세가 가장 위에 떠 있다. 기기 뒤로가기는 이걸 먼저 닫는다.
     BackHandler(enabled = uiState.selectedPlaceId != null) { closePlaceDetail() }
@@ -727,23 +745,6 @@ fun MapDetailScreen(
                 viewModel.leave()
             },
             onDismiss = { leaveDialogVisible = false },
-        )
-    }
-
-    if (memberSheetVisible) {
-        // 시트를 열 때 읽는다.
-        LaunchedEffect(Unit) { memberViewModel.loadOnce() }
-
-        MemberSheet(
-            members = memberState.members,
-            loading = memberState.loading,
-            errorMessage = memberState.errorMessage,
-            showRoles = screenState.showMemberRoles,
-            canGrantRole = screenState.canGrantRole,
-            granting = memberState.granting,
-            onGrantRoleClick = memberViewModel::grantAdmin,
-            onRetryClick = memberViewModel::retry,
-            onDismiss = { memberSheetVisible = false },
         )
     }
 }
