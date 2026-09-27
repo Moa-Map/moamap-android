@@ -1,23 +1,31 @@
 package com.moamap.app.feature.mapdetail
 
 import android.net.Uri
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.Orientation
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.draggable
+import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -33,6 +41,8 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -42,15 +52,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.R
 import com.moamap.app.core.common.imagepicker.rememberImagePickerController
 import com.moamap.app.core.common.imagepicker.rememberImagePickerState
@@ -60,12 +71,20 @@ import com.moamap.app.core.designsystem.component.ButtonShadowColor
 import com.moamap.app.core.designsystem.component.CardShadowBlurRadius
 import com.moamap.app.core.designsystem.component.CardShadowColor
 import com.moamap.app.core.designsystem.component.ImageSourceMenu
+import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
 import com.moamap.app.core.designsystem.component.ShadowedSurface
+import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.mapdetail.presentation.addplace.PLACE_PHOTO_CACHE_DIRECTORY
+import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 private val PlaceImageShape = RoundedCornerShape(4.dp)
+private val SwipeActionWidth = 72.dp
+
+/** 시안의 삭제·신고 빨강. 디자인 토큰에 없는 색이라 여기 둔다. */
+private val SwipeDangerColor = Color(0xFFD9402F)
 private val PlaceImageSize = 107.dp
 private val PlaceCategoryShape = RoundedCornerShape(100.dp)
 private val PlaceActionShape = RoundedCornerShape(8.dp)
@@ -113,6 +132,9 @@ internal fun PlaceDetailScreen(
     onAddToPersonalMapClick: () -> Unit = {},
     onSubmitReview: ((reviewText: String, photo: Uri?) -> Boolean)? = null,
     onLikeClick: () -> Unit = {},
+    onEditReview: (Long) -> Unit = {},
+    onCancelEdit: () -> Unit = {},
+    onDeleteReview: (Long) -> Unit = {},
 ) {
     PlaceDetailContent(
         place = place,
@@ -125,6 +147,9 @@ internal fun PlaceDetailScreen(
         onAddToPersonalMapClick = onAddToPersonalMapClick,
         onSubmitReview = onSubmitReview,
         onLikeClick = onLikeClick,
+        onEditReview = onEditReview,
+        onCancelEdit = onCancelEdit,
+        onDeleteReview = onDeleteReview,
         modifier = modifier
             .fillMaxSize()
             .background(MoaMapTheme.colors.backgroundSecondary)
@@ -165,8 +190,15 @@ private fun PlaceDetailContent(
     onAddToPersonalMapClick: () -> Unit = {},
     onSubmitReview: ((reviewText: String, photo: Uri?) -> Boolean)? = null,
     onLikeClick: () -> Unit = {},
+    onEditReview: (Long) -> Unit = {},
+    onCancelEdit: () -> Unit = {},
+    onDeleteReview: (Long) -> Unit = {},
 ) {
     var reviewPhoto by rememberSaveable(place.id) { mutableStateOf<Uri?>(null) }
+    // 옆으로 밀어 버튼이 드러난 댓글. 한 번에 한 줄만 연다.
+    var openReviewId by remember(place.id) { mutableStateOf<Long?>(null) }
+    // 삭제를 확인받는 중인 댓글.
+    var deleteTargetId by remember(place.id) { mutableStateOf<Long?>(null) }
     val pickerState = rememberImagePickerState()
     val pickerController = rememberImagePickerController(
         state = pickerState,
@@ -213,7 +245,24 @@ private fun PlaceDetailContent(
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
-                reviewItems(reviews = reviews, onRetryReviews = onRetryReviews)
+                reviewItems(
+                    reviews = reviews,
+                    onRetryReviews = onRetryReviews,
+                    // 수정·삭제·신고는 모두 지도 멤버만 할 수 있다. 참여하지 않았으면 밀리지 않는다.
+                    swipeEnabled = onSubmitReview != null,
+                    openReviewId = openReviewId,
+                    onOpenChange = { id, open ->
+                        openReviewId = if (open) id else openReviewId.takeUnless { it == id }
+                    },
+                    onEditClick = { id ->
+                        openReviewId = null
+                        onEditReview(id)
+                    },
+                    onDeleteClick = { id ->
+                        openReviewId = null
+                        deleteTargetId = id
+                    },
+                )
             }
 
             ReviewComposer(
@@ -224,6 +273,21 @@ private fun PlaceDetailContent(
                 onRemovePhotoClick = { reviewPhoto = null },
                 onPhotoSubmitted = { reviewPhoto = null },
                 onSubmitReview = onSubmitReview,
+                editing = reviews.items.firstOrNull { item -> item.id == reviews.editingReviewId },
+                onCancelEdit = onCancelEdit,
+            )
+        }
+
+        deleteTargetId?.let { id ->
+            MoaMapConfirmDialog(
+                title = "댓글을 삭제하시겠습니까?",
+                message = "삭제한 댓글은 되돌릴 수 없습니다",
+                confirmText = "삭제",
+                onConfirm = {
+                    deleteTargetId = null
+                    onDeleteReview(id)
+                },
+                onDismissRequest = { deleteTargetId = null },
             )
         }
 
@@ -248,6 +312,11 @@ private fun PlaceDetailContent(
 private fun androidx.compose.foundation.lazy.LazyListScope.reviewItems(
     reviews: PlaceReviewsUiModel,
     onRetryReviews: () -> Unit,
+    swipeEnabled: Boolean = false,
+    openReviewId: Long? = null,
+    onOpenChange: (Long, Boolean) -> Unit = { _, _ -> },
+    onEditClick: (Long) -> Unit = {},
+    onDeleteClick: (Long) -> Unit = {},
 ) {
     val loadErrorMessage = reviews.loadErrorMessage
     when {
@@ -273,7 +342,23 @@ private fun androidx.compose.foundation.lazy.LazyListScope.reviewItems(
             items = reviews.items,
             key = PlaceReviewUiModel::id,
         ) { review ->
-            ReviewRow(review = review)
+            // 시안 `1841:11219`·`1841:11391`: 내 댓글은 수정·삭제, 남의 댓글은 신고.
+            // 신고는 사유를 정하기 전이라 아직 누를 수 없다.
+            val actions = when {
+                !swipeEnabled -> emptyList()
+                review.mine -> listOf(
+                    SwipeAction("수정", MoaMapPrimitiveColors.Gray200) { onEditClick(review.id) },
+                    SwipeAction("삭제", SwipeDangerColor) { onDeleteClick(review.id) },
+                )
+                else -> listOf(SwipeAction("신고", SwipeDangerColor, onClick = null))
+            }
+            SwipeRevealRow(
+                actions = actions,
+                open = openReviewId == review.id,
+                onOpenChange = { open -> onOpenChange(review.id, open) },
+            ) {
+                ReviewRow(review = review)
+            }
         }
     }
 }
@@ -636,10 +721,28 @@ private fun ReviewComposer(
     onRemovePhotoClick: () -> Unit,
     onPhotoSubmitted: () -> Unit,
     onSubmitReview: ((reviewText: String, photo: Uri?) -> Boolean)?,
+    /** 고치고 있는 내 댓글. 있으면 입력창이 그 글로 채워지고 보내기가 수정이 된다. */
+    editing: PlaceReviewUiModel? = null,
+    onCancelEdit: () -> Unit = {},
 ) {
     var reviewText by rememberSaveable(placeId) { mutableStateOf("") }
     val inputEnabled = onSubmitReview != null && !reviews.submitting
-    val canSend = inputEnabled && (reviewText.isNotBlank() || photo != null)
+    // 사진이 있는 댓글은 글을 비워도 고칠 수 있다. 사진은 그대로 남는다.
+    val canSend = inputEnabled &&
+        (reviewText.isNotBlank() || photo != null || editing?.photoUrl != null)
+
+    // 고치기 시작하면 원래 글을 채우고, 끝나면(취소·삭제) 비운다. 고른 사진은 뺀다 - 사진은 고치지 않는다.
+    var prefilledId by remember(placeId) { mutableStateOf<Long?>(null) }
+    LaunchedEffect(editing?.id) {
+        val editingId = editing?.id
+        if (editing != null) {
+            reviewText = editing.message
+            onRemovePhotoClick()
+        } else if (prefilledId != null) {
+            reviewText = ""
+        }
+        prefilledId = editingId
+    }
 
     LaunchedEffect(reviews.submittedCount) {
         if (reviews.submittedCount > 0) {
@@ -656,6 +759,26 @@ private fun ReviewComposer(
             .padding(top = 8.dp, bottom = 20.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        if (editing != null) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "댓글 수정 중",
+                    style = MoaMapTheme.typography.caption0,
+                    color = MoaMapTheme.colors.textAlternative,
+                )
+                Text(
+                    text = "취소",
+                    style = MoaMapTheme.typography.caption0,
+                    color = MoaMapTheme.colors.textNormal,
+                    modifier = Modifier.clickable(enabled = !reviews.submitting, onClick = onCancelEdit),
+                )
+            }
+        }
+
         if (photo != null) {
             ReviewDraftPhoto(
                 photo = photo,
@@ -689,7 +812,7 @@ private fun ReviewComposer(
                             .size(32.dp)
                             // 사진은 한 장만 받는다. 이미 골랐으면 지우고 다시 고른다.
                             .clickable(
-                                enabled = inputEnabled && photo == null,
+                                enabled = inputEnabled && photo == null && editing == null,
                                 role = Role.Button,
                                 onClick = onAddPhotoClick,
                             )
@@ -699,7 +822,7 @@ private fun ReviewComposer(
                         Icon(
                             painter = painterResource(R.drawable.ic_add),
                             contentDescription = null,
-                            tint = if (inputEnabled && photo == null) {
+                            tint = if (inputEnabled && photo == null && editing == null) {
                                 MoaMapTheme.colors.textNormal
                             } else {
                                 MoaMapTheme.colors.textDisable
@@ -819,6 +942,85 @@ private fun ReviewDraftPhoto(
                     modifier = Modifier.size(14.dp),
                 )
             }
+        }
+    }
+}
+
+/** 밀었을 때 드러나는 버튼. [onClick] 이 null 이면 보이기만 하고 눌리지 않는다. */
+private class SwipeAction(val label: String, val color: Color, val onClick: (() -> Unit)?)
+
+/**
+ * 왼쪽으로 밀면 오른쪽에 [actions] 가 드러나는 줄. 버튼은 폭 72, 줄 높이 전체다.
+ *
+ * 절반 넘게 밀고 놓으면 열리고, 아니면 닫힌다. 열린 채로 줄을 누르면 닫힌다.
+ * 버튼이 없으면 밀리지 않는다.
+ */
+@Composable
+private fun SwipeRevealRow(
+    actions: List<SwipeAction>,
+    open: Boolean,
+    onOpenChange: (Boolean) -> Unit,
+    content: @Composable () -> Unit,
+) {
+    if (actions.isEmpty()) {
+        content()
+        return
+    }
+
+    val revealPx = with(LocalDensity.current) { (SwipeActionWidth * actions.size).toPx() }
+    val offset = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(open, revealPx) { offset.animateTo(if (open) -revealPx else 0f) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min),
+    ) {
+        Row(
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight(),
+        ) {
+            actions.forEach { action ->
+                val onClick = action.onClick
+                Box(
+                    modifier = Modifier
+                        .width(SwipeActionWidth)
+                        .fillMaxHeight()
+                        .background(action.color)
+                        .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text = action.label,
+                        style = MoaMapTheme.typography.body2,
+                        color = MoaMapTheme.colors.textWhite,
+                    )
+                }
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .offset { IntOffset(offset.value.roundToInt(), 0) }
+                // 밑의 버튼이 비치지 않게 화면 배경으로 덮는다.
+                .background(MoaMapTheme.colors.backgroundSecondary)
+                .clickable(enabled = open) { onOpenChange(false) }
+                .draggable(
+                    orientation = Orientation.Horizontal,
+                    state = rememberDraggableState { delta ->
+                        scope.launch { offset.snapTo((offset.value + delta).coerceIn(-revealPx, 0f)) }
+                    },
+                    onDragStopped = {
+                        val shouldOpen = offset.value < -revealPx / 2
+                        onOpenChange(shouldOpen)
+                        offset.animateTo(if (shouldOpen) -revealPx else 0f)
+                    },
+                ),
+        ) {
+            content()
         }
     }
 }
