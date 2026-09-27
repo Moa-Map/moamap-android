@@ -19,6 +19,8 @@ import com.moamap.app.feature.mapdetail.domain.model.shareableInviteCode
 import com.moamap.app.feature.mapdetail.domain.model.showsMenu
 import com.moamap.app.feature.mapdetail.domain.model.topBarAction
 import com.moamap.app.feature.mapdetail.domain.repository.MapDetailRepository
+import com.moamap.app.feature.mapdetail.presentation.members.MemberRoleDisplay
+import com.moamap.app.feature.mapdetail.presentation.members.memberRoleDisplayOf
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -112,9 +114,9 @@ data class MapDetailScreenState(
                 (detail.role == MapRole.Owner || detail.role == MapRole.Admin)
         } ?: false
 
-    /** 멤버 카드에 방장·관리자 표시를 붙일지. 프라이빗 지도는 역할이 없다. */
-    val showMemberRoles: Boolean
-        get() = map.mapOrNull?.type == MapType.Community
+    /** 멤버 관리에서 역할을 어디까지 드러낼지. 지도를 아직 못 읽었으면 아무것도 붙이지 않는다. */
+    internal val memberRoleDisplay: MemberRoleDisplay
+        get() = map.mapOrNull?.type?.let(::memberRoleDisplayOf) ?: MemberRoleDisplay.None
 
     /** 권한 위임은 방장 권한이다. 역할 안내 툴팁도 그렇게 적혀 있다. */
     val canGrantRole: Boolean
