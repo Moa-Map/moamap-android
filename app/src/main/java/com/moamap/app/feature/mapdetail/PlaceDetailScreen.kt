@@ -72,6 +72,7 @@ import com.moamap.app.core.designsystem.component.CardShadowBlurRadius
 import com.moamap.app.core.designsystem.component.CardShadowColor
 import com.moamap.app.core.designsystem.component.ImageSourceMenu
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
+import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -80,7 +81,6 @@ import com.moamap.app.feature.mapdetail.presentation.addplace.PLACE_PHOTO_CACHE_
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
-private val PlaceImageShape = RoundedCornerShape(4.dp)
 private val SwipeActionWidth = 72.dp
 
 /** 시안의 삭제·신고 빨강. 디자인 토큰에 없는 색이라 여기 둔다. */
@@ -460,29 +460,7 @@ private fun PlaceHeader(place: PlaceUiModel, onLikeClick: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(20.dp),
         verticalAlignment = Alignment.Top,
     ) {
-        Box(
-            modifier = Modifier
-                .size(PlaceImageSize)
-                .clip(PlaceImageShape)
-                .background(
-                    color = MoaMapPrimitiveColors.Yellow50,
-                    shape = PlaceImageShape,
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_photo_camera),
-                contentDescription = null,
-                tint = MoaMapPrimitiveColors.Gray500,
-                modifier = Modifier.size(24.dp),
-            )
-            AsyncImage(
-                model = place.photoUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize(),
-            )
-        }
+        PhotoThumbnail(imageUrl = place.photoUrl, size = PlaceImageSize)
 
         Column(
             modifier = Modifier.weight(1f),
