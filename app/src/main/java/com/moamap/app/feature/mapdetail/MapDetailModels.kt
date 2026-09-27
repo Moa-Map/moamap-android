@@ -4,7 +4,6 @@ import androidx.compose.runtime.Immutable
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.domain.model.PlaceCategoryGroup
 import com.moamap.app.feature.mapdetail.domain.model.PlaceReview
-import com.moamap.app.feature.mapdetail.domain.model.areaLabel
 import com.moamap.app.feature.mapdetail.domain.model.categoryLabel
 
 internal enum class MapDetailTab(val label: String) {
@@ -58,10 +57,12 @@ internal data class PlaceUiModel(
     val name: String,
     val description: String,
     val category: String,
-    val area: String,
     val address: String,
     val reviewCount: Int,
-    val favorite: Boolean,
+    /** 내가 하트를 눌러 둔 상태인지. */
+    val liked: Boolean,
+    /** 하트 수. 장소 상세에만 보인다(목록은 하트만). */
+    val likeCount: Int = 0,
     /** 목록 썸네일. 없으면 플레이스홀더를 띄운다. */
     val photoUrl: String? = null,
     /** 카카오맵으로 열 때 쓴다. 비어 있으면 이름으로 찾는다. */
@@ -72,19 +73,16 @@ internal data class PlaceUiModel(
 
 /**
  * 서버에서 받은 장소를 목록 카드가 읽는 모양으로 옮긴다.
- *
- * [PlaceUiModel.favorite] 은 늘 false 다. 즐겨찾기에 해당하는 서버 필드가 아직 없어
- * 켤 근거가 없다. 하트는 디자인대로 그려지되 빈 상태로 남는다.
  */
 internal fun MapPlace.toPlaceUiModel(): PlaceUiModel = PlaceUiModel(
     id = id,
     name = name,
     description = description,
     category = categoryLabel,
-    area = areaLabel,
     address = address,
     reviewCount = reviewCount,
-    favorite = false,
+    liked = liked,
+    likeCount = likeCount,
     photoUrl = photoUrl,
     kakaoPlaceId = kakaoPlaceId,
     categoryGroup = PlaceCategoryGroup.fromCategoryPath(category),
@@ -253,40 +251,38 @@ internal val SamplePlaces = listOf(
         name = "커피나무",
         description = "따뜻한 분위기에서 스페셜티 커피를 즐길 수 있는 카페",
         category = "카페",
-        area = "성수",
         address = "서울 성동구 성수이로 12",
         reviewCount = 124,
-        favorite = true,
+        liked = true,
+        likeCount = 12,
     ),
     PlaceUiModel(
         id = 2L,
         name = "달빛정원",
         description = "제철 식재료로 만든 계절 요리를 선보이는 아늑한 식당",
         category = "식당",
-        area = "한남",
         address = "서울 용산구 한남대로 21",
         reviewCount = 87,
-        favorite = false,
+        liked = false,
     ),
     PlaceUiModel(
         id = 3L,
         name = "책향기",
         description = "책과 커피를 함께 즐기며 쉬어 갈 수 있는 조용한 공간",
         category = "데이트",
-        area = "연남",
         address = "서울 마포구 동교로5길 8",
         reviewCount = 63,
-        favorite = true,
+        liked = true,
+        likeCount = 12,
     ),
     PlaceUiModel(
         id = 4L,
         name = "루프탑 야경 바",
         description = "서울의 야경과 시그니처 칵테일을 함께 즐기는 루프탑 바",
         category = "놀거리",
-        area = "이태원",
         address = "서울 용산구 이태원로 30",
         reviewCount = 51,
-        favorite = false,
+        liked = false,
     ),
 )
 

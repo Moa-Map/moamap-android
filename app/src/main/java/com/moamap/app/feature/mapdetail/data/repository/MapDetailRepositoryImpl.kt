@@ -5,6 +5,7 @@ import com.moamap.app.feature.collection.data.remote.MapService
 import com.moamap.app.feature.explore.data.remote.PlaceService
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
+import com.moamap.app.feature.mapdetail.domain.model.PlaceLike
 import com.moamap.app.feature.mapdetail.domain.repository.MapDetailRepository
 import com.moamap.app.feature.mypage.data.remote.UserService
 import kotlinx.coroutines.CancellationException
@@ -39,6 +40,11 @@ class MapDetailRepositoryImpl @Inject constructor(
 
     override suspend fun deleteMap(mapId: Long) {
         mapService.deleteMap(mapId)
+    }
+
+    override suspend fun setPlaceLiked(placeId: Long, liked: Boolean): PlaceLike {
+        val dto = if (liked) placeService.likePlace(placeId) else placeService.unlikePlace(placeId)
+        return PlaceLike(liked = dto.liked, likeCount = dto.likeCount)
     }
 
     /**

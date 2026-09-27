@@ -65,7 +65,8 @@ import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.mapdetail.presentation.addplace.PLACE_PHOTO_CACHE_DIRECTORY
 
-private val PlaceImageShape = RoundedCornerShape(16.dp)
+private val PlaceImageShape = RoundedCornerShape(4.dp)
+private val PlaceImageSize = 107.dp
 private val PlaceCategoryShape = RoundedCornerShape(100.dp)
 private val PlaceActionShape = RoundedCornerShape(8.dp)
 private val ReviewInputShape = RoundedCornerShape(100.dp)
@@ -111,6 +112,7 @@ internal fun PlaceDetailScreen(
     personalMapAction: PersonalMapActionUiModel? = null,
     onAddToPersonalMapClick: () -> Unit = {},
     onSubmitReview: ((reviewText: String, photo: Uri?) -> Boolean)? = null,
+    onLikeClick: () -> Unit = {},
 ) {
     PlaceDetailContent(
         place = place,
@@ -122,6 +124,7 @@ internal fun PlaceDetailScreen(
         personalMapAction = personalMapAction,
         onAddToPersonalMapClick = onAddToPersonalMapClick,
         onSubmitReview = onSubmitReview,
+        onLikeClick = onLikeClick,
         modifier = modifier
             .fillMaxSize()
             .background(MoaMapTheme.colors.backgroundSecondary)
@@ -131,7 +134,7 @@ internal fun PlaceDetailScreen(
     )
 }
 
-internal fun favoriteIconRes(favorite: Boolean): Int = if (favorite) {
+internal fun likeIconRes(liked: Boolean): Int = if (liked) {
     R.drawable.ic_favorite_filled
 } else {
     R.drawable.ic_favorite_outline
@@ -161,6 +164,7 @@ private fun PlaceDetailContent(
     personalMapAction: PersonalMapActionUiModel? = null,
     onAddToPersonalMapClick: () -> Unit = {},
     onSubmitReview: ((reviewText: String, photo: Uri?) -> Boolean)? = null,
+    onLikeClick: () -> Unit = {},
 ) {
     var reviewPhoto by rememberSaveable(place.id) { mutableStateOf<Uri?>(null) }
     val pickerState = rememberImagePickerState()
@@ -191,7 +195,10 @@ private fun PlaceDetailContent(
                         onBackClick = onBackClick,
                         onCloseClick = onCloseClick,
                     )
-                    PlaceHeader(place = place)
+                    // 블록 사이 간격은 시안(2572:11977) 그대로다: 닫기 줄 아래 20, 그 뒤로 12씩.
+                    Spacer(modifier = Modifier.height(20.dp))
+                    PlaceHeader(place = place, onLikeClick = onLikeClick)
+                    Spacer(modifier = Modifier.height(12.dp))
                     PlaceActions(
                         personalMapAction = personalMapAction,
                         onAddToPersonalMapClick = onAddToPersonalMapClick,
@@ -203,6 +210,7 @@ private fun PlaceDetailContent(
                         color = MoaMapTheme.colors.lineNormal,
                         modifier = Modifier.padding(horizontal = 20.dp),
                     )
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
 
                 reviewItems(reviews = reviews, onRetryReviews = onRetryReviews)
@@ -316,7 +324,8 @@ private fun PlaceDetailControls(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(48.dp)
+            // 시안은 위아래 여백 12 + 닫기 아이콘 32.
+            .height(56.dp)
             .padding(horizontal = 20.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -351,19 +360,24 @@ private fun PlaceDetailControls(
     }
 }
 
-/** 장소 정보. 별점·후기 수는 시안에서 빠졌다. */
+/**
+ * 장소 정보. 시안 「장소 상세 설명」(`2572:11977`).
+ *
+ * 이름·분류 태그 오른쪽에 하트와 신고하기가 선다. 신고는 아직 누를 수 없다 - 아이콘과 문구만 둔다.
+ * 별점·후기 수는 시안에서 빠졌다.
+ */
 @Composable
-private fun PlaceHeader(place: PlaceUiModel) {
+private fun PlaceHeader(place: PlaceUiModel, onLikeClick: () -> Unit) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 20.dp, vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
         verticalAlignment = Alignment.Top,
     ) {
         Box(
             modifier = Modifier
-                .size(64.dp)
+                .size(PlaceImageSize)
                 .clip(PlaceImageShape)
                 .background(
                     color = MoaMapPrimitiveColors.Yellow50,
@@ -387,75 +401,65 @@ private fun PlaceHeader(place: PlaceUiModel) {
 
         Column(
             modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(
-                    text = place.name,
-                    style = MoaMapTheme.typography.subtitle1,
-                    color = MoaMapTheme.colors.textNormal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
+                Column(
                     modifier = Modifier.weight(1f),
-                )
-                Icon(
-                    painter = painterResource(favoriteIconRes(place.favorite)),
-                    contentDescription = if (place.favorite) "즐겨찾기됨" else "즐겨찾기 안 됨",
-                    tint = if (place.favorite) {
-                        MoaMapTheme.colors.statusAlert
-                    } else {
-                        MoaMapPrimitiveColors.Gray100
-                    },
-                    modifier = Modifier.size(24.dp),
-                )
-                Icon(
-                    painter = painterResource(R.drawable.ic_flag_filled),
-                    contentDescription = "플래그",
-                    tint = MoaMapTheme.colors.textNormal,
-                    modifier = Modifier.size(24.dp),
-                )
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = place.name,
+                        style = MoaMapTheme.typography.subtitle1,
+                        color = MoaMapTheme.colors.textNormal,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (place.category.isNotBlank()) PlaceCategoryTag(place.category)
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PlaceIconAction(
+                        iconRes = likeIconRes(place.liked),
+                        iconTint = if (place.liked) {
+                            MoaMapTheme.colors.statusAlert
+                        } else {
+                            MoaMapPrimitiveColors.Gray100
+                        },
+                        label = place.likeCount.toString(),
+                        contentDescription = if (place.liked) "하트 취소하기" else "하트 누르기",
+                        onClick = onLikeClick,
+                    )
+                    // 신고는 아직 기능이 없다. 누를 수 있는 것처럼 보이지 않게 클릭을 걸지 않는다.
+                    PlaceIconAction(
+                        iconRes = R.drawable.ic_emergency,
+                        iconTint = MoaMapTheme.colors.textNormal,
+                        label = "신고하기",
+                        contentDescription = null,
+                        onClick = null,
+                    )
+                }
             }
 
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+            if (place.description.isNotBlank()) {
                 Text(
-                    text = place.category,
-                    style = MoaMapTheme.typography.caption0,
-                    color = MoaMapPrimitiveColors.Yellow900,
-                    modifier = Modifier
-                        .border(
-                            width = 1.dp,
-                            color = MoaMapPrimitiveColors.Yellow500,
-                            shape = PlaceCategoryShape,
-                        )
-                        .background(
-                            color = MoaMapPrimitiveColors.Yellow50,
-                            shape = PlaceCategoryShape,
-                        )
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
-                )
-                Text(
-                    text = place.area,
+                    text = place.description,
                     style = MoaMapTheme.typography.body2,
                     color = MoaMapTheme.colors.textAlternative,
                 )
             }
 
             Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(2.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
                     painter = painterResource(R.drawable.ic_location),
                     contentDescription = null,
                     tint = MoaMapTheme.colors.textAlternative,
-                    modifier = Modifier.size(18.dp),
+                    modifier = Modifier.size(20.dp),
                 )
                 Text(
                     text = place.address,
@@ -469,11 +473,55 @@ private fun PlaceHeader(place: PlaceUiModel) {
     }
 }
 
-/**
- * 「나만의 지도에 추가」·「외부 링크로 가기」.
- *
- * 나만의 지도를 보고 있으면 [personalMapAction] 이 null 이라 외부 링크만 남아 한 줄을 다 쓴다.
- */
+@Composable
+private fun PlaceCategoryTag(category: String) {
+    Text(
+        text = category,
+        style = MoaMapTheme.typography.caption0,
+        color = MoaMapPrimitiveColors.Yellow900,
+        maxLines = 1,
+        modifier = Modifier
+            .background(
+                color = MoaMapPrimitiveColors.Yellow50,
+                shape = PlaceCategoryShape,
+            )
+            .border(
+                width = 1.dp,
+                color = MoaMapPrimitiveColors.Yellow500,
+                shape = PlaceCategoryShape,
+            )
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+    )
+}
+
+/** 아이콘 아래 짧은 글자. [onClick] 이 null 이면 눌리지 않는다. */
+@Composable
+private fun PlaceIconAction(
+    iconRes: Int,
+    iconTint: Color,
+    label: String,
+    contentDescription: String?,
+    onClick: (() -> Unit)?,
+) {
+    Column(
+        modifier = if (onClick == null) Modifier else Modifier.clickable(onClick = onClick),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = contentDescription,
+            tint = iconTint,
+            modifier = Modifier.size(24.dp),
+        )
+        Text(
+            text = label,
+            style = MoaMapTheme.typography.caption0,
+            color = MoaMapTheme.colors.textAlternative,
+        )
+    }
+}
+
 @Composable
 private fun PlaceActions(
     personalMapAction: PersonalMapActionUiModel?,

@@ -2,6 +2,7 @@ package com.moamap.app.feature.mapdetail.domain.repository
 
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
+import com.moamap.app.feature.mapdetail.domain.model.PlaceLike
 
 interface MapDetailRepository {
 
@@ -23,4 +24,7 @@ interface MapDetailRepository {
 
     /** 지도를 없앤다. OWNER 만 할 수 있다. */
     suspend fun deleteMap(mapId: Long)
+
+    /** 하트를 누르거나([liked] = true) 취소한다. 서버가 확정한 상태를 돌려준다. */
+    suspend fun setPlaceLiked(placeId: Long, liked: Boolean): PlaceLike
 }

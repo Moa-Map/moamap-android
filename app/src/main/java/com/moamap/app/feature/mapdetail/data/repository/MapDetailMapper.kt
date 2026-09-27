@@ -58,4 +58,6 @@ fun PlaceDto.toMapPlace(): MapPlace = MapPlace(
     rating = avgRating ?: 0.0,
     reviewCount = commentCount,
     kakaoPlaceId = kakaoPlaceId?.trim().orEmpty(),
+    likeCount = likeCount,
+    liked = likedByMe,
 )

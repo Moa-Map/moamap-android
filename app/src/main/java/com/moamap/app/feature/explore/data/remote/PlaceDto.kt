@@ -154,12 +154,24 @@ data class PlaceDto(
     val status: String? = null,
     val avgRating: Double? = null,
     val commentCount: Int = 0,
+    /** 하트를 누른 사람 수. */
+    val likeCount: Int = 0,
+    /** 요청한 사람이 하트를 눌러 둔 상태인지. */
+    val likedByMe: Boolean = false,
     val processedBy: Long? = null,
     val processedAt: String? = null,
     val createdAt: String? = null,
     val updatedAt: String? = null,
     val tags: List<String> = emptyList(),
     val photoUrls: List<String> = emptyList(),
+)
+
+/** POST·DELETE api/v1/places/{placeId}/likes 응답. 누른 뒤의 상태를 그대로 돌려준다. */
+@Serializable
+data class PlaceLikeDto(
+    val placeId: Long = 0,
+    val likeCount: Int = 0,
+    val liked: Boolean = false,
 )
 
 /**

@@ -141,6 +141,14 @@ class MapDetailViewModel @Inject constructor(
     /** 참여·나가기가 겹쳐 돌지 않게 잡아 두는 자리. */
     private var actionJob: Job? = null
 
+    /**
+     * 하트 요청이 오가는 장소.
+     *
+     * 응답이 오기 전에는 같은 장소를 다시 누르지 못하게 한다. 연달아 보낸 요청의 응답 순서가
+     * 뒤바뀌면 화면이 서버와 다른 상태로 남는다.
+     */
+    private val likesInFlight = mutableSetOf<Long>()
+
     /** 진행 중인 상세 조회. `retry()` 를 연달아 눌러도 마지막 것만 남게 한다. */
     private var loadJob: Job? = null
 
@@ -202,6 +210,58 @@ class MapDetailViewModel @Inject constructor(
             _uiState.update { state ->
                 state.copy(actionInProgress = false, left = true, joinedHere = false)
             }
+        }
+    }
+
+    /**
+     * 하트를 누르거나 취소한다.
+     *
+     * 누르는 즉시 화면에 반영하고 서버 응답으로 확정한다. 실패하면 되돌린다. 목록 전체를 다시
+     * 읽지 않고 그 장소만 바꾼다.
+     *
+     * 서버는 지도 멤버만 받아 준다. 참여하지 않았으면 요청을 보내지 않고 안내만 한다.
+     */
+    fun toggleLike(placeId: Long) {
+        val state = _uiState.value
+        if (state.map.mapOrNull?.joined != true) {
+            _uiState.update { current -> current.copy(errorMessage = LIKE_NEEDS_JOIN_MESSAGE) }
+            return
+        }
+        val before = state.places.firstOrNull { place -> place.id == placeId } ?: return
+        if (!likesInFlight.add(placeId)) return
+
+        val liked = !before.liked
+        updatePlace(placeId) { place ->
+            place.copy(
+                liked = liked,
+                likeCount = (place.likeCount + if (liked) 1 else -1).coerceAtLeast(0),
+            )
+        }
+        viewModelScope.launch {
+            try {
+                val confirmed = repository.setPlaceLiked(placeId, liked)
+                updatePlace(placeId) { place ->
+                    place.copy(liked = confirmed.liked, likeCount = confirmed.likeCount)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "하트 반영 실패 (placeId=$placeId)", e)
+                updatePlace(placeId) { place ->
+                    place.copy(liked = before.liked, likeCount = before.likeCount)
+                }
+                _uiState.update { current ->
+                    current.copy(errorMessage = e.toUserMessage(LIKE_FAILED_MESSAGE))
+                }
+            } finally {
+                likesInFlight.remove(placeId)
+            }
+        }
+    }
+
+    private fun updatePlace(placeId: Long, change: (MapPlace) -> MapPlace) {
+        _uiState.update { state ->
+            state.copy(places = state.places.map { place -> if (place.id == placeId) change(place) else place })
         }
     }
 

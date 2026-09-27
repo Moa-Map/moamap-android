@@ -48,6 +48,7 @@ private val ClusterListMaxHeight = 420.dp
 internal fun ClusterPlacesSheet(
     places: List<PlaceUiModel>,
     onPlaceClick: (Long) -> Unit,
+    onLikeClick: (Long) -> Unit = {},
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState()
@@ -94,6 +95,7 @@ internal fun ClusterPlacesSheet(
                 PlaceListItem(
                     place = place,
                     onClick = { onPlaceClick(place.id) },
+                    onLikeClick = { onLikeClick(place.id) },
                 )
             }
         }

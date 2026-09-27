@@ -511,6 +511,7 @@ fun MapDetailScreen(
             searchQuery = uiState.searchQuery,
             onSearchQueryChange = { query -> uiState = uiState.search(query) },
             onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
+            onLikeClick = viewModel::toggleLike,
             postList = postListState,
             onPostSortSelect = postListViewModel::selectSort,
             onPostsRetry = postListViewModel::retry,
@@ -656,6 +657,7 @@ fun MapDetailScreen(
                 onRetryReviews = reviewViewModel::retry,
                 personalMapAction = personalMapAction,
                 onAddToPersonalMapClick = personalMapViewModel::add,
+                onLikeClick = { viewModel.toggleLike(place.id) },
                 // 참여 중인 지도에만 후기를 남길 수 있다. 서버도 같은 기준으로 막는다.
                 onSubmitReview = if (screenState.canAddPlace) {
                     { reviewText, photo -> reviewViewModel.submit(reviewText, photo) }
@@ -703,6 +705,7 @@ fun MapDetailScreen(
         ClusterPlacesSheet(
             places = expandedClusterPlaces,
             onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
+            onLikeClick = viewModel::toggleLike,
             onDismiss = { uiState = uiState.closeCluster() },
         )
     }
@@ -779,6 +782,7 @@ internal fun MapDetailContent(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onPlaceClick: (Long) -> Unit,
+    onLikeClick: (Long) -> Unit = {},
     postList: MapPostListUiState,
     onPostSortSelect: (MapPostSort) -> Unit,
     onPostsRetry: () -> Unit,
@@ -834,6 +838,7 @@ internal fun MapDetailContent(
                         myLocationInProgress = myLocationInProgress,
                         onSearchQueryChange = onSearchQueryChange,
                         onPlaceClick = onPlaceClick,
+                        onLikeClick = onLikeClick,
                         onTabSelected = onTabSelected,
                         on3dToggleClick = on3dToggleClick,
                         onAddPlaceClick = onAddPlaceClick,
@@ -917,6 +922,7 @@ private fun MapDetailPlacesContent(
     myLocationInProgress: Boolean,
     onSearchQueryChange: (String) -> Unit,
     onPlaceClick: (Long) -> Unit,
+    onLikeClick: (Long) -> Unit,
     onTabSelected: (MapDetailTab) -> Unit,
     on3dToggleClick: () -> Unit,
     onAddPlaceClick: () -> Unit,
@@ -953,6 +959,7 @@ private fun MapDetailPlacesContent(
                 // 접힌 시트에서 검색창을 누르면 목록이 안 보인다. 눌린 김에 끝까지 올린다.
                 onSearchFocused = { scope.launch { scaffoldState.bottomSheetState.expand() } },
                 onPlaceClick = onPlaceClick,
+                onLikeClick = onLikeClick,
                 onHeaderHeightChange = { height -> peekHeight = height },
             )
         },
