@@ -4,6 +4,7 @@ import com.moamap.app.feature.collection.domain.model.CreatedMap
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.collection.domain.model.MyMap
 import com.moamap.app.feature.collection.domain.model.NewMap
+import com.moamap.app.feature.mapdetail.domain.model.LeaveOutcome
 
 interface MapRepository {
 
@@ -28,4 +29,18 @@ interface MapRepository {
 
     /** 초대 코드로 프라이빗 지도에 합류하고, 합류한 지도의 id 를 돌려준다. */
     suspend fun joinByInviteCode(inviteCode: String): Long
+
+    /**
+     * 이 지도에서 나가면 어떻게 되는지. 나갈 수 없으면(방장 등) null 이다.
+     *
+     * 내 지도 목록 응답에는 내 역할이 없어서 지도 상세를 한 번 더 읽어 판단한다.
+     */
+    suspend fun getLeaveOutcome(mapId: Long): LeaveOutcome?
+
+    /**
+     * 지도에서 나간다. 혼자 남은 프라이빗 지도의 방장이면 지도를 삭제한다.
+     *
+     * 나갈 수 없는 지도면 예외를 던진다.
+     */
+    suspend fun leaveMap(mapId: Long)
 }
