@@ -1,5 +1,6 @@
 package com.moamap.app.feature.mapdetail.presentation.intro
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,7 +21,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
@@ -30,6 +30,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -39,13 +40,13 @@ internal val MapIntroHeroHeight = 295.dp
 internal val MapIntroMapHeight = 236.dp
 
 private val TagShape = RoundedCornerShape(1000.dp)
-private val PlaceThumbnailShape = RoundedCornerShape(4.dp)
 
 /**
  * 히어로.
  *
  * 대표 이미지 위에 아래로 갈수록 짙어지는 그라데이션을 덮어 흰 글자가 읽히게 한다.
  * 이미지가 없어도 같은 그라데이션을 쓴다 - 글자 위치가 이미지 유무로 달라지면 안 된다.
+ * 이미지가 없으면 회색 바탕 가운데 사진 아이콘(시안 `1841:13206`).
  */
 @Composable
 internal fun MapIntroHero(
@@ -60,6 +61,14 @@ internal fun MapIntroHero(
             .height(MapIntroHeroHeight)
             .background(MoaMapPrimitiveColors.Gray50),
     ) {
+        // 사진이 없거나 받는 중이거나 받지 못하면 이 아이콘이 드러난다.
+        Image(
+            painter = painterResource(R.drawable.ic_image),
+            contentDescription = null,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .size(40.dp),
+        )
         if (imageUrl != null) {
             AsyncImage(
                 model = imageUrl,
@@ -180,21 +189,7 @@ internal fun MapIntroPlaceItem(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(PlaceThumbnailShape)
-                    .background(MoaMapPrimitiveColors.Blue50),
-            ) {
-                if (place.photoUrl != null) {
-                    AsyncImage(
-                        model = place.photoUrl,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-            }
+            PhotoThumbnail(imageUrl = place.photoUrl, size = 64.dp)
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp),

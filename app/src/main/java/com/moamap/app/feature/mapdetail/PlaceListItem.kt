@@ -6,29 +6,23 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
-
-private val PlaceThumbnailShape = RoundedCornerShape(4.dp)
 
 @Composable
 internal fun PlaceListItem(
@@ -47,27 +41,7 @@ internal fun PlaceListItem(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(64.dp)
-                    .clip(PlaceThumbnailShape)
-                    .background(MoaMapPrimitiveColors.Yellow50),
-                contentAlignment = Alignment.Center,
-            ) {
-                // 사진이 없거나 받는 중일 때 노란 자리만 남지 않게 아이콘을 깔아 둔다.
-                Icon(
-                    painter = painterResource(R.drawable.ic_photo_camera),
-                    contentDescription = null,
-                    tint = MoaMapPrimitiveColors.Gray500,
-                    modifier = Modifier.size(24.dp),
-                )
-                AsyncImage(
-                    model = place.photoUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize(),
-                )
-            }
+            PhotoThumbnail(imageUrl = place.photoUrl, size = 64.dp)
 
             // 설명은 이름 바로 아래에 붙고, 댓글 수만 12 떨어진다.
             Column(

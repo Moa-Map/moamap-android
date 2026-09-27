@@ -55,6 +55,7 @@ import com.moamap.app.core.common.format.formatMemberCount
 import com.moamap.app.core.common.format.formatPlaceCount
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
+import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -72,12 +73,9 @@ import com.moamap.app.feature.collection.presentation.MyMapsState
 import com.moamap.app.feature.collection.presentation.placeimport.PlaceImportCheckBox
 import com.moamap.app.feature.collection.presentation.placeimport.selectedCardBorder
 import com.moamap.app.feature.collection.presentation.splitPersonal
-import com.moamap.app.feature.explore.presentation.MapThumbnail
 
 /** 카드 썸네일과 같은 높이를 유지해 제목/메타가 위아래로 벌어지도록 한다. */
 private val CardThumbnailSize = 64.dp
-
-private val CardThumbnailShape = RoundedCornerShape(4.dp)
 
 /** 인스타그램 브랜드 색. 디자인 시스템 팔레트가 아니라서 토큰으로 승격하지 않는다. */
 private val InstagramCardBackground = Color(0xFFFFF5FB)
@@ -105,7 +103,7 @@ private val MapType.label: String
 internal data class CollectionMapUiModel(
     val id: Long,
     val title: String,
-    /** 커버 이미지 주소. null 이면 [MapThumbnail] 이 기본 이미지를 그린다. */
+    /** 커버 이미지 주소. null 이면 [PhotoThumbnail] 이 기본 사진을 그린다. */
     val imageUrl: String? = null,
     /** 등록 장소 수. null 이면 그 자리를 그리지 않는다. */
     val placeCount: String? = null,
@@ -856,11 +854,7 @@ internal fun CollectionMapCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                MapThumbnail(
-                    imageUrl = map.imageUrl,
-                    size = CardThumbnailSize,
-                    shape = CardThumbnailShape,
-                )
+                PhotoThumbnail(imageUrl = map.imageUrl, size = CardThumbnailSize)
                 Column(
                     modifier = Modifier
                         .weight(1f)

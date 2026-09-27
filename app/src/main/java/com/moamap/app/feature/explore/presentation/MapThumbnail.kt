@@ -13,7 +13,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
@@ -21,6 +20,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
+
+private val ThumbnailShape = RoundedCornerShape(12.dp)
 
 /** 대표 이미지가 없을 때 로고가 차지하는 비율. */
 private const val PLACEHOLDER_LOGO_WIDTH_RATIO = 0.47f
@@ -33,22 +34,21 @@ private const val PLACEHOLDER_LOGO_WIDTH_RATIO = 0.47f
  * 로고는 항상 바닥에 깔고 그 위에 대표 이미지를 덮는다. 이렇게 하면 로드가 실패하거나
  * 아직 끝나지 않았을 때 자연스럽게 기본 이미지가 드러나, 빈 배경만 남지 않는다.
  *
- * [shape] 를 밖에서 받는다. 안에서 박아 쓰면 호출부가 `Modifier.clip` 을 걸어도 안쪽 clip 이
- * 다시 덮어 소용이 없다. 모음 탭 카드는 시안이 더 작은 반경을 쓴다.
+ * 탐색 탭 카드 전용이다(시안 「기본 이미지」 `1480:2497`). 모음 탭 카드는 시안이 다른 기본
+ * 사진을 써서 [com.moamap.app.core.designsystem.component.PhotoThumbnail] 을 쓴다.
  */
 @Composable
 fun MapThumbnail(
     imageUrl: String?,
     size: Dp,
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(12.dp),
 ) {
     Box(
         modifier = modifier
             .size(size)
-            .clip(shape)
+            .clip(ThumbnailShape)
             .background(MoaMapPrimitiveColors.Blue50)
-            .border(1.dp, Color.Black.copy(alpha = 0.2f), shape),
+            .border(1.dp, Color.Black.copy(alpha = 0.2f), ThumbnailShape),
         contentAlignment = Alignment.Center,
     ) {
         Image(
