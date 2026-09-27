@@ -22,12 +22,14 @@ class MemberUiModelTest {
             name = "최유진",
             imageUrl = "https://cdn/4.jpg",
             role = MapRole.Owner,
+            placeCount = 3,
         ).toUiModel()
 
         assertEquals(4L, ui.id)
         assertEquals("최유진", ui.name)
         assertEquals("https://cdn/4.jpg", ui.imageUrl)
         assertEquals(MemberRole.Owner, ui.role)
+        assertEquals(3L, ui.placeCount)
     }
 
     @Test

@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -59,7 +60,7 @@ internal fun MapManageScreen(
             .pointerInput(Unit) { detectTapGestures() }
             .statusBarsPadding(),
     ) {
-        MapManageTopBar(onBackClick = onBackClick)
+        MapOverlayTopBar(title = "지도 관리", onBackClick = onBackClick)
         MapLogsContent(
             pendingRequests = pendingRequests,
             logs = logs,
@@ -74,12 +75,17 @@ internal fun MapManageScreen(
     }
 }
 
+/** 지도 상세 위에 덮는 화면(지도 관리·멤버 관리)의 상단 바. 뒤로가기와 가운데 제목뿐이다. */
 @Composable
-private fun MapManageTopBar(onBackClick: () -> Unit) {
+internal fun MapOverlayTopBar(
+    title: String,
+    onBackClick: () -> Unit,
+    height: Dp = MapDetailTopBarHeight,
+) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(MapDetailTopBarHeight),
+            .height(height),
     ) {
         Box(
             modifier = Modifier
@@ -98,7 +104,7 @@ private fun MapManageTopBar(onBackClick: () -> Unit) {
         }
 
         Text(
-            text = "지도 관리",
+            text = title,
             style = MoaMapTheme.typography.title3,
             color = MoaMapTheme.colors.textNormal,
             modifier = Modifier.align(Alignment.Center),

@@ -36,6 +36,21 @@ class MapMemberDtoTest {
         assertNull(list.members[1].profileImageUrl)
     }
 
+    /** 0 은 등록한 장소가 없다는 뜻이고, null 은 서버가 세지 못했다는 뜻이다. 둘을 섞으면 안 된다. */
+    @Test
+    fun `등록한 장소 수를 읽고 못 센 값은 null 로 둔다`() {
+        val list = json.decodeFromString<MapMemberListDto>(
+            """{"memberCount":3,"members":[
+                 {"userId":1,"role":"OWNER","placeCount":12},
+                 {"userId":2,"role":"MEMBER","placeCount":0},
+                 {"userId":3,"role":"MEMBER","placeCount":null}]}""",
+        )
+
+        assertEquals(12L, list.members[0].placeCount)
+        assertEquals(0L, list.members[1].placeCount)
+        assertNull(list.members[2].placeCount)
+    }
+
     /** 서버가 나중에 필드를 더해도 앱이 터지지 않아야 한다. */
     @Test
     fun `모르는 필드가 있어도 역직렬화된다`() {
