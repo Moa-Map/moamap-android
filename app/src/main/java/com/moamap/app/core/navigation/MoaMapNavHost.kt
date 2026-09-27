@@ -77,6 +77,9 @@ internal fun MoaMapNavHost(
     /** 공유가 지원하지 않는 링크였을 때의 안내. 어느 화면에도 매이지 않아 여기서 든다. */
     var shareError by remember { mutableStateOf<String?>(null) }
 
+    // 모음 편집에서 지도를 고르면 그 화면이 하단 탭 자리에 선택 막대를 띄운다.
+    var collectionSelectionBarVisible by remember { mutableStateOf(false) }
+
     /**
      * 공유로 들어온 링크를 장소 가져오기 흐름으로 넘긴다.
      *
@@ -170,6 +173,7 @@ internal fun MoaMapNavHost(
             }
             composable(MoaMapRoute.Collection.route) {
                 CollectionScreen(
+                    onSelectionBarVisibleChange = { visible -> collectionSelectionBarVisible = visible },
                     // 로고는 홈(탐색)으로 가는 버튼이다. 하단 탭으로 옮기는 것과 같게 옮기되,
                     // 홈은 보던 자리 대신 맨 위에서 시작한다.
                     onHomeClick = {
@@ -302,9 +306,12 @@ internal fun MoaMapNavHost(
                 onShown = { shareError = null },
             )
 
+            val collectionSelecting =
+                destination == MoaMapRoute.Collection.route && collectionSelectionBarVisible
             if (
-                destination == MoaMapRoute.Explore.route ||
-                destination == MoaMapRoute.Collection.route
+                (destination == MoaMapRoute.Explore.route ||
+                    destination == MoaMapRoute.Collection.route) &&
+                !collectionSelecting
             ) {
                 MoaMapBottomBar(
                     currentRoute = destination,

@@ -223,11 +223,13 @@ internal fun selectedCardBorder(selected: Boolean): BorderStroke? =
  * 장소와 지도 선택에 함께 쓰는 체크박스.
  *
  * 선택 시 파랑으로 채우고 흰 체크를, 선택 전에는 회색 테두리만 보여준다.
+ * 고를 수 없으면([enabled] = false) 회색으로 채운다 - 모음 편집에서 방장인 지도 등.
  */
 @Composable
 internal fun PlaceImportCheckBox(
     checked: Boolean,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Box(
         modifier = modifier
@@ -236,6 +238,10 @@ internal fun PlaceImportCheckBox(
             .then(
                 if (checked) {
                     Modifier.background(MoaMapTheme.colors.primary)
+                } else if (!enabled) {
+                    Modifier
+                        .background(MoaMapPrimitiveColors.Gray50)
+                        .border(width = 1.dp, color = MoaMapPrimitiveColors.Gray100, shape = CheckBoxShape)
                 } else {
                     Modifier.border(
                         width = 1.dp,
