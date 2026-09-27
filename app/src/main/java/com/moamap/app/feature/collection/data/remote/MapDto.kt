@@ -110,7 +110,7 @@ data class MapMemberListDto(
     val members: List<MapMemberSummaryDto> = emptyList(),
 )
 
-/** [MapMemberListDto] 의 한 사람. 등록한 장소 수는 아직 서버가 내려주지 않는다. */
+/** [MapMemberListDto] 의 한 사람. */
 @Serializable
 data class MapMemberSummaryDto(
     val userId: Long = 0,
@@ -118,6 +118,8 @@ data class MapMemberSummaryDto(
     val profileImageUrl: String? = null,
     // OWNER, ADMIN, MEMBER, NONE
     val role: String? = null,
+    /** 이 지도에 등록해 승인된 장소 수. 0 은 없다는 뜻이고, 서버가 세지 못했으면 null 이다. */
+    val placeCount: Long? = null,
 )
 
 /** PUT api/v1/maps/{mapId}/members/{userId}/role 요청 */

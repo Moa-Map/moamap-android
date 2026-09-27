@@ -12,4 +12,5 @@ fun MapMemberSummaryDto.toMapMember(): MapMember = MapMember(
     name = nickname?.trim()?.takeIf { it.isNotBlank() } ?: UNKNOWN_MEMBER,
     imageUrl = profileImageUrl?.trim()?.takeIf { it.isNotBlank() },
     role = MapRole.from(role),
+    placeCount = placeCount,
 )
