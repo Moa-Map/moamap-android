@@ -317,8 +317,8 @@ fun MapDetailScreen(
     }
 
     // 후기가 하나 늘면 장소의 후기 수도 달라진다. 시트 뒤의 목록이 옛 값을 들고 있으면 안 된다.
-    LaunchedEffect(reviewState.submittedCount) {
-        if (reviewState.submittedCount > 0) viewModel.refresh()
+    LaunchedEffect(reviewState.submittedCount, reviewState.deletedCount) {
+        if (reviewState.submittedCount > 0 || reviewState.deletedCount > 0) viewModel.refresh()
     }
 
     // 시트가 읽는 후기 상태. 조회는 시트가 그려진 뒤에 시작하므로, 상태가 어느 장소의
@@ -330,11 +330,14 @@ fun MapDetailScreen(
             val now = System.currentTimeMillis()
             PlaceReviewsUiModel(
                 loading = reviewState.loading,
-                items = reviewState.reviews.map { review -> review.toPlaceReviewUiModel(now) },
+                items = reviewState.reviews.map { review ->
+                    review.toPlaceReviewUiModel(now, reviewState.myUserId)
+                },
                 loadErrorMessage = reviewState.loadErrorMessage,
                 submitting = reviewState.submitting,
                 submitErrorMessage = reviewState.submitErrorMessage,
                 submittedCount = reviewState.submittedCount,
+                editingReviewId = reviewState.editingReviewId,
             )
         }
     }
@@ -658,6 +661,9 @@ fun MapDetailScreen(
                 personalMapAction = personalMapAction,
                 onAddToPersonalMapClick = personalMapViewModel::add,
                 onLikeClick = { viewModel.toggleLike(place.id) },
+                onEditReview = reviewViewModel::startEdit,
+                onCancelEdit = reviewViewModel::cancelEdit,
+                onDeleteReview = reviewViewModel::delete,
                 // 참여 중인 지도에만 후기를 남길 수 있다. 서버도 같은 기준으로 막는다.
                 onSubmitReview = if (screenState.canAddPlace) {
                     { reviewText, photo -> reviewViewModel.submit(reviewText, photo) }

@@ -68,4 +68,13 @@ class PlaceReviewUiModelTest {
         content = "좋았어요",
         createdAtMillis = NOW,
     )
+
+    @Test
+    fun `로그인한 사람이 쓴 댓글만 내 댓글로 표시한다`() {
+        val review = PlaceReview(id = 1L, authorId = 5L, authorName = null, content = "", createdAtMillis = null)
+
+        assertEquals(true, review.toPlaceReviewUiModel(NOW, myUserId = 5L).mine)
+        assertEquals(false, review.toPlaceReviewUiModel(NOW, myUserId = 9L).mine)
+        assertEquals(false, review.toPlaceReviewUiModel(NOW).mine)
+    }
 }

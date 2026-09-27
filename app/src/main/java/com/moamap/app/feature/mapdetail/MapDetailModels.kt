@@ -5,6 +5,7 @@ import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.domain.model.PlaceCategoryGroup
 import com.moamap.app.feature.mapdetail.domain.model.PlaceReview
 import com.moamap.app.feature.mapdetail.domain.model.categoryLabel
+import com.moamap.app.feature.mapdetail.presentation.review.isMine
 
 internal enum class MapDetailTab(val label: String) {
     Places("장소"),
@@ -189,6 +190,8 @@ internal data class PlaceReviewUiModel(
     val relativeTime: String,
     /** 첨부 사진. 서버가 한 장까지만 받아 첫 장만 보여준다. */
     val photoUrl: String? = null,
+    /** 내가 쓴 댓글. 밀면 수정·삭제가, 아니면 신고가 나온다. */
+    val mine: Boolean = false,
 )
 
 /**
@@ -203,20 +206,26 @@ internal data class PlaceReviewsUiModel(
     val submitting: Boolean = false,
     /** 시트 위에는 스낵바를 띄울 수 없어 입력창 아래에 남긴다. */
     val submitErrorMessage: String? = null,
-    /** 서버가 받아들인 후기 수. 늘어나면 입력창을 비운다. */
+    /** 서버가 받아들인 작성·수정 수. 늘어나면 입력창을 비운다. */
     val submittedCount: Int = 0,
+    /** 입력창에서 고치고 있는 내 댓글. */
+    val editingReviewId: Long? = null,
 )
 
 /** 닉네임을 못 얻은 작성자. 이름 자리가 빈 줄로 보이지 않게 채운다. */
 private const val ANONYMOUS_REVIEWER = "이름 없는 사용자"
 
-internal fun PlaceReview.toPlaceReviewUiModel(nowMillis: Long): PlaceReviewUiModel =
+internal fun PlaceReview.toPlaceReviewUiModel(
+    nowMillis: Long,
+    myUserId: Long? = null,
+): PlaceReviewUiModel =
     PlaceReviewUiModel(
         id = id,
         userName = authorName ?: ANONYMOUS_REVIEWER,
         message = content,
         relativeTime = relativeTimeLabel(createdAtMillis, nowMillis),
         photoUrl = imageUrls.firstOrNull(),
+        mine = isMine(myUserId),
     )
 
 private const val MINUTE_MILLIS = 60_000L
