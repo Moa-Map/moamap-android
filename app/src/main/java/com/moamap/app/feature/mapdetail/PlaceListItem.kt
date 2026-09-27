@@ -1,6 +1,7 @@
 package com.moamap.app.feature.mapdetail
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -37,6 +38,7 @@ internal fun PlaceListItem(
     place: PlaceUiModel,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    onLikeClick: () -> Unit = {},
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
@@ -89,21 +91,18 @@ internal fun PlaceListItem(
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f),
                     )
+                    // 카드를 누르면 상세가 열린다. 하트는 따로 받아 상세로 넘어가지 않게 한다.
                     Icon(
-                        painter = painterResource(
-                            if (place.favorite) {
-                                R.drawable.ic_favorite_filled
-                            } else {
-                                R.drawable.ic_favorite_outline
-                            },
-                        ),
-                        contentDescription = if (place.favorite) "즐겨찾기" else "즐겨찾기 안 함",
-                        tint = if (place.favorite) {
+                        painter = painterResource(likeIconRes(place.liked)),
+                        contentDescription = if (place.liked) "하트 취소하기" else "하트 누르기",
+                        tint = if (place.liked) {
                             MoaMapTheme.colors.statusAlert
                         } else {
                             MoaMapPrimitiveColors.Gray100
                         },
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clickable(onClick = onLikeClick),
                     )
                 }
 

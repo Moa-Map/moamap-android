@@ -74,6 +74,7 @@ internal fun MapDetailBottomSheet(
     onSearchQueryChange: (String) -> Unit,
     onSearchFocused: () -> Unit,
     onPlaceClick: (Long) -> Unit,
+    onLikeClick: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
     /** 서버가 세어 준 등록 장소 수. 응답이 오기 전에는 null 이라 개수를 감춘다. */
     placeCount: Int? = null,
@@ -240,6 +241,7 @@ internal fun MapDetailBottomSheet(
                     PlaceListItem(
                         place = place,
                         onClick = { onPlaceClick(place.id) },
+                        onLikeClick = { onLikeClick(place.id) },
                     )
                 }
             }
