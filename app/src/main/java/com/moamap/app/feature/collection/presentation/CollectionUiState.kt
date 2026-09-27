@@ -24,6 +24,40 @@ sealed interface MyMapsState {
     data class Error(val message: String) : MyMapsState
 }
 
+/** 편집에서 이 지도를 고를 수 있는지. */
+enum class LeaveEligibility {
+    /** 역할을 확인하는 중. 누르면 무시한다. */
+    Checking,
+    Allowed,
+
+    /** 방장이라 서버가 나가기를 막는다. */
+    Owner,
+
+    /** 나만의 지도. 나갈 대상이 아니다. */
+    Personal,
+
+    /** 확인하지 못했다. */
+    Unknown,
+}
+
+/** 모음 편집. 고른 지도에서 한 번에 나간다. */
+@Immutable
+data class CollectionEditState(
+    /** 지도별로 고를 수 있는지. 아직 확인하지 못한 지도는 키가 없다. */
+    val eligibility: Map<Long, LeaveEligibility> = emptyMap(),
+    val selected: Set<Long> = emptySet(),
+    /** 나가기 확인 팝업. */
+    val confirmVisible: Boolean = false,
+    /** 나가는 중. 이때는 고르기·닫기를 막는다. */
+    val leaving: Boolean = false,
+) {
+    fun eligibilityOf(mapId: Long): LeaveEligibility =
+        eligibility[mapId] ?: LeaveEligibility.Checking
+
+    /** 아래 선택 막대. 하단 탭 대신 뜬다. */
+    val selectionBarVisible: Boolean get() = selected.isNotEmpty()
+}
+
 /**
  * 모음 화면 상태.
  *
@@ -36,6 +70,10 @@ data class CollectionUiState(
     val community: MyMapsState = MyMapsState.Loading,
     val private: MyMapsState = MyMapsState.Loading,
     val join: JoinState = JoinState.Hidden,
+    /** 편집 중이 아니면 null 이다. */
+    val edit: CollectionEditState? = null,
+    /** 한 번 보여주고 지우는 안내. */
+    val notice: String? = null,
 ) {
     val currentMaps: MyMapsState
         get() = stateOf(selectedTab)

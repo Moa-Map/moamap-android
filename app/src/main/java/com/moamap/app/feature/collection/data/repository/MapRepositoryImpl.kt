@@ -11,6 +11,9 @@ import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.collection.domain.model.MyMap
 import com.moamap.app.feature.collection.domain.model.NewMap
 import com.moamap.app.feature.collection.domain.repository.MapRepository
+import com.moamap.app.feature.mapdetail.data.repository.toMapDetail
+import com.moamap.app.feature.mapdetail.domain.model.LeaveOutcome
+import com.moamap.app.feature.mapdetail.domain.model.leaveOutcome
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -51,6 +54,20 @@ internal class MapRepositoryImpl @Inject constructor(
 
     override suspend fun joinByInviteCode(inviteCode: String): Long =
         mapService.joinByInviteCode(JoinByInviteCodeRequestDto(inviteCode.trim())).id
+
+    // 지도 상세와 같은 규칙을 쓴다. 제작자 이름은 판단에 필요 없어 조회하지 않는다.
+    override suspend fun getLeaveOutcome(mapId: Long): LeaveOutcome? =
+        mapService.getMap(mapId).toMapDetail(ownerName = null).leaveOutcome
+
+    override suspend fun leaveMap(mapId: Long) {
+        // 고른 뒤에 다른 사람이 들어왔을 수 있다. 되돌릴 수 없는 삭제라 나가는 순간의 상태로
+        // 다시 판단한다 - 편집을 시작할 때 본 값을 믿고 지우면 남의 지도까지 사라진다.
+        when (getLeaveOutcome(mapId)) {
+            LeaveOutcome.DeleteMap -> mapService.deleteMap(mapId)
+            LeaveOutcome.Leave, LeaveOutcome.LeaveNeedsInviteCode -> mapService.leaveMap(mapId)
+            null -> error("나갈 수 없는 지도다 (mapId=$mapId)")
+        }
+    }
 
     private companion object {
         /** 탐색 탭과 같은 값. 무한 스크롤을 붙이기 전까지는 첫 페이지만 쓴다. */

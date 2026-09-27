@@ -23,6 +23,11 @@ private const val INVALID_CODE_MESSAGE = "코드를 다시 확인해주세요"
 private const val ALREADY_JOINED_MESSAGE = "이미 참여 중인 지도예요"
 private const val JOIN_FAILED_MESSAGE = "지도에 참여하지 못했어요"
 private const val NETWORK_ERROR_MESSAGE = "네트워크에 연결할 수 없어요"
+internal const val OWNER_CANNOT_LEAVE_MESSAGE = "방장인 지도는 나갈 수 없어요"
+internal const val PERSONAL_CANNOT_LEAVE_MESSAGE = "나만의 지도는 나갈 수 없어요"
+internal const val LEAVE_CHECK_FAILED_MESSAGE = "지도 정보를 불러오지 못했어요"
+
+internal fun leaveFailedMessage(count: Int): String = "${count}개 지도에서 나가지 못했어요"
 
 /** `[404] MAP_007: 유효하지 않은 초대 코드입니다.` */
 private const val INVALID_INVITE_CODE = "MAP_007"
@@ -61,8 +66,15 @@ class CollectionViewModel @Inject constructor(
     /** 한 번이라도 요청한 탭. 이미 본 탭은 다시 들어와도 그대로 보여준다. */
     private val requestedTabs = mutableSetOf<MapType>()
 
+    /** 편집을 시작하며 지도마다 나갈 수 있는지 확인하는 요청. */
+    private var editJob: Job? = null
+
     fun selectTab(type: MapType) {
         if (_uiState.value.selectedTab == type) return
+        // 나가는 중에는 탭을 옮기지 않는다. 끝나면 떠난 탭의 목록을 다시 읽어야 한다.
+        if (_uiState.value.edit?.leaving == true) return
+        // 편집은 한 탭의 목록을 두고 하는 일이다. 탭을 옮기면 끝낸다.
+        finishEdit()
         _uiState.update { state -> state.copy(selectedTab = type) }
 
         if (type !in requestedTabs) load(type)
@@ -83,9 +95,128 @@ class CollectionViewModel @Inject constructor(
      * 경우가 그렇다. 그 탭까지 지금 읽지는 않고, 다음에 고를 때 새로 읽도록 표시만 지운다.
      */
     fun refresh() {
+        // 돌아와 목록을 다시 읽으면 확인해 둔 지도와 목록이 어긋날 수 있다. 편집은 끝낸다.
+        finishEdit()
         val current = _uiState.value.selectedTab
         requestedTabs.retainAll { tab -> tab == current }
         load(current, keepCurrent = true)
+    }
+
+    fun consumeNotice() {
+        _uiState.update { state -> state.copy(notice = null) }
+    }
+
+    // ---------- 편집: 골라서 나가기 ----------
+
+    /**
+     * 편집을 시작한다.
+     *
+     * 내 지도 목록에는 내 역할이 없어서, 지도마다 나갈 수 있는지 따로 확인한다. 확인이 끝난
+     * 지도부터 고를 수 있다. 나만의 지도는 물어볼 것도 없이 나갈 대상이 아니다.
+     */
+    fun startEdit() {
+        val state = _uiState.value
+        if (state.edit != null) return
+        val maps = (state.currentMaps as? MyMapsState.Success)?.maps ?: return
+
+        val personal = maps.filter { map -> map.personal }
+            .associate { map -> map.id to LeaveEligibility.Personal }
+        _uiState.update { current -> current.copy(edit = CollectionEditState(eligibility = personal)) }
+
+        editJob = viewModelScope.launch {
+            maps.filterNot { map -> map.personal }.forEach { map ->
+                launch {
+                    val eligibility = checkEligibility(map.id)
+                    _uiState.update { current ->
+                        val edit = current.edit ?: return@update current
+                        current.copy(
+                            edit = edit.copy(eligibility = edit.eligibility + (map.id to eligibility)),
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun finishEdit() {
+        if (_uiState.value.edit?.leaving == true) return
+        editJob?.cancel()
+        _uiState.update { state -> state.copy(edit = null) }
+    }
+
+    /** 고를 수 없는 지도를 누르면 이유를 알린다. 확인 중인 지도는 아무 일도 없다. */
+    fun toggleSelection(mapId: Long) {
+        val edit = _uiState.value.edit ?: return
+        if (edit.leaving) return
+
+        val notice = when (edit.eligibilityOf(mapId)) {
+            LeaveEligibility.Checking -> return
+            LeaveEligibility.Allowed -> null
+            LeaveEligibility.Owner -> OWNER_CANNOT_LEAVE_MESSAGE
+            LeaveEligibility.Personal -> PERSONAL_CANNOT_LEAVE_MESSAGE
+            LeaveEligibility.Unknown -> LEAVE_CHECK_FAILED_MESSAGE
+        }
+        if (notice != null) {
+            _uiState.update { state -> state.copy(notice = notice) }
+            return
+        }
+
+        val selected = if (mapId in edit.selected) edit.selected - mapId else edit.selected + mapId
+        _uiState.update { state -> state.copy(edit = edit.copy(selected = selected)) }
+    }
+
+    fun openLeaveConfirm() {
+        val edit = _uiState.value.edit ?: return
+        if (edit.leaving || edit.selected.isEmpty()) return
+        _uiState.update { state -> state.copy(edit = edit.copy(confirmVisible = true)) }
+    }
+
+    fun closeLeaveConfirm() {
+        val edit = _uiState.value.edit ?: return
+        _uiState.update { state -> state.copy(edit = edit.copy(confirmVisible = false)) }
+    }
+
+    /**
+     * 고른 지도에서 모두 나간다.
+     *
+     * 한 곳씩 나간다. 일부가 실패해도 나머지는 계속하고, 끝나면 편집을 닫고 목록을 다시 읽는다.
+     * 실패한 지도는 목록에 그대로 남으니 몇 개인지만 알린다.
+     */
+    fun leaveSelected() {
+        val edit = _uiState.value.edit ?: return
+        if (edit.leaving || edit.selected.isEmpty()) return
+        val type = _uiState.value.selectedTab
+
+        _uiState.update { state ->
+            state.copy(edit = edit.copy(confirmVisible = false, leaving = true))
+        }
+        editJob?.cancel()
+        viewModelScope.launch {
+            val failed = edit.selected.count { mapId -> !tryLeave(mapId) }
+            _uiState.update { state ->
+                state.copy(edit = null, notice = if (failed > 0) leaveFailedMessage(failed) else null)
+            }
+            load(type, keepCurrent = true)
+        }
+    }
+
+    private suspend fun checkEligibility(mapId: Long): LeaveEligibility = try {
+        if (repository.getLeaveOutcome(mapId) == null) LeaveEligibility.Owner else LeaveEligibility.Allowed
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.w(TAG, "나가기 가능 여부 확인 실패 (mapId=$mapId)", e)
+        LeaveEligibility.Unknown
+    }
+
+    private suspend fun tryLeave(mapId: Long): Boolean = try {
+        repository.leaveMap(mapId)
+        true
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.w(TAG, "지도 나가기 실패 (mapId=$mapId)", e)
+        false
     }
 
     // ---------- 초대 코드로 합류 ----------

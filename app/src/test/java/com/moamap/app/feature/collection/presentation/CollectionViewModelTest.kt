@@ -5,6 +5,7 @@ import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.collection.domain.model.MyMap
 import com.moamap.app.feature.collection.domain.model.NewMap
 import com.moamap.app.feature.collection.domain.repository.MapRepository
+import com.moamap.app.feature.mapdetail.domain.model.LeaveOutcome
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -18,6 +19,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -51,14 +53,14 @@ class CollectionViewModelTest {
         return viewModel
     }
 
-    private fun myMap(id: Long) = MyMap(
+    private fun myMap(id: Long, personal: Boolean = false) = MyMap(
         id = id,
         title = "지도$id",
         imageUrl = null,
         memberCount = 1,
         placeCount = 0,
         official = false,
-        personal = false,
+        personal = personal,
     )
 
     /**
@@ -90,6 +92,27 @@ class CollectionViewModelTest {
 
         override suspend fun uploadCoverImage(imageUri: String) = TODO("사용하지 않음")
         override suspend fun createMap(newMap: NewMap) = TODO("사용하지 않음")
+
+        /** 지도별 나가기 결과. null 이면 방장처럼 나갈 수 없는 지도다. */
+        var leaveOutcome: (Long) -> LeaveOutcome? = { LeaveOutcome.Leave }
+
+        /** 나가기가 실패할 지도. */
+        var leaveFailures: Set<Long> = emptySet()
+
+        val outcomeChecks = mutableListOf<Long>()
+        val leftMapIds = mutableListOf<Long>()
+
+        override suspend fun getLeaveOutcome(mapId: Long): LeaveOutcome? {
+            outcomeChecks += mapId
+            delay(delayMillis)
+            return leaveOutcome(mapId)
+        }
+
+        override suspend fun leaveMap(mapId: Long) {
+            delay(delayMillis)
+            if (mapId in leaveFailures) throw IOException("boom")
+            leftMapIds += mapId
+        }
     }
 
     private companion object {
@@ -390,5 +413,131 @@ class CollectionViewModelTest {
         // 늦게 도착한 앞선 요청이 최신 결과를 덮어쓰면 안 된다.
         val state = viewModel.uiState.value.community
         assertEquals(listOf(2L), (state as MyMapsState.Success).maps.map { it.id })
+    }
+
+    // ---------- 편집: 골라서 나가기 ----------
+
+    /** 1: 멤버인 지도, 2: 방장인 지도, 3: 나만의 지도, 4: 멤버인 지도 */
+    private fun TestScope.editingViewModel(): CollectionViewModel {
+        repository.result = { listOf(myMap(1L), myMap(2L), myMap(3L, personal = true), myMap(4L)) }
+        repository.leaveOutcome = { mapId -> if (mapId == 2L) null else LeaveOutcome.Leave }
+        val viewModel = startedViewModel()
+        viewModel.startEdit()
+        advanceUntilIdle()
+        return viewModel
+    }
+
+    @Test
+    fun `편집을 시작하면 지도마다 나갈 수 있는지 확인한다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+
+        val edit = viewModel.uiState.value.edit!!
+        assertEquals(LeaveEligibility.Allowed, edit.eligibilityOf(1L))
+        assertEquals(LeaveEligibility.Owner, edit.eligibilityOf(2L))
+        assertEquals(LeaveEligibility.Personal, edit.eligibilityOf(3L))
+        // 나만의 지도는 물어볼 필요가 없다.
+        assertEquals(listOf(1L, 2L, 4L), repository.outcomeChecks.sorted())
+    }
+
+    @Test
+    fun `고를 수 없는 지도를 누르면 이유를 알리고 고르지 않는다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+
+        viewModel.toggleSelection(2L)
+        assertEquals(OWNER_CANNOT_LEAVE_MESSAGE, viewModel.uiState.value.notice)
+
+        viewModel.toggleSelection(3L)
+        assertEquals(PERSONAL_CANNOT_LEAVE_MESSAGE, viewModel.uiState.value.notice)
+
+        assertTrue(viewModel.uiState.value.edit!!.selected.isEmpty())
+    }
+
+    @Test
+    fun `나갈 수 있는 지도는 눌러서 고르고 다시 누르면 푼다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+
+        viewModel.toggleSelection(1L)
+        assertEquals(setOf(1L), viewModel.uiState.value.edit!!.selected)
+        assertTrue(viewModel.uiState.value.edit!!.selectionBarVisible)
+
+        viewModel.toggleSelection(1L)
+        assertTrue(viewModel.uiState.value.edit!!.selected.isEmpty())
+    }
+
+    @Test
+    fun `확인이 끝나지 않은 지도는 눌러도 아무 일이 없다`() = runTest(dispatcher) {
+        repository.result = { listOf(myMap(1L)) }
+        val viewModel = startedViewModel()
+
+        viewModel.startEdit()
+        viewModel.toggleSelection(1L)
+
+        assertTrue(viewModel.uiState.value.edit!!.selected.isEmpty())
+        assertNull(viewModel.uiState.value.notice)
+    }
+
+    @Test
+    fun `확인에 실패한 지도는 고를 수 없다`() = runTest(dispatcher) {
+        repository.result = { listOf(myMap(1L)) }
+        repository.leaveOutcome = { throw IOException("boom") }
+        val viewModel = startedViewModel()
+        viewModel.startEdit()
+        advanceUntilIdle()
+
+        viewModel.toggleSelection(1L)
+
+        assertEquals(LEAVE_CHECK_FAILED_MESSAGE, viewModel.uiState.value.notice)
+        assertTrue(viewModel.uiState.value.edit!!.selected.isEmpty())
+    }
+
+    @Test
+    fun `고른 지도에서 모두 나가면 편집을 끝내고 목록을 다시 읽는다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+        viewModel.toggleSelection(1L)
+        viewModel.toggleSelection(4L)
+        val loadsBefore = repository.calls.size
+
+        viewModel.openLeaveConfirm()
+        assertTrue(viewModel.uiState.value.edit!!.confirmVisible)
+        viewModel.leaveSelected()
+        advanceUntilIdle()
+
+        assertEquals(listOf(1L, 4L), repository.leftMapIds)
+        assertNull(viewModel.uiState.value.edit)
+        assertNull(viewModel.uiState.value.notice)
+        assertEquals(loadsBefore + 1, repository.calls.size)
+    }
+
+    @Test
+    fun `일부만 나가지 못하면 몇 개인지 알린다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+        repository.leaveFailures = setOf(4L)
+        viewModel.toggleSelection(1L)
+        viewModel.toggleSelection(4L)
+
+        viewModel.leaveSelected()
+        advanceUntilIdle()
+
+        assertEquals(listOf(1L), repository.leftMapIds)
+        assertEquals(leaveFailedMessage(1), viewModel.uiState.value.notice)
+    }
+
+    @Test
+    fun `고른 지도가 없으면 나가기 팝업을 열지 않는다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+
+        viewModel.openLeaveConfirm()
+
+        assertFalse(viewModel.uiState.value.edit!!.confirmVisible)
+    }
+
+    @Test
+    fun `탭을 옮기면 편집을 끝낸다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+        viewModel.toggleSelection(1L)
+
+        viewModel.selectTab(MapType.Private)
+
+        assertNull(viewModel.uiState.value.edit)
     }
 }

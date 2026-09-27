@@ -1,18 +1,23 @@
 package com.moamap.app.feature.collection
 
+import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -26,12 +31,16 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
@@ -42,6 +51,10 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
+import com.moamap.app.core.common.format.formatMemberCount
+import com.moamap.app.core.common.format.formatPlaceCount
+import com.moamap.app.core.designsystem.component.ErrorSnackbar
+import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -49,14 +62,16 @@ import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.collection.domain.model.MyMap
+import com.moamap.app.feature.collection.presentation.CollectionEditState
 import com.moamap.app.feature.collection.presentation.CollectionUiState
 import com.moamap.app.feature.collection.presentation.CollectionViewModel
 import com.moamap.app.feature.collection.presentation.JoinMapDialog
 import com.moamap.app.feature.collection.presentation.JoinState
+import com.moamap.app.feature.collection.presentation.LeaveEligibility
 import com.moamap.app.feature.collection.presentation.MyMapsState
+import com.moamap.app.feature.collection.presentation.placeimport.PlaceImportCheckBox
+import com.moamap.app.feature.collection.presentation.placeimport.selectedCardBorder
 import com.moamap.app.feature.collection.presentation.splitPersonal
-import com.moamap.app.core.common.format.formatMemberCount
-import com.moamap.app.core.common.format.formatPlaceCount
 import com.moamap.app.feature.explore.presentation.MapThumbnail
 
 /** 카드 썸네일과 같은 높이를 유지해 제목/메타가 위아래로 벌어지도록 한다. */
@@ -73,6 +88,9 @@ private val ActionCardHeight = 72.dp
 
 /** 목록 자리에 로딩·오류·빈 상태를 같은 높이로 앉혀 화면이 튀지 않게 한다. */
 private val ListPlaceholderHeight = 200.dp
+
+/** 편집에서 지도를 고르면 하단 탭 대신 뜨는 막대. 시안 `1974:8444`. */
+private val SelectionBarHeight = 75.dp
 
 private val CollectionTabs = listOf(MapType.Community, MapType.Private)
 
@@ -121,10 +139,33 @@ fun CollectionScreen(
     onInstagramImportClick: () -> Unit = {},
     onMapShareImportClick: () -> Unit = {},
     onMapClick: (MyMap) -> Unit = {},
+    /** 아래 선택 막대가 떴는지. 뜬 동안 하단 탭을 숨겨야 한다 - 탭은 NavHost 가 그린다. */
+    onSelectionBarVisibleChange: (Boolean) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: CollectionViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val edit = uiState.edit
+
+    val selectionBarVisible = edit?.selectionBarVisible == true
+    LaunchedEffect(selectionBarVisible) { onSelectionBarVisibleChange(selectionBarVisible) }
+    DisposableEffect(Unit) { onDispose { onSelectionBarVisibleChange(false) } }
+
+    // 편집 중이면 기기 뒤로가기는 편집부터 끝낸다.
+    BackHandler(enabled = edit != null) { viewModel.finishEdit() }
+
+    if (edit?.confirmVisible == true) {
+        MoaMapConfirmDialog(
+            title = "${edit.selected.size}개의 지도",
+            titleSuffix = "를 나가시겠습니까?",
+            message = "삭제하면 모음 탭에서 지도가 사라집니다",
+            confirmText = "확인",
+            onConfirm = viewModel::leaveSelected,
+            onDismissRequest = viewModel::closeLeaveConfirm,
+            dismissText = "닫기",
+            dismissColor = MoaMapPrimitiveColors.Gray200,
+        )
+    }
 
     // 지도를 만들고 돌아오면 목록이 만들기 전 그대로다. 화면이 다시 보일 때 현재 탭을 다시 읽는다.
     LifecycleResumeEffect(Unit) {
@@ -151,7 +192,13 @@ fun CollectionScreen(
         onNewMapClick = onNewMapClick,
         onInstagramImportClick = onInstagramImportClick,
         onMapShareImportClick = onMapShareImportClick,
-        onMapClick = onMapClick,
+        onMapClick = { map ->
+            // 편집 중에는 카드를 누르면 고른다. 지도로 들어가지 않는다.
+            if (edit != null) viewModel.toggleSelection(map.id) else onMapClick(map)
+        },
+        onEditClick = { if (edit != null) viewModel.finishEdit() else viewModel.startEdit() },
+        onLeaveClick = viewModel::openLeaveConfirm,
+        onNoticeShown = viewModel::consumeNotice,
         modifier = modifier,
     )
 }
@@ -168,8 +215,12 @@ private fun CollectionContent(
     onMapShareImportClick: () -> Unit,
     onMapClick: (MyMap) -> Unit,
     modifier: Modifier = Modifier,
+    onEditClick: () -> Unit = {},
+    onLeaveClick: () -> Unit = {},
+    onNoticeShown: () -> Unit = {},
 ) {
     val selectedTab = uiState.selectedTab
+    val edit = uiState.edit
 
     // 탭마다 스크롤 위치를 따로 기억해, 탭을 오갈 때 보던 자리로 돌아온다.
     val communityScrollState = rememberScrollState()
@@ -180,53 +231,111 @@ private fun CollectionContent(
         MapType.Official -> communityScrollState
     }
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MoaMapTheme.colors.backgroundPrimary)
-            .statusBarsPadding(),
-    ) {
-        CollectionTopBar(
-            onHomeClick = onHomeClick,
-            onInviteCodeClick = onInviteCodeClick,
-            onNewMapClick = onNewMapClick,
-        )
-
+    Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(scrollState)
-                .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding),
-            verticalArrangement = Arrangement.spacedBy(20.dp),
+                .fillMaxSize()
+                .background(MoaMapTheme.colors.backgroundPrimary)
+                .statusBarsPadding(),
         ) {
-            Spacer(Modifier.height(8.dp))
-
-            CollectionTabRow(
-                selectedTab = selectedTab,
-                onTabClick = onTabClick,
+            CollectionTopBar(
+                onHomeClick = onHomeClick,
+                onInviteCodeClick = onInviteCodeClick,
+                onNewMapClick = onNewMapClick,
             )
 
-            when (selectedTab) {
-                MapType.Community -> CommunityTabContent(
-                    state = uiState.community,
-                    onRetryClick = onRetryClick,
-                    onMapClick = onMapClick,
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(scrollState)
+                    .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding),
+                verticalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                Spacer(Modifier.height(8.dp))
+
+                CollectionTabRow(
+                    selectedTab = selectedTab,
+                    onTabClick = onTabClick,
                 )
 
-                MapType.Private -> PrivateTabContent(
-                    state = uiState.private,
-                    onRetryClick = onRetryClick,
-                    onInstagramImportClick = onInstagramImportClick,
-                    onMapShareImportClick = onMapShareImportClick,
-                    onMapClick = onMapClick,
-                )
+                when (selectedTab) {
+                    MapType.Community -> CommunityTabContent(
+                        state = uiState.community,
+                        edit = edit,
+                        onRetryClick = onRetryClick,
+                        onMapClick = onMapClick,
+                        onEditClick = onEditClick,
+                    )
 
-                // 탭이 없는 종류다. [CollectionTabs] 참고.
-                MapType.Official -> Unit
+                    MapType.Private -> PrivateTabContent(
+                        state = uiState.private,
+                        edit = edit,
+                        onRetryClick = onRetryClick,
+                        onInstagramImportClick = onInstagramImportClick,
+                        onMapShareImportClick = onMapShareImportClick,
+                        onMapClick = onMapClick,
+                        onEditClick = onEditClick,
+                    )
+
+                    // 탭이 없는 종류다. [CollectionTabs] 참고.
+                    MapType.Official -> Unit
+                }
+
+                // 바텀 네비게이션에 마지막 카드가 가리지 않도록 확보
+                Spacer(Modifier.height(80.dp))
             }
+        }
 
-            // 바텀 네비게이션에 마지막 카드가 가리지 않도록 확보
-            Spacer(Modifier.height(80.dp))
+        // 안내는 하단 탭(또는 선택 막대) 위에 쌓는다.
+        Column(modifier = Modifier.align(Alignment.BottomCenter)) {
+            ErrorSnackbar(message = uiState.notice, onShown = onNoticeShown)
+            if (edit != null && edit.selectionBarVisible) {
+                SelectionBar(
+                    count = edit.selected.size,
+                    leaving = edit.leaving,
+                    onLeaveClick = onLeaveClick,
+                )
+            } else {
+                // 하단 탭 자리. 탭은 NavHost 가 그린다.
+                Spacer(Modifier.navigationBarsPadding().height(80.dp))
+            }
+        }
+    }
+}
+
+/**
+ * 고른 지도 수와 나가기. 시안 `1974:8444`. 하단 탭 자리를 대신한다.
+ */
+@Composable
+private fun SelectionBar(count: Int, leaving: Boolean, onLeaveClick: () -> Unit) {
+    ShadowedSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RectangleShape,
+        color = MoaMapPrimitiveColors.White,
+    ) {
+        Row(
+            modifier = Modifier
+                .navigationBarsPadding()
+                .height(SelectionBarHeight)
+                .padding(horizontal = 36.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = "${count}개 선택됨",
+                style = MoaMapTheme.typography.subtitle2,
+                color = MoaMapTheme.colors.textNormal,
+            )
+            Text(
+                text = "나가기",
+                style = MoaMapTheme.typography.button2,
+                color = MoaMapTheme.colors.textWhite,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(1000.dp))
+                    .background(MoaMapTheme.colors.statusAlert)
+                    .clickable(enabled = !leaving, onClick = onLeaveClick)
+                    .padding(horizontal = 12.dp, vertical = 8.dp),
+            )
         }
     }
 }
@@ -362,20 +471,31 @@ private fun CollectionTabRow(
 @Composable
 private fun CommunityTabContent(
     state: MyMapsState,
+    edit: CollectionEditState?,
     onRetryClick: () -> Unit,
     onMapClick: (MyMap) -> Unit,
+    onEditClick: () -> Unit,
 ) {
     MapsStateContent(
         state = state,
         emptyMessage = "아직 참여한 지도가 없어요",
         onRetryClick = onRetryClick,
     ) { maps ->
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            maps.forEach { map ->
-                CollectionMapCard(
-                    map = map.toCommunityUiModel(),
-                    onClick = { onMapClick(map) },
-                )
+        // 시안 `1974:7318`: 목록 오른쪽 위에 「편집」, 목록과 12. 폭을 채워야 「편집」이 오른쪽 끝에 붙는다.
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            EditToggle(edit = edit, onClick = onEditClick, modifier = Modifier.align(Alignment.End))
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                maps.forEach { map ->
+                    MyMapCard(
+                        map = map,
+                        uiModel = map.toCommunityUiModel(),
+                        edit = edit,
+                        onClick = { onMapClick(map) },
+                    )
+                }
             }
         }
     }
@@ -384,10 +504,12 @@ private fun CommunityTabContent(
 @Composable
 private fun PrivateTabContent(
     state: MyMapsState,
+    edit: CollectionEditState?,
     onRetryClick: () -> Unit,
     onInstagramImportClick: () -> Unit,
     onMapShareImportClick: () -> Unit,
     onMapClick: (MyMap) -> Unit,
+    onEditClick: () -> Unit,
 ) {
     // 액션 카드는 목록 상태와 무관하게 늘 보인다. 목록이 비었을 때야말로 만들 진입점이 필요하다.
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -396,15 +518,27 @@ private fun PrivateTabContent(
             onMapShareImportClick = onMapShareImportClick,
         )
 
+        // 목록이 비어도 「프라이빗 지도」 제목과 「편집」은 보이고, 그 아래에서 비었다고 알린다.
         MapsStateContent(
             state = state,
-            emptyMessage = "아직 만든 지도가 없어요",
+            emptyMessage = null,
             onRetryClick = onRetryClick,
         ) { maps ->
             val sections = maps.splitPersonal()
             Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                PrivateMapSection("나만의 지도", sections.personal, onMapClick)
-                PrivateMapSection("전체", sections.others, onMapClick)
+                // 나만의 지도는 나갈 대상이 아니라 편집해도 체크박스를 달지 않는다.
+                PrivateMapSection("나만의 지도", sections.personal, edit = null, onMapClick = onMapClick)
+                // 시안 `1976:8630`: 「편집」은 이 섹션 제목 아래, 목록 바로 위에 있다.
+                PrivateMapSection(
+                    title = "프라이빗 지도",
+                    maps = sections.others,
+                    edit = edit,
+                    onMapClick = onMapClick,
+                    emptyMessage = "참여하고 있는 프라이빗 지도가 없습니다",
+                    editToggle = {
+                        EditToggle(edit = edit, onClick = onEditClick, modifier = Modifier.align(Alignment.End))
+                    },
+                )
             }
         }
     }
@@ -418,7 +552,8 @@ private fun PrivateTabContent(
 @Composable
 internal fun MapsStateContent(
     state: MyMapsState,
-    emptyMessage: String,
+    /** null 이면 목록이 비어도 [content] 를 그린다. 빈 상태를 화면이 직접 그릴 때다. */
+    emptyMessage: String?,
     onRetryClick: () -> Unit,
     content: @Composable (List<MyMap>) -> Unit,
 ) {
@@ -451,7 +586,7 @@ internal fun MapsStateContent(
         }
 
         is MyMapsState.Success -> {
-            if (state.maps.isEmpty()) {
+            if (state.maps.isEmpty() && emptyMessage != null) {
                 ListPlaceholder {
                     Text(
                         text = emptyMessage,
@@ -575,22 +710,45 @@ internal fun ImportActionCard(
 private fun PrivateMapSection(
     title: String,
     maps: List<MyMap>,
+    edit: CollectionEditState?,
     onMapClick: (MyMap) -> Unit,
+    /** 있으면 지도가 없어도 섹션을 그리고 이 문구로 비었다고 알린다. 없으면 섹션째 숨긴다. */
+    emptyMessage: String? = null,
+    editToggle: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     // 제목만 떠 있고 아래가 비어 있으면 못 불러온 것처럼 보인다.
-    if (maps.isEmpty()) return
+    if (maps.isEmpty() && emptyMessage == null) return
 
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    // 시안: 제목과 목록 사이 12, 「편집」과 카드·카드끼리는 8.
+    // 폭을 채워야 「편집」이 오른쪽 끝에 붙는다. 카드가 없으면 안내 문구 폭으로 줄어든다.
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
         Text(
             text = title,
             style = MoaMapTheme.typography.title2,
             color = MoaMapTheme.colors.textNormal,
             modifier = Modifier.padding(horizontal = 4.dp),
         )
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            editToggle?.invoke(this)
+            if (maps.isEmpty() && emptyMessage != null) {
+                Text(
+                    text = emptyMessage,
+                    style = MoaMapTheme.typography.body2,
+                    color = MoaMapTheme.colors.textAssistive,
+                    modifier = Modifier.padding(horizontal = 4.dp),
+                )
+            }
             maps.forEach { map ->
-                CollectionMapCard(
-                    map = map.toPrivateUiModel(),
+                MyMapCard(
+                    map = map,
+                    uiModel = map.toPrivateUiModel(),
+                    edit = edit,
                     onClick = { onMapClick(map) },
                 )
             }
@@ -598,11 +756,61 @@ private fun PrivateMapSection(
     }
 }
 
+/** 「편집」·「완료」. 시안에서 목록 오른쪽 위에 글자만 있다. */
+@Composable
+private fun EditToggle(edit: CollectionEditState?, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Text(
+        text = if (edit != null) "완료" else "편집",
+        style = MoaMapTheme.typography.button1,
+        color = MoaMapTheme.colors.textNormal,
+        modifier = modifier.clickable(enabled = edit?.leaving != true, onClick = onClick),
+    )
+}
+
+/**
+ * 모음 목록의 카드. 시안 `1974:7318`·`1974:7468`.
+ *
+ * 순서를 바꾸는 손잡이는 늘 보인다 - 순서 저장은 서버가 준비되면 붙이고, 지금은 자리만 둔다.
+ * 편집 중에는 체크박스가 붙고 누르는 동안 회색이 된다. 고를 수 없는 지도는 체크박스가 회색이다.
+ */
+@Composable
+private fun MyMapCard(
+    map: MyMap,
+    uiModel: CollectionMapUiModel,
+    edit: CollectionEditState?,
+    onClick: () -> Unit,
+) {
+    val selected = edit != null && map.id in edit.selected
+    CollectionMapCard(
+        map = uiModel,
+        onClick = onClick,
+        border = selectedCardBorder(selected),
+        showDragHandle = true,
+        pressFeedback = edit != null,
+        trailingContent = edit?.let { current ->
+            {
+                // 확인 중인 지도는 고를 수 있는 모양으로 둔다. 곧 대부분 고를 수 있게 된다.
+                val eligibility = current.eligibilityOf(map.id)
+                PlaceImportCheckBox(
+                    checked = selected,
+                    enabled = eligibility == LeaveEligibility.Allowed ||
+                        eligibility == LeaveEligibility.Checking,
+                )
+            }
+        },
+    )
+}
+
 /**
  * 모음 지도 카드.
  *
  * 장소 가져오기의 지도 선택 화면도 같은 카드를 쓰므로, 선택 표시 같은 우측 요소는
  * [trailingContent] 슬롯으로 받는다.
+ *
+ * @param showDragHandle 왼쪽에 순서 손잡이를 둔다. 시안에서 손잡이가 든 카드는 여백이 달라
+ *  (위아래 16, 왼쪽 12, 손잡이와 사진 사이 8) 함께 바꾼다.
+ * @param pressFeedback 누르는 동안 회색(Gray50)으로 바꾼다. 앱은 누름 효과를 꺼 두었지만
+ *  모음 편집은 시안(`1974:8284`)에 있다.
  */
 @Composable
 internal fun CollectionMapCard(
@@ -610,89 +818,114 @@ internal fun CollectionMapCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     border: BorderStroke? = null,
+    showDragHandle: Boolean = false,
+    pressFeedback: Boolean = false,
     trailingContent: (@Composable () -> Unit)? = null,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
+    val pressed by interactionSource.collectIsPressedAsState()
+
     ShadowedSurface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        color = MoaMapPrimitiveColors.White,
+        color = if (pressFeedback && pressed) MoaMapPrimitiveColors.Gray50 else MoaMapPrimitiveColors.White,
         border = border,
-        onClick = onClick,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
+                .padding(
+                    start = if (showDragHandle) 12.dp else 16.dp,
+                    end = 16.dp,
+                    top = if (showDragHandle) 16.dp else 20.dp,
+                    bottom = if (showDragHandle) 16.dp else 20.dp,
+                ),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            MapThumbnail(
-                imageUrl = map.imageUrl,
-                size = CardThumbnailSize,
-                shape = CardThumbnailShape,
-            )
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(CardThumbnailSize)
-                    .padding(vertical = 8.dp),
-                verticalArrangement = Arrangement.SpaceBetween,
+            if (showDragHandle) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_drag_handle),
+                    contentDescription = null,
+                    tint = MoaMapTheme.colors.textNormal,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+            Row(
+                modifier = Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                MapThumbnail(
+                    imageUrl = map.imageUrl,
+                    size = CardThumbnailSize,
+                    shape = CardThumbnailShape,
+                )
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(CardThumbnailSize)
+                        .padding(vertical = 8.dp),
+                    verticalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(
-                        text = map.title,
-                        style = MoaMapTheme.typography.subtitle2,
-                        color = MoaMapPrimitiveColors.Black,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    if (map.verified) {
-                        Icon(
-                            painter = painterResource(R.drawable.ic_verify_filled),
-                            contentDescription = "공식 인증",
-                            tint = Color.Unspecified,
-                            modifier = Modifier.size(20.dp),
-                        )
-                    }
-                }
-                // 인원 수가 있는 카드와 없는 카드가 아이콘 크기·간격이 다르다.
-                // 둘 다 없으면 메타 줄을 그리지 않고 자리를 비워 둔다.
-                if (map.memberCount != null) {
                     Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        CollectionMapMeta(
-                            iconRes = R.drawable.ic_person,
-                            text = map.memberCount,
-                            contentDescription = "참여 인원",
-                            iconSize = 14.dp,
-                            gap = 2.dp,
+                        Text(
+                            text = map.title,
+                            style = MoaMapTheme.typography.subtitle2,
+                            color = MoaMapPrimitiveColors.Black,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
                         )
-                        if (map.placeCount != null) {
-                            CollectionMapMeta(
-                                iconRes = R.drawable.ic_location,
-                                text = map.placeCount,
-                                contentDescription = "등록 장소",
-                                iconSize = 14.dp,
-                                gap = 2.dp,
+                        if (map.verified) {
+                            Icon(
+                                painter = painterResource(R.drawable.ic_verify_filled),
+                                contentDescription = "공식 인증",
+                                tint = Color.Unspecified,
+                                modifier = Modifier.size(20.dp),
                             )
                         }
                     }
-                } else if (map.placeCount != null) {
-                    CollectionMapMeta(
-                        iconRes = R.drawable.ic_location,
-                        text = map.placeCount,
-                        contentDescription = "등록 장소",
-                        iconSize = 12.dp,
-                        gap = 4.dp,
-                    )
+                    // 인원 수가 있는 카드와 없는 카드가 아이콘 크기·간격이 다르다.
+                    // 둘 다 없으면 메타 줄을 그리지 않고 자리를 비워 둔다.
+                    if (map.memberCount != null) {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            CollectionMapMeta(
+                                iconRes = R.drawable.ic_person,
+                                text = map.memberCount,
+                                contentDescription = "참여 인원",
+                                iconSize = 14.dp,
+                                gap = 2.dp,
+                            )
+                            if (map.placeCount != null) {
+                                CollectionMapMeta(
+                                    iconRes = R.drawable.ic_location,
+                                    text = map.placeCount,
+                                    contentDescription = "등록 장소",
+                                    iconSize = 14.dp,
+                                    gap = 2.dp,
+                                )
+                            }
+                        }
+                    } else if (map.placeCount != null) {
+                        CollectionMapMeta(
+                            iconRes = R.drawable.ic_location,
+                            text = map.placeCount,
+                            contentDescription = "등록 장소",
+                            iconSize = 12.dp,
+                            gap = 4.dp,
+                        )
+                    }
                 }
-            }
 
-            trailingContent?.invoke()
+                trailingContent?.invoke()
+            }
         }
     }
 }
@@ -735,6 +968,60 @@ private fun CollectionScreenPreview() {
                         MyMap(1L, "서울 팝업스토어 맵", null, 2312, 116, official = false, personal = false),
                         MyMap(2L, "성수 카페 투어", null, 24, 0, official = false, personal = false),
                     ),
+                ),
+            ),
+            onTabClick = {},
+            onRetryClick = {},
+            onHomeClick = {},
+            onInviteCodeClick = {},
+            onNewMapClick = {},
+            onInstagramImportClick = {},
+            onMapShareImportClick = {},
+            onMapClick = {},
+        )
+    }
+}
+
+/** 편집 중: 1번을 골랐고, 2번은 방장이라 고를 수 없다. */
+@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Composable
+private fun CollectionScreenEditPreview() {
+    MoaMapTheme {
+        CollectionContent(
+            uiState = CollectionUiState(
+                community = MyMapsState.Success(
+                    listOf(
+                        MyMap(1L, "서울 팝업스토어 맵", null, 2312, 116, official = false, personal = false),
+                        MyMap(2L, "성수 카페 투어", null, 24, 0, official = false, personal = false),
+                    ),
+                ),
+                edit = CollectionEditState(
+                    eligibility = mapOf(1L to LeaveEligibility.Allowed, 2L to LeaveEligibility.Owner),
+                    selected = setOf(1L),
+                ),
+            ),
+            onTabClick = {},
+            onRetryClick = {},
+            onHomeClick = {},
+            onInviteCodeClick = {},
+            onNewMapClick = {},
+            onInstagramImportClick = {},
+            onMapShareImportClick = {},
+            onMapClick = {},
+        )
+    }
+}
+
+/** 프라이빗 탭에 나만의 지도만 있을 때: 「프라이빗 지도」 제목과 「편집」은 남고 비었다고 알린다. */
+@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Composable
+private fun CollectionScreenPrivateEmptyPreview() {
+    MoaMapTheme {
+        CollectionContent(
+            uiState = CollectionUiState(
+                selectedTab = MapType.Private,
+                private = MyMapsState.Success(
+                    listOf(MyMap(1L, "나만의 지도", null, 1, 3, official = false, personal = true)),
                 ),
             ),
             onTabClick = {},
