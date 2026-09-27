@@ -202,9 +202,9 @@ internal fun MapDetailBottomSheet(
             )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
         if (places.isEmpty()) {
+            Spacer(modifier = Modifier.height(16.dp))
+
             // weight 를 줘야 목록이 있을 때와 시트 높이가 같다. 없으면 검색 결과가 빌
             // 때마다 시트가 글자 높이로 쪼그라들었다 펴진다.
             Box(
@@ -231,7 +231,8 @@ internal fun MapDetailBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
-                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 20.dp),
+                // 칩 줄과의 간격을 목록 안에 둬야 첫 카드 위 그림자가 목록 경계에 잘리지 않는다.
+                contentPadding = PaddingValues(start = 20.dp, top = 16.dp, end = 20.dp, bottom = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(

@@ -8,12 +8,10 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -26,12 +24,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 
-private val PlaceCardShape = RoundedCornerShape(16.dp)
 private val PlaceThumbnailShape = RoundedCornerShape(4.dp)
-internal val PlaceListTextMinHeight = 64.dp
 
 @Composable
 internal fun PlaceListItem(
@@ -40,14 +37,13 @@ internal fun PlaceListItem(
     modifier: Modifier = Modifier,
     onLikeClick: () -> Unit = {},
 ) {
-    Surface(
+    // 시안(1841:13009) 카드. 그림자는 Material 이 아니라 피그마 값 그대로 깔아야 옅게 나온다.
+    ShadowedSurface(
         modifier = modifier.fillMaxWidth(),
-        shape = PlaceCardShape,
-        color = MoaMapPrimitiveColors.White,
         onClick = onClick,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 20.dp),
+            modifier = Modifier.padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -73,46 +69,47 @@ internal fun PlaceListItem(
                 )
             }
 
+            // 설명은 이름 바로 아래에 붙고, 댓글 수만 12 떨어진다.
             Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = PlaceListTextMinHeight),
-                verticalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+                Column {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = place.name,
+                            style = MoaMapTheme.typography.subtitle2,
+                            color = MoaMapTheme.colors.textNormal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        // 카드를 누르면 상세가 열린다. 하트는 따로 받아 상세로 넘어가지 않게 한다.
+                        Icon(
+                            painter = painterResource(likeIconRes(place.liked)),
+                            contentDescription = if (place.liked) "하트 취소하기" else "하트 누르기",
+                            tint = if (place.liked) {
+                                MoaMapTheme.colors.statusAlert
+                            } else {
+                                MoaMapPrimitiveColors.Gray100
+                            },
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clickable(onClick = onLikeClick),
+                        )
+                    }
+
                     Text(
-                        text = place.name,
-                        style = MoaMapTheme.typography.subtitle2,
+                        text = place.description,
+                        style = MoaMapTheme.typography.caption0,
                         color = MoaMapTheme.colors.textNormal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f),
-                    )
-                    // 카드를 누르면 상세가 열린다. 하트는 따로 받아 상세로 넘어가지 않게 한다.
-                    Icon(
-                        painter = painterResource(likeIconRes(place.liked)),
-                        contentDescription = if (place.liked) "하트 취소하기" else "하트 누르기",
-                        tint = if (place.liked) {
-                            MoaMapTheme.colors.statusAlert
-                        } else {
-                            MoaMapPrimitiveColors.Gray100
-                        },
-                        modifier = Modifier
-                            .size(24.dp)
-                            .clickable(onClick = onLikeClick),
                     )
                 }
-
-                Text(
-                    text = place.description,
-                    style = MoaMapTheme.typography.caption0,
-                    color = MoaMapTheme.colors.textAlternative,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
 
                 // 별점은 보여주지 않는다. 후기가 고정 별점으로 쌓여 평균에 의미가 없다.
                 PlaceMetric(
@@ -134,7 +131,7 @@ private fun PlaceMetric(
     tint: androidx.compose.ui.graphics.Color,
 ) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
@@ -146,7 +143,7 @@ private fun PlaceMetric(
         Text(
             text = value,
             style = MoaMapTheme.typography.caption2,
-            color = MoaMapTheme.colors.textAlternative,
+            color = MoaMapTheme.colors.textNormal,
         )
     }
 }
