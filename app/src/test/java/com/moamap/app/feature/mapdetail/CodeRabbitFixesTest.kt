@@ -9,9 +9,9 @@ import org.junit.Test
 
 class CodeRabbitFixesTest {
     @Test
-    fun `favorite icon follows the place favorite state`() {
-        assertEquals(R.drawable.ic_favorite_filled, favoriteIconRes(favorite = true))
-        assertEquals(R.drawable.ic_favorite_outline, favoriteIconRes(favorite = false))
+    fun `like icon follows the place liked state`() {
+        assertEquals(R.drawable.ic_favorite_filled, likeIconRes(liked = true))
+        assertEquals(R.drawable.ic_favorite_outline, likeIconRes(liked = false))
     }
 
     @Test

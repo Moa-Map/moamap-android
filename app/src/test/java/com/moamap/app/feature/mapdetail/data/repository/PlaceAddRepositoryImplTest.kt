@@ -16,6 +16,7 @@ import com.moamap.app.feature.explore.data.remote.PlaceBulkCreateResponseDto
 import com.moamap.app.feature.explore.data.remote.PlaceCandidateDto
 import com.moamap.app.feature.explore.data.remote.PlaceCreateRequestDto
 import com.moamap.app.feature.explore.data.remote.PlaceDto
+import com.moamap.app.feature.explore.data.remote.PlaceLikeDto
 import com.moamap.app.feature.explore.data.remote.PlaceService
 import com.moamap.app.feature.explore.data.remote.PlaceUpdateRequestDto
 import com.moamap.app.feature.mapdetail.domain.model.NewPlace
@@ -39,6 +40,10 @@ private class RecordingPlaceService : PlaceService {
         lastCreate = request
         return PlaceDto()
     }
+
+    override suspend fun likePlace(placeId: Long): PlaceLikeDto = TODO("사용하지 않음")
+
+    override suspend fun unlikePlace(placeId: Long): PlaceLikeDto = TODO("사용하지 않음")
 
     override suspend fun createPhotoUploadUrls(
         request: PhotoUploadUrlRequestDto,

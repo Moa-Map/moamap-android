@@ -4,7 +4,6 @@ import com.moamap.app.feature.collection.data.remote.MapDetailDto
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.explore.data.remote.PlaceDto
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
-import com.moamap.app.feature.mapdetail.domain.model.areaLabel
 import com.moamap.app.feature.mapdetail.domain.model.categoryLabel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -156,20 +155,18 @@ class MapDetailMapperTest {
     }
 
     @Test
-    fun `주소에서 지역 한 토막을 꺼낸다`() {
-        val place = PlaceDto(roadAddress = "서울 성동구 성수이로 12").toMapPlace()
-
-        assertEquals("성동구", place.areaLabel)
-    }
-
-    @Test
     fun `카카오 장소 id 는 공백을 걷어 옮기고 없으면 빈 문자열이다`() {
         assertEquals("76206032", PlaceDto(kakaoPlaceId = " 76206032 ").toMapPlace().kakaoPlaceId)
         assertEquals("", PlaceDto(kakaoPlaceId = null).toMapPlace().kakaoPlaceId)
     }
 
     @Test
-    fun `주소가 없으면 지역도 빈 문자열이다`() {
-        assertEquals("", PlaceDto().toMapPlace().areaLabel)
+    fun `하트 수와 내가 눌렀는지를 옮긴다`() {
+        val place = PlaceDto(likeCount = 12, likedByMe = true).toMapPlace()
+
+        assertEquals(12, place.likeCount)
+        assertEquals(true, place.liked)
+        // 서버가 필드를 빼고 보내면 누르지 않은 것으로 본다.
+        assertEquals(false, PlaceDto().toMapPlace().liked)
     }
 }

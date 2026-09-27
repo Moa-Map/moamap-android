@@ -4,6 +4,7 @@ import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
+import com.moamap.app.feature.mapdetail.domain.model.PlaceLike
 import com.moamap.app.feature.mapdetail.domain.repository.MapDetailRepository
 import kotlinx.coroutines.delay
 
@@ -32,13 +33,15 @@ internal fun testMap(
     inviteCode = inviteCode,
 )
 
-internal fun testPlace(id: Long) = MapPlace(
+internal fun testPlace(id: Long, liked: Boolean = false, likeCount: Int = 0) = MapPlace(
     id = id,
     name = "장소$id",
     address = "주소$id",
     latitude = 37.5 + id,
     longitude = 127.0 + id,
     photoUrl = null,
+    liked = liked,
+    likeCount = likeCount,
 )
 
 /**
@@ -84,5 +87,18 @@ internal open class FakeMapDetailRepository(
     override suspend fun deleteMap(mapId: Long) {
         calls += "deleteMap"
         delay(responseDelayMillis)
+    }
+
+    /** 하트 요청을 실패시켜야 하는 테스트가 있다. 비어 있으면 성공한다. */
+    var likeFailure: Throwable? = null
+
+    /** 서버가 확정해 돌려줄 하트 수. 화면이 미리 올린 값과 달라야 확정이 보인다. */
+    var confirmedLikeCount: Int = 10
+
+    override suspend fun setPlaceLiked(placeId: Long, liked: Boolean): PlaceLike {
+        calls += if (liked) "likePlace" else "unlikePlace"
+        delay(responseDelayMillis)
+        likeFailure?.let { throw it }
+        return PlaceLike(liked = liked, likeCount = confirmedLikeCount)
     }
 }
