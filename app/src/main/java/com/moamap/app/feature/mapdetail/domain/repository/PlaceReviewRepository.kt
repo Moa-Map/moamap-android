@@ -24,4 +24,15 @@ interface PlaceReviewRepository {
      * 물어야 하고, 그럴 바에는 목록을 다시 읽는 편이 정렬까지 서버가 준 대로 맞는다.
      */
     suspend fun createReview(placeId: Long, content: String, photo: Uri?)
+
+    /**
+     * 내 후기의 글을 고친다. 작성자만 할 수 있다.
+     *
+     * 글만 보낸다. 서버는 보내지 않은 필드를 그대로 두므로 사진은 남는다. 빈 글도 보낸다 -
+     * 사진만 남기고 글을 지우는 경우다(비워서 안 보내면 서버가 옛 글을 그대로 둔다).
+     */
+    suspend fun updateReview(placeId: Long, reviewId: Long, content: String)
+
+    /** 후기를 지운다. 작성자(또는 방장·관리자)만 할 수 있다. */
+    suspend fun deleteReview(placeId: Long, reviewId: Long)
 }

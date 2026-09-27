@@ -7,6 +7,7 @@ import com.moamap.app.core.common.upload.PhotoUploader
 import com.moamap.app.core.common.upload.validateImageUpload
 import com.moamap.app.feature.explore.data.remote.PlaceReviewCreateRequestDto
 import com.moamap.app.feature.explore.data.remote.PlaceReviewPhotoUploadUrlRequestDto
+import com.moamap.app.feature.explore.data.remote.PlaceReviewUpdateRequestDto
 import com.moamap.app.feature.explore.data.remote.ReviewService
 import com.moamap.app.feature.mapdetail.domain.model.PlaceReview
 import com.moamap.app.feature.mapdetail.domain.repository.PlaceReviewRepository
@@ -67,6 +68,18 @@ internal class PlaceReviewRepositoryImpl @Inject constructor(
                 imageUrls = imageUrl?.let { url -> listOf(url) },
             ),
         )
+    }
+
+    override suspend fun updateReview(placeId: Long, reviewId: Long, content: String) {
+        reviewService.updateReview(
+            placeId = placeId,
+            reviewId = reviewId,
+            request = PlaceReviewUpdateRequestDto(content = content),
+        )
+    }
+
+    override suspend fun deleteReview(placeId: Long, reviewId: Long) {
+        reviewService.deleteReview(placeId = placeId, reviewId = reviewId)
     }
 
     /** 형식·크기를 먼저 거른 뒤 발급받아 올린다. 서버 400 을 받고 나서는 이유를 알려줄 수 없다. */
