@@ -16,6 +16,8 @@ val MapLoadState.mapOrNull: MapDetail?
 internal const val MAP_LOAD_FAILED_MESSAGE = "지도를 불러오지 못했어요"
 internal const val JOIN_FAILED_MESSAGE = "지도에 참여하지 못했어요"
 internal const val LEAVE_FAILED_MESSAGE = "지도에서 나가지 못했어요"
+internal const val LIKE_FAILED_MESSAGE = "하트를 반영하지 못했어요"
+internal const val LIKE_NEEDS_JOIN_MESSAGE = "지도에 참여하면 하트를 누를 수 있어요"
 internal const val NETWORK_ERROR_MESSAGE = "네트워크에 연결할 수 없어요"
 
 /**
