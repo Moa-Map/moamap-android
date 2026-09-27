@@ -21,10 +21,12 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** 작성 요청만 받아 둔다. */
+/** 작성·수정·삭제 요청을 받아 둔다. */
 private class RecordingReviewService : ReviewService {
 
     val created = mutableListOf<PlaceReviewCreateRequestDto>()
+    val updated = mutableListOf<PlaceReviewUpdateRequestDto>()
+    val deleted = mutableListOf<Pair<Long, Long>>()
 
     override suspend fun createReview(
         placeId: Long,
@@ -46,9 +48,14 @@ private class RecordingReviewService : ReviewService {
         placeId: Long,
         reviewId: Long,
         request: PlaceReviewUpdateRequestDto,
-    ): PlaceReviewDto = TODO("사용하지 않음")
+    ): PlaceReviewDto {
+        updated += request
+        return PlaceReviewDto()
+    }
 
-    override suspend fun deleteReview(placeId: Long, reviewId: Long) = TODO("사용하지 않음")
+    override suspend fun deleteReview(placeId: Long, reviewId: Long) {
+        deleted += placeId to reviewId
+    }
 }
 
 private class UnusedReviewUserService : UserService {
@@ -89,5 +96,20 @@ class PlaceReviewRepositoryImplTest {
         repository.createReview(placeId = 7L, content = "  ", photo = null)
 
         assertNull(service.created.single().content)
+    }
+
+    /** 서버는 보내지 않은 필드를 그대로 둔다. 별점·사진을 실으면 원래 값을 덮는다. */
+    @Test
+    fun `후기를 고칠 때는 글만 보낸다`() = runTest {
+        repository.updateReview(placeId = 7L, reviewId = 1L, content = "고친 글")
+
+        assertEquals(listOf(PlaceReviewUpdateRequestDto(content = "고친 글")), service.updated)
+    }
+
+    @Test
+    fun `후기를 지운다`() = runTest {
+        repository.deleteReview(placeId = 7L, reviewId = 1L)
+
+        assertEquals(listOf(7L to 1L), service.deleted)
     }
 }

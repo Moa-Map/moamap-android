@@ -1,6 +1,7 @@
 package com.moamap.app.feature.mapdetail.presentation.review
 
 import android.net.Uri
+import com.moamap.app.core.auth.FakeCurrentUserStore
 import com.moamap.app.core.common.upload.ImageUploadException
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.mapdetail.domain.model.PlaceReview
@@ -20,11 +21,12 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
-private fun testReview(id: Long) = PlaceReview(
+private fun testReview(id: Long, imageUrls: List<String> = emptyList()) = PlaceReview(
     id = id,
     authorId = id,
     authorName = "작성자$id",
     content = "후기$id",
+    imageUrls = imageUrls,
     createdAtMillis = null,
 )
 
@@ -53,6 +55,20 @@ private class FakePlaceReviewRepository(
         delay(responseDelayMillis)
         onCreate()
     }
+
+    /** 수정을 실패시켜야 하는 테스트가 있다. */
+    var updateFailure: Throwable? = null
+
+    override suspend fun updateReview(placeId: Long, reviewId: Long, content: String) {
+        calls += "updateReview($placeId, $reviewId, $content)"
+        delay(responseDelayMillis)
+        updateFailure?.let { throw it }
+    }
+
+    override suspend fun deleteReview(placeId: Long, reviewId: Long) {
+        calls += "deleteReview($placeId, $reviewId)"
+        delay(responseDelayMillis)
+    }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -73,7 +89,7 @@ class PlaceReviewViewModelTest {
     @Test
     fun `열면 그 장소의 후기를 읽는다`() = runTest {
         val repository = FakePlaceReviewRepository(reviews = { listOf(testReview(1L), testReview(2L)) })
-        val viewModel = PlaceReviewViewModel(repository)
+        val viewModel = PlaceReviewViewModel(repository, FakeCurrentUserStore())
 
         viewModel.open(placeId = 7L)
         assertTrue(viewModel.uiState.value.loading)
@@ -89,7 +105,7 @@ class PlaceReviewViewModelTest {
     @Test
     fun `같은 장소를 다시 열면 받아 둔 목록을 그대로 쓴다`() = runTest {
         val repository = FakePlaceReviewRepository()
-        val viewModel = PlaceReviewViewModel(repository)
+        val viewModel = PlaceReviewViewModel(repository, FakeCurrentUserStore())
 
         viewModel.open(placeId = 7L)
         dispatcher.scheduler.advanceUntilIdle()
@@ -102,7 +118,7 @@ class PlaceReviewViewModelTest {
     @Test
     fun `닫았다 열면 서버에서 다시 읽는다`() = runTest {
         val repository = FakePlaceReviewRepository()
-        val viewModel = PlaceReviewViewModel(repository)
+        val viewModel = PlaceReviewViewModel(repository, FakeCurrentUserStore())
 
         viewModel.open(placeId = 7L)
         dispatcher.scheduler.advanceUntilIdle()
@@ -121,7 +137,7 @@ class PlaceReviewViewModelTest {
         val repository = FakePlaceReviewRepository(
             reviews = { if (fail) throw RuntimeException("boom") else listOf(testReview(1L)) },
         )
-        val viewModel = PlaceReviewViewModel(repository)
+        val viewModel = PlaceReviewViewModel(repository, FakeCurrentUserStore())
 
         viewModel.open(placeId = 7L)
         dispatcher.scheduler.advanceUntilIdle()
@@ -141,7 +157,7 @@ class PlaceReviewViewModelTest {
             responseDelayMillis = 100L,
             reviews = { placeId -> listOf(testReview(placeId)) },
         )
-        val viewModel = PlaceReviewViewModel(repository)
+        val viewModel = PlaceReviewViewModel(repository, FakeCurrentUserStore())
 
         viewModel.open(placeId = 7L)
         viewModel.open(placeId = 8L)
@@ -154,7 +170,7 @@ class PlaceReviewViewModelTest {
     @Test
     fun `글도 사진도 없으면 보내지 않는다`() = runTest {
         val repository = FakePlaceReviewRepository()
-        val viewModel = PlaceReviewViewModel(repository)
+        val viewModel = PlaceReviewViewModel(repository, FakeCurrentUserStore())
         viewModel.open(placeId = 7L)
         dispatcher.scheduler.advanceUntilIdle()
         repository.calls.clear()
@@ -171,7 +187,7 @@ class PlaceReviewViewModelTest {
         val repository = FakePlaceReviewRepository(
             onCreate = { throw ImageUploadException.TooLarge(5L * 1024 * 1024) },
         )
-        val viewModel = PlaceReviewViewModel(repository)
+        val viewModel = PlaceReviewViewModel(repository, FakeCurrentUserStore())
         viewModel.open(placeId = 7L)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -184,7 +200,7 @@ class PlaceReviewViewModelTest {
     @Test
     fun `보내고 나면 목록을 다시 읽고 작성 수를 올린다`() = runTest {
         val repository = FakePlaceReviewRepository()
-        val viewModel = PlaceReviewViewModel(repository)
+        val viewModel = PlaceReviewViewModel(repository, FakeCurrentUserStore())
         viewModel.open(placeId = 7L)
         dispatcher.scheduler.advanceUntilIdle()
         repository.calls.clear()
@@ -201,7 +217,7 @@ class PlaceReviewViewModelTest {
     @Test
     fun `보내는 중에는 두 번째 전송을 받지 않는다`() = runTest {
         val repository = FakePlaceReviewRepository(responseDelayMillis = 100L)
-        val viewModel = PlaceReviewViewModel(repository)
+        val viewModel = PlaceReviewViewModel(repository, FakeCurrentUserStore())
         viewModel.open(placeId = 7L)
         dispatcher.scheduler.advanceUntilIdle()
         repository.calls.clear()
@@ -219,7 +235,7 @@ class PlaceReviewViewModelTest {
         val repository = FakePlaceReviewRepository(
             onCreate = { throw ApiException(code = "PLACE_002", status = 403, serverMessage = "not a member") },
         )
-        val viewModel = PlaceReviewViewModel(repository)
+        val viewModel = PlaceReviewViewModel(repository, FakeCurrentUserStore())
         viewModel.open(placeId = 7L)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -236,7 +252,7 @@ class PlaceReviewViewModelTest {
             reviews = { listOf(testReview(1L)) },
             onCreate = { throw RuntimeException("boom") },
         )
-        val viewModel = PlaceReviewViewModel(repository)
+        val viewModel = PlaceReviewViewModel(repository, FakeCurrentUserStore())
         viewModel.open(placeId = 7L)
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -245,5 +261,148 @@ class PlaceReviewViewModelTest {
 
         assertEquals(REVIEW_SUBMIT_FAILED_MESSAGE, viewModel.uiState.value.submitErrorMessage)
         assertEquals(listOf(1L), viewModel.uiState.value.reviews.map { review -> review.id })
+    }
+
+    // ---------- 내 후기 수정·삭제 ----------
+
+    /** 1번은 내 후기(작성자 1), 2번은 남의 후기다. */
+    private fun openedAsAuthor(
+        repository: FakePlaceReviewRepository = FakePlaceReviewRepository(
+            reviews = { listOf(testReview(1L), testReview(2L)) },
+        ),
+    ): PlaceReviewViewModel {
+        val viewModel = PlaceReviewViewModel(repository, FakeCurrentUserStore(initial = 1L))
+        viewModel.open(7L)
+        dispatcher.scheduler.advanceUntilIdle()
+        return viewModel
+    }
+
+    @Test
+    fun `로그인한 사람이 쓴 후기만 내 것으로 본다`() = runTest {
+        val viewModel = openedAsAuthor()
+
+        assertEquals(1L, viewModel.uiState.value.myUserId)
+        assertTrue(testReview(1L).isMine(1L))
+        assertFalse(testReview(2L).isMine(1L))
+        // 누군지 모르면 아무것도 내 것이 아니다. 서버가 거절할 버튼을 띄우지 않는다.
+        assertFalse(testReview(1L).isMine(null))
+    }
+
+    @Test
+    fun `내 후기를 고쳐 보내면 글만 수정하고 목록을 다시 읽는다`() = runTest {
+        val repository = FakePlaceReviewRepository(reviews = { listOf(testReview(1L), testReview(2L)) })
+        val viewModel = openedAsAuthor(repository)
+
+        viewModel.startEdit(1L)
+        assertEquals(1L, viewModel.uiState.value.editingReviewId)
+
+        assertTrue(viewModel.submit(" 고친 글 ", photo = null))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue("updateReview(7, 1, 고친 글)" in repository.calls)
+        assertTrue(repository.calls.none { call -> call.startsWith("createReview") })
+        assertNull(viewModel.uiState.value.editingReviewId)
+        assertEquals(1, viewModel.uiState.value.submittedCount)
+        assertEquals(2, repository.calls.count { call -> call.startsWith("getReviews") })
+    }
+
+    @Test
+    fun `남의 후기는 고칠 수 없다`() = runTest {
+        val viewModel = openedAsAuthor()
+
+        viewModel.startEdit(2L)
+
+        assertNull(viewModel.uiState.value.editingReviewId)
+    }
+
+    @Test
+    fun `사진 없는 후기를 빈 글로 고치면 막는다`() = runTest {
+        val repository = FakePlaceReviewRepository(reviews = { listOf(testReview(1L)) })
+        val viewModel = openedAsAuthor(repository)
+        viewModel.startEdit(1L)
+
+        assertFalse(viewModel.submit("   ", photo = null))
+
+        assertEquals(REVIEW_EMPTY_MESSAGE, viewModel.uiState.value.submitErrorMessage)
+        assertTrue(repository.calls.none { call -> call.startsWith("updateReview") })
+    }
+
+    @Test
+    fun `사진 있는 후기는 글을 비워 고칠 수 있다`() = runTest {
+        val repository = FakePlaceReviewRepository(
+            reviews = { listOf(testReview(1L, imageUrls = listOf("https://cdn/1.jpg"))) },
+        )
+        val viewModel = openedAsAuthor(repository)
+        viewModel.startEdit(1L)
+
+        assertTrue(viewModel.submit("", photo = null))
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue("updateReview(7, 1, )" in repository.calls)
+    }
+
+    @Test
+    fun `고치기를 취소하면 새 글 쓰기로 돌아간다`() = runTest {
+        val repository = FakePlaceReviewRepository(reviews = { listOf(testReview(1L)) })
+        val viewModel = openedAsAuthor(repository)
+        viewModel.startEdit(1L)
+
+        viewModel.cancelEdit()
+        viewModel.submit("새 글", photo = null)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.editingReviewId)
+        assertTrue(repository.calls.any { call -> call.startsWith("createReview(7, 새 글") })
+    }
+
+    @Test
+    fun `수정에 실패하면 안내하고 고치기를 이어 간다`() = runTest {
+        val repository = FakePlaceReviewRepository(reviews = { listOf(testReview(1L)) })
+            .apply { updateFailure = RuntimeException("boom") }
+        val viewModel = openedAsAuthor(repository)
+        viewModel.startEdit(1L)
+
+        viewModel.submit("고친 글", photo = null)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(REVIEW_UPDATE_FAILED_MESSAGE, viewModel.uiState.value.submitErrorMessage)
+        assertEquals(1L, viewModel.uiState.value.editingReviewId)
+    }
+
+    @Test
+    fun `내 후기를 지우면 목록을 다시 읽고 지운 수를 알린다`() = runTest {
+        val repository = FakePlaceReviewRepository(reviews = { listOf(testReview(1L), testReview(2L)) })
+        val viewModel = openedAsAuthor(repository)
+
+        viewModel.delete(1L)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue("deleteReview(7, 1)" in repository.calls)
+        assertEquals(1, viewModel.uiState.value.deletedCount)
+        // 지우기는 적고 있던 글을 비우지 않는다.
+        assertEquals(0, viewModel.uiState.value.submittedCount)
+        assertEquals(2, repository.calls.count { call -> call.startsWith("getReviews") })
+    }
+
+    @Test
+    fun `고치던 후기를 지우면 고치기도 끝난다`() = runTest {
+        val viewModel = openedAsAuthor()
+        viewModel.startEdit(1L)
+
+        viewModel.delete(1L)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.editingReviewId)
+    }
+
+    @Test
+    fun `남의 후기는 지우지 않는다`() = runTest {
+        val repository = FakePlaceReviewRepository(reviews = { listOf(testReview(1L), testReview(2L)) })
+        val viewModel = openedAsAuthor(repository)
+
+        viewModel.delete(2L)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(repository.calls.none { call -> call.startsWith("deleteReview") })
     }
 }
