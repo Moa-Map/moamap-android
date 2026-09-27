@@ -33,9 +33,9 @@ private val ClusterSheetGrabberShape = RoundedCornerShape(100.dp)
  * 목록이 길어져도 시트가 화면을 다 먹지 않게 잡는 상한.
  *
  * 한 자리에 수십 곳이 겹치는 일은 없지만, 낮은 줌에서는 임계값 안에 든 장소가 모두 한
- * 묶음이 되므로 개수가 얼마든 커질 수 있다.
+ * 묶음이 되므로 개수가 얼마든 커질 수 있다. 목록 위아래 여백(16 + 20)을 포함한다.
  */
-private val ClusterListMaxHeight = 420.dp
+private val ClusterListMaxHeight = 456.dp
 
 /**
  * 묶음 마커를 펼친 장소 목록.
@@ -84,11 +84,10 @@ internal fun ClusterPlacesSheet(
             modifier = Modifier.padding(horizontal = 20.dp),
         )
 
-        Spacer(Modifier.height(16.dp))
-
+        // 위아래 간격을 목록 안에 둬야 카드 그림자가 목록 경계에 잘리지 않는다.
         LazyColumn(
             modifier = Modifier.heightIn(max = ClusterListMaxHeight),
-            contentPadding = PaddingValues(horizontal = 20.dp),
+            contentPadding = PaddingValues(start = 20.dp, top = 16.dp, end = 20.dp, bottom = 20.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(places, key = { place -> place.id }) { place ->
@@ -100,7 +99,6 @@ internal fun ClusterPlacesSheet(
             }
         }
 
-        Spacer(Modifier.height(20.dp))
         Spacer(Modifier.navigationBarsPadding())
     }
 }

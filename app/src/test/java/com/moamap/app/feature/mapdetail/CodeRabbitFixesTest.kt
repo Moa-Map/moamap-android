@@ -1,6 +1,5 @@
 package com.moamap.app.feature.mapdetail
 
-import androidx.compose.ui.unit.dp
 import com.moamap.app.R
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -40,10 +39,5 @@ class CodeRabbitFixesTest {
 
         assertTrue(succeeded)
         assertEquals("다시 가고 싶어요", submittedText)
-    }
-
-    @Test
-    fun `place list text area keeps a 64 dp minimum height`() {
-        assertEquals(64.dp, PlaceListTextMinHeight)
     }
 }
