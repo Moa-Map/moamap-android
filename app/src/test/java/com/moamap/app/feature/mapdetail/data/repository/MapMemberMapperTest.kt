@@ -15,12 +15,14 @@ class MapMemberMapperTest {
             nickname = "박지훈",
             profileImageUrl = "https://cdn/3.jpg",
             role = "ADMIN",
+            placeCount = 7,
         ).toMapMember()
 
         assertEquals(3L, member.id)
         assertEquals("박지훈", member.name)
         assertEquals("https://cdn/3.jpg", member.imageUrl)
         assertEquals(MapRole.Admin, member.role)
+        assertEquals(7L, member.placeCount)
     }
 
     /** 닉네임 자리가 비면 카드 이름 줄이 빈 줄로 보인다. */
