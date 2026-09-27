@@ -95,4 +95,15 @@ interface PlaceService {
     suspend fun createPhotoUploadUrls(
         @Body request: PhotoUploadUrlRequestDto,
     ): List<PhotoUploadUrlDto>
+
+    /**
+     * 하트 누르기·취소. 지도 멤버만 할 수 있다.
+     *
+     * 이미 그 상태여도 에러 없이 현재 상태를 돌려준다. 응답을 그대로 화면에 반영하면 된다.
+     */
+    @POST("api/v1/places/{placeId}/likes")
+    suspend fun likePlace(@Path("placeId") placeId: Long): PlaceLikeDto
+
+    @DELETE("api/v1/places/{placeId}/likes")
+    suspend fun unlikePlace(@Path("placeId") placeId: Long): PlaceLikeDto
 }

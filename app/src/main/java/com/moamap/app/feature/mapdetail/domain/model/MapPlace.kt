@@ -34,7 +34,14 @@ data class MapPlace(
     val reviewCount: Int = 0,
     /** 카카오 장소 id. 카카오맵으로 열 때 쓴다. 서버 필수값이라 보통 채워져 온다. */
     val kakaoPlaceId: String = "",
+    /** 하트를 누른 사람 수. */
+    val likeCount: Int = 0,
+    /** 내가 하트를 눌러 둔 상태인지. 서버가 요청한 사람 기준으로 내려준다. */
+    val liked: Boolean = false,
 )
+
+/** 하트를 누르거나 취소한 뒤 서버가 확정한 상태. */
+data class PlaceLike(val liked: Boolean, val likeCount: Int)
 
 /**
  * 분류 경로에서 화면에 띄울 한 토막.
@@ -44,15 +51,6 @@ data class MapPlace(
  */
 val MapPlace.categoryLabel: String
     get() = category.split(">").lastOrNull()?.trim().orEmpty()
-
-/**
- * 주소에서 지역 이름 한 토막.
- *
- * `"서울 성동구 성수이로 12"` 에서 `"성동구"` 를 꺼낸다. 상세 시트가 분류 알약 옆에
- * 지역을 함께 보여 주는데 서버에 그런 필드가 따로 없다.
- */
-val MapPlace.areaLabel: String
-    get() = address.split(" ").getOrNull(1).orEmpty()
 
 /** 지도 설명 화면이 한 번에 받아오는 장소 목록. */
 @Immutable
