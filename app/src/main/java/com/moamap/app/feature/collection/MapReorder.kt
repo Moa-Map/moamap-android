@@ -15,6 +15,9 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.zIndex
 import kotlin.math.abs
@@ -52,13 +55,16 @@ internal class MapReorderState(
         heights[mapId] = height
     }
 
+    /** 이미 다른 카드를 끄는 중이면(두 손가락으로 손잡이 둘을 잡는 등) 무시한다. */
     fun start(mapId: Long) {
+        if (draggingId != null) return
         draggingId = mapId
         dragOffset = 0f
     }
 
-    fun drag(delta: Float) {
-        val mapId = draggingId ?: return
+    /** 끄는 카드의 손잡이에서 온 움직임만 받는다. */
+    fun drag(mapId: Long, delta: Float) {
+        if (draggingId != mapId) return
         dragOffset += delta
         while (true) {
             val index = order.indexOf(mapId)
@@ -88,6 +94,22 @@ internal class MapReorderState(
         draggingId = null
         dragOffset = 0f
     }
+
+    /**
+     * 끌지 않고 한 칸 옮긴다. 끌 수 없는 사용자(TalkBack 등)를 위한 접근성 동작이다.
+     * 끄는 중이거나 더 옮길 자리가 없으면 false 를 돌려준다.
+     */
+    fun moveByOne(mapId: Long, down: Boolean): Boolean {
+        if (draggingId != null) return false
+        val index = order.indexOf(mapId)
+        if (index < 0) return false
+        val target = order.getOrNull(if (down) index + 1 else index - 1) ?: return false
+
+        val targetIndex = order.indexOf(target)
+        order = order.toMutableList().apply { add(targetIndex, removeAt(index)) }
+        onMove(mapId, target)
+        return true
+    }
 }
 
 /** [spacing] 은 카드 사이 간격이다. 이웃을 넘었는지 잴 때 카드 높이에 더한다. */
@@ -116,9 +138,17 @@ internal fun Modifier.reorderableItem(state: MapReorderState, mapId: Long): Modi
  * 손잡이에 단다. 손잡이를 잡고 위아래로 끌면 카드가 따라온다.
  *
  * 끄는 도중 손잡이가 사라지면(편집 완료 등) 제스처가 취소 콜백 없이 끊기므로 `finally` 에서도 놓는다.
+ * 끌 수 없는 사용자를 위해 위·아래로 옮기는 접근성 동작도 단다. 손잡이는 카드의 클릭 영역 안에
+ * 있어 동작이 카드에 합쳐져, TalkBack 에서 카드를 고른 뒤 동작 메뉴로 옮길 수 있다.
  */
-internal fun Modifier.reorderHandle(state: MapReorderState, mapId: Long): Modifier =
-    pointerInput(state, mapId) {
+internal fun Modifier.reorderHandle(state: MapReorderState, mapId: Long): Modifier = this
+    .semantics {
+        customActions = listOf(
+            CustomAccessibilityAction("위로 옮기기") { state.moveByOne(mapId, down = false) },
+            CustomAccessibilityAction("아래로 옮기기") { state.moveByOne(mapId, down = true) },
+        )
+    }
+    .pointerInput(state, mapId) {
         try {
             detectVerticalDragGestures(
                 onDragStart = { state.start(mapId) },
@@ -126,7 +156,7 @@ internal fun Modifier.reorderHandle(state: MapReorderState, mapId: Long): Modifi
                 onDragCancel = { state.end(mapId) },
                 onVerticalDrag = { change, delta ->
                     change.consume()
-                    state.drag(delta)
+                    state.drag(mapId, delta)
                 },
             )
         } finally {
