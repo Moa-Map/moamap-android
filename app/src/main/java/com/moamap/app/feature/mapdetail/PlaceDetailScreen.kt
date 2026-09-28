@@ -628,10 +628,11 @@ private fun PlaceActions(
             Text(
                 text = message,
                 style = MoaMapTheme.typography.caption0,
+                // 성공은 다른 안내 문구와 같은 회색, 실패만 빨강으로 눈에 띄게 한다.
                 color = if (personalMapAction.failed) {
                     MoaMapTheme.colors.statusAlert
                 } else {
-                    MoaMapPrimitiveColors.Blue600
+                    MoaMapTheme.colors.textAssistive
                 },
             )
         }
