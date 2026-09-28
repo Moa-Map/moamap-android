@@ -35,6 +35,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,6 +77,9 @@ import com.moamap.app.feature.collection.presentation.splitPersonal
 
 /** 카드 썸네일과 같은 높이를 유지해 제목/메타가 위아래로 벌어지도록 한다. */
 private val CardThumbnailSize = 64.dp
+
+/** 모음 카드끼리의 간격. 순서를 바꿀 때 이웃을 넘었는지 재는 데도 쓴다. */
+private val CardSpacing = 8.dp
 
 /** 인스타그램 브랜드 색. 디자인 시스템 팔레트가 아니라서 토큰으로 승격하지 않는다. */
 private val InstagramCardBackground = Color(0xFFFFF5FB)
@@ -195,6 +199,7 @@ fun CollectionScreen(
             if (edit != null) viewModel.toggleSelection(map.id) else onMapClick(map)
         },
         onEditClick = { if (edit != null) viewModel.finishEdit() else viewModel.startEdit() },
+        onMapMove = viewModel::moveMap,
         onLeaveClick = viewModel::openLeaveConfirm,
         onNoticeShown = viewModel::consumeNotice,
         modifier = modifier,
@@ -214,6 +219,7 @@ private fun CollectionContent(
     onMapClick: (MyMap) -> Unit,
     modifier: Modifier = Modifier,
     onEditClick: () -> Unit = {},
+    onMapMove: (mapId: Long, targetId: Long) -> Unit = { _, _ -> },
     onLeaveClick: () -> Unit = {},
     onNoticeShown: () -> Unit = {},
 ) {
@@ -263,6 +269,7 @@ private fun CollectionContent(
                         onRetryClick = onRetryClick,
                         onMapClick = onMapClick,
                         onEditClick = onEditClick,
+                        onMapMove = onMapMove,
                     )
 
                     MapType.Private -> PrivateTabContent(
@@ -273,6 +280,7 @@ private fun CollectionContent(
                         onMapShareImportClick = onMapShareImportClick,
                         onMapClick = onMapClick,
                         onEditClick = onEditClick,
+                        onMapMove = onMapMove,
                     )
 
                     // 탭이 없는 종류다. [CollectionTabs] 참고.
@@ -473,26 +481,32 @@ private fun CommunityTabContent(
     onRetryClick: () -> Unit,
     onMapClick: (MyMap) -> Unit,
     onEditClick: () -> Unit,
+    onMapMove: (mapId: Long, targetId: Long) -> Unit,
 ) {
     MapsStateContent(
         state = state,
         emptyMessage = "아직 참여한 지도가 없어요",
         onRetryClick = onRetryClick,
     ) { maps ->
+        val reorder = rememberMapReorderState(ids = maps.map { map -> map.id }, spacing = CardSpacing, onMove = onMapMove)
         // 시안 `1974:7318`: 목록 오른쪽 위에 「편집」, 목록과 12. 폭을 채워야 「편집」이 오른쪽 끝에 붙는다.
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             EditToggle(edit = edit, onClick = onEditClick, modifier = Modifier.align(Alignment.End))
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(CardSpacing)) {
+                // 순서를 바꾸면 카드가 자리째 옮겨가야 끌던 손잡이의 동작이 끊기지 않는다.
                 maps.forEach { map ->
-                    MyMapCard(
-                        map = map,
-                        uiModel = map.toCommunityUiModel(),
-                        edit = edit,
-                        onClick = { onMapClick(map) },
-                    )
+                    key(map.id) {
+                        MyMapCard(
+                            map = map,
+                            uiModel = map.toCommunityUiModel(),
+                            edit = edit,
+                            reorder = reorder,
+                            onClick = { onMapClick(map) },
+                        )
+                    }
                 }
             }
         }
@@ -508,6 +522,7 @@ private fun PrivateTabContent(
     onMapShareImportClick: () -> Unit,
     onMapClick: (MyMap) -> Unit,
     onEditClick: () -> Unit,
+    onMapMove: (mapId: Long, targetId: Long) -> Unit,
 ) {
     // 액션 카드는 목록 상태와 무관하게 늘 보인다. 목록이 비었을 때야말로 만들 진입점이 필요하다.
     Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
@@ -532,6 +547,7 @@ private fun PrivateTabContent(
                     maps = sections.others,
                     edit = edit,
                     onMapClick = onMapClick,
+                    onMapMove = onMapMove,
                     emptyMessage = "참여하고 있는 프라이빗 지도가 없습니다",
                     editToggle = {
                         EditToggle(edit = edit, onClick = onEditClick, modifier = Modifier.align(Alignment.End))
@@ -710,6 +726,7 @@ private fun PrivateMapSection(
     maps: List<MyMap>,
     edit: CollectionEditState?,
     onMapClick: (MyMap) -> Unit,
+    onMapMove: (mapId: Long, targetId: Long) -> Unit = { _, _ -> },
     /** 있으면 지도가 없어도 섹션을 그리고 이 문구로 비었다고 알린다. 없으면 섹션째 숨긴다. */
     emptyMessage: String? = null,
     editToggle: (@Composable ColumnScope.() -> Unit)? = null,
@@ -717,6 +734,7 @@ private fun PrivateMapSection(
     // 제목만 떠 있고 아래가 비어 있으면 못 불러온 것처럼 보인다.
     if (maps.isEmpty() && emptyMessage == null) return
 
+    val reorder = rememberMapReorderState(ids = maps.map { map -> map.id }, spacing = CardSpacing, onMove = onMapMove)
     // 시안: 제목과 목록 사이 12, 「편집」과 카드·카드끼리는 8.
     // 폭을 채워야 「편집」이 오른쪽 끝에 붙는다. 카드가 없으면 안내 문구 폭으로 줄어든다.
     Column(
@@ -731,7 +749,7 @@ private fun PrivateMapSection(
         )
         Column(
             modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(CardSpacing),
         ) {
             editToggle?.invoke(this)
             if (maps.isEmpty() && emptyMessage != null) {
@@ -742,13 +760,17 @@ private fun PrivateMapSection(
                     modifier = Modifier.padding(horizontal = 4.dp),
                 )
             }
+            // 순서를 바꾸면 카드가 자리째 옮겨가야 끌던 손잡이의 동작이 끊기지 않는다.
             maps.forEach { map ->
-                MyMapCard(
-                    map = map,
-                    uiModel = map.toPrivateUiModel(),
-                    edit = edit,
-                    onClick = { onMapClick(map) },
-                )
+                key(map.id) {
+                    MyMapCard(
+                        map = map,
+                        uiModel = map.toPrivateUiModel(),
+                        edit = edit,
+                        reorder = reorder,
+                        onClick = { onMapClick(map) },
+                    )
+                }
             }
         }
     }
@@ -768,7 +790,7 @@ private fun EditToggle(edit: CollectionEditState?, onClick: () -> Unit, modifier
 /**
  * 모음 목록의 카드. 시안 `1974:7318`·`1974:7468`.
  *
- * 순서를 바꾸는 손잡이는 늘 보인다 - 순서 저장은 서버가 준비되면 붙이고, 지금은 자리만 둔다.
+ * 편집 중에만 순서 손잡이가 보이고, 손잡이를 끌어 순서를 바꾼다. 순서 저장은 서버가 준비되면 붙인다.
  * 편집 중에는 체크박스가 붙고 누르는 동안 회색이 된다. 고를 수 없는 지도는 체크박스가 회색이다.
  */
 @Composable
@@ -776,14 +798,18 @@ private fun MyMapCard(
     map: MyMap,
     uiModel: CollectionMapUiModel,
     edit: CollectionEditState?,
+    reorder: MapReorderState,
     onClick: () -> Unit,
 ) {
     val selected = edit != null && map.id in edit.selected
     CollectionMapCard(
         map = uiModel,
         onClick = onClick,
+        modifier = Modifier.reorderableItem(reorder, map.id),
         border = selectedCardBorder(selected),
-        showDragHandle = true,
+        reorderable = true,
+        showDragHandle = edit != null,
+        dragHandleModifier = Modifier.reorderHandle(reorder, map.id),
         pressFeedback = edit != null,
         trailingContent = edit?.let { current ->
             {
@@ -805,8 +831,9 @@ private fun MyMapCard(
  * 장소 가져오기의 지도 선택 화면도 같은 카드를 쓰므로, 선택 표시 같은 우측 요소는
  * [trailingContent] 슬롯으로 받는다.
  *
- * @param showDragHandle 왼쪽에 순서 손잡이를 둔다. 시안에서 손잡이가 든 카드는 여백이 달라
- *  (위아래 16, 왼쪽 12, 손잡이와 사진 사이 8) 함께 바꾼다.
+ * @param reorderable 순서를 바꿀 수 있는 모음 목록의 카드다.
+ * @param showDragHandle 왼쪽에 순서 손잡이를 둔다. 손잡이가 들면 왼쪽 여백이 12 로 준다.
+ * @param dragHandleModifier 손잡이에 다는 끌기 동작.
  * @param pressFeedback 누르는 동안 회색(Gray50)으로 바꾼다. 앱은 누름 효과를 꺼 두었지만
  *  모음 편집은 시안(`1974:8284`)에 있다.
  */
@@ -816,7 +843,9 @@ internal fun CollectionMapCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     border: BorderStroke? = null,
+    reorderable: Boolean = false,
     showDragHandle: Boolean = false,
+    dragHandleModifier: Modifier = Modifier,
     pressFeedback: Boolean = false,
     trailingContent: (@Composable () -> Unit)? = null,
 ) {
@@ -835,8 +864,8 @@ internal fun CollectionMapCard(
                 .padding(
                     start = if (showDragHandle) 12.dp else 16.dp,
                     end = 16.dp,
-                    top = if (showDragHandle) 16.dp else 20.dp,
-                    bottom = if (showDragHandle) 16.dp else 20.dp,
+                    top = if (reorderable) 16.dp else 20.dp,
+                    bottom = if (reorderable) 16.dp else 20.dp,
                 ),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -846,7 +875,7 @@ internal fun CollectionMapCard(
                     painter = painterResource(R.drawable.ic_drag_handle),
                     contentDescription = null,
                     tint = MoaMapTheme.colors.textNormal,
-                    modifier = Modifier.size(24.dp),
+                    modifier = dragHandleModifier.size(24.dp),
                 )
             }
             Row(

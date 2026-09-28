@@ -144,6 +144,23 @@ class CollectionViewModel @Inject constructor(
         _uiState.update { state -> state.copy(edit = null) }
     }
 
+    /**
+     * 편집 중 [mapId] 를 [targetId] 자리로 옮긴다. 손잡이를 끌어 이웃 카드를 넘을 때마다 불린다.
+     *
+     * 순서 저장 API가 아직 없어 화면 안에서만 바뀐다. 목록을 다시 읽으면 서버 순서로 돌아간다.
+     */
+    fun moveMap(mapId: Long, targetId: Long) {
+        val state = _uiState.value
+        if (state.edit == null || state.edit.leaving || mapId == targetId) return
+        val maps = (state.currentMaps as? MyMapsState.Success)?.maps ?: return
+        val from = maps.indexOfFirst { map -> map.id == mapId }
+        val to = maps.indexOfFirst { map -> map.id == targetId }
+        if (from < 0 || to < 0) return
+
+        val moved = maps.toMutableList().apply { add(to, removeAt(from)) }
+        _uiState.update { current -> current.withState(current.selectedTab, MyMapsState.Success(moved)) }
+    }
+
     /** 고를 수 없는 지도를 누르면 이유를 알린다. 확인 중인 지도는 아무 일도 없다. */
     fun toggleSelection(mapId: Long) {
         val edit = _uiState.value.edit ?: return

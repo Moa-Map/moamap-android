@@ -540,4 +540,52 @@ class CollectionViewModelTest {
 
         assertNull(viewModel.uiState.value.edit)
     }
+
+    // ---------- 편집: 순서 바꾸기 ----------
+
+    private fun CollectionViewModel.communityIds(): List<Long> =
+        (uiState.value.community as MyMapsState.Success).maps.map { it.id }
+
+    @Test
+    fun `편집 중 지도를 이웃 자리로 옮긴다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+
+        viewModel.moveMap(mapId = 1L, targetId = 2L)
+        assertEquals(listOf(2L, 1L, 3L, 4L), viewModel.communityIds())
+
+        viewModel.moveMap(mapId = 4L, targetId = 3L)
+        assertEquals(listOf(2L, 1L, 4L, 3L), viewModel.communityIds())
+    }
+
+    @Test
+    fun `멀리 떨어진 지도 자리로도 옮긴다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+
+        viewModel.moveMap(mapId = 4L, targetId = 1L)
+
+        assertEquals(listOf(4L, 1L, 2L, 3L), viewModel.communityIds())
+    }
+
+    @Test
+    fun `편집 중이 아니면 순서를 바꾸지 않는다`() = runTest(dispatcher) {
+        repository.result = { listOf(myMap(1L), myMap(2L)) }
+        val viewModel = startedViewModel()
+
+        viewModel.moveMap(mapId = 1L, targetId = 2L)
+
+        assertEquals(listOf(1L, 2L), viewModel.communityIds())
+    }
+
+    @Test
+    fun `바꾼 순서는 편집을 마쳐도 남고 새로고침하면 서버 순서로 돌아간다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+        viewModel.moveMap(mapId = 1L, targetId = 2L)
+
+        viewModel.finishEdit()
+        assertEquals(listOf(2L, 1L, 3L, 4L), viewModel.communityIds())
+
+        viewModel.refresh()
+        advanceUntilIdle()
+        assertEquals(listOf(1L, 2L, 3L, 4L), viewModel.communityIds())
+    }
 }
