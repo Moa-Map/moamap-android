@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
 import com.moamap.app.core.designsystem.component.ButtonShadowColor
+import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -288,7 +289,7 @@ internal fun ImportedPlaceCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PlaceThumbnail(cornerRadius = 4.dp)
+            PlaceThumbnail()
             PlaceLabels(
                 name = place.name,
                 address = place.displayAddress,
@@ -321,7 +322,7 @@ internal fun EditablePlaceCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PlaceThumbnail(cornerRadius = 4.dp)
+            PlaceThumbnail()
             PlaceLabels(
                 name = place.name,
                 address = place.displayAddress,
@@ -422,11 +423,7 @@ private fun SelectedPlaceRow(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PlaceThumbnail(
-            cornerRadius = 4.dp,
-            backgroundColor = MoaMapPrimitiveColors.Blue50,
-            borderColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.2f),
-        )
+        PlaceThumbnail()
         PlaceLabels(
             name = place.name,
             address = place.displayAddress,
@@ -460,27 +457,10 @@ private fun SelectedPlacesToggle(
     }
 }
 
-// TODO: 장소 썸네일 이미지는 API 연동 시 채운다.
+// TODO: 추출 응답에 사진이 없어 늘 기본 사진이다. 응답에 사진이 생기면 여기로 넘긴다.
 @Composable
-private fun PlaceThumbnail(
-    cornerRadius: Dp,
-    backgroundColor: Color = MoaMapPrimitiveColors.Yellow50,
-    borderColor: Color? = null,
-) {
-    val shape = RoundedCornerShape(cornerRadius)
-    Box(
-        modifier = Modifier
-            .size(PlaceThumbnailSize)
-            .clip(shape)
-            .background(backgroundColor)
-            .let { modifier ->
-                if (borderColor == null) {
-                    modifier
-                } else {
-                    modifier.border(width = 1.dp, color = borderColor, shape = shape)
-                }
-            },
-    )
+private fun PlaceThumbnail() {
+    PhotoThumbnail(imageUrl = null, size = PlaceThumbnailSize)
 }
 
 @Composable
