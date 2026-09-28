@@ -32,6 +32,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.ImeAction
@@ -60,12 +63,39 @@ private val SubmitButtonHeight = 54.dp
 private val SectionTitleGap = 6.dp
 
 @Composable
-internal fun CreateMapSectionTitle(text: String) {
-    Text(
+internal fun CreateMapSectionTitle(text: String, required: Boolean = false) {
+    CreateMapLabel(
         text = text,
         style = MoaMapTheme.typography.subtitle1.withDesignLineHeight(),
-        color = MoaMapTheme.colors.textNormal,
+        required = required,
     )
+}
+
+/**
+ * 칸 제목. 필수 칸이면 뒤에 빨간 별표를 붙인다.
+ *
+ * 화면 읽기가 별표를 "별표"로 읽지 않게 제목 줄을 「지도 이름, 필수」 한 덩어리로 바꿔 둔다.
+ */
+@Composable
+private fun CreateMapLabel(
+    text: String,
+    style: TextStyle,
+    required: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier = if (required) {
+            modifier.clearAndSetSemantics { contentDescription = "$text, 필수" }
+        } else {
+            modifier
+        },
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(text = text, style = style, color = MoaMapTheme.colors.textNormal)
+        if (required) {
+            Text(text = "*", style = style, color = MoaMapTheme.colors.statusAlert)
+        }
+    }
 }
 
 /**
@@ -138,16 +168,17 @@ internal fun CreateMapInputField(
     modifier: Modifier = Modifier,
     imeAction: ImeAction = ImeAction.Next,
     keyboardActions: KeyboardActions = KeyboardActions.Default,
+    required: Boolean = false,
     betweenLabelAndInput: (@Composable () -> Unit)? = null,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
+        CreateMapLabel(
             text = label,
             style = MoaMapTheme.typography.subtitle2.withDesignLineHeight(),
-            color = MoaMapTheme.colors.textNormal,
+            required = required,
             modifier = Modifier.padding(start = 2.dp),
         )
 
@@ -235,11 +266,12 @@ internal fun VisibilityCard(
             )
             Text(
                 text = title,
+                // 시안처럼 줄 높이(21)를 다 써야 아이콘·부제와의 간격 11 이 시안과 같아진다.
                 style = if (selected) {
                     MoaMapTheme.typography.body3
                 } else {
                     MoaMapTheme.typography.body2
-                },
+                }.withDesignLineHeight(),
                 color = contentColor,
             )
             Text(

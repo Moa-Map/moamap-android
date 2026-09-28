@@ -53,7 +53,6 @@ import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
-import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.collection.ImportActionCard
 import com.moamap.app.feature.collection.domain.model.MapVisibility
 import com.moamap.app.feature.mapdetail.MapInviteCodeDialog
@@ -211,6 +210,7 @@ private fun CreateMapContent(
                     value = uiState.name,
                     onValueChange = onNameChange,
                     placeholder = "지도 이름을 입력해주세요",
+                    required = true,
                 )
 
                 CreateMapInputField(
@@ -330,11 +330,7 @@ private fun VisibilitySection(
     onSelect: (MapVisibility) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = "공개 범위",
-            style = MoaMapTheme.typography.subtitle1.withDesignLineHeight(),
-            color = MoaMapTheme.colors.textNormal,
-        )
+        CreateMapSectionTitle(text = "공개 범위", required = true)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(9.dp),
