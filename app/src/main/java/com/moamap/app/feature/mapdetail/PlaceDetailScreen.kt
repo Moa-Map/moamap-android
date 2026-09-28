@@ -223,7 +223,7 @@ private fun PlaceDetailContent(
                 contentPadding = PaddingValues(bottom = 16.dp),
             ) {
                 item {
-                    PlaceDetailControls(
+                    BackCloseControls(
                         onBackClick = onBackClick,
                         onCloseClick = onCloseClick,
                     )
@@ -401,8 +401,9 @@ private fun ReviewLoadError(message: String, onRetryClick: () -> Unit) {
     }
 }
 
+/** 한 화면짜리 페이지 맨 위의 `←`·`×` 줄. 장소 상세와 장소 추가가 같이 쓴다. */
 @Composable
-private fun PlaceDetailControls(
+internal fun BackCloseControls(
     onBackClick: () -> Unit,
     onCloseClick: () -> Unit,
 ) {

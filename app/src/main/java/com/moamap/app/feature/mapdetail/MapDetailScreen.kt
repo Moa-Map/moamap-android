@@ -72,7 +72,7 @@ import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.mapdetail.domain.model.MapDetailAction
 import com.moamap.app.feature.mapdetail.presentation.MapDetailViewModel
-import com.moamap.app.feature.mapdetail.presentation.addplace.AddPlaceSheet
+import com.moamap.app.feature.mapdetail.presentation.addplace.AddPlaceScreen
 import com.moamap.app.feature.mapdetail.presentation.addplace.AddPlaceViewModel
 import com.moamap.app.feature.mapdetail.presentation.MapLoadState
 import com.moamap.app.feature.mapdetail.presentation.mapOrNull
@@ -224,7 +224,15 @@ fun MapDetailScreen(
         if (!locationGranted) permissionLauncher.launch(LocationPermissions)
     }
 
-    var addPlaceSheetVisible by rememberSaveable { mutableStateOf(false) }
+    var addPlaceVisible by rememberSaveable { mutableStateOf(false) }
+    // 장소 추가의 `←` 와 기기 뒤로가기가 같이 쓴다. 등록 폼이면 검색으로, 검색이면 닫는다.
+    val addPlaceBack = {
+        if (addPlaceViewModel.uiState.value.isFormStep) {
+            addPlaceViewModel.backToSearch()
+        } else {
+            addPlaceVisible = false
+        }
+    }
     var memberPageVisible by rememberSaveable { mutableStateOf(false) }
 
     // 메뉴는 화면을 돌리면 닫혀도 된다. 지도 관리는 들어가 있던 화면이라 되살린다.
@@ -499,10 +507,10 @@ fun MapDetailScreen(
             onMenuClick = { menuVisible = true },
             on3dToggleClick = on3dToggleClick,
             onAddPlaceClick = {
-                // 시트를 닫아도 ViewModel 은 이 화면에 매여 살아남는다. 지우지 않으면
+                // 장소 추가를 닫아도 ViewModel 은 이 화면에 매여 살아남는다. 지우지 않으면
                 // 다시 열었을 때 직전에 등록한 장소의 폼이 그대로 보인다.
                 addPlaceViewModel.reset()
-                addPlaceSheetVisible = true
+                addPlaceVisible = true
             },
             onMyLocationClick = onMyLocationClick,
             onTabSelected = { tab -> uiState = uiState.selectTab(tab) },
@@ -557,6 +565,23 @@ fun MapDetailScreen(
                 onSubmitClick = postCreateViewModel::submit,
                 onErrorShown = postCreateViewModel::consumeErrorMessage,
                 onBackClick = { postCreateVisible = false },
+            )
+        }
+
+        // 지도를 아직 못 읽었으면 열지 않는다. 버튼 글씨와 mapId 가 지도 정보에 달려 있다.
+        val addPlaceMap = screenState.map.mapOrNull
+        if (addPlaceVisible && addPlaceMap != null) {
+            AddPlaceScreen(
+                map = addPlaceMap,
+                viewModel = addPlaceViewModel,
+                onBackClick = addPlaceBack,
+                onCloseClick = { addPlaceVisible = false },
+                onAdded = { message ->
+                    addPlaceVisible = false
+                    mapNotice = message
+                    // 장소 수가 늘었다. 상단과 시트 제목이 옛 값을 들고 있으면 안 된다.
+                    viewModel.retry()
+                },
             )
         }
 
@@ -705,6 +730,8 @@ fun MapDetailScreen(
     BackHandler(enabled = menuVisible) { menuVisible = false }
     // 장소 상세가 가장 위에 떠 있다. 기기 뒤로가기는 이걸 먼저 닫는다.
     BackHandler(enabled = uiState.selectedPlaceId != null) { closePlaceDetail() }
+    // 장소 추가는 지도 위의 버튼에서만 열려 장소 상세와 함께 떠 있지 않는다.
+    BackHandler(enabled = addPlaceVisible) { addPlaceBack() }
 
     // 상세보다 먼저 그린다. 목록에서 하나를 고르면 목록은 닫히고 상세만 남는다.
     if (expandedClusterPlaces.isNotEmpty()) {
@@ -713,22 +740,6 @@ fun MapDetailScreen(
             onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
             onLikeClick = viewModel::toggleLike,
             onDismiss = { uiState = uiState.closeCluster() },
-        )
-    }
-
-    // 지도를 아직 못 읽었으면 열지 않는다. 버튼 글씨와 mapId 가 지도 정보에 달려 있다.
-    val map = screenState.map.mapOrNull
-    if (addPlaceSheetVisible && map != null) {
-        AddPlaceSheet(
-            map = map,
-            viewModel = addPlaceViewModel,
-            onDismiss = { addPlaceSheetVisible = false },
-            onAdded = { message ->
-                addPlaceSheetVisible = false
-                mapNotice = message
-                // 장소 수가 늘었다. 상단과 시트 제목이 옛 값을 들고 있으면 안 된다.
-                viewModel.retry()
-            },
         )
     }
 
