@@ -39,6 +39,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -178,7 +179,8 @@ private fun SelectedPlaceCard(name: String, address: String) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PlaceImagePlaceholder(size = 64.dp, cornerRadius = 12.dp)
+            // 카카오 검색은 사진을 주지 않아 늘 기본 사진이다(시안 `1841:11938`, 모서리 4).
+            PhotoThumbnail(imageUrl = null, size = 64.dp)
 
             Column(
                 modifier = Modifier.weight(1f),

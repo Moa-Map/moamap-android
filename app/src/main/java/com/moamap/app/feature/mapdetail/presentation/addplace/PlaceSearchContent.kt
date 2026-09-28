@@ -22,7 +22,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.CardShadowBlurRadius
 import com.moamap.app.core.designsystem.component.CardShadowColor
+import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -190,7 +190,7 @@ private fun PlaceCandidateCard(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PlaceImagePlaceholder(size = 64.dp, cornerRadius = 4.dp)
+            PhotoThumbnail(imageUrl = null, size = 64.dp)
 
             Column(
                 modifier = Modifier.weight(1f),
@@ -214,29 +214,6 @@ private fun PlaceCandidateCard(
                 }
             }
         }
-    }
-}
-
-/** 사진이 없는 장소의 자리표시. 검색 결과와 등록 폼이 같은 모양을 쓴다. */
-@Composable
-internal fun PlaceImagePlaceholder(
-    size: androidx.compose.ui.unit.Dp,
-    cornerRadius: androidx.compose.ui.unit.Dp,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .size(size)
-            .clip(RoundedCornerShape(cornerRadius))
-            .background(MoaMapPrimitiveColors.Blue50),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_location),
-            contentDescription = null,
-            tint = MoaMapPrimitiveColors.Blue200,
-            modifier = Modifier.size(size / 2.5f),
-        )
     }
 }
 
