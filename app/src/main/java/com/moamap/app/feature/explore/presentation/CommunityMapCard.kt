@@ -5,9 +5,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -20,13 +22,17 @@ import androidx.compose.ui.unit.dp
 import com.moamap.app.R
 import com.moamap.app.core.common.format.formatMemberCount
 import com.moamap.app.core.common.format.formatPlaceCount
-import com.moamap.app.core.designsystem.component.ListCardShadowBlurRadius
-import com.moamap.app.core.designsystem.component.ListCardShadowColor
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.explore.domain.model.CommunityMap
 
 private const val MAX_VISIBLE_HASHTAGS = 3
+
+/** 사진 오른쪽 글 영역 높이. 사진(90)보다 6 작고 가운데에 선다. */
+private val TextAreaHeight = 84.dp
+
+/** 이름 줄 높이. 글자보다 커서 이름은 줄 가운데에 선다. */
+private val TitleRowHeight = 24.dp
 
 /** 메타 줄 규격. 시안의 "지도" 컴포넌트 값과 같다. */
 private val MetaItemGap = 8.dp
@@ -42,28 +48,30 @@ fun CommunityMapCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // 시안 「지도」 State=커뮤니티 지도: 모서리 12, 그림자 0 0 8 4%, 여백 12, 사진↔글 16.
     ShadowedSurface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        shadowBlurRadius = ListCardShadowBlurRadius,
-        shadowColor = ListCardShadowColor,
         onClick = onClick,
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             MapThumbnail(imageUrl = map.imageUrl, size = 90.dp)
 
+            // 글 영역은 높이 84(위아래 4)에 이름·태그는 위, 인원·장소 수는 아래 오른쪽.
             Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier
+                    .weight(1f)
+                    .height(TextAreaHeight)
+                    .padding(vertical = 4.dp),
+                verticalArrangement = Arrangement.SpaceBetween,
                 horizontalAlignment = Alignment.End,
             ) {
                 Column(
                     modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
                         text = map.title,
@@ -71,7 +79,10 @@ fun CommunityMapCard(
                         color = MoaMapTheme.colors.textNormal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = TitleRowHeight)
+                            .wrapContentHeight(Alignment.CenterVertically),
                     )
                     MapHashtagRow(
                         hashtags = map.hashtags,
