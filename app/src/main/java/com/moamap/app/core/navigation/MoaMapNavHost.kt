@@ -1,7 +1,12 @@
 package com.moamap.app.core.navigation
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +20,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -29,6 +38,7 @@ import com.moamap.app.feature.collection.CollectionScreen
 import com.moamap.app.feature.collection.domain.model.PlaceImportSource
 import com.moamap.app.feature.collection.share.SharedLink
 import com.moamap.app.feature.collection.presentation.createmap.CreateMapScreen
+import com.moamap.app.feature.explore.CommunityMapListScreen
 import com.moamap.app.feature.explore.ExploreScreen
 import com.moamap.app.feature.mapdetail.MapDetailScreen
 import com.moamap.app.feature.mapdetail.presentation.intro.MapIntroScreen
@@ -81,6 +91,31 @@ internal fun MoaMapNavHost(
     var collectionSelectionBarVisible by remember { mutableStateOf(false) }
 
     /**
+     * 하단 탭(탐색·모음)은 내려 읽는 동안 비켜서고 올리면 다시 나온다(09-29 디자이너 결정).
+     *
+     * 두 탭 화면이 스크롤을 따로 알리지 않아도 되도록, 화면 안의 세로 스크롤을 여기서 받아 방향만 본다.
+     * 가로 목록(추천 카드·칩)은 y 가 0 이라 건드리지 않는다.
+     */
+    var bottomBarScrolledAway by remember { mutableStateOf(false) }
+    val bottomBarScrollConnection = remember {
+        object : NestedScrollConnection {
+            override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+                if (available.y < -BOTTOM_BAR_SCROLL_SLOP_PX) {
+                    bottomBarScrolledAway = true
+                } else if (available.y > BOTTOM_BAR_SCROLL_SLOP_PX) {
+                    bottomBarScrolledAway = false
+                }
+                return Offset.Zero
+            }
+        }
+    }
+    // 다른 탭·화면으로 옮기면 다시 꺼낸다. 탭은 보던 자리를 복원하므로 숨긴 채 두면 탭을 못 바꾼다.
+    LaunchedEffect(destination) { bottomBarScrolledAway = false }
+
+    // 탐색 탭 맨 아래 사업자 정보가 보이는 동안에는 하단 탭을 아예 치운다(09-29 디자이너 결정).
+    var exploreFooterShown by remember { mutableStateOf(false) }
+
+    /**
      * 공유로 들어온 링크를 장소 가져오기 흐름으로 넘긴다.
      *
      * 로그인 전에는 소비하지 않고 그대로 둔다. 로그인이 끝나 [MoaMapRoute.Explore] 로
@@ -111,7 +146,11 @@ internal fun MoaMapNavHost(
         onShareHandled()
     }
 
-    Box(modifier = modifier.fillMaxSize()) {
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .nestedScroll(bottomBarScrollConnection),
+    ) {
         NavHost(
             navController = navController,
             startDestination = MoaMapRoute.Splash.route,
@@ -157,17 +196,21 @@ internal fun MoaMapNavHost(
                     onOfficialMapClick = {
                         navController.navigate(MoaMapRoute.OfficialMap.route)
                     },
-                    // 참여 중인 지도는 소개를 다시 볼 이유가 없다. 바로 상세로 보낸다.
                     onCommunityMapClick = { map ->
-                        val route = if (map.joined) {
-                            MoaMapRoute.MapDetail.createRoute(
-                                mapId = map.id,
-                                mapTitle = map.title,
-                            )
-                        } else {
-                            MoaMapRoute.MapIntro.createRoute(mapId = map.id)
-                        }
-                        navController.navigate(route)
+                        navController.navigateToMap(mapId = map.id, mapTitle = map.title, joined = map.joined)
+                    },
+                    onSeeAllCommunityMapsClick = {
+                        navController.navigate(MoaMapRoute.CommunityMaps.route)
+                    },
+                    onFooterShownChange = { shown -> exploreFooterShown = shown },
+                    onReachTop = { bottomBarScrolledAway = false },
+                )
+            }
+            composable(MoaMapRoute.CommunityMaps.route) {
+                CommunityMapListScreen(
+                    onBackClick = navController::popBackStack,
+                    onMapClick = { map ->
+                        navController.navigateToMap(mapId = map.id, mapTitle = map.title, joined = map.joined)
                     },
                 )
             }
@@ -219,17 +262,8 @@ internal fun MoaMapNavHost(
                     onDensityMapClick = {
                         navController.navigate(MoaMapRoute.DensityMapDetail.route)
                     },
-                    // 커뮤니티 지도와 같은 규칙이다. 참여 중이면 소개를 건너뛰고 상세로 간다.
                     onMapClick = { map ->
-                        val route = if (map.joined) {
-                            MoaMapRoute.MapDetail.createRoute(
-                                mapId = map.id,
-                                mapTitle = map.title,
-                            )
-                        } else {
-                            MoaMapRoute.MapIntro.createRoute(mapId = map.id)
-                        }
-                        navController.navigate(route)
+                        navController.navigateToMap(mapId = map.id, mapTitle = map.title, joined = map.joined)
                     },
                 )
             }
@@ -313,14 +347,25 @@ internal fun MoaMapNavHost(
                     destination == MoaMapRoute.Collection.route) &&
                 !collectionSelecting
             ) {
-                MoaMapBottomBar(
-                    currentRoute = destination,
-                    onItemClick = { route -> navController.navigateToTab(route) },
-                )
+                // 화면을 옮길 때는 바로 사라지고, 스크롤로 숨길 때만 아래로 미끄러진다.
+                AnimatedVisibility(
+                    visible = !bottomBarScrolledAway &&
+                        !(destination == MoaMapRoute.Explore.route && exploreFooterShown),
+                    enter = slideInVertically { height -> height } + fadeIn(),
+                    exit = slideOutVertically { height -> height } + fadeOut(),
+                ) {
+                    MoaMapBottomBar(
+                        currentRoute = destination,
+                        onItemClick = { route -> navController.navigateToTab(route) },
+                    )
+                }
             }
         }
     }
 }
+
+/** 이만큼(px)도 안 움직인 스크롤은 방향으로 치지 않는다. 손가락 떨림에 탭이 깜빡이지 않게. */
+private const val BOTTOM_BAR_SCROLL_SLOP_PX = 1f
 
 private const val UNSUPPORTED_SHARE_MESSAGE = "인스타그램과 네이버·카카오·구글 지도 링크만 가져올 수 있어요"
 
@@ -366,4 +411,18 @@ private fun NavHostController.navigateToTab(route: MoaMapRoute) {
         launchSingleTop = true
         restoreState = true
     }
+}
+
+/**
+ * 지도 카드를 눌렀을 때. 참여 중인 지도는 소개를 다시 볼 이유가 없어 바로 상세로 보낸다.
+ *
+ * 탐색 탭·커뮤니티 지도 전체보기·공식지도 목록이 같은 규칙을 쓴다.
+ */
+private fun NavHostController.navigateToMap(mapId: Long, mapTitle: String, joined: Boolean) {
+    val route = if (joined) {
+        MoaMapRoute.MapDetail.createRoute(mapId = mapId, mapTitle = mapTitle)
+    } else {
+        MoaMapRoute.MapIntro.createRoute(mapId = mapId)
+    }
+    navigate(route)
 }

@@ -1,6 +1,7 @@
 package com.moamap.app.feature.explore.presentation
 
 import com.moamap.app.feature.explore.domain.model.CommunityMap
+import com.moamap.app.feature.explore.domain.model.CommunityMapPage
 import com.moamap.app.feature.explore.domain.model.CommunityMapSort
 import com.moamap.app.feature.explore.domain.repository.CommunityMapRepository
 import com.moamap.app.feature.mypage.domain.model.MyProfile
@@ -51,8 +52,11 @@ class ExploreViewModelTest {
         joined = false,
     )
 
+    /** 목록 조회 한 번. 탐색 탭은 늘 전체·인기순 첫 페이지 5개를 부른다. */
+    private data class Call(val tag: String?, val sort: CommunityMapSort, val page: Int, val size: Int)
+
     /**
-     * 호출될 때마다 (tag, sort) 를 기록하고 [result] 가 만든 값을 돌려준다.
+     * 호출될 때마다 조건을 기록하고 [result] 가 만든 값을 돌려준다.
      *
      * [responseDelayMillis] 를 두면 요청이 진행 중인 상태를 만들 수 있다. 취소를 검증하려면
      * 앞선 요청이 실제로 시작해 매달려 있어야 한다.
@@ -63,16 +67,18 @@ class ExploreViewModelTest {
         // trailing lambda 가 목록을 뜻하도록 맨 뒤에 둔다. 대부분의 테스트가 그 형태로 쓴다.
         var result: () -> List<CommunityMap> = { emptyList() },
     ) : CommunityMapRepository {
-        val calls = mutableListOf<Pair<String?, CommunityMapSort>>()
+        val calls = mutableListOf<Call>()
         var recommendationCalls = 0
 
         override suspend fun getCommunityMaps(
             tag: String?,
             sort: CommunityMapSort,
-        ): List<CommunityMap> {
-            calls += tag to sort
+            page: Int,
+            size: Int,
+        ): CommunityMapPage {
+            calls += Call(tag, sort, page, size)
             delay(responseDelayMillis)
-            return result()
+            return CommunityMapPage(maps = result(), isLast = true)
         }
 
         override suspend fun getRecommendedMaps(): List<CommunityMap> {
@@ -109,13 +115,17 @@ class ExploreViewModelTest {
     ) = ExploreViewModel(repository, userRepository)
 
     @Test
-    fun `첫 로드는 전체 태그와 인기순으로 조회한다`() = runTest {
+    fun `인기순 앞 5개만 태그 없이 조회한다`() = runTest {
         val repository = FakeRepository { listOf(sampleMap(1L)) }
 
         val viewModel = viewModel(repository).apply { refresh() }
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(listOf(null to CommunityMapSort.POPULAR), repository.calls)
+        // 나머지와 칩·정렬은 전체보기에서 본다. 첫 화면 순서가 전체보기와 이어지도록 인기순이다.
+        assertEquals(
+            listOf(Call(tag = null, sort = CommunityMapSort.POPULAR, page = 0, size = EXPLORE_COMMUNITY_MAP_COUNT)),
+            repository.calls,
+        )
         val state = viewModel.uiState.value.communityMaps
         assertTrue(state is CommunityMapsState.Success)
         assertEquals(1, (state as CommunityMapsState.Success).maps.size)
@@ -162,48 +172,8 @@ class ExploreViewModelTest {
     }
 
     @Test
-    fun `전체가 아닌 카테고리는 태그로 넘어간다`() = runTest {
-        val repository = FakeRepository()
-        val viewModel = viewModel(repository).apply { refresh() }
-        dispatcher.scheduler.advanceUntilIdle()
-
-        viewModel.selectCategory("카페")
-        dispatcher.scheduler.advanceUntilIdle()
-
-        assertEquals("카페", viewModel.uiState.value.selectedCategory)
-        assertEquals("카페" to CommunityMapSort.POPULAR, repository.calls.last())
-    }
-
-    @Test
-    fun `전체를 고르면 태그 없이 조회한다`() = runTest {
-        val repository = FakeRepository()
-        val viewModel = viewModel(repository).apply { refresh() }
-        dispatcher.scheduler.advanceUntilIdle()
-
-        viewModel.selectCategory("카페")
-        dispatcher.scheduler.advanceUntilIdle()
-        viewModel.selectCategory(ALL_CATEGORY)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        assertEquals(null to CommunityMapSort.POPULAR, repository.calls.last())
-    }
-
-    @Test
-    fun `같은 선택을 다시 누르면 재조회하지 않는다`() = runTest {
-        val repository = FakeRepository()
-        val viewModel = viewModel(repository).apply { refresh() }
-        dispatcher.scheduler.advanceUntilIdle()
-
-        viewModel.selectCategory(ALL_CATEGORY)
-        viewModel.selectSort(CommunityMapSort.POPULAR)
-        dispatcher.scheduler.advanceUntilIdle()
-
-        assertEquals(1, repository.calls.size)
-    }
-
-    @Test
-    fun `정렬을 바꾸면 해당 정렬로 재조회한다`() = runTest {
-        val repository = FakeRepository()
+    fun `정렬을 바꾸면 그 정렬로 5개를 다시 읽는다`() = runTest {
+        val repository = FakeRepository { listOf(sampleMap(1L)) }
         val viewModel = viewModel(repository).apply { refresh() }
         dispatcher.scheduler.advanceUntilIdle()
 
@@ -211,7 +181,36 @@ class ExploreViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(CommunityMapSort.LATEST, viewModel.uiState.value.sort)
-        assertEquals(null to CommunityMapSort.LATEST, repository.calls.last())
+        assertEquals(
+            Call(tag = null, sort = CommunityMapSort.LATEST, page = 0, size = EXPLORE_COMMUNITY_MAP_COUNT),
+            repository.calls.last(),
+        )
+    }
+
+    @Test
+    fun `같은 정렬을 다시 누르면 다시 읽지 않는다`() = runTest {
+        val repository = FakeRepository()
+        val viewModel = viewModel(repository).apply { refresh() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.selectSort(CommunityMapSort.POPULAR)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, repository.calls.size)
+    }
+
+    @Test
+    fun `돌아와서 다시 읽을 때도 고른 정렬을 쓴다`() = runTest {
+        val repository = FakeRepository { listOf(sampleMap(1L)) }
+        val viewModel = viewModel(repository).apply { refresh() }
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.selectSort(CommunityMapSort.LATEST)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.refresh()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(CommunityMapSort.LATEST, repository.calls.last().sort)
     }
 
     @Test
@@ -261,18 +260,17 @@ class ExploreViewModelTest {
     }
 
     @Test
-    fun `추천은 화면을 다시 볼 때 읽고 칩이나 정렬에는 반응하지 않는다`() = runTest {
+    fun `추천은 화면을 다시 볼 때 읽고 정렬이나 목록 재시도에는 반응하지 않는다`() = runTest {
         val repository = FakeRepository(recommendations = { listOf(sampleMap(1L)) })
         val viewModel = viewModel(repository).apply { refresh() }
         dispatcher.scheduler.advanceUntilIdle()
         assertEquals(1, repository.recommendationCalls)
 
-        viewModel.selectCategory("카페")
         viewModel.selectSort(CommunityMapSort.LATEST)
         viewModel.retry()
         dispatcher.scheduler.advanceUntilIdle()
 
-        // 추천 결과는 카테고리·정렬과 무관하다. 칩을 누를 때마다 다시 부르면 낭비다.
+        // 목록만 다시 읽는다. 추천은 정렬과 무관해서 멀쩡한 추천까지 다시 부르면 낭비다.
         assertEquals(1, repository.recommendationCalls)
 
         viewModel.refresh()
@@ -313,33 +311,21 @@ class ExploreViewModelTest {
     }
 
     @Test
-    fun `진행 중인 요청이 취소돼도 오류로 새지 않고 마지막 선택 결과만 남는다`() = runTest {
+    fun `진행 중인 요청이 취소돼도 오류로 새지 않고 마지막 요청 결과만 남는다`() = runTest {
         val repository = FakeRepository(responseDelayMillis = 100L) { listOf(sampleMap(1L)) }
         val viewModel = viewModel(repository).apply { refresh() }
-        dispatcher.scheduler.advanceUntilIdle()
-
-        viewModel.selectCategory("카페")
-        // 응답을 기다리는 지점까지만 진행시켜 "카페" 요청을 실제로 매달아 둔다.
+        // 응답을 기다리는 지점까지만 진행시켜 첫 요청을 실제로 매달아 둔다.
         dispatcher.scheduler.advanceTimeBy(50L)
-        assertEquals("카페" to CommunityMapSort.POPULAR, repository.calls.last())
 
-        viewModel.selectCategory("데이트")
-        // 가상 시간을 넘기지 않고 지금 큐에 있는 것만 실행한다. 취소된 "카페" 는 여기서 깨어나고,
-        // "데이트" 는 아직 응답을 기다리는 중이다. 취소가 Error 로 새면 이 시점에 드러난다.
+        viewModel.retry()
+        // 가상 시간을 넘기지 않고 지금 큐에 있는 것만 실행한다. 취소된 첫 요청은 여기서 깨어나고,
+        // 다시 보낸 요청은 아직 응답을 기다리는 중이다. 취소가 Error 로 새면 이 시점에 드러난다.
         dispatcher.scheduler.runCurrent()
         assertEquals(CommunityMapsState.Loading, viewModel.uiState.value.communityMaps)
 
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals("데이트", viewModel.uiState.value.selectedCategory)
         assertTrue(viewModel.uiState.value.communityMaps is CommunityMapsState.Success)
-        assertEquals(
-            listOf(
-                null to CommunityMapSort.POPULAR,
-                "카페" to CommunityMapSort.POPULAR,
-                "데이트" to CommunityMapSort.POPULAR,
-            ),
-            repository.calls,
-        )
+        assertEquals(2, repository.calls.size)
     }
 }

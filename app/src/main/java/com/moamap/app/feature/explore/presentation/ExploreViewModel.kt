@@ -17,18 +17,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
-/** "전체" 는 태그 필터를 걸지 않는다는 뜻이라 서버로 보내지 않는다. */
-const val ALL_CATEGORY: String = "전체"
+/** 탐색 탭에 보여 주는 커뮤니티 지도 수. 고른 정렬로 앞에서부터 받고, 나머지는 「전체보기」에서 본다. */
+internal const val EXPLORE_COMMUNITY_MAP_COUNT = 5
 
-/**
- * 카테고리 칩 목록.
- *
- * 서버에 태그 사전이 없어 라벨이 곧 태그 문자열이고,
- * 지도에 달린 태그와 정확히 일치해야 필터가 걸린다.
- */
-val ExploreCategories: List<String> = listOf(ALL_CATEGORY, "카페", "데이트", "산책", "힙플")
-
-/** 목록 영역의 상태. 칩과 정렬은 재조회 중에도 눌러야 하므로 바깥 상태와 분리한다. */
+/** 목록 영역의 상태. 추천·이름과 따로 실패할 수 있어 바깥 상태와 분리한다. */
 sealed interface CommunityMapsState {
     data object Loading : CommunityMapsState
     data class Success(val maps: List<CommunityMap>) : CommunityMapsState
@@ -36,7 +28,6 @@ sealed interface CommunityMapsState {
 }
 
 data class ExploreUiState(
-    val selectedCategory: String = ALL_CATEGORY,
     val sort: CommunityMapSort = CommunityMapSort.POPULAR,
     val communityMaps: CommunityMapsState = CommunityMapsState.Loading,
     /** 추천 섹션 제목에 넣을 내 이름. 못 읽었으면 비어 있고, 화면이 대체 말을 쓴다. */
@@ -59,7 +50,7 @@ class ExploreViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(ExploreUiState())
     val uiState: StateFlow<ExploreUiState> = _uiState.asStateFlow()
 
-    /** 칩을 연달아 누르면 이전 요청은 버린다. 늦게 도착한 응답이 최신 선택을 덮지 않게 한다. */
+    /** 화면을 빠르게 오가면 이전 요청은 버린다. 늦게 도착한 응답이 최신 결과를 덮지 않게 한다. */
     private var loadJob: Job? = null
 
     /** 추천은 목록과 따로 오간다. 화면을 빠르게 오갈 때 이전 요청을 버리는 용도다. */
@@ -116,8 +107,7 @@ class ExploreViewModel @Inject constructor(
     /**
      * 추천 목록을 읽는다.
      *
-     * 목록 재조회([load])에 얹지 않는다 - 추천은 카테고리·정렬과 무관해서, 칩을 누를 때마다
-     * 같은 추천을 다시 부르게 된다.
+     * 목록 재시도([retry])에 얹지 않는다 - 목록만 실패했을 때 멀쩡한 추천까지 다시 부르게 된다.
      *
      * 실패하면 조용히 넘긴다. 보조 섹션이라 오류를 띄우지 않고, 이미 그린 카드도 지우지
      * 않는다 - 돌아올 때마다 섹션이 사라지면 안 된다.
@@ -136,12 +126,7 @@ class ExploreViewModel @Inject constructor(
         }
     }
 
-    fun selectCategory(category: String) {
-        if (_uiState.value.selectedCategory == category) return
-        _uiState.update { it.copy(selectedCategory = category) }
-        load()
-    }
-
+    /** 같은 정렬을 다시 누르면 아무것도 하지 않는다. 추천은 정렬과 무관해 다시 읽지 않는다. */
     fun selectSort(sort: CommunityMapSort) {
         if (_uiState.value.sort == sort) return
         _uiState.update { it.copy(sort = sort) }
@@ -153,16 +138,19 @@ class ExploreViewModel @Inject constructor(
      *  사라졌다 나타나면 화면이 깜빡인다.
      */
     private fun load(keepCurrent: Boolean = false) {
-        val (category, sort) = _uiState.value.let { it.selectedCategory to it.sort }
-        val tag = category.takeIf { it != ALL_CATEGORY }
-
+        val sort = _uiState.value.sort
         loadJob?.cancel()
         if (!keepCurrent) {
             _uiState.update { it.copy(communityMaps = CommunityMapsState.Loading) }
         }
         loadJob = viewModelScope.launch {
             try {
-                val maps = repository.getCommunityMaps(tag = tag, sort = sort)
+                val maps = repository.getCommunityMaps(
+                    tag = null,
+                    sort = sort,
+                    page = 0,
+                    size = EXPLORE_COMMUNITY_MAP_COUNT,
+                ).maps
                 _uiState.update { it.copy(communityMaps = CommunityMapsState.Success(maps)) }
             } catch (e: CancellationException) {
                 // 다음 선택이 이미 로딩을 시작했다. 이 요청의 결과로 상태를 건드리면 안 된다.
@@ -170,7 +158,7 @@ class ExploreViewModel @Inject constructor(
             } catch (e: Exception) {
                 // 예외 메시지는 그대로 노출하지 않는다. ApiException 은 "[500] COMMON_005: ..."
                 // 처럼 사용자에게 보여줄 수 없는 형태다.
-                Log.w(TAG, "커뮤니티 지도 목록 조회 실패 (tag=$tag, sort=$sort)", e)
+                Log.w(TAG, "커뮤니티 지도 목록 조회 실패 (sort=$sort)", e)
                 // 새로고침이 실패했는데 이미 보여줄 목록이 있으면 지우지 않는다.
                 if (keepCurrent) return@launch
                 _uiState.update {
