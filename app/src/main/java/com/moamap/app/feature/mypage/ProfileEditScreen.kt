@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -115,6 +114,18 @@ private const val IntroductionMaxLines = 6
 /** 스크롤 영역 아래 여백. 마지막 칸이 저장 버튼에 가리지 않게 한다. */
 private val FieldsBottomGap = 96.dp
 
+/** 프로필 사진 원 지름. 시안 「Home/마이페이지」. */
+private val ProfileImageSize = 120.dp
+
+/**
+ * 상단 바 아래 → 사진 원. 시안은 상단 바(58) 아래 20 이지만 앱 상단 바는 52 라,
+ * 원이 화면 위에서 시안과 같은 높이에 서도록 26 을 둔다.
+ */
+private val ProfileImageTopGap = 26.dp
+
+/** 사진 원 → 입력 칸. */
+private val ProfileImageBottomGap = 40.dp
+
 @Composable
 private fun ProfileEditContent(
     uiState: ProfileEditUiState,
@@ -161,7 +172,7 @@ private fun ProfileEditContent(
                     .padding(bottom = FieldsBottomGap),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Spacer(Modifier.height(37.dp))
+                Spacer(Modifier.height(ProfileImageTopGap))
                 ProfileImageEditor(
                     imageModel = uiState.pickedImageUri ?: serverImageUrl,
                     enabled = !uiState.saving,
@@ -171,7 +182,7 @@ private fun ProfileEditContent(
                     onCameraClick = pickerController::requestCamera,
                     onGalleryClick = pickerController::requestGallery,
                 )
-                Spacer(Modifier.height(26.dp))
+                Spacer(Modifier.height(ProfileImageBottomGap))
 
                 when (val load = uiState.load) {
                     ProfileLoadState.Loading -> ProfileEditPlaceholder {
@@ -283,23 +294,21 @@ private fun ProfileImageEditor(
     onGalleryClick: () -> Unit,
 ) {
     val density = LocalDensity.current
+    // 사진 고르기 메뉴는 카메라 버튼 아래 8 에, 오른쪽 끝을 버튼(= 원의 네모 칸) 끝에 맞춘다.
     val menuOffset = with(density) {
         IntOffset(
-            x = 8.dp.roundToPx(),
-            y = 142.dp.roundToPx(),
+            x = 0,
+            y = (ProfileImageSize + 8.dp).roundToPx(),
         )
     }
 
-    Box(
-        modifier = Modifier
-            .width(130.dp)
-            .height(134.dp),
-    ) {
+    // 시안: 원 120, 그림자 0 0 10 8%, 카메라 버튼 40 이 원의 네모 칸 오른쪽 아래 끝에 딱 붙는다.
+    Box(modifier = Modifier.size(ProfileImageSize)) {
         ShadowedContainer(
-            modifier = Modifier.size(130.dp),
+            modifier = Modifier.size(ProfileImageSize),
             shape = CircleShape,
             backgroundColor = MoaMapPrimitiveColors.White,
-            shadowRadius = 5.dp,
+            shadowRadius = 10.dp,
             shadowColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.08f),
         ) {
             imageModel?.let { model ->
@@ -316,7 +325,7 @@ private fun ProfileImageEditor(
 
         Box(
             modifier = Modifier
-                .offset(x = 98.dp, y = 94.dp)
+                .align(Alignment.BottomEnd)
                 .size(40.dp)
                 .clip(CircleShape)
                 // 저장 중에는 눌러도 반영되지 않으니(ViewModel 가드), 저장 버튼과 같은 죽은 색으로
