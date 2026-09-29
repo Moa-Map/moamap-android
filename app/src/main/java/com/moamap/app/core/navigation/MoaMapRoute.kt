@@ -63,6 +63,11 @@ sealed interface MoaMapRoute {
         override val route = "official_map"
     }
 
+    /** 탐색 탭 「전체보기」로 여는 커뮤니티 지도 전체 목록. 하단 탭 없이 뜬다. */
+    data object CommunityMaps : MoaMapRoute {
+        override val route = "community_maps"
+    }
+
     data object DensityMapDetail : MoaMapRoute {
         override val route = "density_map_detail"
     }
