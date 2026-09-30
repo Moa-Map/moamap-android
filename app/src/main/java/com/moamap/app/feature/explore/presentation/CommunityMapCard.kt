@@ -2,6 +2,7 @@ package com.moamap.app.feature.explore.presentation
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -61,16 +62,17 @@ fun CommunityMapCard(
             MapThumbnail(imageUrl = map.imageUrl, size = 90.dp)
 
             // 글 영역은 높이 84(위아래 4)에 이름·태그는 위, 인원·장소 수는 아래 오른쪽.
-            Column(
+            // 태그가 없으면 이름 아래가 비어 보여 이름을 가운데(= 사진 높이 가운데)에 둔다.
+            Box(
                 modifier = Modifier
                     .weight(1f)
                     .height(TextAreaHeight)
                     .padding(vertical = 4.dp),
-                verticalArrangement = Arrangement.SpaceBetween,
-                horizontalAlignment = Alignment.End,
             ) {
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(if (map.hashtags.isEmpty()) Alignment.CenterStart else Alignment.TopStart),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Text(
@@ -90,6 +92,7 @@ fun CommunityMapCard(
                     )
                 }
                 Row(
+                    modifier = Modifier.align(Alignment.BottomEnd),
                     horizontalArrangement = Arrangement.spacedBy(MetaItemGap),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -148,6 +151,26 @@ private fun CommunityMapCardPreview() {
                 hashtags = listOf("맛집", "데이트코스", "데이트", "카페"),
                 memberCount = 2312,
                 placeCount = 116,
+                joined = false,
+            ),
+            onClick = {},
+            modifier = Modifier.padding(20.dp),
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393)
+@Composable
+private fun CommunityMapCardNoHashtagsPreview() {
+    MoaMapTheme {
+        CommunityMapCard(
+            map = CommunityMap(
+                id = 2L,
+                title = "태그 없는 지도",
+                imageUrl = null,
+                hashtags = emptyList(),
+                memberCount = 12,
+                placeCount = 3,
                 joined = false,
             ),
             onClick = {},
