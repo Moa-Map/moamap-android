@@ -32,7 +32,9 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -51,6 +53,7 @@ import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.domain.model.MapPlacePreview
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
 import com.moamap.app.feature.mapdetail.presentation.MapLoadState
+import com.moamap.app.feature.mapdetail.presentation.mapOrNull
 
 /** 본문 좌우 여백. 피그마의 폭 354dp 를 393dp 화면에서 뺀 값. */
 private val ContentHorizontalPadding = 20.dp
@@ -84,6 +87,7 @@ fun MapIntroScreen(
         onPreviewClick = onPreviewClick,
         onRetryClick = viewModel::retry,
         onJoinClick = viewModel::join,
+        onMorePlacesClick = viewModel::showMorePlaces,
         onErrorShown = viewModel::consumeErrorMessage,
         modifier = modifier,
     )
@@ -96,10 +100,14 @@ internal fun MapIntroContent(
     onPreviewClick: () -> Unit,
     onRetryClick: () -> Unit,
     onJoinClick: () -> Unit,
+    onMorePlacesClick: () -> Unit,
     onErrorShown: () -> Unit,
     modifier: Modifier = Modifier,
     mapContent: (@Composable (List<MapPlace>) -> Unit)? = null,
 ) {
+    // 공식지도는 히어로 대신 상단 바를 둔다(시안 「공식지도 - 상세」). 종류는 지도를 받아야 안다.
+    val official = uiState.map.mapOrNull?.type == MapType.Official
+
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -114,13 +122,24 @@ internal fun MapIntroContent(
             )
 
             is MapLoadState.Success -> {
-                MapIntroBody(
-                    map = state.map,
-                    places = uiState.places,
-                    mapPlaces = uiState.mapPlaces,
-                    onPreviewClick = onPreviewClick,
-                    mapContent = mapContent,
-                )
+                Column(
+                    modifier = if (official) Modifier.statusBarsPadding() else Modifier,
+                ) {
+                    if (official) {
+                        OfficialIntroTopBar(title = state.map.title, onBackClick = onBackClick)
+                    }
+                    MapIntroBody(
+                        map = state.map,
+                        places = uiState.places,
+                        mapPlaces = uiState.mapPlaces,
+                        onPreviewClick = onPreviewClick,
+                        // 커뮤니티는 전체 목록 화면이 없어 미리보기로 보낸다. 공식지도는 장소가
+                        // 많아 그 자리에서 펼친다.
+                        onMoreClick = if (official) onMorePlacesClick else onPreviewClick,
+                        mapContent = mapContent,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
                 // 이미 참여한 지도라면 버튼이 할 일이 없다. 상세로 갈 길은 미리보기가 있다.
                 if (!state.map.joined) {
                     JoinButton(
@@ -139,16 +158,19 @@ internal fun MapIntroContent(
             }
         }
 
-        BackButton(
-            onClick = onBackClick,
-            // 히어로 위에서는 흰색이라야 읽힌다. 아직 히어로가 없는 로딩·오류 화면은
-            // 밝은 배경뿐이라 같은 색을 쓰면 아이콘이 보이지 않는다.
-            onHero = uiState.map is MapLoadState.Success,
-            modifier = Modifier
-                .align(Alignment.TopStart)
-                .statusBarsPadding()
-                .padding(start = 12.dp),
-        )
+        // 공식지도는 상단 바가 뒤로가기를 갖는다.
+        if (!official) {
+            BackButton(
+                onClick = onBackClick,
+                // 히어로 위에서는 흰색이라야 읽힌다. 아직 히어로가 없는 로딩·오류 화면은
+                // 밝은 배경뿐이라 같은 색을 쓰면 아이콘이 보이지 않는다.
+                onHero = uiState.map is MapLoadState.Success,
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .statusBarsPadding()
+                    .padding(start = 12.dp),
+            )
+        }
 
         ErrorSnackbar(
             message = uiState.errorMessage,
@@ -158,14 +180,25 @@ internal fun MapIntroContent(
     }
 }
 
+/**
+ * 소개 본문.
+ *
+ * 공식지도는 히어로(제작자)와 태그가 없고, 간격을 공식 상세 시안(`3278:24025`)에 맞춘다 -
+ * 상단 바 아래 20, 지도 제목 아래 12, 장소 카드 사이 8, `더보기` 위 16.
+ */
 @Composable
 private fun MapIntroBody(
     map: MapDetail,
     places: MapPlacePreview,
     mapPlaces: List<MapPlace>,
     onPreviewClick: () -> Unit,
+    onMoreClick: () -> Unit,
     mapContent: (@Composable (List<MapPlace>) -> Unit)?,
+    modifier: Modifier = Modifier,
 ) {
+    val official = map.type == MapType.Official
+    val tags = if (official) emptyList() else map.tags
+
     /**
      * 지도를 만지는 동안인지.
      *
@@ -175,30 +208,32 @@ private fun MapIntroBody(
     var mapTouched by remember { mutableStateOf(false) }
 
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState(), enabled = !mapTouched),
     ) {
-        MapIntroHero(
-            title = map.title,
-            ownerName = map.ownerName,
-            imageUrl = map.imageUrl,
-        )
+        if (!official) {
+            MapIntroHero(
+                title = map.title,
+                ownerName = map.ownerName,
+                imageUrl = map.imageUrl,
+            )
+        }
 
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 32.dp),
+                .padding(top = if (official) 20.dp else 32.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp),
         ) {
             // 소개할 게 아무것도 없으면 제목만 남은 빈 섹션이 된다. 통째로 건너뛴다.
-            if (map.tags.isNotEmpty() || map.description != null) {
+            if (tags.isNotEmpty() || map.description != null) {
                 IntroSection {
                     MapIntroSectionTitle("지도 소개")
                     Spacer(Modifier.height(12.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (map.tags.isNotEmpty()) {
-                            MapIntroTagRow(tags = map.tags)
+                        if (tags.isNotEmpty()) {
+                            MapIntroTagRow(tags = tags)
                         }
                         if (map.description != null) {
                             Text(
@@ -214,7 +249,7 @@ private fun MapIntroBody(
 
             IntroSection {
                 MapIntroSectionTitle("지도")
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(if (official) 12.dp else 8.dp))
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -253,15 +288,15 @@ private fun MapIntroBody(
                 IntroSection {
                     MapIntroSectionTitle("장소 목록")
                     Spacer(Modifier.height(12.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(if (official) 8.dp else 4.dp)) {
                         places.places.forEach { place ->
                             MapIntroPlaceItem(place = place)
                         }
                     }
                     if (places.hasMore) {
-                        Spacer(Modifier.height(8.dp))
+                        Spacer(Modifier.height(if (official) 16.dp else 8.dp))
                         MapIntroMoreLink(
-                            onClick = onPreviewClick,
+                            onClick = onMoreClick,
                             modifier = Modifier.align(Alignment.CenterHorizontally),
                         )
                     }
@@ -307,6 +342,48 @@ private fun BackButton(
             contentDescription = "뒤로가기",
             tint = if (onHero) MoaMapTheme.colors.textWhite else MoaMapTheme.colors.textNormal,
             modifier = Modifier.size(24.dp),
+        )
+    }
+}
+
+/** 공식지도 상세 상단 바. 시안 GNB: 높이 58, 왼쪽 20 에 뒤로가기 32, 가운데 지도 이름. */
+@Composable
+private fun OfficialIntroTopBar(
+    title: String,
+    onBackClick: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(58.dp),
+    ) {
+        // 누르는 자리는 48 로 넓히고 아이콘이 왼쪽 20 에 서도록 12 만 띄운다.
+        Box(
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = 12.dp)
+                .size(48.dp)
+                .clickable(role = Role.Button, onClick = onBackClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_arrow_left),
+                contentDescription = "뒤로가기",
+                tint = MoaMapTheme.colors.textNormal,
+                modifier = Modifier.size(32.dp),
+            )
+        }
+        // 긴 이름이 뒤로가기 밑으로 파고들지 않게 좌우를 같이 밀어 가운데를 지킨다.
+        Text(
+            text = title,
+            style = MoaMapTheme.typography.title3,
+            color = MoaMapTheme.colors.textNormal,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .padding(horizontal = 72.dp),
         )
     }
 }
@@ -409,34 +486,31 @@ private val PreviewMap = MapDetail(
     inviteCode = null,
 )
 
-private val PreviewPlaces = MapPlacePreview(
-    places = List(4) { index ->
-        MapPlace(
-            id = index + 1L,
-            name = "커피나무 ${index + 1}호점",
-            address = "서울 성동구 성수이로 ${index + 1}",
-            latitude = 37.5445 + index * 0.001,
-            longitude = 127.0557 + index * 0.001,
-            photoUrl = null,
-        )
-    },
-    hasMore = true,
-)
+/** `더보기` 가 뜨도록 처음 보여줄 개수보다 많게 둔다. */
+private val PreviewPlaces = List(INTRO_PLACE_COUNT + 2) { index ->
+    MapPlace(
+        id = index + 1L,
+        name = "커피나무 ${index + 1}호점",
+        address = "서울 성동구 성수이로 ${index + 1}",
+        latitude = 37.5445 + index * 0.001,
+        longitude = 127.0557 + index * 0.001,
+        photoUrl = null,
+    )
+}
 
-@Preview(showBackground = true, widthDp = 393, heightDp = 852)
 @Composable
-private fun MapIntroScreenPreview() {
+private fun MapIntroPreviewContent(map: MapDetail) {
     MoaMapTheme {
         MapIntroContent(
             uiState = MapIntroUiState(
-                map = MapLoadState.Success(PreviewMap),
-                places = PreviewPlaces,
-                mapPlaces = PreviewPlaces.places,
+                map = MapLoadState.Success(map),
+                mapPlaces = PreviewPlaces,
             ),
             onBackClick = {},
             onPreviewClick = {},
             onRetryClick = {},
             onJoinClick = {},
+            onMorePlacesClick = {},
             onErrorShown = {},
             mapContent = {
                 Box(
@@ -447,4 +521,24 @@ private fun MapIntroScreenPreview() {
             },
         )
     }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Composable
+private fun MapIntroScreenPreview() {
+    MapIntroPreviewContent(PreviewMap)
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 1162)
+@Composable
+private fun OfficialMapIntroScreenPreview() {
+    MapIntroPreviewContent(
+        PreviewMap.copy(
+            title = "서울 무장애 여행지",
+            description = "휠체어로 다니기 좋은 서울의 관광지를 모았어요.",
+            ownerName = null,
+            type = MapType.Official,
+            tags = emptyList(),
+        ),
+    )
 }

@@ -218,7 +218,8 @@ internal fun MapIntroPlaceItem(
 /**
  * 장소가 더 있을 때만 뜨는 줄.
  *
- * 전체 장소 목록 화면이 아직 없어 미리보기와 같이 상세로 보낸다.
+ * 누르면 커뮤니티 지도는 미리보기와 같이 상세로 가고(전체 장소 목록 화면이 없다),
+ * 공식지도는 그 자리에서 목록을 더 펼친다.
  */
 @Composable
 internal fun MapIntroMoreLink(onClick: () -> Unit, modifier: Modifier = Modifier) {
