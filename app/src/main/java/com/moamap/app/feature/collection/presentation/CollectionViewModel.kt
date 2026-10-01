@@ -6,10 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.collection.domain.model.MapType
+import com.moamap.app.feature.collection.domain.model.MyMap
 import com.moamap.app.feature.collection.domain.repository.MapRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -313,7 +316,7 @@ class CollectionViewModel @Inject constructor(
 
         loadJobs[type] = viewModelScope.launch {
             try {
-                val maps = repository.getMyMaps(type)
+                val maps = if (type == MapType.Community) getCommunityTabMaps() else repository.getMyMaps(type)
                 _uiState.update { state ->
                     state.withState(type, MyMapsState.Success(maps))
                 }
@@ -325,6 +328,29 @@ class CollectionViewModel @Inject constructor(
                 onLoadFailed(type, keepCurrent)
             }
         }
+    }
+
+    /**
+     * 커뮤니티 탭 목록. 참여한 공식지도를 맨 위에 둔다.
+     *
+     * 서버 「내 지도」는 종류별로만 줘서 공식지도를 따로 받아 붙인다. 공식지도를 못 받아도
+     * 커뮤니티 지도는 보여준다 - 곁가지 하나 때문에 탭이 통째로 실패하면 안 된다.
+     *
+     * 모음 탭에서만 합친다. 장소 가져오기의 지도 고르기에 공식지도가 섞이면 서버가 등록을 거절한다.
+     */
+    private suspend fun getCommunityTabMaps(): List<MyMap> = coroutineScope {
+        val official = async {
+            try {
+                repository.getMyMaps(MapType.Official)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "참여한 공식지도 조회 실패", e)
+                emptyList()
+            }
+        }
+        val community = repository.getMyMaps(MapType.Community)
+        official.await() + community
     }
 
     /** 새로고침이 실패했는데 이미 보여줄 목록이 있으면 지우지 않는다. */
