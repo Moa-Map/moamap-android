@@ -81,6 +81,42 @@ class MapIntroViewModelTest {
     }
 
     @Test
+    fun `더보기를 누를 때마다 10개씩 더 펼치고 다 보이면 더보기가 사라진다`() = runTest {
+        val total = INTRO_PLACE_COUNT + INTRO_MORE_PLACE_COUNT + 3
+        val repository = FakeMapDetailRepository(
+            allPlaces = { (1..total).map { id -> testPlace(id.toLong()) } },
+        )
+        val viewModel = viewModel(repository).apply { refresh() }
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.showMorePlaces()
+        assertEquals(INTRO_PLACE_COUNT + INTRO_MORE_PLACE_COUNT, viewModel.uiState.value.places.places.size)
+        assertTrue(viewModel.uiState.value.places.hasMore)
+
+        viewModel.showMorePlaces()
+        assertEquals(total, viewModel.uiState.value.places.places.size)
+        assertFalse(viewModel.uiState.value.places.hasMore)
+        // 받아 둔 것에서 펼친다. 서버를 다시 부르지 않는다.
+        assertEquals(1, repository.calls.count { call -> call == "getPlaces" })
+    }
+
+    @Test
+    fun `펼친 목록은 돌아와 다시 읽어도 접히지 않는다`() = runTest {
+        val repository = FakeMapDetailRepository(
+            allPlaces = { (1..INTRO_PLACE_COUNT + INTRO_MORE_PLACE_COUNT).map { id -> testPlace(id.toLong()) } },
+        )
+        val viewModel = viewModel(repository).apply { refresh() }
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.showMorePlaces()
+
+        // 미리보기에 다녀오면 화면이 다시 보이며 refresh 가 불린다.
+        viewModel.refresh()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(INTRO_PLACE_COUNT + INTRO_MORE_PLACE_COUNT, viewModel.uiState.value.places.places.size)
+    }
+
+    @Test
     fun `장소 조회만 실패해도 지도는 보여준다`() = runTest {
         val repository = object : FakeMapDetailRepository() {
             override suspend fun getPlaces(mapId: Long): List<MapPlace> =
