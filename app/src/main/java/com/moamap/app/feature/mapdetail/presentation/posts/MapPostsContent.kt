@@ -53,8 +53,13 @@ import com.moamap.app.feature.mapdetail.domain.model.MapPostSort
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 
-/** 탭바가 위에 겹쳐 있어 그만큼 내려서 시작한다. */
-internal val TabBarClearance = 90.dp
+/**
+ * 탭바가 위에 겹쳐 있어 그만큼 내려서 시작한다.
+ *
+ * 세그먼트(상단바 아래 12 + 높이 약 46) 밑으로 18 - 로그 시안의 세그먼트 ↔ 보기 방식 칩 간격이다.
+ * 세그먼트 크기를 바꾸면 같이 맞춘다(`MapDetailTabBar`).
+ */
+internal val TabBarClearance = 76.dp
 
 /** 오른쪽 아래 새 게시물 버튼(48dp)과 그 여백(20dp)을 비켜 가는 목록 아래 여백. */
 internal val BottomClearance = 88.dp

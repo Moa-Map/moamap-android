@@ -901,9 +901,7 @@ internal fun MapDetailContent(
                         MapDetailTabBar(
                             selectedTab = selectedTab,
                             onTabSelected = onTabSelected,
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(start = 20.dp, top = 16.dp, end = 20.dp),
+                            modifier = Modifier.align(Alignment.TopCenter),
                         )
                         if (canWritePost) {
                             WritePostFab(
@@ -1011,9 +1009,7 @@ private fun MapDetailPlacesContent(
                 MapDetailTabBar(
                     selectedTab = MapDetailTab.Places,
                     onTabSelected = onTabSelected,
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .padding(start = 20.dp, top = 16.dp, end = 20.dp),
+                    modifier = Modifier.align(Alignment.TopCenter),
                 )
             }
             MyLocationButton(
