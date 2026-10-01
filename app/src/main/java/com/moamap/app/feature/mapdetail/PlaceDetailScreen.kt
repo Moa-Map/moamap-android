@@ -135,6 +135,8 @@ internal fun PlaceDetailScreen(
     onEditReview: (Long) -> Unit = {},
     onCancelEdit: () -> Unit = {},
     onDeleteReview: (Long) -> Unit = {},
+    /** false 면 하트·신고하기·댓글을 뺀다. 공식지도다. 나만의 지도 추가·외부 링크는 남는다. */
+    showsReactions: Boolean = true,
 ) {
     PlaceDetailContent(
         place = place,
@@ -150,6 +152,7 @@ internal fun PlaceDetailScreen(
         onEditReview = onEditReview,
         onCancelEdit = onCancelEdit,
         onDeleteReview = onDeleteReview,
+        showsReactions = showsReactions,
         modifier = modifier
             .fillMaxSize()
             .background(MoaMapTheme.colors.backgroundSecondary)
@@ -193,6 +196,7 @@ private fun PlaceDetailContent(
     onEditReview: (Long) -> Unit = {},
     onCancelEdit: () -> Unit = {},
     onDeleteReview: (Long) -> Unit = {},
+    showsReactions: Boolean = true,
 ) {
     var reviewPhoto by rememberSaveable(place.id) { mutableStateOf<Uri?>(null) }
     // 옆으로 밀어 버튼이 드러난 댓글. 한 번에 한 줄만 연다.
@@ -229,53 +233,64 @@ private fun PlaceDetailContent(
                     )
                     // 블록 사이 간격은 시안(2572:11977) 그대로다: 닫기 줄 아래 20, 그 뒤로 12씩.
                     Spacer(modifier = Modifier.height(20.dp))
-                    PlaceHeader(place = place, onLikeClick = onLikeClick)
+                    PlaceHeader(
+                        place = place,
+                        onLikeClick = onLikeClick,
+                        showsReactions = showsReactions,
+                    )
                     Spacer(modifier = Modifier.height(12.dp))
                     PlaceActions(
                         personalMapAction = personalMapAction,
                         onAddToPersonalMapClick = onAddToPersonalMapClick,
                         onExternalLinkClick = onExternalLinkClick,
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    HorizontalDivider(
-                        thickness = 0.5.dp,
-                        color = MoaMapTheme.colors.lineNormal,
-                        modifier = Modifier.padding(horizontal = 20.dp),
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    // 구분선은 댓글과 나누는 줄이라 댓글이 없으면 같이 뺀다.
+                    if (showsReactions) {
+                        Spacer(modifier = Modifier.height(12.dp))
+                        HorizontalDivider(
+                            thickness = 0.5.dp,
+                            color = MoaMapTheme.colors.lineNormal,
+                            modifier = Modifier.padding(horizontal = 20.dp),
+                        )
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
                 }
 
-                reviewItems(
-                    reviews = reviews,
-                    onRetryReviews = onRetryReviews,
-                    // 수정·삭제·신고는 모두 지도 멤버만 할 수 있다. 참여하지 않았으면 밀리지 않는다.
-                    swipeEnabled = onSubmitReview != null,
-                    openReviewId = openReviewId,
-                    onOpenChange = { id, open ->
-                        openReviewId = if (open) id else openReviewId.takeUnless { it == id }
-                    },
-                    onEditClick = { id ->
-                        openReviewId = null
-                        onEditReview(id)
-                    },
-                    onDeleteClick = { id ->
-                        openReviewId = null
-                        deleteTargetId = id
-                    },
-                )
+                if (showsReactions) {
+                    reviewItems(
+                        reviews = reviews,
+                        onRetryReviews = onRetryReviews,
+                        // 수정·삭제·신고는 모두 지도 멤버만 할 수 있다. 참여하지 않았으면 밀리지 않는다.
+                        swipeEnabled = onSubmitReview != null,
+                        openReviewId = openReviewId,
+                        onOpenChange = { id, open ->
+                            openReviewId = if (open) id else openReviewId.takeUnless { it == id }
+                        },
+                        onEditClick = { id ->
+                            openReviewId = null
+                            onEditReview(id)
+                        },
+                        onDeleteClick = { id ->
+                            openReviewId = null
+                            deleteTargetId = id
+                        },
+                    )
+                }
             }
 
-            ReviewComposer(
-                placeId = place.id,
-                reviews = reviews,
-                photo = reviewPhoto,
-                onAddPhotoClick = pickerState::showSourceMenu,
-                onRemovePhotoClick = { reviewPhoto = null },
-                onPhotoSubmitted = { reviewPhoto = null },
-                onSubmitReview = onSubmitReview,
-                editing = reviews.items.firstOrNull { item -> item.id == reviews.editingReviewId },
-                onCancelEdit = onCancelEdit,
-            )
+            if (showsReactions) {
+                ReviewComposer(
+                    placeId = place.id,
+                    reviews = reviews,
+                    photo = reviewPhoto,
+                    onAddPhotoClick = pickerState::showSourceMenu,
+                    onRemovePhotoClick = { reviewPhoto = null },
+                    onPhotoSubmitted = { reviewPhoto = null },
+                    onSubmitReview = onSubmitReview,
+                    editing = reviews.items.firstOrNull { item -> item.id == reviews.editingReviewId },
+                    onCancelEdit = onCancelEdit,
+                )
+            }
         }
 
         deleteTargetId?.let { id ->
@@ -453,7 +468,11 @@ internal fun BackCloseControls(
  * 별점·후기 수는 시안에서 빠졌다.
  */
 @Composable
-private fun PlaceHeader(place: PlaceUiModel, onLikeClick: () -> Unit) {
+private fun PlaceHeader(
+    place: PlaceUiModel,
+    onLikeClick: () -> Unit,
+    showsReactions: Boolean,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -484,26 +503,28 @@ private fun PlaceHeader(place: PlaceUiModel, onLikeClick: () -> Unit) {
                     )
                     if (place.category.isNotBlank()) PlaceCategoryTag(place.category)
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    PlaceIconAction(
-                        iconRes = likeIconRes(place.liked),
-                        iconTint = if (place.liked) {
-                            MoaMapTheme.colors.statusAlert
-                        } else {
-                            MoaMapPrimitiveColors.Gray100
-                        },
-                        label = place.likeCount.toString(),
-                        contentDescription = if (place.liked) "하트 취소하기" else "하트 누르기",
-                        onClick = onLikeClick,
-                    )
-                    // 신고는 아직 기능이 없다. 누를 수 있는 것처럼 보이지 않게 클릭을 걸지 않는다.
-                    PlaceIconAction(
-                        iconRes = R.drawable.ic_emergency,
-                        iconTint = MoaMapTheme.colors.textNormal,
-                        label = "신고하기",
-                        contentDescription = null,
-                        onClick = null,
-                    )
+                if (showsReactions) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PlaceIconAction(
+                            iconRes = likeIconRes(place.liked),
+                            iconTint = if (place.liked) {
+                                MoaMapTheme.colors.statusAlert
+                            } else {
+                                MoaMapPrimitiveColors.Gray100
+                            },
+                            label = place.likeCount.toString(),
+                            contentDescription = if (place.liked) "하트 취소하기" else "하트 누르기",
+                            onClick = onLikeClick,
+                        )
+                        // 신고는 아직 기능이 없다. 누를 수 있는 것처럼 보이지 않게 클릭을 걸지 않는다.
+                        PlaceIconAction(
+                            iconRes = R.drawable.ic_emergency,
+                            iconTint = MoaMapTheme.colors.textNormal,
+                            label = "신고하기",
+                            contentDescription = null,
+                            onClick = null,
+                        )
+                    }
                 }
             }
 

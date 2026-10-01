@@ -70,7 +70,7 @@ val MapDetail.shareableInviteCode: String?
  * 참여·나가기 가능 여부.
  *
  * 참여하기는 상단바에 글자로 뜨고, 나가기는 참여한 뒤 상단바 메뉴 안에 들어간다 - [showsMenu],
- * [canLeaveFromMenu] 참고.
+ * [canLeaveFromMenu] 참고. 메뉴가 없는 공식지도만 나가기도 상단바 글자다.
  */
 enum class MapDetailAction {
     /** 참여하기. 아직 참여하지 않은 공개 지도. */
@@ -112,9 +112,21 @@ val MapDetail.topBarAction: MapDetailAction
  * 상단바 메뉴(멤버 관리·지도 관리·나가기)를 띄울지.
  *
  * 참여한 지도에만 띄운다. 참여 전에는 그 자리를 참여하기가 쓴다.
+ *
+ * 공식지도는 띄우지 않는다. 멤버·지도 관리가 없는 지도라 메뉴 대신 그 자리에 나가기 글자를
+ * 둔다(시안 「공식지도 - 미리보기」).
  */
 val MapDetail.showsMenu: Boolean
-    get() = joined
+    get() = joined && type != MapType.Official
+
+/**
+ * 나간 뒤에도 이 화면에 남는지.
+ *
+ * 공식지도는 나가면 그 자리에서 다시 참여하기로 돌아간다. 다른 지도는 나가면 이전 화면으로
+ * 돌아간다.
+ */
+val MapDetail.staysAfterLeaving: Boolean
+    get() = type == MapType.Official
 
 /**
  * 메뉴에 나가기를 넣을지.

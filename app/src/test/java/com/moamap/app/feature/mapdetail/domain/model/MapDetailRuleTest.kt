@@ -76,6 +76,22 @@ class MapDetailRuleTest {
     }
 
     @Test
+    fun `참여한 공식지도는 메뉴 없이 상단바가 나가기다`() {
+        val joined = map(MapType.Official, MapRole.Member, joined = true)
+
+        assertEquals(MapDetailAction.Leave, joined.topBarAction)
+        // 멤버·지도 관리가 없는 지도라 그 자리에 나가기 글자를 둔다.
+        assertFalse(joined.showsMenu)
+    }
+
+    @Test
+    fun `공식지도만 나간 뒤에도 화면에 남는다`() {
+        assertTrue(map(MapType.Official, MapRole.Member, joined = true).staysAfterLeaving)
+        assertFalse(map(MapType.Community, MapRole.Member, joined = true).staysAfterLeaving)
+        assertFalse(map(MapType.Private, MapRole.Member, joined = true).staysAfterLeaving)
+    }
+
+    @Test
     fun `공식지도에서 나가는 것은 지도 삭제가 아니다`() {
         assertFalse(map(MapType.Official, MapRole.Member, joined = true).leavingDeletesMap)
     }
@@ -177,7 +193,7 @@ class MapDetailRuleTest {
     // ---------- 상단바 메뉴 ----------
 
     @Test
-    fun `참여한 지도에만 메뉴를 띄운다`() {
+    fun `참여한 커뮤니티·프라이빗 지도에만 메뉴를 띄운다`() {
         assertTrue(map(MapType.Community, MapRole.Member, joined = true).showsMenu)
         assertTrue(map(MapType.Private, MapRole.Owner, joined = true).showsMenu)
         // 참여 전에는 그 자리를 참여하기가 쓴다.

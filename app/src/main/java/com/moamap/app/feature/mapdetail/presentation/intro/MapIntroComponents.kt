@@ -34,7 +34,6 @@ import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
-import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 
 internal val MapIntroHeroHeight = 295.dp
 internal val MapIntroMapHeight = 236.dp
@@ -174,36 +173,45 @@ internal fun MapIntroTagRow(tags: List<String>, modifier: Modifier = Modifier) {
     }
 }
 
-/** 설명 화면의 장소 카드. 썸네일 · 이름 · 주소만 있는 가벼운 줄이다. */
+/**
+ * 썸네일 · 이름 · 주소만 있는 가벼운 장소 카드(시안 「URL 장소」).
+ *
+ * 설명 화면 장소 목록과, 하트·댓글이 없는 공식지도의 장소 목록이 함께 쓴다. [onClick] 이
+ * null 이면 눌리지 않는다.
+ */
 @Composable
 internal fun MapIntroPlaceItem(
-    place: MapPlace,
+    name: String,
+    address: String,
+    photoUrl: String?,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
 ) {
     ShadowedSurface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
+        onClick = onClick,
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PhotoThumbnail(imageUrl = place.photoUrl, size = 64.dp)
+            PhotoThumbnail(imageUrl = photoUrl, size = 64.dp)
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
-                    text = place.name,
+                    text = name,
                     style = MoaMapTheme.typography.subtitle2,
                     color = MoaMapTheme.colors.textNormal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                if (place.address.isNotEmpty()) {
+                if (address.isNotEmpty()) {
                     Text(
-                        text = place.address,
+                        text = address,
                         style = MoaMapTheme.typography.caption0,
                         color = MoaMapTheme.colors.textNormal,
                         maxLines = 1,

@@ -78,7 +78,20 @@ class CollectionViewModelTest {
         val calls = mutableListOf<MapType>()
         val joinedCodes = mutableListOf<String>()
 
+        /**
+         * 커뮤니티 탭을 읽을 때 함께 불리는 참여한 공식지도.
+         *
+         * 탭을 몇 번 읽었는지 보는 [calls] 에는 넣지 않고 [officialCalls] 로 따로 센다.
+         */
+        var officialResult: () -> List<MyMap> = { emptyList() }
+        var officialCalls = 0
+
         override suspend fun getMyMaps(type: MapType): List<MyMap> {
+            if (type == MapType.Official) {
+                officialCalls++
+                delay(delayMillis)
+                return officialResult()
+            }
             calls += type
             delay(delayMillis)
             return result(type)
@@ -145,6 +158,44 @@ class CollectionViewModelTest {
         val state = viewModel.uiState.value.community
         assertTrue(state is MyMapsState.Success)
         assertEquals(listOf(1L, 2L), (state as MyMapsState.Success).maps.map { it.id })
+    }
+
+    @Test
+    fun `커뮤니티 탭은 참여한 공식지도를 맨 위에 둔다`() = runTest(dispatcher) {
+        repository.officialResult = { listOf(myMap(9)) }
+        repository.result = { listOf(myMap(1), myMap(2)) }
+
+        val viewModel = startedViewModel()
+
+        val state = viewModel.uiState.value.community as MyMapsState.Success
+        assertEquals(listOf(9L, 1L, 2L), state.maps.map { it.id })
+        assertEquals(1, repository.officialCalls)
+    }
+
+    @Test
+    fun `공식지도를 못 받아도 커뮤니티 지도는 보여준다`() = runTest(dispatcher) {
+        repository.officialResult = { throw IOException("boom") }
+        repository.result = { listOf(myMap(1)) }
+
+        val viewModel = startedViewModel()
+
+        val state = viewModel.uiState.value.community as MyMapsState.Success
+        assertEquals(listOf(1L), state.maps.map { it.id })
+    }
+
+    @Test
+    fun `프라이빗 탭에는 공식지도를 합치지 않는다`() = runTest(dispatcher) {
+        repository.officialResult = { listOf(myMap(9)) }
+        repository.result = { listOf(myMap(1)) }
+        val viewModel = startedViewModel()
+
+        viewModel.selectTab(MapType.Private)
+        advanceUntilIdle()
+
+        val state = viewModel.uiState.value.private as MyMapsState.Success
+        assertEquals(listOf(1L), state.maps.map { it.id })
+        // 커뮤니티 탭을 읽을 때 한 번뿐이다.
+        assertEquals(1, repository.officialCalls)
     }
 
     @Test

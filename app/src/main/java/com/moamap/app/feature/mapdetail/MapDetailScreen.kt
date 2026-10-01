@@ -284,7 +284,8 @@ fun MapDetailScreen(
             reviewViewModel.close()
             personalMapViewModel.close()
         } else {
-            reviewViewModel.open(placeId)
+            // 공식지도 장소 상세에는 댓글이 없다. 읽지 않는다.
+            if (!screenState.isOfficial) reviewViewModel.open(placeId)
             personalMapViewModel.open(placeId)
         }
     }
@@ -499,10 +500,19 @@ fun MapDetailScreen(
             is3d = is3d,
             canAddPlace = screenState.canAddPlace,
             myLocationInProgress = myLocationInProgress,
-            selectedTab = uiState.selectedTab,
+            // 공식지도는 로그 탭이 없다. 저장해 둔 탭이 로그여도 장소를 연다.
+            selectedTab = if (screenState.isOfficial) MapDetailTab.Places else uiState.selectedTab,
+            official = screenState.isOfficial,
             onBackClick = { onBackClick(screenState.joinedHere) },
-            // 상단바에 글자로 남은 액션은 참여하기뿐이다. 나가기는 메뉴로 들어갔다.
-            onActionClick = viewModel::join,
+            // 상단바 글자 액션은 참여하기, 그리고 메뉴가 없는 공식지도의 나가기다.
+            // 나가기는 바로 하지 않고 메뉴의 나가기와 같은 팝업에서 한 번 더 묻는다.
+            onActionClick = {
+                if (screenState.action == MapDetailAction.Join) {
+                    viewModel.join()
+                } else {
+                    leaveDialogVisible = true
+                }
+            },
             showMenu = screenState.showMenu,
             onMenuClick = { menuVisible = true },
             on3dToggleClick = on3dToggleClick,
@@ -695,6 +705,7 @@ fun MapDetailScreen(
                 } else {
                     null
                 },
+                showsReactions = !screenState.isOfficial,
             )
         }
 
@@ -740,6 +751,7 @@ fun MapDetailScreen(
             onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
             onLikeClick = viewModel::toggleLike,
             onDismiss = { uiState = uiState.closeCluster() },
+            showsReactions = !screenState.isOfficial,
         )
     }
 
@@ -814,6 +826,8 @@ internal fun MapDetailContent(
     canWritePost: Boolean,
     onWritePostClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 공식지도. 시안대로 장소/로그 탭을 띄우지 않고, 장소 시트도 검색·칩·하트 없이 그린다. */
+    official: Boolean = false,
     mapContent: @Composable () -> Unit,
 ) {
     Column(
@@ -860,6 +874,7 @@ internal fun MapDetailContent(
                         on3dToggleClick = on3dToggleClick,
                         onAddPlaceClick = onAddPlaceClick,
                         onMyLocationClick = onMyLocationClick,
+                        official = official,
                         mapContent = mapContent,
                     )
                 }
@@ -944,6 +959,7 @@ private fun MapDetailPlacesContent(
     on3dToggleClick: () -> Unit,
     onAddPlaceClick: () -> Unit,
     onMyLocationClick: () -> Unit,
+    official: Boolean,
     mapContent: @Composable () -> Unit,
 ) {
     val scaffoldState = rememberBottomSheetScaffoldState(
@@ -978,6 +994,7 @@ private fun MapDetailPlacesContent(
                 onPlaceClick = onPlaceClick,
                 onLikeClick = onLikeClick,
                 onHeaderHeightChange = { height -> peekHeight = height },
+                official = official,
             )
         },
         sheetPeekHeight = peekHeight,
@@ -990,13 +1007,15 @@ private fun MapDetailPlacesContent(
     ) { _ ->
         Box(modifier = Modifier.fillMaxSize()) {
             mapContent()
-            MapDetailTabBar(
-                selectedTab = MapDetailTab.Places,
-                onTabSelected = onTabSelected,
-                modifier = Modifier
-                    .align(Alignment.TopCenter)
-                    .padding(start = 20.dp, top = 16.dp, end = 20.dp),
-            )
+            if (!official) {
+                MapDetailTabBar(
+                    selectedTab = MapDetailTab.Places,
+                    onTabSelected = onTabSelected,
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(start = 20.dp, top = 16.dp, end = 20.dp),
+                )
+            }
             MyLocationButton(
                 inProgress = myLocationInProgress,
                 onClick = onMyLocationClick,

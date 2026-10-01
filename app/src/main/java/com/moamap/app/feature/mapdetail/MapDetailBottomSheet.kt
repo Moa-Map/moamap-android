@@ -56,6 +56,17 @@ private val CategoryChipShape = RoundedCornerShape(1000.dp)
 /** 칩 줄 아래로 조금 남기는 여백. 접었을 때 목록 첫 줄이 살짝 비쳐 더 있다는 걸 알린다. */
 private val SheetHeaderBottomGap = 12.dp
 
+/** 공식지도 시트의 제목 ↔ 첫 카드. 시안 「공식지도 - 미리보기」. */
+private val OfficialListTopGap = 20.dp
+
+/**
+ * 공식지도 시트를 접었을 때 제목 아래로 보이는 높이.
+ *
+ * 검색·칩이 없어 제목만 보이면 시트가 비어 보인다. 시안처럼 첫 카드가 다 보이고 둘째 카드
+ * 윗부분이 비치게 둔다: 제목↔카드 20 + 첫 카드 96 + 사이 8 + 둘째 카드 36.
+ */
+private val OfficialSheetPeekBelowHeader = 160.dp
+
 /** 시트를 끝까지 올렸을 때의 높이. 상단 탭이 보이는 자리까지만 올라온다. */
 private val SheetExpandedHeight = 698.dp
 
@@ -87,6 +98,8 @@ internal fun MapDetailBottomSheet(
      * 상수로 두면 글자 크기를 키운 기기에서 칩이 잘린다.
      */
     onHeaderHeightChange: (Dp) -> Unit = {},
+    /** 공식지도. 시안대로 검색창·카테고리 칩 없이 「장소 n곳」과 이름·주소 카드만 둔다. */
+    official: Boolean = false,
 ) {
     val density = LocalDensity.current
     val currentOnHeaderHeightChange by rememberUpdatedState(onHeaderHeightChange)
@@ -116,7 +129,8 @@ internal fun MapDetailBottomSheet(
         // 접었을 때 여기까지 보인다. 높이를 재서 화면에 알려 준다.
         Column(
             modifier = Modifier.onSizeChanged { size ->
-                currentOnHeaderHeightChange(with(density) { size.height.toDp() } + SheetHeaderBottomGap)
+                val belowHeader = if (official) OfficialSheetPeekBelowHeader else SheetHeaderBottomGap
+                currentOnHeaderHeightChange(with(density) { size.height.toDp() } + belowHeader)
             },
         ) {
             Box(
@@ -142,64 +156,16 @@ internal fun MapDetailBottomSheet(
                 modifier = Modifier.padding(horizontal = 20.dp),
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            ShadowedSurface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp)
-                    .padding(horizontal = 20.dp),
-                shape = SearchControlShape,
-                color = MoaMapPrimitiveColors.White,
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_search),
-                        contentDescription = null,
-                        tint = MoaMapTheme.colors.textAssistive,
-                        modifier = Modifier.size(16.dp),
-                    )
-                    Box(modifier = Modifier.weight(1f)) {
-                        if (searchQuery.isEmpty()) {
-                            Text(
-                                text = "장소를 검색해보세요",
-                                style = MoaMapTheme.typography.body2,
-                                color = MoaMapTheme.colors.textAssistive,
-                                maxLines = 1,
-                            )
-                        }
-                        BasicTextField(
-                            value = searchQuery,
-                            onValueChange = onSearchQueryChange,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .onFocusChanged { focusState ->
-                                    if (focusState.isFocused) onSearchFocused()
-                                },
-                            textStyle = MoaMapTheme.typography.body2.copy(
-                                color = MoaMapTheme.colors.textNormal,
-                            ),
-                            singleLine = true,
-                            cursorBrush = SolidColor(MoaMapTheme.colors.textNormal),
-                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                        )
-                    }
-                }
+            if (!official) {
+                SearchAndCategoryControls(
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = onSearchQueryChange,
+                    onSearchFocused = onSearchFocused,
+                    categoryFilters = categoryFilters,
+                    selectedCategory = selectedCategory,
+                    onCategorySelect = onCategorySelect,
+                )
             }
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            CategoryChipRow(
-                filters = categoryFilters,
-                selected = selectedCategory,
-                onSelect = onCategorySelect,
-            )
         }
 
         if (places.isEmpty()) {
@@ -232,7 +198,12 @@ internal fun MapDetailBottomSheet(
                     .fillMaxWidth()
                     .weight(1f),
                 // 칩 줄과의 간격을 목록 안에 둬야 첫 카드 위 그림자가 목록 경계에 잘리지 않는다.
-                contentPadding = PaddingValues(start = 20.dp, top = 16.dp, end = 20.dp, bottom = 20.dp),
+                contentPadding = PaddingValues(
+                    start = 20.dp,
+                    top = if (official) OfficialListTopGap else 16.dp,
+                    end = 20.dp,
+                    bottom = 20.dp,
+                ),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 items(
@@ -243,10 +214,83 @@ internal fun MapDetailBottomSheet(
                         place = place,
                         onClick = { onPlaceClick(place.id) },
                         onLikeClick = { onLikeClick(place.id) },
+                        showsReactions = !official,
                     )
                 }
             }
         }
+    }
+}
+
+/** 검색창과 카테고리 칩 줄. 접힌 시트 높이에 들어가는 머리의 아래쪽이다. */
+@Composable
+private fun SearchAndCategoryControls(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onSearchFocused: () -> Unit,
+    categoryFilters: List<PlaceCategoryFilter>,
+    selectedCategory: PlaceCategoryFilter,
+    onCategorySelect: (PlaceCategoryFilter) -> Unit,
+) {
+    Column {
+        Spacer(modifier = Modifier.height(16.dp))
+
+        ShadowedSurface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(44.dp)
+                .padding(horizontal = 20.dp),
+            shape = SearchControlShape,
+            color = MoaMapPrimitiveColors.White,
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_search),
+                    contentDescription = null,
+                    tint = MoaMapTheme.colors.textAssistive,
+                    modifier = Modifier.size(16.dp),
+                )
+                Box(modifier = Modifier.weight(1f)) {
+                    if (searchQuery.isEmpty()) {
+                        Text(
+                            text = "장소를 검색해보세요",
+                            style = MoaMapTheme.typography.body2,
+                            color = MoaMapTheme.colors.textAssistive,
+                            maxLines = 1,
+                        )
+                    }
+                    BasicTextField(
+                        value = searchQuery,
+                        onValueChange = onSearchQueryChange,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                if (focusState.isFocused) onSearchFocused()
+                            },
+                        textStyle = MoaMapTheme.typography.body2.copy(
+                            color = MoaMapTheme.colors.textNormal,
+                        ),
+                        singleLine = true,
+                        cursorBrush = SolidColor(MoaMapTheme.colors.textNormal),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        CategoryChipRow(
+            filters = categoryFilters,
+            selected = selectedCategory,
+            onSelect = onCategorySelect,
+        )
     }
 }
 
@@ -311,6 +355,23 @@ private fun MapDetailBottomSheetPreview() {
             onPlaceClick = {},
             modifier = Modifier.fillMaxSize(),
             placeCount = 32,
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 698)
+@Composable
+private fun MapDetailBottomSheetOfficialPreview() {
+    MoaMapTheme {
+        MapDetailBottomSheet(
+            places = SamplePlaces,
+            searchQuery = "",
+            onSearchQueryChange = {},
+            onSearchFocused = {},
+            onPlaceClick = {},
+            modifier = Modifier.fillMaxSize(),
+            placeCount = 32,
+            official = true,
         )
     }
 }

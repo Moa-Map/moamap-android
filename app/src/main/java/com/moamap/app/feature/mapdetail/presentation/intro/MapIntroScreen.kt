@@ -290,7 +290,11 @@ private fun MapIntroBody(
                     Spacer(Modifier.height(12.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(if (official) 8.dp else 4.dp)) {
                         places.places.forEach { place ->
-                            MapIntroPlaceItem(place = place)
+                            MapIntroPlaceItem(
+                                name = place.name,
+                                address = place.address,
+                                photoUrl = place.photoUrl,
+                            )
                         }
                     }
                     if (places.hasMore) {

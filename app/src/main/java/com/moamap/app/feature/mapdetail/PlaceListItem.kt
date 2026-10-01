@@ -23,14 +23,33 @@ import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.feature.mapdetail.presentation.intro.MapIntroPlaceItem
 
+/**
+ * 지도 상세 장소 목록 카드.
+ *
+ * @param showsReactions false 면 하트·설명·댓글 수 없이 이름·주소만 있는 카드를 그린다.
+ *  공식지도 목록이다(시안 「공식지도 - 미리보기」의 「URL 장소」 카드).
+ */
 @Composable
 internal fun PlaceListItem(
     place: PlaceUiModel,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     onLikeClick: () -> Unit = {},
+    showsReactions: Boolean = true,
 ) {
+    if (!showsReactions) {
+        MapIntroPlaceItem(
+            name = place.name,
+            address = place.address,
+            photoUrl = place.photoUrl,
+            onClick = onClick,
+            modifier = modifier,
+        )
+        return
+    }
+
     // 시안(1841:13009) 카드. 그림자는 Material 이 아니라 피그마 값 그대로 깔아야 옅게 나온다.
     ShadowedSurface(
         modifier = modifier.fillMaxWidth(),
