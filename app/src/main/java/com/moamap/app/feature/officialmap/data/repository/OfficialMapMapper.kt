@@ -10,6 +10,7 @@ fun OfficialMapDto.toOfficialMap(): OfficialMap = OfficialMap(
     id = id,
     title = name?.takeIf { it.isNotBlank() } ?: UNTITLED_MAP,
     description = description?.takeIf { it.isNotBlank() }.orEmpty(),
+    imageUrl = imageUrl?.takeIf { it.isNotBlank() },
     memberCount = memberCount,
     placeCount = placeCount,
     joined = joined,

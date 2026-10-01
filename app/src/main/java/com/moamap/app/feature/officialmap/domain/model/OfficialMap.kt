@@ -12,6 +12,8 @@ data class OfficialMap(
     val id: Long,
     val title: String,
     val description: String,
+    /** 대표 이미지. null 이면 카드가 로고 기본 이미지를 그린다. */
+    val imageUrl: String?,
     val memberCount: Int,
     val placeCount: Int,
     val joined: Boolean,

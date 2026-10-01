@@ -2,6 +2,7 @@ package com.moamap.app.feature.officialmap.data.repository
 
 import com.moamap.app.feature.officialmap.data.remote.OfficialMapDto
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 
 class OfficialMapMapperTest {
@@ -12,6 +13,7 @@ class OfficialMapMapperTest {
             id = 6,
             name = "화장실 위치",
             description = "공공데이터 기반 공중화장실 위치",
+            imageUrl = "https://example.com/toilet.png",
             type = "OFFICIAL",
             memberCount = 1,
             placeCount = 5416,
@@ -21,6 +23,7 @@ class OfficialMapMapperTest {
         assertEquals(6L, map.id)
         assertEquals("화장실 위치", map.title)
         assertEquals("공공데이터 기반 공중화장실 위치", map.description)
+        assertEquals("https://example.com/toilet.png", map.imageUrl)
         assertEquals(1, map.memberCount)
         assertEquals(5416, map.placeCount)
         assertEquals(false, map.joined)
@@ -36,6 +39,12 @@ class OfficialMapMapperTest {
     fun `설명이 없으면 빈 문자열이다`() {
         assertEquals("", OfficialMapDto(description = null).toOfficialMap().description)
         assertEquals("", OfficialMapDto(description = "  ").toOfficialMap().description)
+    }
+
+    @Test
+    fun `대표 이미지가 비어 있으면 null 이라 기본 이미지가 그려진다`() {
+        assertNull(OfficialMapDto(imageUrl = null).toOfficialMap().imageUrl)
+        assertNull(OfficialMapDto(imageUrl = " ").toOfficialMap().imageUrl)
     }
 
     @Test

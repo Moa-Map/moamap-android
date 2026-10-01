@@ -48,15 +48,5 @@ internal fun DensityMapTopBar(
             color = MoaMapTheme.colors.textNormal,
             modifier = Modifier.align(Alignment.Center),
         )
-        // 저장 로직은 별도 작업이라 아직 clickable을 달지 않는다.
-        Icon(
-            painter = painterResource(R.drawable.ic_bookmark_outline),
-            contentDescription = null,
-            tint = MoaMapTheme.colors.textNormal,
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 20.dp)
-                .size(24.dp),
-        )
     }
 }

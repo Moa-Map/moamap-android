@@ -1,6 +1,5 @@
 package com.moamap.app.feature.mapdetail.presentation.members
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -33,7 +31,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -42,15 +39,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.IntRect
-import androidx.compose.ui.unit.IntSize
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupPositionProvider
 import androidx.compose.ui.window.PopupProperties
 import coil3.compose.AsyncImage
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.BelowAnchorPosition
+import com.moamap.app.core.designsystem.component.MoaMapTooltip
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -61,12 +56,6 @@ private val MemberTopBarHeight = 52.dp
 private val MemberCardShape = RoundedCornerShape(12.dp)
 private val AvatarSize = 50.dp
 private val RoleTagShape = RoundedCornerShape(1000.dp)
-private val TooltipShape = RoundedCornerShape(12.dp)
-private val TooltipTailWidth = 16.dp
-private val TooltipTailHeight = 12.dp
-
-/** 말풍선 상자가 꼬리 아래쪽을 덮는 만큼. 시안에서 꼬리 12 중 위 8 만 보인다. */
-private val TooltipTailOverlap = 4.dp
 
 /** 꼬리가 ⓘ 가운데를 가리키도록 말풍선을 안내 줄 왼쪽 끝에서 당기는 거리와, 안내 줄과의 틈. */
 private val TooltipOffsetX = (-12).dp
@@ -261,46 +250,13 @@ private fun RoleGuideRow() {
     }
 }
 
-/** 기준 요소의 왼쪽 아래 모서리에서 [offset] 만큼 떨어진 곳에 띄운다. */
-private class BelowAnchorPosition(private val offset: IntOffset) : PopupPositionProvider {
-    override fun calculatePosition(
-        anchorBounds: IntRect,
-        windowSize: IntSize,
-        layoutDirection: LayoutDirection,
-        popupContentSize: IntSize,
-    ): IntOffset = IntOffset(anchorBounds.left + offset.x, anchorBounds.bottom + offset.y)
-}
-
-/** 역할별로 무엇을 할 수 있는지. 커뮤니티 지도에만 뜬다. */
+/** 역할별로 무엇을 할 수 있는지. 커뮤니티 지도에만 뜬다. 꼬리는 ⓘ 가운데 아래에 온다. */
 @Composable
 private fun RoleGuideTooltip() {
-    Column {
-        // 위를 가리키는 꼬리. 시안에서 ⓘ 가운데 아래에 온다.
-        Canvas(
-            modifier = Modifier
-                .padding(start = 14.dp)
-                .size(TooltipTailWidth, TooltipTailHeight),
-        ) {
-            val tail = Path().apply {
-                moveTo(size.width / 2, 0f)
-                lineTo(size.width, size.height)
-                lineTo(0f, size.height)
-                close()
-            }
-            drawPath(path = tail, color = MoaMapPrimitiveColors.Blue800)
-        }
-        Row(
-            modifier = Modifier
-                .offset(y = -TooltipTailOverlap)
-                .clip(TooltipShape)
-                .background(MoaMapPrimitiveColors.Blue800)
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            RoleGuideColumn("방장", "장소 신청 수락·거절,\n권한 위임, 강퇴")
-            RoleGuideColumn("관리자", "장소 신청 수락·거절")
-            RoleGuideColumn("멤버", "장소 신청,\n댓글")
-        }
+    MoaMapTooltip(tailAlignment = Alignment.Start, tailInset = 14.dp) {
+        RoleGuideColumn("방장", "장소 신청 수락·거절,\n권한 위임, 강퇴")
+        RoleGuideColumn("관리자", "장소 신청 수락·거절")
+        RoleGuideColumn("멤버", "장소 신청,\n댓글")
     }
 }
 
