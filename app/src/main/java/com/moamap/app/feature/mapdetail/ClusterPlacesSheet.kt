@@ -50,6 +50,8 @@ internal fun ClusterPlacesSheet(
     onPlaceClick: (Long) -> Unit,
     onLikeClick: (Long) -> Unit = {},
     onDismiss: () -> Unit,
+    /** false 면 하트·댓글 수 없는 카드다(공식지도) - [PlaceListItem] 참고. */
+    showsReactions: Boolean = true,
 ) {
     val sheetState = rememberModalBottomSheetState()
 
@@ -95,6 +97,7 @@ internal fun ClusterPlacesSheet(
                     place = place,
                     onClick = { onPlaceClick(place.id) },
                     onLikeClick = { onLikeClick(place.id) },
+                    showsReactions = showsReactions,
                 )
             }
         }
