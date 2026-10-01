@@ -17,6 +17,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -56,7 +57,7 @@ private val ActionTouchPadding = 12.dp
  * 지도 상세 상단바.
  *
  * 우측은 참여 전에는 참여하기 글자, 참여한 뒤에는 메뉴 아이콘이다. 나가기는 메뉴 안으로
- * 들어갔다 - `MapDetail.showsMenu` 참고.
+ * 들어갔다 - `MapDetail.showsMenu` 참고. 메뉴가 없는 공식지도만 참여한 뒤 나가기 글자다.
  *
  * 프라이빗 지도에 참여한 사람에게는 그 왼쪽에 초대코드가 하나 더 붙는다.
  */
@@ -162,7 +163,9 @@ internal fun MapDetailTopBar(
             }
 
             when {
-                action == MapDetailAction.Join -> JoinAction(
+                action == MapDetailAction.Join -> TextAction(
+                    text = "참여하기",
+                    color = MoaMapPrimitiveColors.Blue600,
                     enabled = actionEnabled,
                     onClick = onActionClick,
                 )
@@ -171,21 +174,30 @@ internal fun MapDetailTopBar(
                     enabled = actionEnabled,
                     onClick = onMenuClick,
                 )
+                // 메뉴가 없는 지도(공식지도)는 나가기를 글자로 바로 둔다. 시안 GNB 「나가기 버튼」.
+                action == MapDetailAction.Leave -> TextAction(
+                    text = "나가기",
+                    color = MoaMapTheme.colors.statusAlert,
+                    enabled = actionEnabled,
+                    onClick = onActionClick,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun JoinAction(
+private fun TextAction(
+    text: String,
+    color: Color,
     enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Text(
-        text = "참여하기",
+        text = text,
         style = MoaMapTheme.typography.button2,
-        color = if (enabled) MoaMapPrimitiveColors.Blue600 else MoaMapTheme.colors.textDisable,
+        color = if (enabled) color else MoaMapTheme.colors.textDisable,
         maxLines = 1,
         modifier = modifier
             .clickable(enabled = enabled, onClick = onClick)
@@ -234,6 +246,20 @@ private fun MapDetailTopBarMenuPreview() {
             onBackClick = {},
             onActionClick = {},
             showMenu = true,
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393)
+@Composable
+private fun MapDetailTopBarOfficialLeavePreview() {
+    MoaMapTheme {
+        MapDetailTopBar(
+            mapTitle = "서울 무장애 여행지",
+            roleBadge = null,
+            action = MapDetailAction.Leave,
+            onBackClick = {},
+            onActionClick = {},
         )
     }
 }

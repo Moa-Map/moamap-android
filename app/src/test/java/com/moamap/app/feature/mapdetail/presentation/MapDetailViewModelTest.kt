@@ -214,6 +214,35 @@ class MapDetailViewModelTest {
     }
 
     @Test
+    fun `공식지도는 나가도 화면에 남고 상단이 참여하기로 돌아간다`() = runTest {
+        val repository = object : FakeMapDetailRepository(
+            map = { testMap(type = MapType.Official, joined = true, role = MapRole.Member) },
+        ) {
+            override suspend fun leaveMap(mapId: Long) {
+                super.leaveMap(mapId)
+                map = { testMap(type = MapType.Official, joined = false) }
+            }
+        }
+        val viewModel = viewModel(repository)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.isOfficial)
+        // 메뉴 없이 상단바 글자가 나가기다.
+        assertFalse(viewModel.uiState.value.showMenu)
+        assertEquals(MapDetailAction.Leave, viewModel.uiState.value.action)
+
+        viewModel.leave()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertFalse(viewModel.uiState.value.left)
+        assertEquals(MapDetailAction.Join, viewModel.uiState.value.action)
+        // 나간 뒤 상세를 다시 읽어 참여 여부를 서버 값으로 맞춘다.
+        assertEquals(
+            listOf("getMapDetail", "getPlaces", "leaveMap", "getMapDetail", "getPlaces"),
+            repository.calls,
+        )
+    }
+
+    @Test
     fun `프라이빗 지도에 만든 사람 혼자면 나가기가 지도 삭제다`() = runTest {
         val repository = FakeMapDetailRepository(
             map = {

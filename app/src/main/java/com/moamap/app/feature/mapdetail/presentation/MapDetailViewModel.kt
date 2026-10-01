@@ -17,6 +17,7 @@ import com.moamap.app.feature.mapdetail.domain.model.canLeaveFromMenu
 import com.moamap.app.feature.mapdetail.domain.model.roleBadge
 import com.moamap.app.feature.mapdetail.domain.model.shareableInviteCode
 import com.moamap.app.feature.mapdetail.domain.model.showsMenu
+import com.moamap.app.feature.mapdetail.domain.model.staysAfterLeaving
 import com.moamap.app.feature.mapdetail.domain.model.topBarAction
 import com.moamap.app.feature.mapdetail.domain.repository.MapDetailRepository
 import com.moamap.app.feature.mapdetail.presentation.members.MemberRoleDisplay
@@ -77,6 +78,13 @@ data class MapDetailScreenState(
 
     /** 상단바 메뉴를 띄울지. 지도를 아직 못 읽었으면 띄우지 않는다. */
     val showMenu: Boolean get() = map.mapOrNull?.showsMenu ?: false
+
+    /**
+     * 공식지도인지. 화면이 시안대로 장소/로그 탭·검색·칩·하트·댓글을 뺀다.
+     *
+     * 지도를 아직 못 읽었으면 false 다 - 종류를 모르는 동안은 지금까지의 모양을 그린다.
+     */
+    val isOfficial: Boolean get() = map.mapOrNull?.type == MapType.Official
 
     val canLeave: Boolean get() = map.mapOrNull?.canLeaveFromMenu ?: false
 
@@ -196,6 +204,9 @@ class MapDetailViewModel @Inject constructor(
      *
      * 삭제가 걸린 갈래라 화면이 눌리게 해둔 상태인지 여기서 한 번 더 본다. 되돌릴 수 없는
      * 요청을 화면 상태만 믿고 보내지 않는다.
+     *
+     * 공식지도는 나가도 화면에 남는다([staysAfterLeaving]). 상세를 다시 읽어 상단이 참여하기로
+     * 돌아간다.
      */
     fun leave() {
         val map = _uiState.value.map.mapOrNull ?: return
@@ -208,8 +219,13 @@ class MapDetailViewModel @Inject constructor(
                 repository.leaveMap(mapId)
             }
             _uiState.update { state ->
-                state.copy(actionInProgress = false, left = true, joinedHere = false)
+                state.copy(
+                    actionInProgress = false,
+                    left = !map.staysAfterLeaving,
+                    joinedHere = false,
+                )
             }
+            if (map.staysAfterLeaving) loadMap()
         }
     }
 
