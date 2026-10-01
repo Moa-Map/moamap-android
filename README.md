@@ -57,7 +57,7 @@ git checkout -b chore/#9/readme-ci-setting
 
 ```bash
 git add .
-git commit -m "[CHORE] README 문서 및 CI 설정 #9"
+git commit -m "chore: README 문서 및 CI 설정 #9"
 git push origin chore/#9/readme-ci-setting
 ```
 
@@ -86,31 +86,34 @@ chore/#9/readme-ci-setting
 ## Commit 컨벤션
 
 ```text
-[TYPE] 작업 내용 #Issue번호
+type: 작업 내용 #Issue번호
 ```
+
+- `type`은 소문자로 쓰고, 콜론(`:`) 뒤에 한 칸 띄웁니다.
+- 이슈 제목과 PR 제목은 `[TYPE]` 형식을 그대로 사용합니다.
 
 예시:
 
 ```text
-[FEAT] 카카오 로그인 구현 #12
-[FIX] JWT 만료 검증 수정 #31
-[REFACTOR] Place DTO 분리 #18
-[CHORE] GitHub Actions 설정 #9
-[DOCS] README 문서 작성 #9
+feat: 카카오 로그인 구현 #12
+fix: JWT 만료 검증 수정 #31
+refactor: Place DTO 분리 #18
+chore: GitHub Actions 설정 #9
+docs: README 문서 작성 #9
 ```
 
-### TYPE
+### type
 
-| Type | 설명 |
+| type | 설명 |
 | --- | --- |
-| `INIT` | 프로젝트 초기 설정 |
-| `FEAT` | 기능 추가 |
-| `FIX` | 기능 수정, 버그 수정 |
-| `REFACTOR` | 리팩터링 |
-| `CHORE` | 설정, 빌드, 의존성, 기타 작업 |
-| `DOCS` | 문서 작업 |
-| `TEST` | 테스트 코드 |
-| `RELEASE` | 배포 준비 |
+| `init` | 프로젝트 초기 설정 |
+| `feat` | 기능 추가 |
+| `fix` | 기능 수정, 버그 수정 |
+| `refactor` | 리팩터링 |
+| `chore` | 설정, 빌드, 의존성, 기타 작업 |
+| `docs` | 문서 작업 |
+| `test` | 테스트 코드 |
+| `release` | 배포 준비 |
 
 ## Pull Request 컨벤션
 
