@@ -28,26 +28,24 @@ import javax.inject.Inject
 
 private const val TAG = "MapIntroViewModel"
 
-/** 설명 화면 장소 목록에 보여줄 개수. 피그마가 4개 + `더보기` 다. */
+/** 설명 화면 장소 목록에 처음 보여줄 개수. 피그마가 4개 + `더보기` 다. */
 const val INTRO_PLACE_COUNT = 4
 
-/** 받은 장소에서 목록에 쓸 만큼만 잘라 낸다. */
-private fun List<MapPlace>.toPreview(): MapPlacePreview = MapPlacePreview(
-    places = take(INTRO_PLACE_COUNT),
-    hasMore = size > INTRO_PLACE_COUNT,
-)
+/** 공식지도 상세에서 `더보기` 를 누를 때마다 더 펼치는 개수. */
+const val INTRO_MORE_PLACE_COUNT = 10
 
 @Immutable
 data class MapIntroUiState(
     val map: MapLoadState = MapLoadState.Loading,
-    val places: MapPlacePreview = MapPlacePreview(),
     /**
      * 지도에 찍을 장소 전부.
      *
-     * 아래 목록은 [INTRO_PLACE_COUNT] 개만 보여주지만 지도는 다 보여준다 - 참여 전에도
+     * 아래 목록은 [placeLimit] 개만 보여주지만 지도는 다 보여준다 - 참여 전에도
      * 이 지도에 무엇이 모여 있는지가 참여를 정하는 근거다.
      */
     val mapPlaces: List<MapPlace> = emptyList(),
+    /** 아래 목록에 보여줄 개수. 공식지도에서 `더보기` 를 누를 때마다 늘어난다. */
+    val placeLimit: Int = INTRO_PLACE_COUNT,
     /** 참여 요청 진행 중. 버튼을 두 번 누르지 못하게 막는다. */
     val joining: Boolean = false,
     /** 한 번 보여주고 지우는 실패 안내. */
@@ -56,6 +54,13 @@ data class MapIntroUiState(
     val joined: Boolean = false,
 ) {
     val title: String get() = map.mapOrNull?.title.orEmpty()
+
+    /** 아래 장소 목록. 받은 장소에서 [placeLimit] 개만 잘라 쓴다. */
+    val places: MapPlacePreview
+        get() = MapPlacePreview(
+            places = mapPlaces.take(placeLimit),
+            hasMore = mapPlaces.size > placeLimit,
+        )
 }
 
 @HiltViewModel
@@ -101,6 +106,11 @@ class MapIntroViewModel @Inject constructor(
 
     fun consumeErrorMessage() {
         _uiState.update { state -> state.copy(errorMessage = null) }
+    }
+
+    /** 공식지도 상세의 `더보기`. 장소가 많은 지도라 그 자리에서 [INTRO_MORE_PLACE_COUNT] 개씩 펼친다. */
+    fun showMorePlaces() {
+        _uiState.update { state -> state.copy(placeLimit = state.placeLimit + INTRO_MORE_PLACE_COUNT) }
     }
 
     /** 공개 지도에 참여한다. 성공하면 화면이 상세로 넘어간다. */
@@ -150,7 +160,6 @@ class MapIntroViewModel @Inject constructor(
         _uiState.update { state ->
             state.copy(
                 map = mapState ?: state.map,
-                places = places?.toPreview() ?: state.places,
                 mapPlaces = places ?: state.mapPlaces,
             )
         }
@@ -160,7 +169,8 @@ class MapIntroViewModel @Inject constructor(
      * 장소를 한 번에 다 읽는다.
      *
      * 미리보기용으로 네 개만 받던 것을 전부로 넓혔다. 지도가 전부를 찍어야 해서인데,
-     * 목록에 쓸 네 개는 받은 것에서 잘라 쓰면 되므로 왕복이 늘지는 않는다.
+     * 목록에 쓸 만큼은 받은 것에서 잘라 쓰면 되므로 왕복이 늘지는 않는다. `더보기` 도 그래서
+     * 서버를 다시 부르지 않는다.
      */
     private suspend fun runCatchingPlaces(): List<MapPlace>? = try {
         repository.getPlaces(mapId)
