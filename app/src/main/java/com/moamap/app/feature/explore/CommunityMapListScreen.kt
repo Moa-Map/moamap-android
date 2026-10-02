@@ -22,7 +22,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,17 +30,17 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
 import com.moamap.app.core.designsystem.component.ListCardShadowColor
+import com.moamap.app.core.designsystem.component.MoaMapBackButton
 import com.moamap.app.core.designsystem.component.MoaMapSearchBar
+import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -241,21 +240,12 @@ private fun CommunityMapListTopBar(onBackClick: () -> Unit) {
             .height(TopBarHeight),
     ) {
         // 누르는 자리는 48 로 넓히고 아이콘이 왼쪽 20 에 서도록 12 만 띄운다.
-        Box(
+        MoaMapBackButton(
+            onClick = onBackClick,
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .padding(start = 12.dp)
-                .size(48.dp)
-                .clickable(role = Role.Button, onClick = onBackClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_arrow_left),
-                contentDescription = "뒤로가기",
-                tint = MoaMapTheme.colors.textNormal,
-                modifier = Modifier.size(32.dp),
-            )
-        }
+                .padding(start = MoaMapTopBarIconEdgePadding),
+        )
         Text(
             text = "커뮤니티 지도",
             style = MoaMapTheme.typography.title3,

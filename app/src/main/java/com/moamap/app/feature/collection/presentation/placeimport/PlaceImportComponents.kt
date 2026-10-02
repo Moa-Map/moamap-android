@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
 import com.moamap.app.core.designsystem.component.ButtonShadowColor
+import com.moamap.app.core.designsystem.component.MoaMapBackButton
+import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
@@ -77,21 +79,12 @@ internal fun PlaceImportTopBar(
             .fillMaxWidth()
             .height(52.dp),
     ) {
-        Box(
+        MoaMapBackButton(
+            onClick = onBackClick,
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .padding(start = 8.dp)
-                .size(48.dp)
-                .clickable(onClick = onBackClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_arrow_left),
-                contentDescription = "뒤로가기",
-                tint = MoaMapTheme.colors.textNormal,
-                modifier = Modifier.size(24.dp),
-            )
-        }
+                .padding(start = MoaMapTopBarIconEdgePadding),
+        )
         Text(
             text = "장소 가져오기",
             style = MoaMapTheme.typography.title3,
