@@ -2,7 +2,6 @@ package com.moamap.app.core.designsystem.theme
 
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Immutable
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 
 internal object MoaMapPrimitiveColors {
@@ -68,7 +67,8 @@ data class MoaMapColors(
     val textAssistive: Color,
     val textDisable: Color,
     val textWhite: Color,
-    val backgroundPrimary: Brush,
+    /** 시안 `Background/Primary`. 탐색·모음·공식지도·로그인·스플래시 등 파란 바탕 화면. */
+    val backgroundPrimary: Color,
     val backgroundSecondary: Color,
     val statusAlert: Color,
     val statusCaution: Color,
@@ -85,9 +85,7 @@ internal val MoaMapLightColors = MoaMapColors(
     textAssistive = MoaMapPrimitiveColors.Gray300,
     textDisable = MoaMapPrimitiveColors.Gray100,
     textWhite = MoaMapPrimitiveColors.White,
-    backgroundPrimary = Brush.verticalGradient(
-        colors = listOf(MoaMapPrimitiveColors.Blue100, MoaMapPrimitiveColors.White),
-    ),
+    backgroundPrimary = MoaMapPrimitiveColors.Blue50,
     backgroundSecondary = MoaMapPrimitiveColors.BackgroundSecondary,
     statusAlert = MoaMapPrimitiveColors.StatusAlert,
     statusCaution = MoaMapPrimitiveColors.StatusCaution,
