@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
@@ -41,9 +40,8 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
-import com.moamap.app.core.designsystem.component.CardShadowBlurRadius
-import com.moamap.app.core.designsystem.component.CardShadowColor
 import com.moamap.app.core.designsystem.component.ListCardShadowColor
+import com.moamap.app.core.designsystem.component.MoaMapSearchBar
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -272,31 +270,12 @@ private fun CommunityMapListTopBar(onBackClick: () -> Unit) {
  */
 @Composable
 private fun SearchBar(modifier: Modifier = Modifier) {
-    ShadowedSurface(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(44.dp),
-        shape = ChipShape,
-        shadowBlurRadius = CardShadowBlurRadius,
-        shadowColor = CardShadowColor,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_search),
-                contentDescription = null,
-                tint = MoaMapTheme.colors.textNormal,
-                modifier = Modifier.size(20.dp),
-            )
-            Text(
-                text = "장소,지도를 검색해보세요",
-                style = MoaMapTheme.typography.body2,
-                color = MoaMapTheme.colors.textAssistive,
-            )
-        }
+    MoaMapSearchBar(modifier = modifier) {
+        Text(
+            text = "장소,지도를 검색해보세요",
+            style = MoaMapTheme.typography.body2,
+            color = MoaMapTheme.colors.textAssistive,
+        )
     }
 }
 

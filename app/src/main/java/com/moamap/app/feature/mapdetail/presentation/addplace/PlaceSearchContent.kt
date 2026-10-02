@@ -11,32 +11,26 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.moamap.app.R
-import com.moamap.app.core.designsystem.component.CardShadowBlurRadius
-import com.moamap.app.core.designsystem.component.CardShadowColor
+import com.moamap.app.core.designsystem.component.MoaMapSearchBar
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.mapdetail.domain.model.PlaceCandidate
 
-private val SearchFieldShape = RoundedCornerShape(1000.dp)
 private val ResultCardShape = RoundedCornerShape(12.dp)
 
 /** 1단계. 카카오에서 장소를 찾아 고른다. */
@@ -124,48 +118,29 @@ private fun SearchField(
     onQueryChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    ShadowedSurface(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(44.dp),
-        shape = SearchFieldShape,
-        shadowBlurRadius = CardShadowBlurRadius,
-        shadowColor = CardShadowColor,
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_search),
-                contentDescription = null,
-                tint = MoaMapTheme.colors.textAssistive,
-                modifier = Modifier.size(20.dp),
-            )
-            BasicTextField(
-                value = query,
-                onValueChange = onQueryChange,
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                textStyle = MoaMapTheme.typography.body2.copy(
-                    color = MoaMapTheme.colors.textNormal,
-                ),
-                cursorBrush = SolidColor(MoaMapPrimitiveColors.Blue500),
-                decorationBox = { innerTextField ->
-                    if (query.isEmpty()) {
-                        Text(
-                            text = "추가하고 싶은 장소를 검색해주세요",
-                            style = MoaMapTheme.typography.body2,
-                            color = MoaMapTheme.colors.textAssistive,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                    innerTextField()
-                },
-            )
-        }
+    MoaMapSearchBar(modifier = modifier) {
+        BasicTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            textStyle = MoaMapTheme.typography.body2.copy(
+                color = MoaMapTheme.colors.textNormal,
+            ),
+            cursorBrush = SolidColor(MoaMapPrimitiveColors.Blue500),
+            decorationBox = { innerTextField ->
+                if (query.isEmpty()) {
+                    Text(
+                        text = "추가하고 싶은 장소를 검색해주세요",
+                        style = MoaMapTheme.typography.body2,
+                        color = MoaMapTheme.colors.textAssistive,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                innerTextField()
+            },
+        )
     }
 }
 

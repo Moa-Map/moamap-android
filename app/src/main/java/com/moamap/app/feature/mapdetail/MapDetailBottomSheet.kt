@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -22,7 +21,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -35,22 +33,20 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
-import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ListCardShadowBlurRadius
 import com.moamap.app.core.designsystem.component.ListCardShadowColor
+import com.moamap.app.core.designsystem.component.MoaMapSearchBar
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 
 private val BottomSheetGrabberShape = RoundedCornerShape(100.dp)
-private val SearchControlShape = RoundedCornerShape(44.dp)
 private val CategoryChipShape = RoundedCornerShape(1000.dp)
 
 /** 칩 줄 아래로 조금 남기는 여백. 접었을 때 목록 첫 줄이 살짝 비쳐 더 있다는 걸 알린다. */
@@ -235,52 +231,31 @@ private fun SearchAndCategoryControls(
     Column {
         Spacer(modifier = Modifier.height(16.dp))
 
-        ShadowedSurface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(44.dp)
-                .padding(horizontal = 20.dp),
-            shape = SearchControlShape,
-            color = MoaMapPrimitiveColors.White,
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_search),
-                    contentDescription = null,
-                    tint = MoaMapTheme.colors.textAssistive,
-                    modifier = Modifier.size(16.dp),
-                )
-                Box(modifier = Modifier.weight(1f)) {
-                    if (searchQuery.isEmpty()) {
-                        Text(
-                            text = "장소를 검색해보세요",
-                            style = MoaMapTheme.typography.body2,
-                            color = MoaMapTheme.colors.textAssistive,
-                            maxLines = 1,
-                        )
-                    }
-                    BasicTextField(
-                        value = searchQuery,
-                        onValueChange = onSearchQueryChange,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onFocusChanged { focusState ->
-                                if (focusState.isFocused) onSearchFocused()
-                            },
-                        textStyle = MoaMapTheme.typography.body2.copy(
-                            color = MoaMapTheme.colors.textNormal,
-                        ),
-                        singleLine = true,
-                        cursorBrush = SolidColor(MoaMapTheme.colors.textNormal),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+        MoaMapSearchBar(modifier = Modifier.padding(horizontal = 20.dp)) {
+            Box(modifier = Modifier.weight(1f)) {
+                if (searchQuery.isEmpty()) {
+                    Text(
+                        text = "장소를 검색해보세요",
+                        style = MoaMapTheme.typography.body2,
+                        color = MoaMapTheme.colors.textAssistive,
+                        maxLines = 1,
                     )
                 }
+                BasicTextField(
+                    value = searchQuery,
+                    onValueChange = onSearchQueryChange,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .onFocusChanged { focusState ->
+                            if (focusState.isFocused) onSearchFocused()
+                        },
+                    textStyle = MoaMapTheme.typography.body2.copy(
+                        color = MoaMapTheme.colors.textNormal,
+                    ),
+                    singleLine = true,
+                    cursorBrush = SolidColor(MoaMapTheme.colors.textNormal),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                )
             }
         }
 
