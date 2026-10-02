@@ -50,6 +50,8 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
+import com.moamap.app.core.designsystem.component.MoaMapBackButton
+import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.R
 import com.moamap.app.core.common.imagepicker.rememberImagePickerController
@@ -258,21 +260,12 @@ private fun ProfileEditTopBar(
             .fillMaxWidth()
             .height(52.dp),
     ) {
-        Box(
+        MoaMapBackButton(
+            onClick = onBackClick,
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .padding(start = 8.dp)
-                .size(48.dp)
-                .clickable(onClick = onBackClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_arrow_left),
-                contentDescription = "뒤로가기",
-                tint = MoaMapTheme.colors.textNormal,
-                modifier = Modifier.size(24.dp),
-            )
-        }
+                .padding(start = MoaMapTopBarIconEdgePadding),
+        )
         Text(
             text = "프로필 편집",
             style = MoaMapTheme.typography.title3,

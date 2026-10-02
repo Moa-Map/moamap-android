@@ -18,7 +18,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,8 +30,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -40,10 +37,11 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
 import com.moamap.app.core.designsystem.component.ButtonShadowColor
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
+import com.moamap.app.core.designsystem.component.MoaMapBackButton
+import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -160,15 +158,21 @@ internal fun MapIntroContent(
 
         // 공식지도는 상단 바가 뒤로가기를 갖는다.
         if (!official) {
-            BackButton(
+            // 히어로 위에 겹치는 뒤로가기. 상단바를 따로 두지 않는다 - 피그마에도 제목 없이
+            // 아이콘만 있고, 히어로가 화면 맨 위까지 올라와야 그라데이션이 살아난다.
+            MoaMapBackButton(
                 onClick = onBackClick,
                 // 히어로 위에서는 흰색이라야 읽힌다. 아직 히어로가 없는 로딩·오류 화면은
                 // 밝은 배경뿐이라 같은 색을 쓰면 아이콘이 보이지 않는다.
-                onHero = uiState.map is MapLoadState.Success,
+                tint = if (uiState.map is MapLoadState.Success) {
+                    MoaMapTheme.colors.textWhite
+                } else {
+                    MoaMapTheme.colors.textNormal
+                },
                 modifier = Modifier
                     .align(Alignment.TopStart)
                     .statusBarsPadding()
-                    .padding(start = 12.dp),
+                    .padding(start = MoaMapTopBarIconEdgePadding),
             )
         }
 
@@ -323,33 +327,6 @@ private fun IntroSection(content: @Composable ColumnScope.() -> Unit) {
     )
 }
 
-/**
- * 히어로 위에 겹치는 뒤로가기.
- *
- * 상단바를 따로 두지 않는다. 피그마에도 제목 없이 아이콘만 있고, 히어로가 화면 맨 위까지
- * 올라와야 그라데이션이 살아난다.
- */
-@Composable
-private fun BackButton(
-    onClick: () -> Unit,
-    onHero: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier
-            .size(48.dp)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            painter = painterResource(R.drawable.ic_arrow_left),
-            contentDescription = "뒤로가기",
-            tint = if (onHero) MoaMapTheme.colors.textWhite else MoaMapTheme.colors.textNormal,
-            modifier = Modifier.size(24.dp),
-        )
-    }
-}
-
 /** 공식지도 상세 상단 바. 시안 GNB: 높이 58, 왼쪽 20 에 뒤로가기 32, 가운데 지도 이름. */
 @Composable
 private fun OfficialIntroTopBar(
@@ -361,22 +338,12 @@ private fun OfficialIntroTopBar(
             .fillMaxWidth()
             .height(58.dp),
     ) {
-        // 누르는 자리는 48 로 넓히고 아이콘이 왼쪽 20 에 서도록 12 만 띄운다.
-        Box(
+        MoaMapBackButton(
+            onClick = onBackClick,
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .padding(start = 12.dp)
-                .size(48.dp)
-                .clickable(role = Role.Button, onClick = onBackClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_arrow_left),
-                contentDescription = "뒤로가기",
-                tint = MoaMapTheme.colors.textNormal,
-                modifier = Modifier.size(32.dp),
-            )
-        }
+                .padding(start = MoaMapTopBarIconEdgePadding),
+        )
         // 긴 이름이 뒤로가기 밑으로 파고들지 않게 좌우를 같이 밀어 가운데를 지킨다.
         Text(
             text = title,

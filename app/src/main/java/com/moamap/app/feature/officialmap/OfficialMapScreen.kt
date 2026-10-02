@@ -44,7 +44,9 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.BelowAnchorPosition
+import com.moamap.app.core.designsystem.component.MoaMapBackButton
 import com.moamap.app.core.designsystem.component.MoaMapTooltip
+import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -286,13 +288,11 @@ private fun OfficialMapTopBar(
             .height(TopBarHeight),
     ) {
         // 누르는 자리는 48 로 넓히고 아이콘이 양 끝에서 20 에 서도록 12 만 띄운다.
-        TopBarIconButton(
-            iconRes = R.drawable.ic_arrow_left,
-            contentDescription = "뒤로가기",
+        MoaMapBackButton(
             onClick = onBackClick,
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .padding(start = 12.dp),
+                .padding(start = MoaMapTopBarIconEdgePadding),
         )
         Text(
             text = "공식지도",

@@ -71,7 +71,9 @@ import com.moamap.app.core.designsystem.component.ButtonShadowColor
 import com.moamap.app.core.designsystem.component.CardShadowBlurRadius
 import com.moamap.app.core.designsystem.component.CardShadowColor
 import com.moamap.app.core.designsystem.component.ImageSourceMenu
+import com.moamap.app.core.designsystem.component.MoaMapBackButton
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
+import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
@@ -422,34 +424,23 @@ internal fun BackCloseControls(
     onBackClick: () -> Unit,
     onCloseClick: () -> Unit,
 ) {
+    // 두 아이콘 모두 48 칸 가운데에 선다. 바깥 12 + 안쪽 8 이라 양 끝에서 20 이다.
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            // 시안은 위아래 여백 12 + 닫기 아이콘 32.
+            // 시안은 위아래 여백 12 + 아이콘 32.
             .height(56.dp)
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = MoaMapTopBarIconEdgePadding),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clickable(onClick = onBackClick),
-            contentAlignment = Alignment.CenterStart,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_arrow_left),
-                contentDescription = "뒤로가기",
-                tint = MoaMapTheme.colors.textNormal,
-                modifier = Modifier.size(24.dp),
-            )
-        }
+        MoaMapBackButton(onClick = onBackClick)
 
         Box(
             modifier = Modifier
                 .size(48.dp)
                 .clickable(onClick = onCloseClick),
-            contentAlignment = Alignment.CenterEnd,
+            contentAlignment = Alignment.Center,
         ) {
             Icon(
                 painter = painterResource(R.drawable.ic_close),

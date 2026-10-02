@@ -52,6 +52,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.moamap.app.R
 import com.moamap.app.core.common.upload.ALLOWED_IMAGE_CONTENT_TYPES
+import com.moamap.app.core.designsystem.component.MoaMapBackButton
+import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 
@@ -214,21 +216,12 @@ private fun GalleryTopBar(
             .fillMaxWidth()
             .height(58.dp),
     ) {
-        Box(
+        MoaMapBackButton(
+            onClick = onBackClick,
             modifier = Modifier
                 .align(Alignment.CenterStart)
-                .padding(start = 12.dp)
-                .size(48.dp)
-                .clickable(role = Role.Button, onClick = onBackClick),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_arrow_left),
-                contentDescription = "뒤로가기",
-                tint = MoaMapTheme.colors.textNormal,
-                modifier = Modifier.size(24.dp),
-            )
-        }
+                .padding(start = MoaMapTopBarIconEdgePadding),
+        )
 
         Text(
             text = title,
