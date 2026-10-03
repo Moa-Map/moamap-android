@@ -46,7 +46,9 @@ import com.moamap.app.feature.mypage.ProfileEditScreen
 import com.moamap.app.feature.mypage.SettingsScreen
 import com.moamap.app.feature.officialmap.OfficialMapScreen
 import com.moamap.app.feature.officialmap.domain.model.isDensityOfficialMap
+import com.moamap.app.feature.officialmap.domain.model.isRestroomOfficialMap
 import com.moamap.app.feature.officialmap.presentation.DensityMapDetailScreen
+import com.moamap.app.feature.officialmap.presentation.RestroomMapScreen
 import com.moamap.app.feature.onboarding.presentation.LoginScreen
 import com.moamap.app.feature.onboarding.presentation.SplashScreen
 import kotlinx.coroutines.flow.Flow
@@ -289,6 +291,23 @@ internal fun MoaMapNavHost(
                 )
             }
             composable(
+                route = MoaMapRoute.RestroomMapDetail.route,
+                arguments = listOf(
+                    navArgument(MoaMapRoute.MapDetail.ARG_MAP_ID) { type = NavType.LongType },
+                    navArgument(MoaMapRoute.MapDetail.ARG_MAP_TITLE) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                ),
+            ) { backStackEntry ->
+                RestroomMapScreen(
+                    onBackClick = navController::popBackStack,
+                    initialTitle = backStackEntry.arguments
+                        ?.getString(MoaMapRoute.MapDetail.ARG_MAP_TITLE)
+                        .orEmpty(),
+                )
+            }
+            composable(
                 route = MoaMapRoute.MapIntro.route,
                 arguments = listOf(
                     navArgument(MoaMapRoute.MapIntro.ARG_MAP_ID) { type = NavType.LongType },
@@ -300,12 +319,12 @@ internal fun MoaMapNavHost(
                 MapIntroScreen(
                     onBackClick = navController::popBackStack,
                     // 미리보기는 소개 화면을 백스택에 남긴다. 뒤로가면 다시 소개로 돌아온다.
-                    onPreviewClick = {
-                        navController.navigate(MoaMapRoute.MapDetail.createRoute(mapId))
+                    onPreviewClick = { mapTitle, official ->
+                        navController.navigate(mapScreenRoute(mapId, mapTitle, official))
                     },
                     // 참여하고 나면 소개 화면은 볼 일이 없다. 뒤로가기가 탐색 탭으로 가게 지운다.
-                    onJoined = {
-                        navController.navigate(MoaMapRoute.MapDetail.createRoute(mapId)) {
+                    onJoined = { mapTitle, official ->
+                        navController.navigate(mapScreenRoute(mapId, mapTitle, official)) {
                             popUpTo(MoaMapRoute.MapIntro.route) { inclusive = true }
                         }
                     },
@@ -435,7 +454,7 @@ private fun NavHostController.navigateToTab(route: MoaMapRoute) {
  * 지도 카드를 눌렀을 때. 참여 중인 지도는 소개를 다시 볼 이유가 없어 바로 상세로 보낸다.
  *
  * 탐색 탭·커뮤니티 지도 전체보기·공식지도 목록·모음 탭이 같은 규칙을 쓴다. 유동인구 지도는
- * 장소가 없는 특수 공식지도라 참여 여부와 상관없이 유동인구 화면으로 간다.
+ * 소개할 내용이 없어 참여 여부와 상관없이 바로 유동인구 화면으로 간다.
  */
 private fun NavHostController.navigateToMap(
     mapId: Long,
@@ -443,11 +462,22 @@ private fun NavHostController.navigateToMap(
     joined: Boolean,
     official: Boolean = false,
 ) {
-    val route = when {
-        isDensityOfficialMap(official, mapTitle) ->
-            MoaMapRoute.DensityMapDetail.createRoute(mapId = mapId, mapTitle = mapTitle)
-        joined -> MoaMapRoute.MapDetail.createRoute(mapId = mapId, mapTitle = mapTitle)
-        else -> MoaMapRoute.MapIntro.createRoute(mapId = mapId)
+    val route = if (joined || isDensityOfficialMap(official, mapTitle)) {
+        mapScreenRoute(mapId = mapId, mapTitle = mapTitle, official = official)
+    } else {
+        MoaMapRoute.MapIntro.createRoute(mapId = mapId)
     }
     navigate(route)
+}
+
+/**
+ * 지도 자체를 보는 화면. 장소가 없는 특수 공식지도(유동인구·공중화장실)는 지도 상세 대신
+ * 전용 화면이다. 소개 화면의 미리보기·참여 후 이동도 이 규칙을 쓴다.
+ */
+private fun mapScreenRoute(mapId: Long, mapTitle: String, official: Boolean): String = when {
+    isDensityOfficialMap(official, mapTitle) ->
+        MoaMapRoute.DensityMapDetail.createRoute(mapId = mapId, mapTitle = mapTitle)
+    isRestroomOfficialMap(official, mapTitle) ->
+        MoaMapRoute.RestroomMapDetail.createRoute(mapId = mapId, mapTitle = mapTitle)
+    else -> MoaMapRoute.MapDetail.createRoute(mapId = mapId, mapTitle = mapTitle)
 }

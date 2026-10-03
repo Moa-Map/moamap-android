@@ -52,6 +52,8 @@ import com.moamap.app.feature.mapdetail.domain.model.MapPlacePreview
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
 import com.moamap.app.feature.mapdetail.presentation.MapLoadState
 import com.moamap.app.feature.mapdetail.presentation.mapOrNull
+import com.moamap.app.feature.officialmap.domain.model.isRestroomOfficialMap
+import com.moamap.app.feature.officialmap.presentation.RestroomPreviewMap
 
 /** 본문 좌우 여백. 피그마의 폭 354dp 를 393dp 화면에서 뺀 값. */
 private val ContentHorizontalPadding = 20.dp
@@ -59,15 +61,22 @@ private val ContentHorizontalPadding = 20.dp
 /** 하단 고정 버튼에 마지막 섹션이 가리지 않도록 확보하는 높이. */
 private val BottomButtonReservedHeight = 86.dp
 
+/**
+ * @param onPreviewClick 지도 이름과 공식지도인지를 넘긴다. 특수 공식지도는 지도 상세가 아니라
+ * 전용 화면으로 가야 해서 받는 쪽이 고른다. [onJoined] 도 같다.
+ */
 @Composable
 fun MapIntroScreen(
     onBackClick: () -> Unit,
-    onPreviewClick: () -> Unit,
-    onJoined: () -> Unit,
+    onPreviewClick: (mapTitle: String, official: Boolean) -> Unit,
+    onJoined: (mapTitle: String, official: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: MapIntroViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val map = uiState.map.mapOrNull
+    val mapTitle = map?.title.orEmpty()
+    val official = map?.type == MapType.Official
 
     // 미리보기로 상세에 들어가 거기서 참여하고 돌아오면 하단 버튼이 낡는다. 다시 읽는다.
     LifecycleResumeEffect(Unit) {
@@ -76,18 +85,24 @@ fun MapIntroScreen(
     }
 
     LaunchedEffect(uiState.joined) {
-        if (uiState.joined) onJoined()
+        if (uiState.joined) onJoined(mapTitle, official)
     }
 
     MapIntroContent(
         uiState = uiState,
         onBackClick = onBackClick,
-        onPreviewClick = onPreviewClick,
+        onPreviewClick = { onPreviewClick(mapTitle, official) },
         onRetryClick = viewModel::retry,
         onJoinClick = viewModel::join,
         onMorePlacesClick = viewModel::showMorePlaces,
         onErrorShown = viewModel::consumeErrorMessage,
         modifier = modifier,
+        // 화장실은 장소가 아니라 작은 지도가 비어 보인다. 화장실 화면과 같은 마커를 찍는다.
+        mapContent = if (isRestroomOfficialMap(official, mapTitle)) {
+            { _ -> RestroomPreviewMap(modifier = Modifier.fillMaxSize()) }
+        } else {
+            null
+        },
     )
 }
 

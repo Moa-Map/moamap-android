@@ -82,6 +82,19 @@ sealed interface MoaMapRoute {
     }
 
     /**
+     * 공중화장실 지도. 화장실은 장소가 아니라 따로 내려오는 공공데이터라 지도 상세 대신 이 화면이 열린다.
+     *
+     * 인자 이름은 [DensityMapDetail] 과 같은 이유로 [MapDetail] 과 맞춘다.
+     */
+    data object RestroomMapDetail : MoaMapRoute {
+        override val route =
+            "restroom_map_detail/{${MapDetail.ARG_MAP_ID}}?${MapDetail.ARG_MAP_TITLE}={${MapDetail.ARG_MAP_TITLE}}"
+
+        fun createRoute(mapId: Long, mapTitle: String = ""): String =
+            "restroom_map_detail/$mapId?${MapDetail.ARG_MAP_TITLE}=${Uri.encode(mapTitle)}"
+    }
+
+    /**
      * 지도 설명.
      *
      * 아직 참여하지 않은 공개 지도를 탐색 탭에서 눌렀을 때 거치는 소개 화면이다.
