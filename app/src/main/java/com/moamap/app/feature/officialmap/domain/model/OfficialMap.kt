@@ -18,3 +18,20 @@ data class OfficialMap(
     val placeCount: Int,
     val joined: Boolean,
 )
+
+/**
+ * 유동인구 지도의 서버 이름.
+ *
+ * 서버가 특수 공식지도를 따로 표시해 주지 않아 이름으로 가린다(백엔드 시드 주석이 정한 방식).
+ * 서버에서 이름을 바꾸면 이 값도 같이 바꿔야 한다.
+ */
+private const val DENSITY_OFFICIAL_MAP_NAME = "유동인구 지도"
+
+/**
+ * 유동인구 지도인가. 장소 대신 실시간 밀집도를 보여 주는 지도라 지도 상세가 아니라 유동인구
+ * 화면으로 연다.
+ *
+ * 공식지도인지도 함께 본다. 사용자가 커뮤니티 지도 이름을 같게 지어도 넘어가면 안 된다.
+ */
+fun isDensityOfficialMap(official: Boolean, title: String): Boolean =
+    official && title == DENSITY_OFFICIAL_MAP_NAME

@@ -68,8 +68,17 @@ sealed interface MoaMapRoute {
         override val route = "community_maps"
     }
 
+    /**
+     * 유동인구 지도. 장소가 없는 특수 공식지도라 지도 상세 대신 이 화면이 열린다.
+     *
+     * 참여·나가기에 지도 상세의 ViewModel 을 그대로 쓰므로 인자 이름을 [MapDetail] 과 맞춘다.
+     */
     data object DensityMapDetail : MoaMapRoute {
-        override val route = "density_map_detail"
+        override val route =
+            "density_map_detail/{${MapDetail.ARG_MAP_ID}}?${MapDetail.ARG_MAP_TITLE}={${MapDetail.ARG_MAP_TITLE}}"
+
+        fun createRoute(mapId: Long, mapTitle: String = ""): String =
+            "density_map_detail/$mapId?${MapDetail.ARG_MAP_TITLE}=${Uri.encode(mapTitle)}"
     }
 
     /**

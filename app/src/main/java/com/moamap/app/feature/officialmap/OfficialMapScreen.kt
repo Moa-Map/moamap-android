@@ -69,7 +69,6 @@ private const val OFFICIAL_MAP_GUIDE = "모아맵이 공공데이터로 만든 �
 @Composable
 fun OfficialMapScreen(
     onBackClick: () -> Unit = {},
-    onDensityMapClick: () -> Unit = {},
     onMapClick: (OfficialMap) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: OfficialMapViewModel = hiltViewModel(),
@@ -85,7 +84,6 @@ fun OfficialMapScreen(
     OfficialMapContent(
         state = state,
         onBackClick = onBackClick,
-        onDensityMapClick = onDensityMapClick,
         onRetryClick = viewModel::retry,
         onMapClick = onMapClick,
         modifier = modifier,
@@ -96,7 +94,6 @@ fun OfficialMapScreen(
 private fun OfficialMapContent(
     state: OfficialMapsState,
     onBackClick: () -> Unit,
-    onDensityMapClick: () -> Unit,
     onRetryClick: () -> Unit,
     onMapClick: (OfficialMap) -> Unit = {},
     modifier: Modifier = Modifier,
@@ -119,9 +116,6 @@ private fun OfficialMapContent(
         ) {
             // 카드 간격 8 과 합쳐 상단 바와 첫 카드 사이가 시안대로 12 가 된다.
             Spacer(Modifier.height(4.dp))
-
-            // 목록 조회와 무관하게 항상 그린다. 서버가 죽어도 밀집도 화면으로는 들어갈 수 있어야 한다.
-            DensityMapEntryCard(onClick = onDensityMapClick)
 
             when (state) {
                 OfficialMapsState.Loading -> OfficialMapsPlaceholder {
@@ -147,24 +141,6 @@ private fun OfficialMapContent(
             Spacer(Modifier.height(20.dp))
         }
     }
-}
-
-/**
- * 실시간 유동인구 지도 진입점.
- *
- * 서버 공식지도 목록에 없는 카드다. 밀집도는 지도 엔티티가 아니라 공공데이터 조회
- * API 라 `GET /api/v1/maps/official` 이 내려주지 않는다.
- */
-@Composable
-private fun DensityMapEntryCard(
-    onClick: () -> Unit,
-) {
-    OfficialMapCard(
-        title = "실시간 유동인구 지도",
-        description = "서울 주요 명소의 실시간 인구 밀집도를 한눈에",
-        imageUrl = null,
-        onClick = onClick,
-    )
 }
 
 /**
@@ -374,7 +350,6 @@ private fun OfficialMapScreenPreview() {
                 ),
             ),
             onBackClick = {},
-            onDensityMapClick = {},
             onRetryClick = {},
         )
     }
@@ -387,7 +362,6 @@ private fun OfficialMapScreenErrorPreview() {
         OfficialMapContent(
             state = OfficialMapsState.Error("공식지도를 불러오지 못했어요"),
             onBackClick = {},
-            onDensityMapClick = {},
             onRetryClick = {},
         )
     }
