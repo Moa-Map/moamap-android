@@ -95,12 +95,12 @@ private val MapControlsBottomGap = 16.dp
  */
 private val DefaultSheetPeekHeight = 237.dp
 
-private val LocationPermissions = arrayOf(
+internal val LocationPermissions = arrayOf(
     Manifest.permission.ACCESS_FINE_LOCATION,
     Manifest.permission.ACCESS_COARSE_LOCATION,
 )
 
-private fun hasLocationPermission(context: Context): Boolean =
+internal fun hasLocationPermission(context: Context): Boolean =
     LocationPermissions.any { permission ->
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
     }
