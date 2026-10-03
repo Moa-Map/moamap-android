@@ -35,3 +35,13 @@ private const val DENSITY_OFFICIAL_MAP_NAME = "유동인구 지도"
  */
 fun isDensityOfficialMap(official: Boolean, title: String): Boolean =
     official && title == DENSITY_OFFICIAL_MAP_NAME
+
+/** 공중화장실 지도의 서버 이름. 유동인구 지도와 같은 이유로 이름으로 가린다. */
+private const val RESTROOM_OFFICIAL_MAP_NAME = "공중화장실 지도"
+
+/**
+ * 공중화장실 지도인가. 화장실은 장소가 아니라 따로 내려오는 공공데이터라 지도 상세가 아니라
+ * 화장실 화면으로 연다.
+ */
+fun isRestroomOfficialMap(official: Boolean, title: String): Boolean =
+    official && title == RESTROOM_OFFICIAL_MAP_NAME
