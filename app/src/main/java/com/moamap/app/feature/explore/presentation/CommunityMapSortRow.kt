@@ -13,7 +13,7 @@ import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.explore.domain.model.CommunityMapSort
 
 /**
- * 인기순·최신순. 탐색 탭과 커뮤니티 지도 전체보기가 같이 쓴다.
+ * 인기순·최신순. 커뮤니티 지도 전체보기에서 쓴다(탐색 탭은 10-03부터 인기순 고정).
  *
  * 시안: 왼쪽 정렬, 사이 8. 고른 쪽은 14 Bold 검정, 나머지는 14 Regular 회색.
  */
