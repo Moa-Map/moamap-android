@@ -14,14 +14,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.feature.mapdetail.MapDetailTopBar
+import com.moamap.app.feature.mapdetail.MapLeaveDialog
+import com.moamap.app.feature.mapdetail.domain.model.MapDetailAction
+import com.moamap.app.feature.mapdetail.presentation.MapDetailViewModel
 import com.moamap.app.feature.officialmap.domain.model.CongestionLevel
 import com.moamap.app.feature.officialmap.domain.model.DensityArea
 import com.mapbox.geojson.Point
@@ -40,59 +49,120 @@ import com.mapbox.maps.extension.style.expressions.generated.Expression
 
 private const val DENSITY_FILL_LAYER_ID = "density-fill"
 
+/**
+ * 유동인구 지도. 장소가 없는 특수 공식지도라 지도 상세 대신 이 화면이 열린다.
+ *
+ * 참여·나가기는 지도 상세와 같다. 같은 지도 번호로 지도 상세의 [MapDetailViewModel] 을 그대로
+ * 쓰고, 상단바·나가기 팝업도 지도 상세 것을 쓴다 - 공식지도는 메뉴 없이 참여하기/나가기 글자다.
+ *
+ * @param initialTitle 서버 이름이 오기 전까지 상단바를 채우는 값.
+ */
 @Composable
 fun DensityMapDetailScreen(
     onBackClick: () -> Unit,
+    initialTitle: String,
     modifier: Modifier = Modifier,
     viewModel: DensityMapViewModel = hiltViewModel(),
+    membershipViewModel: MapDetailViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val membership by membershipViewModel.uiState.collectAsStateWithLifecycle()
+    // 나가기는 바로 하지 않고 이 팝업에서 한 번 더 묻는다.
+    var leaveDialogVisible by rememberSaveable { mutableStateOf(false) }
+    val title = membership.title ?: initialTitle
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MoaMapTheme.colors.backgroundSecondary)
-            .statusBarsPadding(),
-    ) {
-        DensityMapTopBar(
-            mapTitle = "실시간 유동인구 지도",
-            onBackClick = onBackClick,
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MoaMapTheme.colors.backgroundSecondary)
+                .statusBarsPadding(),
+        ) {
+            MapDetailTopBar(
+                mapTitle = title,
+                roleBadge = membership.roleBadge,
+                action = membership.action,
+                actionEnabled = !membership.actionInProgress,
+                onBackClick = onBackClick,
+                onActionClick = {
+                    if (membership.action == MapDetailAction.Join) {
+                        membershipViewModel.join()
+                    } else {
+                        leaveDialogVisible = true
+                    }
+                },
+            )
+
+            DensityMapBody(
+                uiState = uiState,
+                onRetryClick = viewModel::retry,
+                onAreaClick = viewModel::selectArea,
+                onLevelClick = viewModel::selectLevel,
+            )
+        }
+
+        ErrorSnackbar(
+            message = membership.errorMessage,
+            onShown = membershipViewModel::consumeErrorMessage,
+            modifier = Modifier.align(Alignment.BottomCenter),
         )
+    }
 
-        Box(modifier = Modifier.fillMaxSize()) {
-            when (val state = uiState) {
-                is DensityMapUiState.Loading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
+    // 나갈 수 없는 상태가 되면(나가기를 마쳐 참여가 풀리면) 같이 닫힌다.
+    val leaveOutcome = membership.leaveOutcome
+    if (leaveDialogVisible && leaveOutcome != null) {
+        MapLeaveDialog(
+            mapName = title,
+            outcome = leaveOutcome,
+            onConfirm = {
+                leaveDialogVisible = false
+                membershipViewModel.leave()
+            },
+            onDismiss = { leaveDialogVisible = false },
+        )
+    }
+}
 
-                is DensityMapUiState.Error -> {
-                    Column(
-                        modifier = Modifier.align(Alignment.Center),
-                        horizontalAlignment = Alignment.CenterHorizontally,
+@Composable
+private fun DensityMapBody(
+    uiState: DensityMapUiState,
+    onRetryClick: () -> Unit,
+    onAreaClick: (String?) -> Unit,
+    onLevelClick: (CongestionLevel?) -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        when (uiState) {
+            is DensityMapUiState.Loading -> {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            }
+
+            is DensityMapUiState.Error -> {
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = "밀집도 정보를 불러오지 못했어요",
+                        style = MoaMapTheme.typography.body1,
+                        color = MoaMapTheme.colors.textNormal,
+                    )
+                    Button(
+                        onClick = onRetryClick,
+                        modifier = Modifier.padding(top = 12.dp),
                     ) {
-                        Text(
-                            text = "밀집도 정보를 불러오지 못했어요",
-                            style = MoaMapTheme.typography.body1,
-                            color = MoaMapTheme.colors.textNormal,
-                        )
-                        Button(
-                            onClick = viewModel::retry,
-                            modifier = Modifier.padding(top = 12.dp),
-                        ) {
-                            Text(text = "다시 시도")
-                        }
+                        Text(text = "다시 시도")
                     }
                 }
+            }
 
-                is DensityMapUiState.Success -> {
-                    DensityMapContent(
-                        areas = state.visibleAreas,
-                        selectedArea = state.selectedArea,
-                        filterLevel = state.filterLevel,
-                        onAreaClick = viewModel::selectArea,
-                        onLevelClick = viewModel::selectLevel,
-                    )
-                }
+            is DensityMapUiState.Success -> {
+                DensityMapContent(
+                    areas = uiState.visibleAreas,
+                    selectedArea = uiState.selectedArea,
+                    filterLevel = uiState.filterLevel,
+                    onAreaClick = onAreaClick,
+                    onLevelClick = onLevelClick,
+                )
             }
         }
     }

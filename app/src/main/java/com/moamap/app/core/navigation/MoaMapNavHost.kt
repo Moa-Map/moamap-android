@@ -45,6 +45,7 @@ import com.moamap.app.feature.mapdetail.presentation.intro.MapIntroScreen
 import com.moamap.app.feature.mypage.ProfileEditScreen
 import com.moamap.app.feature.mypage.SettingsScreen
 import com.moamap.app.feature.officialmap.OfficialMapScreen
+import com.moamap.app.feature.officialmap.domain.model.isDensityOfficialMap
 import com.moamap.app.feature.officialmap.presentation.DensityMapDetailScreen
 import com.moamap.app.feature.onboarding.presentation.LoginScreen
 import com.moamap.app.feature.onboarding.presentation.SplashScreen
@@ -237,12 +238,13 @@ internal fun MoaMapNavHost(
                             MoaMapRoute.PlaceImport.createRoute(PlaceImportSource.MapShare.name),
                         )
                     },
+                    // 모음에 있는 지도는 모두 참여한 지도다. 참여한 공식지도도 여기 섞여 있다.
                     onMapClick = { map ->
-                        navController.navigate(
-                            MoaMapRoute.MapDetail.createRoute(
-                                mapId = map.id,
-                                mapTitle = map.title,
-                            )
+                        navController.navigateToMap(
+                            mapId = map.id,
+                            mapTitle = map.title,
+                            joined = true,
+                            official = map.official,
                         )
                     },
                 )
@@ -259,16 +261,32 @@ internal fun MoaMapNavHost(
             composable(MoaMapRoute.OfficialMap.route) {
                 OfficialMapScreen(
                     onBackClick = navController::popBackStack,
-                    onDensityMapClick = {
-                        navController.navigate(MoaMapRoute.DensityMapDetail.route)
-                    },
                     onMapClick = { map ->
-                        navController.navigateToMap(mapId = map.id, mapTitle = map.title, joined = map.joined)
+                        navController.navigateToMap(
+                            mapId = map.id,
+                            mapTitle = map.title,
+                            joined = map.joined,
+                            official = true,
+                        )
                     },
                 )
             }
-            composable(MoaMapRoute.DensityMapDetail.route) {
-                DensityMapDetailScreen(onBackClick = navController::popBackStack)
+            composable(
+                route = MoaMapRoute.DensityMapDetail.route,
+                arguments = listOf(
+                    navArgument(MoaMapRoute.MapDetail.ARG_MAP_ID) { type = NavType.LongType },
+                    navArgument(MoaMapRoute.MapDetail.ARG_MAP_TITLE) {
+                        type = NavType.StringType
+                        defaultValue = ""
+                    },
+                ),
+            ) { backStackEntry ->
+                DensityMapDetailScreen(
+                    onBackClick = navController::popBackStack,
+                    initialTitle = backStackEntry.arguments
+                        ?.getString(MoaMapRoute.MapDetail.ARG_MAP_TITLE)
+                        .orEmpty(),
+                )
             }
             composable(
                 route = MoaMapRoute.MapIntro.route,
@@ -416,13 +434,20 @@ private fun NavHostController.navigateToTab(route: MoaMapRoute) {
 /**
  * 지도 카드를 눌렀을 때. 참여 중인 지도는 소개를 다시 볼 이유가 없어 바로 상세로 보낸다.
  *
- * 탐색 탭·커뮤니티 지도 전체보기·공식지도 목록이 같은 규칙을 쓴다.
+ * 탐색 탭·커뮤니티 지도 전체보기·공식지도 목록·모음 탭이 같은 규칙을 쓴다. 유동인구 지도는
+ * 장소가 없는 특수 공식지도라 참여 여부와 상관없이 유동인구 화면으로 간다.
  */
-private fun NavHostController.navigateToMap(mapId: Long, mapTitle: String, joined: Boolean) {
-    val route = if (joined) {
-        MoaMapRoute.MapDetail.createRoute(mapId = mapId, mapTitle = mapTitle)
-    } else {
-        MoaMapRoute.MapIntro.createRoute(mapId = mapId)
+private fun NavHostController.navigateToMap(
+    mapId: Long,
+    mapTitle: String,
+    joined: Boolean,
+    official: Boolean = false,
+) {
+    val route = when {
+        isDensityOfficialMap(official, mapTitle) ->
+            MoaMapRoute.DensityMapDetail.createRoute(mapId = mapId, mapTitle = mapTitle)
+        joined -> MoaMapRoute.MapDetail.createRoute(mapId = mapId, mapTitle = mapTitle)
+        else -> MoaMapRoute.MapIntro.createRoute(mapId = mapId)
     }
     navigate(route)
 }
