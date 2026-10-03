@@ -11,19 +11,19 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -31,69 +31,61 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
-import com.moamap.app.core.designsystem.component.BannerShadowBlurRadius
-import com.moamap.app.core.designsystem.component.CardShadowColor
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.explore.domain.model.CommunityMap
-import com.moamap.app.feature.explore.domain.model.CommunityMapSort
-import com.moamap.app.feature.explore.presentation.BusinessInfoFooter
 import com.moamap.app.feature.explore.presentation.CommunityMapCard
-import com.moamap.app.feature.explore.presentation.CommunityMapSortRow
 import com.moamap.app.feature.explore.presentation.CommunityMapsError
 import com.moamap.app.feature.explore.presentation.CommunityMapsPlaceholder
 import com.moamap.app.feature.explore.presentation.CommunityMapsState
 import com.moamap.app.feature.explore.presentation.ExploreUiState
 import com.moamap.app.feature.explore.presentation.ExploreViewModel
-import com.moamap.app.feature.explore.presentation.RecommendedMapCard
+import com.moamap.app.feature.explore.presentation.MapThumbnail
 import com.moamap.app.feature.mypage.ProfileMenu
 import com.moamap.app.feature.mypage.rememberProfileMenuState
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
+import com.moamap.app.feature.officialmap.domain.model.OfficialMap
+import com.moamap.app.feature.officialmap.presentation.OfficialMapsState
 import kotlinx.coroutines.launch
 
-/** 섹션 제목은 좌우 여백 안에서 4dp 더 들어간다. */
-private val SectionTitlePadding = 4.dp
+/**
+ * 홈 배경. 시안 「메인 화면」이 색 변수(`Background/Primary`, #E6F6FF)가 아니라 이 값을 직접 칠했다.
+ * 다른 화면은 그대로 변수 색을 쓴다(10-03 사용자 결정).
+ */
+private val HomeBackground = Color(0xFFE7F4FB)
 
 /** 가로 스크롤 목록이 화면 끝까지 흘러가도록, 여백을 콘텐츠 패딩으로 준다. */
 private val HorizontalListPadding =
     PaddingValues(horizontal = MoaMapDimens.ScreenHorizontalPadding)
 
-/** 이름을 아직 못 읽었을 때 추천 섹션 제목에 대신 쓰는 말. */
-private const val DEFAULT_NICKNAME = "회원"
-
 /**
- * 마지막 섹션과 사업자 정보 사이. 섹션 사이 간격과 같다.
+ * 맨 아래 내용이 하단 탭에 가리지 않게 남기는 높이. 하단 탭은 늘 떠 있다.
  *
- * 시안 좌표로는 88 이지만, 접혀 있을 때도 그만큼 비어 보여 줄였다(09-28 사용자 요청).
- * 펼친 내용은 사업자 정보 아래로 늘어난다.
+ * 하단 탭 아래 띄움 12 + 하단 탭 58 + 시안의 마지막 카드 ↔ 하단 탭 32. 시스템 내비게이션 바는 따로 더한다.
  */
-private val FooterTopGap = 20.dp
+private val BottomBarClearance = 102.dp
 
-/** 사업자 정보 안쪽 아래 여백. 시안 위 여백(25)과 같게 둔다. */
-private val FooterBottomPadding = 25.dp
+/** 공식 지도 카드 사진. 글 폭도 이 폭에 맞춘다. */
+private val OfficialCardImageSize = 120.dp
+
+/** 이름 줄 높이. 글자보다 커서 이름은 줄 가운데에 선다. 커뮤니티 카드와 같다. */
+private val CardTitleRowHeight = 24.dp
 
 @Composable
 fun ExploreScreen(
@@ -102,13 +94,10 @@ fun ExploreScreen(
     onScrolledToTop: () -> Unit = {},
     onProfileEditClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
-    onOfficialMapClick: () -> Unit = {},
     onCommunityMapClick: (CommunityMap) -> Unit = {},
     onSeeAllCommunityMapsClick: () -> Unit = {},
-    /** 맨 아래 사업자 정보가 화면에 들어왔는지. 보이는 동안 하단 탭을 치우는 데 쓴다. */
-    onFooterShownChange: (Boolean) -> Unit = {},
-    /** 맨 위에 닿았다. 로고로 올라온 것처럼 손으로 끌지 않은 스크롤에도 하단 탭을 다시 꺼낸다. */
-    onReachTop: () -> Unit = {},
+    onOfficialMapClick: (OfficialMap) -> Unit = {},
+    onSeeAllOfficialMapsClick: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: ExploreViewModel = hiltViewModel(),
 ) {
@@ -126,13 +115,12 @@ fun ExploreScreen(
         onScrolledToTop = onScrolledToTop,
         onProfileEditClick = onProfileEditClick,
         onSettingsClick = onSettingsClick,
-        onOfficialMapClick = onOfficialMapClick,
         onCommunityMapClick = onCommunityMapClick,
         onSeeAllCommunityMapsClick = onSeeAllCommunityMapsClick,
-        onSortClick = viewModel::selectSort,
-        onRetryClick = viewModel::retry,
-        onFooterShownChange = onFooterShownChange,
-        onReachTop = onReachTop,
+        onCommunityRetryClick = viewModel::retryCommunityMaps,
+        onOfficialMapClick = onOfficialMapClick,
+        onSeeAllOfficialMapsClick = onSeeAllOfficialMapsClick,
+        onOfficialRetryClick = viewModel::retryOfficialMaps,
         modifier = modifier,
     )
 }
@@ -141,17 +129,16 @@ fun ExploreScreen(
 private fun ExploreContent(
     uiState: ExploreUiState,
     onProfileEditClick: () -> Unit,
-    scrollToTop: Boolean = false,
-    onScrolledToTop: () -> Unit = {},
     onSettingsClick: () -> Unit,
-    onOfficialMapClick: () -> Unit,
     onCommunityMapClick: (CommunityMap) -> Unit,
     onSeeAllCommunityMapsClick: () -> Unit,
-    onSortClick: (CommunityMapSort) -> Unit,
-    onRetryClick: () -> Unit,
-    onFooterShownChange: (Boolean) -> Unit = {},
-    onReachTop: () -> Unit = {},
+    onCommunityRetryClick: () -> Unit,
+    onOfficialMapClick: (OfficialMap) -> Unit,
+    onSeeAllOfficialMapsClick: () -> Unit,
+    onOfficialRetryClick: () -> Unit,
     modifier: Modifier = Modifier,
+    scrollToTop: Boolean = false,
+    onScrolledToTop: () -> Unit = {},
 ) {
     val profileMenuState = rememberProfileMenuState()
     // 로고는 홈으로 돌아가는 버튼이다. 여기가 이미 홈이라 갈 곳이 없어 맨 위로 올린다.
@@ -160,27 +147,6 @@ private fun ExploreContent(
 
     BackHandler(enabled = profileMenuState.isVisible) {
         profileMenuState.dismiss()
-    }
-
-    // 사업자 정보는 스크롤 맨 끝에 있다. 남은 스크롤이 그 높이보다 작으면 화면에 들어온 것이다.
-    // 맨 위에서는 세지 않는다 - 내용이 짧아 처음부터 보이면 하단 탭을 쓸 길이 없어진다.
-    var footerHeightPx by remember { mutableIntStateOf(0) }
-    val currentOnFooterShownChange by rememberUpdatedState(onFooterShownChange)
-    val currentOnReachTop by rememberUpdatedState(onReachTop)
-    LaunchedEffect(scrollState) {
-        snapshotFlow { scrollState.value == 0 }
-            .distinctUntilChanged()
-            .filter { atTop -> atTop }
-            .collect { currentOnReachTop() }
-    }
-    LaunchedEffect(scrollState) {
-        snapshotFlow {
-            footerHeightPx > 0 &&
-                scrollState.value > 0 &&
-                scrollState.maxValue - scrollState.value < footerHeightPx
-        }
-            .distinctUntilChanged()
-            .collect { shown -> currentOnFooterShownChange(shown) }
     }
 
     // 로고로 들어온 경우. 신호를 받으면 맨 위로 올리고 바로 신호를 끈다.
@@ -193,7 +159,7 @@ private fun ExploreContent(
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MoaMapTheme.colors.backgroundPrimary),
+            .background(HomeBackground),
     ) {
         Column(
             modifier = Modifier
@@ -209,35 +175,28 @@ private fun ExploreContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(scrollState)
-                    .padding(top = 16.dp),
+                    .padding(top = 20.dp),
             ) {
-                // 시안 「Home/」: 로고 줄 아래 16, 섹션 사이 20.
+                // 시안 「메인 화면」: 상단 바 아래 20, 섹션 사이 20.
                 Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                    OfficialMapBanner(onClick = onOfficialMapClick)
-                    // 읽지 못했거나 추천할 것이 없으면 제목까지 함께 감춘다.
-                    if (uiState.recommendedMaps.isNotEmpty()) {
-                        RecommendedMapSection(
-                            nickname = uiState.nickname,
-                            maps = uiState.recommendedMaps,
-                            onMapClick = onCommunityMapClick,
-                        )
-                    }
                     CommunityMapSection(
-                        uiState = uiState,
+                        state = uiState.communityMaps,
                         onSeeAllClick = onSeeAllCommunityMapsClick,
-                        onSortClick = onSortClick,
                         onMapClick = onCommunityMapClick,
-                        onRetryClick = onRetryClick,
+                        onRetryClick = onCommunityRetryClick,
+                    )
+                    OfficialMapSection(
+                        state = uiState.officialMaps,
+                        onSeeAllClick = onSeeAllOfficialMapsClick,
+                        onMapClick = onOfficialMapClick,
+                        onRetryClick = onOfficialRetryClick,
                     )
                 }
 
-                Spacer(Modifier.height(FooterTopGap))
-                // 사업자 정보가 보이면 하단 탭이 치워지므로 그 몫의 여백은 두지 않는다.
-                // 시스템 내비게이션 바만큼만 더 내린다.
-                BusinessInfoFooter(
-                    bottomPadding = FooterBottomPadding +
-                        WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding(),
-                    modifier = Modifier.onSizeChanged { size -> footerHeightPx = size.height },
+                Spacer(
+                    Modifier
+                        .navigationBarsPadding()
+                        .height(BottomBarClearance),
                 )
             }
         }
@@ -314,100 +273,52 @@ private fun ExploreTopBar(
     }
 }
 
+/** 섹션 제목 줄: 제목 + 「전체보기 >」. 글자와 화살표 모두 시안 #4A4F52(보조 글자색). */
 @Composable
-private fun OfficialMapBanner(
-    onClick: () -> Unit,
+private fun SectionHeader(
+    title: String,
+    onSeeAllClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    ShadowedSurface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding)
-            .height(72.dp),
-        shape = RoundedCornerShape(12.dp),
-        color = MoaMapPrimitiveColors.Yellow100,
-        shadowBlurRadius = BannerShadowBlurRadius,
-        shadowColor = CardShadowColor,
-        onClick = onClick,
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
+        Text(
+            text = title,
+            style = MoaMapTheme.typography.title2.withDesignLineHeight(),
+            color = MoaMapTheme.colors.textNormal,
+        )
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.clickable(role = Role.Button, onClick = onSeeAllClick),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_verify_filled),
-                contentDescription = null,
-                tint = Color.Unspecified,
-                modifier = Modifier.size(24.dp),
+            Text(
+                text = "전체보기",
+                style = MoaMapTheme.typography.button2.withDesignLineHeight(),
+                color = MoaMapTheme.colors.textAlternative,
             )
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
-            ) {
-                Text(
-                    text = "공공데이터 기반",
-                    style = MoaMapTheme.typography.body1,
-                    color = MoaMapPrimitiveColors.Yellow800,
-                )
-                Text(
-                    text = "공식 지도 보러가기",
-                    style = MoaMapTheme.typography.subtitle2,
-                    color = MoaMapTheme.colors.textNormal,
-                )
-            }
             Icon(
-                painter = painterResource(R.drawable.ic_arrow_outward),
+                painter = painterResource(R.drawable.ic_arrow_right),
                 contentDescription = null,
-                tint = MoaMapTheme.colors.textNormal,
-                modifier = Modifier.size(24.dp),
+                tint = MoaMapTheme.colors.textAlternative,
+                modifier = Modifier.size(20.dp),
             )
-        }
-    }
-}
-
-@Composable
-private fun SectionTitle(text: String) {
-    Text(
-        text = text,
-        style = MoaMapTheme.typography.title2,
-        color = MoaMapTheme.colors.textNormal,
-        modifier = Modifier.padding(
-            horizontal = MoaMapDimens.ScreenHorizontalPadding + SectionTitlePadding,
-        ),
-    )
-}
-
-@Composable
-private fun RecommendedMapSection(
-    nickname: String,
-    maps: List<CommunityMap>,
-    onMapClick: (CommunityMap) -> Unit,
-) {
-    // 시안: 제목 ↔ 카드 12.
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionTitle(text = "${nickname.ifBlank { DEFAULT_NICKNAME }}님을 위한 추천 지도")
-
-        LazyRow(
-            contentPadding = HorizontalListPadding,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(maps, key = { it.id }) { map ->
-                RecommendedMapCard(map = map, onClick = { onMapClick(map) })
-            }
         }
     }
 }
 
 /**
- * 커뮤니티 지도 섹션. 시안 「Home/」: 제목 줄 ↔ 정렬 16, 정렬 ↔ 카드 12, 카드 사이 8.
+ * 커뮤니티 지도 섹션. 시안: 제목 줄 ↔ 카드 16, 카드 사이 8.
  *
- * 고른 정렬로 앞 5개만 보여 준다. 칩과 나머지는 「전체보기」에서 본다.
+ * 인기순 앞 3개만 보여 준다. 정렬·칩과 나머지는 「전체보기」에서 본다.
  */
 @Composable
 private fun CommunityMapSection(
-    uiState: ExploreUiState,
+    state: CommunityMapsState,
     onSeeAllClick: () -> Unit,
-    onSortClick: (CommunityMapSort) -> Unit,
     onMapClick: (CommunityMap) -> Unit,
     onRetryClick: () -> Unit,
 ) {
@@ -417,62 +328,26 @@ private fun CommunityMapSection(
             .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "커뮤니티 지도",
-                style = MoaMapTheme.typography.title2.withDesignLineHeight(),
-                color = MoaMapTheme.colors.textNormal,
-            )
-            // 글자와 화살표 모두 시안 #4A4F52(보조 글자색).
-            Row(
-                modifier = Modifier.clickable(role = Role.Button, onClick = onSeeAllClick),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(
-                    text = "전체보기",
-                    style = MoaMapTheme.typography.button2.withDesignLineHeight(),
-                    color = MoaMapTheme.colors.textAlternative,
-                )
-                Icon(
-                    painter = painterResource(R.drawable.ic_arrow_right),
-                    contentDescription = null,
-                    tint = MoaMapTheme.colors.textAlternative,
-                    modifier = Modifier.size(20.dp),
-                )
-            }
-        }
+        SectionHeader(title = "커뮤니티 지도", onSeeAllClick = onSeeAllClick)
 
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            CommunityMapSortRow(selected = uiState.sort, onClick = onSortClick)
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            when (state) {
+                CommunityMapsState.Loading -> CommunityMapsPlaceholder {
+                    CircularProgressIndicator()
+                }
 
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                when (val state = uiState.communityMaps) {
-                    CommunityMapsState.Loading -> CommunityMapsPlaceholder {
-                        CircularProgressIndicator()
-                    }
+                is CommunityMapsState.Error -> CommunityMapsPlaceholder {
+                    CommunityMapsError(message = state.message, onRetryClick = onRetryClick)
+                }
 
-                    is CommunityMapsState.Error -> CommunityMapsPlaceholder {
-                        CommunityMapsError(message = state.message, onRetryClick = onRetryClick)
-                    }
-
-                    is CommunityMapsState.Success -> {
-                        if (state.maps.isEmpty()) {
-                            CommunityMapsPlaceholder {
-                                Text(
-                                    text = "아직 등록된 지도가 없어요",
-                                    style = MoaMapTheme.typography.body2,
-                                    color = MoaMapTheme.colors.textAssistive,
-                                )
-                            }
-                        } else {
-                            state.maps.forEach { map ->
-                                CommunityMapCard(map = map, onClick = { onMapClick(map) })
-                            }
+                is CommunityMapsState.Success -> {
+                    if (state.maps.isEmpty()) {
+                        CommunityMapsPlaceholder {
+                            EmptyMessage(text = "아직 등록된 지도가 없어요")
+                        }
+                    } else {
+                        state.maps.forEach { map ->
+                            CommunityMapCard(map = map, onClick = { onMapClick(map) })
                         }
                     }
                 }
@@ -481,14 +356,126 @@ private fun CommunityMapSection(
     }
 }
 
-private fun previewMaps(placeCount: Int) = List(3) { index ->
+/**
+ * 공식 지도 섹션. 시안: 제목 줄 ↔ 카드 16, 카드는 가로로 넘기고 사이 12.
+ *
+ * 앞 5개만 보여 준다. 나머지는 「전체보기」(공식지도 목록)에서 본다. 로딩·오류·빈 상태는
+ * 시안이 없어 커뮤니티 섹션과 같은 모양을 쓴다.
+ */
+@Composable
+private fun OfficialMapSection(
+    state: OfficialMapsState,
+    onSeeAllClick: () -> Unit,
+    onMapClick: (OfficialMap) -> Unit,
+    onRetryClick: () -> Unit,
+) {
+    val screenPadding = Modifier.padding(horizontal = MoaMapDimens.ScreenHorizontalPadding)
+
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        SectionHeader(title = "공식 지도", onSeeAllClick = onSeeAllClick, modifier = screenPadding)
+
+        when (state) {
+            OfficialMapsState.Loading -> CommunityMapsPlaceholder(screenPadding) {
+                CircularProgressIndicator()
+            }
+
+            is OfficialMapsState.Error -> CommunityMapsPlaceholder(screenPadding) {
+                CommunityMapsError(message = state.message, onRetryClick = onRetryClick)
+            }
+
+            is OfficialMapsState.Success -> {
+                if (state.maps.isEmpty()) {
+                    CommunityMapsPlaceholder(screenPadding) {
+                        EmptyMessage(text = "아직 공식 지도가 없어요")
+                    }
+                } else {
+                    LazyRow(
+                        contentPadding = HorizontalListPadding,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        items(state.maps, key = { it.id }) { map ->
+                            OfficialMapCard(map = map, onClick = { onMapClick(map) })
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 홈의 공식 지도 카드. 시안: 여백 12, 사진 120(모서리 12) ↔ 글 16, 이름 줄 24 ↔ 설명 4.
+ *
+ * 이름과 설명은 사진 폭 안에서 한 줄로, 넘치면 「…」.
+ */
+@Composable
+private fun OfficialMapCard(
+    map: OfficialMap,
+    onClick: () -> Unit,
+) {
+    ShadowedSurface(onClick = onClick) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            MapThumbnail(imageUrl = map.imageUrl, size = OfficialCardImageSize)
+            Column(
+                modifier = Modifier.width(OfficialCardImageSize),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text(
+                    text = map.title,
+                    style = MoaMapTheme.typography.subtitle2,
+                    color = MoaMapTheme.colors.textNormal,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = CardTitleRowHeight)
+                        .wrapContentHeight(Alignment.CenterVertically),
+                )
+                // 설명이 비어도 줄은 남긴다. 카드 높이가 달라지면 가로 목록이 들쭉날쭉해진다.
+                Text(
+                    text = map.description,
+                    style = MoaMapTheme.typography.caption0.withDesignLineHeight(),
+                    color = MoaMapPrimitiveColors.Blue800,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun EmptyMessage(text: String) {
+    Text(
+        text = text,
+        style = MoaMapTheme.typography.body2,
+        color = MoaMapTheme.colors.textAssistive,
+    )
+}
+
+private fun previewCommunityMaps() = List(3) { index ->
     CommunityMap(
         id = index + 1L,
         title = "서울 팝업스토어 맵",
         imageUrl = null,
         hashtags = listOf("맛집", "데이트코스", "데이트"),
         memberCount = 2312,
-        placeCount = placeCount,
+        placeCount = 116,
+        joined = false,
+    )
+}
+
+private fun previewOfficialMaps() = List(3) { index ->
+    OfficialMap(
+        id = index + 100L,
+        title = if (index == 0) "공중화장실 지도" else "유동인구 지도",
+        description = "행정안전부 공공데이터를 기반으로 전국 공중화장실의 위치를 보여주는 공식 지도입니다.",
+        imageUrl = null,
+        memberCount = 0,
+        placeCount = 0,
         joined = false,
     )
 }
@@ -499,18 +486,17 @@ private fun ExploreScreenPreview() {
     MoaMapTheme {
         ExploreContent(
             uiState = ExploreUiState(
-                communityMaps = CommunityMapsState.Success(previewMaps(placeCount = 116)),
-                nickname = "모아맵",
-                // 추천 카드는 장소 수를 그리지 않아 서버도 주지 않는다.
-                recommendedMaps = previewMaps(placeCount = 0),
+                communityMaps = CommunityMapsState.Success(previewCommunityMaps()),
+                officialMaps = OfficialMapsState.Success(previewOfficialMaps()),
             ),
             onProfileEditClick = {},
             onSettingsClick = {},
-            onOfficialMapClick = {},
             onCommunityMapClick = {},
             onSeeAllCommunityMapsClick = {},
-            onSortClick = {},
-            onRetryClick = {},
+            onCommunityRetryClick = {},
+            onOfficialMapClick = {},
+            onSeeAllOfficialMapsClick = {},
+            onOfficialRetryClick = {},
         )
     }
 }
