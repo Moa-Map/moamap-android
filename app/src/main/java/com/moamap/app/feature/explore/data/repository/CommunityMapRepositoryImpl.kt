@@ -27,7 +27,7 @@ class CommunityMapRepositoryImpl @Inject constructor(
         .map { it.toDomain() }
 
     private companion object {
-        /** 가로 스크롤 한 줄에 담는 수. 서버 기본값과 같다(상한 20). */
-        const val RECOMMENDATION_SIZE = 5
+        /** 전체보기 「사용자 맞춤」에 담는 수. 서버 상한이다. 페이지가 없어 한 번에 받는다. */
+        const val RECOMMENDATION_SIZE = 20
     }
 }

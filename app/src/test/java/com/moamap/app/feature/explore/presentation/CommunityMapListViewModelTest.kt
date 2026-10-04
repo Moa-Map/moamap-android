@@ -49,7 +49,7 @@ class CommunityMapListViewModelTest {
     private fun page(ids: LongRange, isLast: Boolean) =
         CommunityMapPage(maps = ids.map { id -> map(id) }, isLast = isLast)
 
-    /** 호출 조건을 기록하고 [result] 가 만든 페이지를 돌려준다. 추천은 이 화면이 부르지 않는다. */
+    /** 호출 조건을 기록하고 [result] 가 만든 페이지를, 추천은 [recommendations] 를 돌려준다. */
     private class FakeRepository(
         val responseDelayMillis: Long = 0L,
         var result: (Call) -> CommunityMapPage,
@@ -68,8 +68,13 @@ class CommunityMapListViewModelTest {
             return result(call)
         }
 
-        override suspend fun getRecommendedMaps(): List<CommunityMap> =
-            throw UnsupportedOperationException("전체보기는 추천을 부르지 않는다")
+        var recommendations: () -> List<CommunityMap> = { emptyList() }
+        var recommendationCalls = 0
+
+        override suspend fun getRecommendedMaps(): List<CommunityMap> {
+            recommendationCalls++
+            return recommendations()
+        }
     }
 
     private fun loaded(repository: FakeRepository) = CommunityMapListViewModel(repository).apply {
@@ -78,12 +83,12 @@ class CommunityMapListViewModelTest {
     }
 
     @Test
-    fun `처음 보이면 전체·인기순 첫 20개를 읽는다`() = runTest {
+    fun `처음 보이면 전체·최신순 첫 20개를 읽는다`() = runTest {
         val repository = FakeRepository { page(1L..3L, isLast = true) }
 
         val viewModel = loaded(repository)
 
-        assertEquals(listOf(Call(null, CommunityMapSort.POPULAR, 0, COMMUNITY_MAP_PAGE_SIZE)), repository.calls)
+        assertEquals(listOf(Call(null, CommunityMapSort.LATEST, 0, COMMUNITY_MAP_PAGE_SIZE)), repository.calls)
         val state = viewModel.uiState.value
         assertFalse(state.loading)
         assertEquals(3, state.maps.size)
@@ -118,7 +123,7 @@ class CommunityMapListViewModelTest {
         viewModel.selectTag("카페")
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(Call("카페", CommunityMapSort.POPULAR, 0, COMMUNITY_MAP_PAGE_SIZE), repository.calls.last())
+        assertEquals(Call("카페", CommunityMapSort.LATEST, 0, COMMUNITY_MAP_PAGE_SIZE), repository.calls.last())
         assertEquals("카페", viewModel.uiState.value.selectedTag)
         // 고른 태그의 지도만 왔다고 칩을 다시 만들면 「카페」만 남는다.
         assertEquals(listOf("카페", "데이트"), viewModel.uiState.value.tags)
@@ -135,7 +140,7 @@ class CommunityMapListViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         assertNull(viewModel.uiState.value.selectedTag)
-        assertEquals(Call(null, CommunityMapSort.POPULAR, 0, COMMUNITY_MAP_PAGE_SIZE), repository.calls.last())
+        assertEquals(Call(null, CommunityMapSort.LATEST, 0, COMMUNITY_MAP_PAGE_SIZE), repository.calls.last())
     }
 
     @Test
@@ -145,10 +150,10 @@ class CommunityMapListViewModelTest {
         viewModel.selectTag("카페")
         dispatcher.scheduler.advanceUntilIdle()
 
-        viewModel.selectSort(CommunityMapSort.LATEST)
+        viewModel.selectSort(CommunityMapSort.POPULAR)
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(Call("카페", CommunityMapSort.LATEST, 0, COMMUNITY_MAP_PAGE_SIZE), repository.calls.last())
+        assertEquals(Call("카페", CommunityMapSort.POPULAR, 0, COMMUNITY_MAP_PAGE_SIZE), repository.calls.last())
     }
 
     @Test
@@ -157,7 +162,7 @@ class CommunityMapListViewModelTest {
         val viewModel = loaded(repository)
 
         viewModel.selectTag(null)
-        viewModel.selectSort(CommunityMapSort.POPULAR)
+        viewModel.selectSort(CommunityMapSort.LATEST)
         dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(1, repository.calls.size)
@@ -174,7 +179,7 @@ class CommunityMapListViewModelTest {
         viewModel.loadMore()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(Call(null, CommunityMapSort.POPULAR, 1, COMMUNITY_MAP_PAGE_SIZE), repository.calls.last())
+        assertEquals(Call(null, CommunityMapSort.LATEST, 1, COMMUNITY_MAP_PAGE_SIZE), repository.calls.last())
         val state = viewModel.uiState.value
         assertEquals((1L..25L).toList(), state.maps.map { it.id })
         assertTrue(state.endReached)
@@ -250,7 +255,7 @@ class CommunityMapListViewModelTest {
         viewModel.refresh()
         dispatcher.scheduler.advanceUntilIdle()
 
-        assertEquals(Call(null, CommunityMapSort.POPULAR, 0, 2 * COMMUNITY_MAP_PAGE_SIZE), repository.calls.last())
+        assertEquals(Call(null, CommunityMapSort.LATEST, 0, 2 * COMMUNITY_MAP_PAGE_SIZE), repository.calls.last())
         assertEquals(40, viewModel.uiState.value.maps.size)
 
         // 다시 읽은 뒤에도 이어서 셋째 페이지를 부른다.
@@ -297,6 +302,94 @@ class CommunityMapListViewModelTest {
 
         assertEquals("데이트", viewModel.uiState.value.selectedTag)
         assertEquals(listOf(2L), viewModel.uiState.value.maps.map { it.id })
+    }
+
+    @Test
+    fun `사용자 맞춤을 고르면 추천을 한 번에 받고 더 불러오지 않는다`() = runTest {
+        val repository = FakeRepository { page(1L..20L, isLast = false) }
+        repository.recommendations = { listOf(map(7L), map(8L)) }
+        val viewModel = loaded(repository)
+
+        viewModel.selectSort(CommunityMapSort.RECOMMENDED)
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.loadMore()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, repository.recommendationCalls)
+        // 목록 조회는 처음 한 번뿐. 사용자 맞춤을 정렬 값으로 서버에 보내지 않는다.
+        assertEquals(1, repository.calls.size)
+        assertEquals(listOf(7L, 8L), viewModel.uiState.value.maps.map { it.id })
+        assertTrue(viewModel.uiState.value.endReached)
+    }
+
+    @Test
+    fun `사용자 맞춤에서 칩을 고르면 다시 받지 않고 받은 추천 안에서 거른다`() = runTest {
+        val repository = FakeRepository { page(1L..1L, isLast = true) }
+        repository.recommendations = { listOf(map(7L, "카페"), map(8L, "산책"), map(9L, "카페", "산책")) }
+        val viewModel = loaded(repository)
+        viewModel.selectSort(CommunityMapSort.RECOMMENDED)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.selectTag("카페")
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(listOf(7L, 9L), viewModel.uiState.value.maps.map { it.id })
+
+        viewModel.selectTag(null)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(listOf(7L, 8L, 9L), viewModel.uiState.value.maps.map { it.id })
+        assertEquals(1, repository.recommendationCalls)
+        assertEquals(1, repository.calls.size)
+    }
+
+    @Test
+    fun `고른 태그 그대로 사용자 맞춤으로 바꾸면 그 태그로 거른다`() = runTest {
+        val repository = FakeRepository { page(1L..1L, isLast = true) }
+        repository.recommendations = { listOf(map(7L, "카페"), map(8L, "산책")) }
+        val viewModel = loaded(repository)
+        viewModel.selectTag("산책")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.selectSort(CommunityMapSort.RECOMMENDED)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf(8L), viewModel.uiState.value.maps.map { it.id })
+    }
+
+    @Test
+    fun `사용자 맞춤에서 돌아오면 추천을 다시 받아 고른 태그로 거른다`() = runTest {
+        val repository = FakeRepository { page(1L..1L, isLast = true) }
+        repository.recommendations = { listOf(map(7L, "카페"), map(8L, "카페")) }
+        val viewModel = loaded(repository)
+        viewModel.selectSort(CommunityMapSort.RECOMMENDED)
+        dispatcher.scheduler.advanceUntilIdle()
+        viewModel.selectTag("카페")
+
+        // 7번에 참여하고 돌아오면 서버가 추천에서 뺀다.
+        repository.recommendations = { listOf(map(8L, "카페"), map(9L, "산책")) }
+        viewModel.refresh()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(2, repository.recommendationCalls)
+        assertEquals(listOf(8L), viewModel.uiState.value.maps.map { it.id })
+    }
+
+    @Test
+    fun `사용자 맞춤을 못 받으면 오류를 띄우고 재시도로 복구한다`() = runTest {
+        var fail = true
+        val repository = FakeRepository { page(1L..1L, isLast = true) }
+        repository.recommendations = { if (fail) throw RuntimeException("boom") else listOf(map(7L)) }
+        val viewModel = loaded(repository)
+
+        viewModel.selectSort(CommunityMapSort.RECOMMENDED)
+        dispatcher.scheduler.advanceUntilIdle()
+        assertTrue(viewModel.uiState.value.errorMessage != null)
+
+        fail = false
+        viewModel.retry()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.errorMessage)
+        assertEquals(listOf(7L), viewModel.uiState.value.maps.map { it.id })
     }
 
     @Test

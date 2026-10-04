@@ -98,10 +98,10 @@ class CommunityMapMapperTest {
         assertFalse(MapRecommendationDto(id = 1L).toDomain().joined)
     }
 
-    /** 추천 카드는 장소 수를 그리지 않아 서버도 주지 않는다. */
+    /** 서버가 추천에는 장소 수를 주지 않는다. 0 으로 채우면 카드가 「0곳」을 그린다. */
     @Test
-    fun `추천 지도의 장소 수는 0이다`() {
-        assertEquals(0, MapRecommendationDto(id = 1L).toDomain().placeCount)
+    fun `추천 지도의 장소 수는 모름(null)이다`() {
+        assertNull(MapRecommendationDto(id = 1L).toDomain().placeCount)
     }
 
     @Test
