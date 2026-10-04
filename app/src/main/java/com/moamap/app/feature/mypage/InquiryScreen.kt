@@ -1,7 +1,6 @@
 package com.moamap.app.feature.mypage
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -37,7 +36,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.SolidColor
@@ -56,6 +54,7 @@ import androidx.compose.ui.unit.round
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
 import com.moamap.app.core.designsystem.component.ButtonShadowColor
+import com.moamap.app.core.designsystem.component.MoaMapInputSurface
 import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
@@ -85,9 +84,6 @@ private val FieldShape = RoundedCornerShape(12.dp)
 /** 칸 그림자. 시안 「문의하기」: 0 0 10 8%. */
 private val FieldShadowBlurRadius = 10.dp
 private val FieldShadowColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.08f)
-
-/** 입력하고 있는 칸·유형 목록을 연 칸의 테두리. 시안: Blue300 1px(프로필 편집과 같다). */
-private val FocusedFieldBorder = BorderStroke(1.dp, MoaMapPrimitiveColors.Blue300)
 
 /** 문의 내용 칸 높이. 시안 값. 넘치는 글은 칸 안에서 스크롤한다. */
 private val ContentFieldHeight = 200.dp
@@ -305,7 +301,7 @@ private fun InquiryHeading() {
  * 제목 + 흰 칸. 시안: 제목 subtitle2(왼쪽 안쪽 2) ↔ 칸 8, 칸은 흰 바탕·모서리 12·그림자 0 0 10 8%.
  * 칸 안 여백은 칸마다 달라 [content] 가 정한다.
  *
- * 안에서 입력하고 있거나 [highlighted] 이면(유형 목록을 열었을 때) 하늘색 테두리를 두른다.
+ * 안에서 입력하고 있거나 [highlighted] 이면(유형 목록을 열었을 때) 하늘색 테두리를 두른다([MoaMapInputSurface]).
  */
 @Composable
 private fun InquiryField(
@@ -315,8 +311,6 @@ private fun InquiryField(
     onClick: (() -> Unit)? = null,
     content: @Composable () -> Unit,
 ) {
-    var focused by remember { mutableStateOf(false) }
-
     Column(verticalArrangement = Arrangement.spacedBy(FieldTitleGap)) {
         Text(
             text = label,
@@ -324,14 +318,12 @@ private fun InquiryField(
             color = MoaMapTheme.colors.textNormal,
             modifier = Modifier.padding(start = FieldTitleStartPadding),
         )
-        ShadowedSurface(
-            modifier = modifier
-                .fillMaxWidth()
-                .onFocusChanged { state -> focused = state.hasFocus },
+        MoaMapInputSurface(
+            modifier = modifier.fillMaxWidth(),
             shape = FieldShape,
             shadowBlurRadius = FieldShadowBlurRadius,
             shadowColor = FieldShadowColor,
-            border = if (focused || highlighted) FocusedFieldBorder else null,
+            highlighted = highlighted,
             onClick = onClick,
         ) {
             content()
