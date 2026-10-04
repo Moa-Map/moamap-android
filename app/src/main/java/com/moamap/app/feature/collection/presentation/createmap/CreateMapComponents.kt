@@ -44,6 +44,7 @@ import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
 import com.moamap.app.core.designsystem.component.ButtonShadowColor
 import com.moamap.app.core.designsystem.component.CardShadowBlurRadius
+import com.moamap.app.core.designsystem.component.MoaMapInputSurface
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -184,7 +185,7 @@ internal fun CreateMapInputField(
 
         betweenLabelAndInput?.invoke()
 
-        ShadowedSurface(
+        MoaMapInputSurface(
             modifier = Modifier.fillMaxWidth(),
             shape = FieldShape,
         ) {

@@ -1,6 +1,5 @@
 package com.moamap.app.feature.mypage
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -30,13 +29,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
@@ -58,6 +54,7 @@ import com.moamap.app.core.designsystem.component.ButtonShadowColor
 import com.moamap.app.core.designsystem.component.ImageSourceMenu
 import com.moamap.app.core.designsystem.component.MoaMapBackButton
 import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
+import com.moamap.app.core.designsystem.component.MoaMapInputSurface
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -129,9 +126,6 @@ private val FieldsGap = 20.dp
 /** 칸 제목 ↔ 칸, 칸 제목 왼쪽 안쪽. 시안 「InputField」. */
 private val FieldTitleGap = 8.dp
 private val FieldTitleStartPadding = 2.dp
-
-/** 입력하고 있는 칸 테두리. 시안 「프로필 편집 화면」(이름 칸 입력 중): Blue300 1px. */
-private val FocusedFieldBorder = BorderStroke(1.dp, MoaMapPrimitiveColors.Blue300)
 
 /** 저장 버튼 높이. 시안 「Button」 Large. */
 private val SaveButtonHeight = 54.dp
@@ -473,7 +467,7 @@ private fun ProfileTextField(
  * 제목 + 입력 칸. 시안 「InputField」: 제목 subtitle2(왼쪽 안쪽 2) ↔ 칸 8, 칸은 흰 바탕·모서리 12·
  * 그림자 0 0 8 4%·안쪽 위아래 12 좌우 16. 높이는 내용이 정한다(한 줄이면 45).
  *
- * 안에서 입력하고 있으면 하늘색 테두리를 두른다(10-04 사용자 결정 - 이름·자기소개 모두).
+ * 안에서 입력하고 있으면 하늘색 테두리를 두른다([MoaMapInputSurface]).
  */
 @Composable
 private fun ProfileField(
@@ -482,8 +476,6 @@ private fun ProfileField(
     backgroundColor: Color = MoaMapPrimitiveColors.White,
     content: @Composable () -> Unit,
 ) {
-    var focused by remember { mutableStateOf(false) }
-
     Column(verticalArrangement = Arrangement.spacedBy(FieldTitleGap)) {
         Row(
             modifier = Modifier.padding(start = FieldTitleStartPadding),
@@ -504,13 +496,10 @@ private fun ProfileField(
             }
         }
 
-        ShadowedSurface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .onFocusChanged { state -> focused = state.hasFocus },
+        MoaMapInputSurface(
+            modifier = Modifier.fillMaxWidth(),
             shape = ProfileFieldShape,
             color = backgroundColor,
-            border = if (focused) FocusedFieldBorder else null,
         ) {
             Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                 content()

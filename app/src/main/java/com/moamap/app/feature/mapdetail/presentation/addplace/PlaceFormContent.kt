@@ -39,6 +39,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.MoaMapInputSurface
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -336,7 +337,7 @@ private fun FormTextField(
     placeholder: String,
     modifier: Modifier = Modifier,
 ) {
-    ShadowedSurface(
+    MoaMapInputSurface(
         modifier = modifier.fillMaxWidth(),
         shape = InputShape,
     ) {
