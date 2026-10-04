@@ -22,9 +22,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
-import com.moamap.app.core.designsystem.component.ShadowedSurface
+import com.moamap.app.core.designsystem.component.MoaMapInputSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
-import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 
 @Composable
@@ -99,10 +98,9 @@ private fun UrlInputField(
     url: String,
     onUrlChange: (String) -> Unit,
 ) {
-    ShadowedSurface(
+    MoaMapInputSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = PlaceImportCardShape,
-        color = MoaMapPrimitiveColors.White,
     ) {
         Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
             if (url.isEmpty()) {

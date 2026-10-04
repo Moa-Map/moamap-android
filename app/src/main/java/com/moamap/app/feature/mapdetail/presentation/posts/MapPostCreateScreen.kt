@@ -41,6 +41,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.moamap.app.core.designsystem.component.MoaMapBackButton
+import com.moamap.app.core.designsystem.component.MoaMapInputSurface
 import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.R
@@ -50,7 +51,6 @@ import com.moamap.app.core.common.imagepicker.rememberImagePickerController
 import com.moamap.app.core.common.imagepicker.rememberImagePickerState
 import com.moamap.app.core.common.upload.ALLOWED_IMAGE_CONTENT_TYPES
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
-import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -228,7 +228,7 @@ private fun ContentField(
     enabled: Boolean,
     onValueChange: (String) -> Unit,
 ) {
-    ShadowedSurface(
+    MoaMapInputSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = InputShape,
     ) {
