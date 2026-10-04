@@ -53,6 +53,8 @@ private val SettingsRowHeight = 47.dp
 internal fun SettingsScreen(
     onBackClick: () -> Unit,
     onLoggedOut: () -> Unit,
+    onTermsClick: () -> Unit,
+    onPrivacyPolicyClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -74,6 +76,8 @@ internal fun SettingsScreen(
     Box(modifier = modifier.fillMaxSize()) {
         SettingsContent(
             onBackClick = onBackClick,
+            onTermsClick = onTermsClick,
+            onPrivacyPolicyClick = onPrivacyPolicyClick,
             onLogoutClick = viewModel::logout,
         )
         SnackbarHost(
@@ -88,6 +92,8 @@ internal fun SettingsScreen(
 @Composable
 private fun SettingsContent(
     onBackClick: () -> Unit,
+    onTermsClick: () -> Unit,
+    onPrivacyPolicyClick: () -> Unit,
     onLogoutClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -123,8 +129,12 @@ private fun SettingsContent(
             SettingsSection(title = "정보") {
                 SettingsCard(shadowRadius = 2.5.dp) {
                     SettingsNavigationRow(label = "공지사항", showDivider = true)
-                    SettingsNavigationRow(label = "이용약관", showDivider = true)
-                    SettingsNavigationRow(label = "개인정보처리방침", showDivider = true)
+                    SettingsNavigationRow(label = "이용약관", showDivider = true, onClick = onTermsClick)
+                    SettingsNavigationRow(
+                        label = "개인정보처리방침",
+                        showDivider = true,
+                        onClick = onPrivacyPolicyClick,
+                    )
                     SettingsNavigationRow(label = "신고하기")
                 }
             }
@@ -321,6 +331,6 @@ private fun SettingsToggle() {
 @Composable
 private fun SettingsScreenPreview() {
     MoaMapTheme {
-        SettingsContent(onBackClick = {}, onLogoutClick = {})
+        SettingsContent(onBackClick = {}, onTermsClick = {}, onPrivacyPolicyClick = {}, onLogoutClick = {})
     }
 }
