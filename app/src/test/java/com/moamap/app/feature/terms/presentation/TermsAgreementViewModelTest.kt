@@ -1,6 +1,7 @@
 package com.moamap.app.feature.terms.presentation
 
 import android.content.Context
+import com.moamap.app.core.auth.FakeAgreedTermsVersionStore
 import com.moamap.app.feature.onboarding.domain.repository.AuthRepository
 import com.moamap.app.feature.terms.domain.model.Terms
 import com.moamap.app.feature.terms.domain.model.TermsConsentType
@@ -17,6 +18,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class TermsAgreementViewModelTest {
@@ -39,6 +41,7 @@ class TermsAgreementViewModelTest {
     private class FakeTermsRepository(private val terms: List<Terms>) : TermsRepository {
         override suspend fun getAgreementTerms(): List<Terms> = terms
         override suspend fun getTerms(code: String): Terms = terms.first { it.code == code }
+        override suspend fun getCurrentVersion(): String = "v2"
     }
 
     private class FakeAuthRepository(var logoutError: Exception? = null) : AuthRepository {
@@ -59,10 +62,16 @@ class TermsAgreementViewModelTest {
     private val required2 = terms("PRIVACY", TermsConsentType.REQUIRED)
     private val optional = terms("MARKETING", TermsConsentType.OPTIONAL)
 
-    private fun viewModel(auth: AuthRepository = FakeAuthRepository()) =
-        TermsAgreementViewModel(FakeTermsRepository(listOf(required1, required2, optional)), auth).also {
-            dispatcher.scheduler.advanceUntilIdle()
-        }
+    private fun viewModel(
+        auth: AuthRepository = FakeAuthRepository(),
+        termsVersionStore: FakeAgreedTermsVersionStore = FakeAgreedTermsVersionStore(),
+    ) = TermsAgreementViewModel(
+        FakeTermsRepository(listOf(required1, required2, optional)),
+        auth,
+        termsVersionStore,
+    ).also {
+        dispatcher.scheduler.advanceUntilIdle()
+    }
 
     @Test
     fun `처음에는 아무것도 체크돼 있지 않고 버튼은 모두 동의하기다`() {
@@ -87,15 +96,32 @@ class TermsAgreementViewModelTest {
     }
 
     @Test
-    fun `필수만 체크해도 다음으로 버튼이 로그인을 마친다`() {
-        val viewModel = viewModel()
+    fun `필수만 체크해도 다음으로 버튼이 지금 약관 버전을 남기고 로그인을 마친다`() {
+        val termsVersionStore = FakeAgreedTermsVersionStore()
+        val viewModel = viewModel(termsVersionStore = termsVersionStore)
         viewModel.toggle(required1.code)
         viewModel.toggle(required2.code)
         assertTrue(viewModel.uiState.value.requiredChecked)
         assertFalse(viewModel.uiState.value.allChecked)
 
         viewModel.onBottomButtonClick()
+        dispatcher.scheduler.advanceUntilIdle()
 
+        assertEquals("v2", termsVersionStore.version)
+        assertEquals(TermsAgreementResult.Agreed, viewModel.uiState.value.result)
+    }
+
+    /** 다음에 앱을 켤 때 로그아웃돼 다시 동의할 뿐이라 여기서 막지 않는다. */
+    @Test
+    fun `동의한 약관 버전을 못 남겨도 로그인을 마친다`() {
+        val termsVersionStore = FakeAgreedTermsVersionStore().apply { saveError = IOException("boom") }
+        val viewModel = viewModel(termsVersionStore = termsVersionStore)
+        viewModel.toggleAll()
+
+        viewModel.onBottomButtonClick()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(termsVersionStore.version)
         assertEquals(TermsAgreementResult.Agreed, viewModel.uiState.value.result)
     }
 
@@ -149,6 +175,7 @@ class TermsAgreementViewModelTest {
         val viewModel = viewModel()
         viewModel.onBottomButtonClick()
         viewModel.onBottomButtonClick()
+        dispatcher.scheduler.advanceUntilIdle()
         assertEquals(TermsAgreementResult.Agreed, viewModel.uiState.value.result)
 
         viewModel.consumeResult()
