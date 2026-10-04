@@ -164,4 +164,9 @@ sealed interface MoaMapRoute {
     data object Settings : MoaMapRoute {
         override val route = "settings"
     }
+
+    /** 설정 「문의하기」. */
+    data object Inquiry : MoaMapRoute {
+        override val route = "inquiry"
+    }
 }

@@ -33,6 +33,7 @@ import com.moamap.app.feature.explore.CommunityMapListScreen
 import com.moamap.app.feature.explore.ExploreScreen
 import com.moamap.app.feature.mapdetail.MapDetailScreen
 import com.moamap.app.feature.mapdetail.presentation.intro.MapIntroScreen
+import com.moamap.app.feature.mypage.InquiryScreen
 import com.moamap.app.feature.mypage.ProfileEditScreen
 import com.moamap.app.feature.mypage.SettingsScreen
 import com.moamap.app.feature.officialmap.OfficialMapScreen
@@ -358,7 +359,11 @@ internal fun MoaMapNavHost(
                     onPrivacyPolicyClick = {
                         navController.navigate(MoaMapRoute.TermsDetail.createRoute(TermsCode.PRIVACY_POLICY))
                     },
+                    onInquiryClick = { navController.navigate(MoaMapRoute.Inquiry.route) },
                 )
+            }
+            composable(MoaMapRoute.Inquiry.route) {
+                InquiryScreen(onBackClick = navController::popBackStack)
             }
         }
 
