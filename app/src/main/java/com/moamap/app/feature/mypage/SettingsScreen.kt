@@ -55,6 +55,7 @@ internal fun SettingsScreen(
     onLoggedOut: () -> Unit,
     onTermsClick: () -> Unit,
     onPrivacyPolicyClick: () -> Unit,
+    onInquiryClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -78,6 +79,7 @@ internal fun SettingsScreen(
             onBackClick = onBackClick,
             onTermsClick = onTermsClick,
             onPrivacyPolicyClick = onPrivacyPolicyClick,
+            onInquiryClick = onInquiryClick,
             onLogoutClick = viewModel::logout,
         )
         SnackbarHost(
@@ -94,6 +96,7 @@ private fun SettingsContent(
     onBackClick: () -> Unit,
     onTermsClick: () -> Unit,
     onPrivacyPolicyClick: () -> Unit,
+    onInquiryClick: () -> Unit,
     onLogoutClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -135,7 +138,8 @@ private fun SettingsContent(
                         showDivider = true,
                         onClick = onPrivacyPolicyClick,
                     )
-                    SettingsNavigationRow(label = "신고하기")
+                    // 시안의 「신고하기」 자리를 문의하기로 쓴다(10-05 사용자 결정).
+                    SettingsNavigationRow(label = "문의하기", onClick = onInquiryClick)
                 }
             }
 
@@ -331,6 +335,12 @@ private fun SettingsToggle() {
 @Composable
 private fun SettingsScreenPreview() {
     MoaMapTheme {
-        SettingsContent(onBackClick = {}, onTermsClick = {}, onPrivacyPolicyClick = {}, onLogoutClick = {})
+        SettingsContent(
+            onBackClick = {},
+            onTermsClick = {},
+            onPrivacyPolicyClick = {},
+            onInquiryClick = {},
+            onLogoutClick = {},
+        )
     }
 }
