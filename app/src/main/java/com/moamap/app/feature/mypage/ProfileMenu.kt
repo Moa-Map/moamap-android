@@ -47,12 +47,15 @@ private val ProfileMenuRowHeight = 50.dp
 private val ProfileMenuScrim = MoaMapPrimitiveColors.Gray300.copy(alpha = 0.6f)
 
 /**
- * 바탕 한 겹: 뒤를 흐림 5 로 흐리고 회색을 덮는다. 흐림을 못 쓰는 기기(안드로이드 12 미만)는
- * 회색만 깐다. 시안에 없는 노이즈는 끈다.
+ * 바탕 한 겹: 뒤를 흐리고 회색을 덮는다. 흐림이 아예 안 되는 기기에서만 회색을 깐다. 시안에 없는
+ * 노이즈는 끈다.
+ *
+ * 시안 값은 흐림 5 인데 Haze 에 5 를 주면 시안보다 덜 흐려 밑의 글자가 읽힌다. 문의 유형 목록에서
+ * 시안 그림과 나란히 놓고 맞춰 본 10 을 같이 쓴다(10-05).
  */
 private val ProfileMenuBackdropStyle = HazeStyle(
     tint = HazeTint(ProfileMenuScrim),
-    blurRadius = 5.dp,
+    blurRadius = 10.dp,
     noiseFactor = 0f,
     fallbackTint = HazeTint(ProfileMenuScrim),
 )
@@ -96,7 +99,11 @@ internal fun ProfileMenu(
             modifier = Modifier
                 .matchParentSize()
                 .clip(ProfileMenuShape)
-                .hazeEffect(hazeState, ProfileMenuBackdropStyle),
+                .hazeEffect(hazeState, ProfileMenuBackdropStyle) {
+                    // Haze 는 안드로이드 12 미만에서 흐림을 끄고 회색만 깐다. 그러면 밑의 글자가 메뉴
+                    // 글자와 겹쳐 읽히지 않아(10-05 에뮬레이터 API 30 에서 발견), 그 기기에서도 흐린다.
+                    blurEnabled = true
+                },
         )
 
         Column(modifier = Modifier.padding(horizontal = 4.dp)) {
