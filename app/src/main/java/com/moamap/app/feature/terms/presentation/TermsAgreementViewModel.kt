@@ -3,6 +3,7 @@ package com.moamap.app.feature.terms.presentation
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moamap.app.core.auth.AgreedTermsVersionStore
 import com.moamap.app.feature.onboarding.domain.repository.AuthRepository
 import com.moamap.app.feature.terms.domain.model.Terms
 import com.moamap.app.feature.terms.domain.model.TermsConsentType
@@ -53,11 +54,14 @@ data class TermsAgreementUiState(
  *
  * 동의 기록은 아직 남기지 않는다. 약관 API 가 없어 서버에 남길 곳이 없고, 테스트할 때 매번 동의
  * 화면을 보려고 휴대폰에도 남기지 않는다(10-05 사용자 결정). 그래서 로그인할 때마다 이 화면이 뜬다.
+ * 휴대폰에는 이 세션이 동의한 약관 버전만 남긴다([AgreedTermsVersionStore]) - 앱을 켤 때 약관이
+ * 바뀌었거나 동의를 마치지 않은 세션을 로그아웃시키는 데만 쓴다.
  */
 @HiltViewModel
 class TermsAgreementViewModel @Inject constructor(
     private val termsRepository: TermsRepository,
     private val authRepository: AuthRepository,
+    private val agreedTermsVersionStore: AgreedTermsVersionStore,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TermsAgreementUiState())
@@ -65,6 +69,9 @@ class TermsAgreementViewModel @Inject constructor(
 
     /** 로그인 취소(로그아웃)를 진행 중인지. 뒤로가기를 연타해도 한 번만 한다. */
     private var cancelling = false
+
+    /** 동의를 마치는 중인지. 「다음으로」를 연타해도 한 번만 한다. */
+    private var agreeing = false
 
     init {
         viewModelScope.launch {
@@ -86,14 +93,27 @@ class TermsAgreementViewModel @Inject constructor(
         }
     }
 
-    /** 아래 버튼. 필수를 다 체크하기 전에는 전부 체크만 하고, 다 체크했으면 로그인을 마친다. */
+    /**
+     * 아래 버튼. 필수를 다 체크하기 전에는 전부 체크만 하고, 다 체크했으면 동의한 약관 버전을 남기고
+     * 로그인을 마친다.
+     */
     fun onBottomButtonClick() {
-        _uiState.update { state ->
-            if (state.requiredChecked) {
-                state.copy(result = TermsAgreementResult.Agreed)
-            } else {
-                state.copy(checked = state.terms.mapTo(HashSet()) { it.code })
+        if (!_uiState.value.requiredChecked) {
+            _uiState.update { state -> state.copy(checked = state.terms.mapTo(HashSet()) { it.code }) }
+            return
+        }
+        if (agreeing) return
+        agreeing = true
+        viewModelScope.launch {
+            try {
+                agreedTermsVersionStore.save(termsRepository.getCurrentVersion())
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                // 못 남겨도 로그인은 마친다. 다음에 앱을 켤 때 로그아웃돼 다시 동의할 뿐이다.
+                Log.w(TAG, "동의한 약관 버전 저장 실패", e)
             }
+            _uiState.update { state -> state.copy(result = TermsAgreementResult.Agreed) }
         }
     }
 

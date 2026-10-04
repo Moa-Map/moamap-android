@@ -13,7 +13,8 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
- * 앱에 넣어 둔 약관 버전. 본문을 고치면 올린다.
+ * 앱에 넣어 둔 약관 버전. 본문을 고치면 올린다. 올린 앱을 켜면 로그인해 있던 사람이 모두 로그아웃돼
+ * 다시 동의한다.
  *
  * 백엔드 약관 API 가 생기기 전까지 쓰는 값이라 약관마다 따로 두지 않고 하나로 둔다.
  */
@@ -52,6 +53,8 @@ class BundledTermsRepository @Inject constructor(
 
     override suspend fun getTerms(code: String): Terms =
         read(BundledTermsList.first { terms -> terms.code == code })
+
+    override suspend fun getCurrentVersion(): String = BUNDLED_TERMS_VERSION
 
     private suspend fun read(terms: BundledTerms): Terms = withContext(Dispatchers.IO) {
         Terms(

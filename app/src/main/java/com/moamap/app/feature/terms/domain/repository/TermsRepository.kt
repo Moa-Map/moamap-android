@@ -12,4 +12,7 @@ interface TermsRepository {
 
     /** 약관 하나. 동의를 받지 않는 개인정보처리방침도 여기서 읽는다. */
     suspend fun getTerms(code: String): Terms
+
+    /** 지금 약관 버전. 이 세션이 동의한 버전과 다르면 다시 동의를 받는다. */
+    suspend fun getCurrentVersion(): String
 }
