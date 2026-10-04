@@ -10,6 +10,7 @@ data class CommunityMap(
     val imageUrl: String?,
     val hashtags: List<String>,
     val memberCount: Int,
-    val placeCount: Int,
+    /** 등록된 장소 수. 모르면 null - 추천 응답에는 이 값이 없어 카드가 장소 수를 숨긴다. */
+    val placeCount: Int?,
     val joined: Boolean,
 )
