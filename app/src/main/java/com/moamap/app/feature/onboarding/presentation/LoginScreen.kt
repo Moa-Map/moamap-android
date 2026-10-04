@@ -119,7 +119,8 @@ internal fun LoginContent(
             Spacer(Modifier.weight(TopSpacerWeight))
 
             Image(
-                painter = painterResource(R.drawable.img_moa_logo),
+                // 새 로고로 그림만 바꿨다. 칸 크기는 예전 로고 그대로라 그림은 칸 높이에 맞춰 줄어든다(10-03 사용자 결정).
+                painter = painterResource(R.drawable.img_moa_symbol_large),
                 contentDescription = "모아맵",
                 modifier = Modifier.size(LoginLogoSize),
             )

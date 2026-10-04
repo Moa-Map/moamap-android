@@ -3,7 +3,6 @@ package com.moamap.app.feature.collection
 import androidx.activity.compose.BackHandler
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -56,6 +55,7 @@ import com.moamap.app.core.common.format.formatMemberCount
 import com.moamap.app.core.common.format.formatPlaceCount
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
+import com.moamap.app.core.designsystem.component.MoaMapTopBarLogo
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
@@ -360,13 +360,7 @@ private fun CollectionTopBar(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Image(
-            painter = painterResource(R.drawable.img_moa_logo),
-            contentDescription = "홈으로",
-            modifier = Modifier
-                .size(width = 74.dp, height = 44.dp)
-                .clickable(role = Role.Button, onClick = onHomeClick),
-        )
+        MoaMapTopBarLogo(onClick = onHomeClick)
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
