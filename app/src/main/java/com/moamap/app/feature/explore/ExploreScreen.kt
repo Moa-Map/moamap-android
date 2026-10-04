@@ -57,6 +57,8 @@ import com.moamap.app.feature.explore.presentation.CommunityMapsPlaceholder
 import com.moamap.app.feature.explore.presentation.CommunityMapsState
 import com.moamap.app.feature.explore.presentation.ExploreUiState
 import com.moamap.app.feature.explore.presentation.ExploreViewModel
+import com.moamap.app.feature.explore.presentation.FeaturedMapCarousel
+import com.moamap.app.feature.explore.presentation.FeaturedMapMocks
 import com.moamap.app.feature.explore.presentation.MapThumbnail
 import com.moamap.app.feature.mypage.ProfileMenu
 import com.moamap.app.feature.mypage.rememberProfileMenuState
@@ -96,6 +98,9 @@ private val ProfileIconTouchSize = 40.dp
 
 /** 프로필 메뉴 위치. 시안: 상태 표시줄 아래 42(상단 바 아래쪽과 10 겹침), 화면 끝에서 20. */
 private val ProfileMenuTop = 42.dp
+
+/** 히어로 ↔ 커뮤니티 지도 제목. 시안 좌표로 21(다른 섹션 사이는 20). */
+private val HeroBottomGap = 21.dp
 
 /** 공식 지도 카드 사진. 글 폭도 이 폭에 맞춘다. */
 private val OfficialCardImageSize = 120.dp
@@ -193,7 +198,10 @@ private fun ExploreContent(
                     .verticalScroll(scrollState)
                     .padding(top = 20.dp),
             ) {
-                // 시안 「메인 화면」: 상단 바 아래 20, 섹션 사이 20.
+                // 시안 「메인 화면」: 상단 바 아래 20, 히어로 아래 21, 섹션 사이 20.
+                // 히어로는 운영자 추천 API 가 없어 임시 데이터다(10-03 사용자 결정).
+                FeaturedMapCarousel(maps = FeaturedMapMocks)
+                Spacer(Modifier.height(HeroBottomGap))
                 Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
                     CommunityMapSection(
                         state = uiState.communityMaps,
