@@ -42,7 +42,7 @@ internal data class ActionMenuItem(
     val onClick: () -> Unit,
 )
 
-/** 줄 사이에 구분선을 넣는 팝업 메뉴. 프로필 메뉴와 사진 소스 선택이 같은 모양을 쓴다. */
+/** 줄 사이에 구분선을 넣는 팝업 메뉴. 사진 소스 선택이 쓴다(프로필 메뉴는 10-03 새 시안으로 따로 그린다). */
 @Composable
 internal fun ActionMenu(
     items: List<ActionMenuItem>,

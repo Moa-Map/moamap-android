@@ -1,7 +1,6 @@
 package com.moamap.app.feature.explore
 
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -45,6 +44,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.MoaMapTopBarLogo
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -62,6 +62,8 @@ import com.moamap.app.feature.mypage.ProfileMenu
 import com.moamap.app.feature.mypage.rememberProfileMenuState
 import com.moamap.app.feature.officialmap.domain.model.OfficialMap
 import com.moamap.app.feature.officialmap.presentation.OfficialMapsState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.launch
 
 /**
@@ -80,6 +82,20 @@ private val HorizontalListPadding =
  * 하단 탭 아래 띄움 12 + 하단 탭 58 + 시안의 마지막 카드 ↔ 하단 탭 32. 시스템 내비게이션 바는 따로 더한다.
  */
 private val BottomBarClearance = 102.dp
+
+/** 상단 바 높이. 시안 「메인 화면」. */
+private val TopBarHeight = 52.dp
+
+/**
+ * 상단 바 오른쪽 끝 여백. 프로필 아이콘(24)을 누르기 쉽게 40 칸에 담아서, 그림이 화면 끝에서
+ * 시안대로 20 에 오도록 칸 여백(8)을 뺀다.
+ */
+private val TopBarEndPadding = 12.dp
+private val TopBarIconSize = 24.dp
+private val ProfileIconTouchSize = 40.dp
+
+/** 프로필 메뉴 위치. 시안: 상태 표시줄 아래 42(상단 바 아래쪽과 10 겹침), 화면 끝에서 20. */
+private val ProfileMenuTop = 42.dp
 
 /** 공식 지도 카드 사진. 글 폭도 이 폭에 맞춘다. */
 private val OfficialCardImageSize = 120.dp
@@ -141,6 +157,8 @@ private fun ExploreContent(
     onScrolledToTop: () -> Unit = {},
 ) {
     val profileMenuState = rememberProfileMenuState()
+    // 프로필 메뉴가 홈 화면을 흐려 바탕으로 쓴다. 메뉴는 이 원본 밖(위)에 그린다.
+    val hazeState = rememberHazeState()
     // 로고는 홈으로 돌아가는 버튼이다. 여기가 이미 홈이라 갈 곳이 없어 맨 위로 올린다.
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
@@ -156,14 +174,12 @@ private fun ExploreContent(
         onScrolledToTop()
     }
 
-    Box(
-        modifier = modifier
-            .fillMaxSize()
-            .background(HomeBackground),
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .hazeSource(hazeState)
+                .background(HomeBackground)
                 .statusBarsPadding(),
         ) {
             ExploreTopBar(
@@ -211,6 +227,7 @@ private fun ExploreContent(
             )
 
             ProfileMenu(
+                hazeState = hazeState,
                 onProfileEditClick = {
                     profileMenuState.dismiss()
                     onProfileEditClick()
@@ -222,12 +239,16 @@ private fun ExploreContent(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(top = 5.dp, end = MoaMapDimens.ScreenHorizontalPadding),
+                    .padding(top = ProfileMenuTop, end = MoaMapDimens.ScreenHorizontalPadding),
             )
         }
     }
 }
 
+/**
+ * 홈 상단 바. 시안 「메인 화면」: 높이 52, 로고(왼쪽 24·위 9), 오른쪽 끝 20 에 알림·프로필 아이콘
+ * 24 가 사이 8 로 놓인다.
+ */
 @Composable
 private fun ExploreTopBar(
     onLogoClick: () -> Unit,
@@ -236,38 +257,31 @@ private fun ExploreTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding, vertical = 4.dp)
-            .height(44.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
+            .height(TopBarHeight)
+            .padding(start = MoaMapDimens.ScreenHorizontalPadding, end = TopBarEndPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Image(
-            painter = painterResource(R.drawable.img_moa_logo),
-            contentDescription = "홈으로",
-            modifier = Modifier
-                .size(width = 74.dp, height = 44.dp)
-                .clickable(role = Role.Button, onClick = onLogoClick),
+        MoaMapTopBarLogo(onClick = onLogoClick)
+        Spacer(Modifier.weight(1f))
+        // 알림 기능이 생길 때까지 보이기만 한다(백엔드 알림 API 없음, 10-03 사용자 결정).
+        Icon(
+            painter = painterResource(R.drawable.ic_bell_outline),
+            contentDescription = "알림",
+            tint = MoaMapPrimitiveColors.Black,
+            modifier = Modifier.size(TopBarIconSize),
         )
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            // TODO: 알림 API 연동 후 복구
-            // Icon(
-            //     painter = painterResource(R.drawable.ic_notifications),
-            //     contentDescription = "알림",
-            //     tint = MoaMapPrimitiveColors.Black,
-            //     modifier = Modifier
-            //         .size(32.dp)
-            //         .clickable {},
-            // )
-            // TODO: 알림 아이콘 복구 시 크기 32.dp / end 패딩 제거로 되돌린다.
-            //  알림이 빠져 혼자 남은 동안만 키우고 안쪽으로 들인 값이다.
+        // 누르는 칸의 왼쪽 여백(8)이 시안의 아이콘 사이 간격 8 이 된다.
+        Box(
+            modifier = Modifier
+                .size(ProfileIconTouchSize)
+                .clickable(role = Role.Button, onClick = onProfileClick),
+            contentAlignment = Alignment.Center,
+        ) {
             Icon(
-                painter = painterResource(R.drawable.ic_person),
+                painter = painterResource(R.drawable.ic_person_outline),
                 contentDescription = "프로필 메뉴",
                 tint = MoaMapPrimitiveColors.Black,
-                modifier = Modifier
-                    .padding(end = 4.dp)
-                    .size(36.dp)
-                    .clickable(onClick = onProfileClick),
+                modifier = Modifier.size(TopBarIconSize),
             )
         }
     }
