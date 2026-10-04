@@ -42,6 +42,9 @@ import com.moamap.app.feature.officialmap.presentation.DensityMapDetailScreen
 import com.moamap.app.feature.officialmap.presentation.RestroomMapScreen
 import com.moamap.app.feature.onboarding.presentation.LoginScreen
 import com.moamap.app.feature.onboarding.presentation.SplashScreen
+import com.moamap.app.feature.terms.TermsAgreementScreen
+import com.moamap.app.feature.terms.TermsDetailScreen
+import com.moamap.app.feature.terms.domain.model.TermsCode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -71,7 +74,7 @@ internal fun MoaMapNavHost(
     LaunchedEffect(sessionExpired) {
         sessionExpired.collect {
             val route = navController.currentDestination?.route
-            if (route == MoaMapRoute.Splash.route || route == MoaMapRoute.Login.route) {
+            if (route in PreLoginRoutes) {
                 return@collect
             }
             navController.navigateToLoginClearingStack()
@@ -93,11 +96,7 @@ internal fun MoaMapNavHost(
      */
     LaunchedEffect(pendingShare, destination) {
         val share = pendingShare ?: return@LaunchedEffect
-        if (
-            destination == null ||
-            destination == MoaMapRoute.Splash.route ||
-            destination == MoaMapRoute.Login.route
-        ) {
+        if (destination == null || destination in PreLoginRoutes) {
             return@LaunchedEffect
         }
 
@@ -134,14 +133,37 @@ internal fun MoaMapNavHost(
             }
             composable(MoaMapRoute.Login.route) {
                 LoginScreen(
+                    // 소셜 로그인 다음에 약관 동의를 받는다. 로그인 화면은 남겨 둔다 - 동의 화면에서
+                    // 뒤로 가면 로그인을 취소하고 여기로 돌아온다.
                     onLoginSuccess = {
-                        navController.navigate(MoaMapRoute.Explore.route) {
-                            // 로그인 화면으로 되돌아갈 수 없게 지운다.
-                            popUpTo(MoaMapRoute.Login.route) { inclusive = true }
+                        navController.navigate(MoaMapRoute.TermsAgreement.route) {
                             launchSingleTop = true
                         }
                     },
                 )
+            }
+            composable(MoaMapRoute.TermsAgreement.route) {
+                TermsAgreementScreen(
+                    onAgreed = {
+                        navController.navigate(MoaMapRoute.Explore.route) {
+                            // 로그인·동의 화면으로 되돌아갈 수 없게 지운다.
+                            popUpTo(MoaMapRoute.Login.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    onCancelled = { navController.popBackStack() },
+                    onTermsClick = { code ->
+                        navController.navigate(MoaMapRoute.TermsDetail.createRoute(code))
+                    },
+                )
+            }
+            composable(
+                route = MoaMapRoute.TermsDetail.route,
+                arguments = listOf(
+                    navArgument(MoaMapRoute.TermsDetail.ARG_CODE) { type = NavType.StringType },
+                ),
+            ) {
+                TermsDetailScreen(onBackClick = navController::popBackStack)
             }
             composable(MoaMapRoute.Explore.route) { entry ->
                 // 모음에서 로고로 들어오면 보던 자리가 아니라 맨 위에서 시작한다.
@@ -330,6 +352,12 @@ internal fun MoaMapNavHost(
                 SettingsScreen(
                     onBackClick = navController::popBackStack,
                     onLoggedOut = { navController.navigateToLoginClearingStack() },
+                    onTermsClick = {
+                        navController.navigate(MoaMapRoute.TermsDetail.createRoute(TermsCode.SERVICE))
+                    },
+                    onPrivacyPolicyClick = {
+                        navController.navigate(MoaMapRoute.TermsDetail.createRoute(TermsCode.PRIVACY_POLICY))
+                    },
                 )
             }
         }
@@ -361,6 +389,16 @@ internal fun MoaMapNavHost(
         }
     }
 }
+
+/**
+ * 아직 로그인을 마치지 않은 화면. 세션 만료로 로그인 화면에 보내지 않고, 공유 링크도 처리하지 않는다 -
+ * 약관 동의를 마치기 전에 장소 가져오기로 넘어가면 안 된다.
+ */
+private val PreLoginRoutes = setOf(
+    MoaMapRoute.Splash.route,
+    MoaMapRoute.Login.route,
+    MoaMapRoute.TermsAgreement.route,
+)
 
 private const val UNSUPPORTED_SHARE_MESSAGE = "인스타그램과 네이버·카카오·구글 지도 링크만 가져올 수 있어요"
 
