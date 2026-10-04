@@ -1,6 +1,7 @@
 package com.moamap.app.feature.onboarding.data.repository
 
 import android.content.Context
+import com.moamap.app.core.auth.AgreedTermsVersionStore
 import com.moamap.app.core.auth.AuthToken
 import com.moamap.app.core.auth.AuthTokenStore
 import com.moamap.app.core.auth.CurrentUserStore
@@ -19,6 +20,7 @@ class AuthRepositoryImpl @Inject constructor(
     private val authService: AuthService,
     private val tokenStore: AuthTokenStore,
     private val currentUserStore: CurrentUserStore,
+    private val agreedTermsVersionStore: AgreedTermsVersionStore,
 ) : AuthRepository {
 
     /**
@@ -38,6 +40,9 @@ class AuthRepositoryImpl @Inject constructor(
         }
         check(response.userId > 0) { "로그인 응답에 사용자 식별자가 없습니다." }
 
+        // 새 세션은 아직 약관에 동의하지 않았다. 토큰보다 먼저 지워야 동의 화면에서 앱을 꺼도 지난
+        // 세션의 동의가 남지 않고, 다음에 앱을 켤 때 로그아웃돼 다시 동의를 받는다.
+        agreedTermsVersionStore.clear()
         // 신원을 먼저 쓴다. 두 저장소가 각자 디스크에 써서 하나만 성공할 수 있는데,
         // hasSession() 이 토큰만 보므로 토큰 쓰기가 세션이 성립하는 지점이 된다. 순서를
         // 뒤집으면 신원 저장이 실패했을 때 토큰만 남아, 로그인된 채로 신원이 없는 상태가 된다.

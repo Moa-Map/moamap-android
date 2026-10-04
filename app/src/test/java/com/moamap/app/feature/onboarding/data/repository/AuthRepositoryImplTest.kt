@@ -3,6 +3,7 @@ package com.moamap.app.feature.onboarding.data.repository
 import android.content.Context
 import android.content.ContextWrapper
 import com.moamap.app.core.auth.AuthToken
+import com.moamap.app.core.auth.FakeAgreedTermsVersionStore
 import com.moamap.app.core.auth.FakeAuthTokenStore
 import com.moamap.app.core.auth.FakeCurrentUserStore
 import com.moamap.app.feature.onboarding.data.remote.AuthService
@@ -57,12 +58,24 @@ class AuthRepositoryImplTest {
         authService: AuthService = FakeAuthService(),
         tokenStore: FakeAuthTokenStore = FakeAuthTokenStore(),
         userStore: FakeCurrentUserStore = FakeCurrentUserStore(),
+        termsVersionStore: FakeAgreedTermsVersionStore = FakeAgreedTermsVersionStore(),
     ) = AuthRepositoryImpl(
         kakaoAuthClient = FakeKakaoAuthClient(),
         authService = authService,
         tokenStore = tokenStore,
         currentUserStore = userStore,
+        agreedTermsVersionStore = termsVersionStore,
     )
+
+    /** 지난 세션의 동의가 남으면 동의 화면에서 앱을 꺼도 다음 실행에 동의 없이 들어간다. */
+    @Test
+    fun `로그인하면 지난 세션의 약관 동의 버전을 지운다`() = runTest {
+        val termsVersionStore = FakeAgreedTermsVersionStore("2026-10-09")
+
+        repository(termsVersionStore = termsVersionStore).loginWithKakao(context)
+
+        assertNull(termsVersionStore.version)
+    }
 
     @Test
     fun `로그인하면 토큰과 함께 사용자 식별자를 저장한다`() = runTest {
