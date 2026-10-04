@@ -1,17 +1,16 @@
 package com.moamap.app.feature.mypage
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -31,18 +30,19 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
@@ -50,16 +50,19 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
-import com.moamap.app.core.designsystem.component.MoaMapBackButton
-import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
-import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.R
 import com.moamap.app.core.common.imagepicker.rememberImagePickerController
 import com.moamap.app.core.common.imagepicker.rememberImagePickerState
+import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
+import com.moamap.app.core.designsystem.component.ButtonShadowColor
 import com.moamap.app.core.designsystem.component.ImageSourceMenu
-import com.moamap.app.core.designsystem.component.compatibleShadow
+import com.moamap.app.core.designsystem.component.MoaMapBackButton
+import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
+import com.moamap.app.core.designsystem.component.ShadowedSurface
+import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.mypage.presentation.ProfileEditUiState
 import com.moamap.app.feature.mypage.presentation.ProfileEditViewModel
 import com.moamap.app.feature.mypage.presentation.ProfileLoadState
@@ -113,17 +116,31 @@ internal fun ProfileEditScreen(
 /** 자기소개가 자라도 이 줄 수까지만 보이고, 그 뒤로는 칸 안에서 스크롤한다. */
 private const val IntroductionMaxLines = 6
 
-/** 스크롤 영역 아래 여백. 마지막 칸이 저장 버튼에 가리지 않게 한다. */
-private val FieldsBottomGap = 96.dp
+/** 스크롤 영역 아래 여백. 마지막 칸이 저장 버튼(54 + 위아래 12)에 가리지 않게 한다. */
+private val FieldsBottomGap = 101.dp
+
+/** 상단 바 높이. 시안 「프로필 편집 화면」 GNB. */
+private val TopBarHeight = 58.dp
+
+/** 입력 칸 묶음 좌우 여백·칸 사이. 시안 값. */
+private val FieldsHorizontalPadding = 20.dp
+private val FieldsGap = 20.dp
+
+/** 칸 제목 ↔ 칸, 칸 제목 왼쪽 안쪽. 시안 「InputField」. */
+private val FieldTitleGap = 8.dp
+private val FieldTitleStartPadding = 2.dp
+
+/** 입력하고 있는 칸 테두리. 시안 「프로필 편집 화면」(이름 칸 입력 중): Blue300 1px. */
+private val FocusedFieldBorder = BorderStroke(1.dp, MoaMapPrimitiveColors.Blue300)
+
+/** 저장 버튼 높이. 시안 「Button」 Large. */
+private val SaveButtonHeight = 54.dp
 
 /** 프로필 사진 원 지름. 시안 「Home/마이페이지」. */
 private val ProfileImageSize = 120.dp
 
-/**
- * 상단 바 아래 → 사진 원. 시안은 상단 바(58) 아래 20 이지만 앱 상단 바는 52 라,
- * 원이 화면 위에서 시안과 같은 높이에 서도록 26 을 둔다.
- */
-private val ProfileImageTopGap = 26.dp
+/** 상단 바(58) 아래 → 사진 원. 시안 값. */
+private val ProfileImageTopGap = 20.dp
 
 /** 사진 원 → 입력 칸. */
 private val ProfileImageBottomGap = 40.dp
@@ -258,7 +275,7 @@ private fun ProfileEditTopBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp),
+            .height(TopBarHeight),
     ) {
         MoaMapBackButton(
             onClick = onBackClick,
@@ -269,7 +286,7 @@ private fun ProfileEditTopBar(
         Text(
             text = "프로필 편집",
             style = MoaMapTheme.typography.title3,
-            color = MoaMapPrimitiveColors.Black,
+            color = MoaMapTheme.colors.textNormal,
             modifier = Modifier.align(Alignment.Center),
         )
     }
@@ -297,11 +314,10 @@ private fun ProfileImageEditor(
 
     // 시안: 원 120, 그림자 0 0 10 8%, 카메라 버튼 40 이 원의 네모 칸 오른쪽 아래 끝에 딱 붙는다.
     Box(modifier = Modifier.size(ProfileImageSize)) {
-        ShadowedContainer(
+        ShadowedSurface(
             modifier = Modifier.size(ProfileImageSize),
             shape = CircleShape,
-            backgroundColor = MoaMapPrimitiveColors.White,
-            shadowRadius = 10.dp,
+            shadowBlurRadius = 10.dp,
             shadowColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.08f),
         ) {
             imageModel?.let { model ->
@@ -362,13 +378,10 @@ private fun ProfileEditFields(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 18.dp),
-        verticalArrangement = Arrangement.spacedBy(20.dp),
+            .padding(horizontal = FieldsHorizontalPadding),
+        verticalArrangement = Arrangement.spacedBy(FieldsGap),
     ) {
-        ProfileField(
-            label = "이름",
-            minHeight = 45.dp,
-        ) {
+        ProfileField(label = "이름") {
             ProfileTextField(
                 value = nickname,
                 onValueChange = onNicknameChange,
@@ -377,17 +390,13 @@ private fun ProfileEditFields(
             )
         }
 
-        ProfileField(
-            label = "자기소개",
-            optional = true,
-            minHeight = 88.dp,
-            contentAlignment = Alignment.TopStart,
-        ) {
-            // 두 줄이 넘으면 칸이 함께 자란다. [IntroductionMaxLines] 줄부터는 칸 안에서 스크롤한다.
+        ProfileField(label = "자기소개", optional = true) {
+            // 시안처럼 한 줄 높이에서 시작해 쓰는 만큼 칸이 자란다. [IntroductionMaxLines] 줄부터는
+            // 칸 안에서 스크롤한다.
             ProfileTextField(
                 value = introduction,
                 onValueChange = onIntroductionChange,
-                placeholder = "나를 소개하는 한마디를 입력해보세요",
+                placeholder = "나를 소개하는 한마디를 입력해주세요",
                 singleLine = false,
                 maxLines = IntroductionMaxLines,
             )
@@ -400,7 +409,6 @@ private fun ProfileEditFields(
         //
         // ProfileField(
         //     label = "이메일",
-        //     height = 45.dp,
         //     backgroundColor = MoaMapPrimitiveColors.Yellow50,
         // ) {
         //     Row(
@@ -439,7 +447,7 @@ private fun ProfileTextField(
     BasicTextField(
         value = value,
         onValueChange = onValueChange,
-        textStyle = MoaMapTheme.typography.body2.copy(
+        textStyle = MoaMapTheme.typography.body2.withDesignLineHeight().copy(
             color = MoaMapTheme.colors.textNormal,
         ),
         cursorBrush = SolidColor(MoaMapTheme.colors.primary),
@@ -451,7 +459,7 @@ private fun ProfileTextField(
                 if (value.isEmpty()) {
                     Text(
                         text = placeholder,
-                        style = MoaMapTheme.typography.body2,
+                        style = MoaMapTheme.typography.body2.withDesignLineHeight(),
                         color = MoaMapTheme.colors.textAssistive,
                     )
                 }
@@ -461,52 +469,57 @@ private fun ProfileTextField(
     )
 }
 
+/**
+ * 제목 + 입력 칸. 시안 「InputField」: 제목 subtitle2(왼쪽 안쪽 2) ↔ 칸 8, 칸은 흰 바탕·모서리 12·
+ * 그림자 0 0 8 4%·안쪽 위아래 12 좌우 16. 높이는 내용이 정한다(한 줄이면 45).
+ *
+ * 안에서 입력하고 있으면 하늘색 테두리를 두른다(10-04 사용자 결정 - 이름·자기소개 모두).
+ */
 @Composable
 private fun ProfileField(
     label: String,
-    /** 최소 높이. 글이 길어지면 칸이 이만큼에서 더 자란다. */
-    minHeight: Dp,
     optional: Boolean = false,
     backgroundColor: Color = MoaMapPrimitiveColors.White,
-    contentAlignment: Alignment = Alignment.CenterStart,
-    content: @Composable BoxScope.() -> Unit,
+    content: @Composable () -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    var focused by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(FieldTitleGap)) {
         Row(
-            modifier = Modifier.height(26.dp),
+            modifier = Modifier.padding(start = FieldTitleStartPadding),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = label,
-                style = MoaMapTheme.typography.subtitle1,
+                style = MoaMapTheme.typography.subtitle2.withDesignLineHeight(),
                 color = MoaMapTheme.colors.textNormal,
             )
             if (optional) {
                 Spacer(Modifier.width(4.dp))
                 Text(
                     text = "(선택)",
-                    style = MoaMapTheme.typography.body2,
+                    style = MoaMapTheme.typography.body2.withDesignLineHeight(),
                     color = MoaMapTheme.colors.textAlternative,
                 )
             }
         }
 
-        ShadowedContainer(
+        ShadowedSurface(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = minHeight),
+                .onFocusChanged { state -> focused = state.hasFocus },
             shape = ProfileFieldShape,
-            backgroundColor = backgroundColor,
-            shadowRadius = 5.dp,
-            shadowColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.08f),
-            contentAlignment = contentAlignment,
-            contentPadding = 12.dp,
-            horizontalContentPadding = 16.dp,
-            content = content,
-        )
+            color = backgroundColor,
+            border = if (focused) FocusedFieldBorder else null,
+        ) {
+            Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
+                content()
+            }
+        }
     }
 }
 
+/** 시안 「Button」 Large: 높이 54, 모서리 8, 그림자 0 0 10 10%, 글자 button0. */
 @Composable
 private fun ProfileSaveButton(
     enabled: Boolean,
@@ -514,74 +527,32 @@ private fun ProfileSaveButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    ShadowedContainer(
+    ShadowedSurface(
         modifier = modifier
             .fillMaxWidth()
-            .height(49.dp)
-            .clickable(enabled = enabled, onClick = onClick),
+            .height(SaveButtonHeight),
         shape = SaveButtonShape,
-        backgroundColor = if (enabled) {
-            MoaMapTheme.colors.primary
-        } else {
-            MoaMapPrimitiveColors.Gray100
-        },
-        shadowRadius = 2.5.dp,
-        shadowColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.1f),
-        contentAlignment = Alignment.Center,
+        color = if (enabled) MoaMapTheme.colors.primary else MoaMapPrimitiveColors.Gray100,
+        shadowBlurRadius = ButtonShadowBlurRadius,
+        shadowColor = ButtonShadowColor,
+        onClick = if (enabled) onClick else null,
     ) {
-        // 업로드까지 포함하면 저장에 수십 초가 걸릴 수 있어, 버튼이 눌렸다는 것을 계속 보여줘야 한다.
-        if (saving) {
-            CircularProgressIndicator(
-                color = MoaMapTheme.colors.textWhite,
-                strokeWidth = 2.dp,
-                modifier = Modifier.size(20.dp),
-            )
-        } else {
-            Text(
-                text = "저장하기",
-                style = MoaMapTheme.typography.subtitle2,
-                color = MoaMapTheme.colors.textWhite,
-            )
+        Box(contentAlignment = Alignment.Center) {
+            // 업로드까지 포함하면 저장에 수십 초가 걸릴 수 있어, 버튼이 눌렸다는 것을 계속 보여줘야 한다.
+            if (saving) {
+                CircularProgressIndicator(
+                    color = MoaMapTheme.colors.textWhite,
+                    strokeWidth = 2.dp,
+                    modifier = Modifier.size(20.dp),
+                )
+            } else {
+                Text(
+                    text = "저장하기",
+                    style = MoaMapTheme.typography.button0,
+                    color = MoaMapTheme.colors.textWhite,
+                )
+            }
         }
-    }
-}
-
-@Composable
-private fun ShadowedContainer(
-    modifier: Modifier,
-    shape: Shape,
-    backgroundColor: Color,
-    shadowRadius: Dp,
-    shadowColor: Color,
-    contentAlignment: Alignment = Alignment.CenterStart,
-    contentPadding: Dp = 0.dp,
-    horizontalContentPadding: Dp = contentPadding,
-    content: @Composable BoxScope.() -> Unit,
-) {
-    // 내용이 상자 크기를 정한다. 내용까지 matchParentSize 로 두면 자기소개가 길어져도 칸이
-    // 최소 높이에 묶인다. 최소 높이는 propagateMinConstraints 로 내용에 그대로 전해진다.
-    Box(modifier = modifier, propagateMinConstraints = true) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .compatibleShadow(
-                    shape = shape,
-                    blurRadius = shadowRadius,
-                    color = shadowColor,
-                ),
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(shape)
-                .background(backgroundColor)
-                .padding(
-                    horizontal = horizontalContentPadding,
-                    vertical = contentPadding,
-                ),
-            contentAlignment = contentAlignment,
-            content = content,
-        )
     }
 }
 
