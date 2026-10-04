@@ -37,6 +37,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
 import com.moamap.app.core.designsystem.component.ButtonShadowColor
+import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -116,7 +117,7 @@ private fun TermsAgreementContent(
                 .fillMaxSize()
                 .statusBarsPadding(),
         ) {
-            TermsTopBar(title = "이용약관 동의", onBackClick = onBackClick)
+            MoaMapTitleTopBar(title = "이용약관 동의", onBackClick = onBackClick)
 
             // 시안: 상단 바 아래 20, 좌우 20, 제목(왼쪽 안쪽 4) ↔ 「모두 동의하기」 20, 그 아래 32 간격.
             Column(

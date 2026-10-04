@@ -2,13 +2,11 @@ package com.moamap.app.feature.terms
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -18,26 +16,17 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.moamap.app.core.designsystem.component.MoaMapBackButton
-import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
+import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.terms.presentation.TermsDetailUiState
 import com.moamap.app.feature.terms.presentation.TermsDetailViewModel
 import com.moamap.app.feature.terms.presentation.TermsLine
 import com.moamap.app.feature.terms.presentation.TermsSection
-
-/** 약관 화면 상단 바 높이. 시안 GNB. */
-private val TermsTopBarHeight = 58.dp
-
-/** 제목이 길어도 뒤로가기와 겹치지 않게 양옆을 비운다(뒤로가기 칸 + 화면 끝 여백). */
-private val TermsTopBarTitleHorizontalPadding = 72.dp
 
 /**
  * 약관 전문. 시안 「서비스 이용약관」(`3738:31380`): 상단 바 제목이 약관 이름, 아래에 소제목 + 본문이
@@ -65,7 +54,7 @@ private fun TermsDetailContent(
             .background(MoaMapTheme.colors.backgroundSecondary)
             .statusBarsPadding(),
     ) {
-        TermsTopBar(title = uiState.title, onBackClick = onBackClick)
+        MoaMapTitleTopBar(title = uiState.title, onBackClick = onBackClick)
 
         // 시안: 상단 바 아래 20, 좌우 20, 위아래 16, 덩어리 사이 32, 소제목 ↔ 본문 12.
         Column(
@@ -113,36 +102,6 @@ private fun TermsLineText(line: TermsLine) {
         Text(text = line.marker, style = style, color = color)
         Spacer(Modifier.width(4.dp))
         Text(text = line.text, style = style, color = color, modifier = Modifier.weight(1f))
-    }
-}
-
-/** 약관 화면들의 상단 바. 시안 GNB: 높이 58, 뒤로 32(끝에서 20), 가운데 제목 title3. */
-@Composable
-internal fun TermsTopBar(
-    title: String,
-    onBackClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(TermsTopBarHeight),
-    ) {
-        MoaMapBackButton(
-            onClick = onBackClick,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = MoaMapTopBarIconEdgePadding),
-        )
-        Text(
-            text = title,
-            style = MoaMapTheme.typography.title3,
-            color = MoaMapTheme.colors.textNormal,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(horizontal = TermsTopBarTitleHorizontalPadding),
-        )
     }
 }
 
