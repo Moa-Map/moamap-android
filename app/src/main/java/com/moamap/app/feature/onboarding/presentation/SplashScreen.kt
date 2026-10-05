@@ -14,6 +14,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -46,6 +47,14 @@ private const val BottomSpacerWeight = 332f
 
 private const val SplashTitle = "취향을 담아,\n우리만의 지도로"
 
+/**
+ * 배경. 시안 「Splash/」(3552:18930)는 다른 파란 바탕 화면(`backgroundPrimary`, 단색 #E6F6FF)과 달리
+ * 위 #B3E4FD → 아래 흰색 세로 그라데이션이다.
+ */
+private val SplashBackground = Brush.verticalGradient(
+    colors = listOf(MoaMapPrimitiveColors.Blue100, MoaMapPrimitiveColors.White),
+)
+
 @Composable
 fun SplashScreen(
     onNavigateToLogin: () -> Unit,
@@ -71,7 +80,7 @@ internal fun SplashContent(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(MoaMapTheme.colors.backgroundPrimary),
+            .background(SplashBackground),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.weight(TopSpacerWeight))
@@ -89,7 +98,7 @@ internal fun SplashContent(modifier: Modifier = Modifier) {
         Text(
             text = SplashTitle,
             style = MoaMapTheme.typography.display2,
-            color = MoaMapPrimitiveColors.Black,
+            color = MoaMapTheme.colors.textNormal,
             textAlign = TextAlign.Center,
         )
 

@@ -67,7 +67,7 @@ data class MoaMapColors(
     val textAssistive: Color,
     val textDisable: Color,
     val textWhite: Color,
-    /** 시안 `Background/Primary`. 탐색·모음·공식지도·로그인·스플래시 등 파란 바탕 화면. */
+    /** 시안 `Background/Primary`. 탐색·모음·공식지도·로그인 등 파란 바탕 화면. 스플래시는 따로 그라데이션이다. */
     val backgroundPrimary: Color,
     val backgroundSecondary: Color,
     val statusAlert: Color,
