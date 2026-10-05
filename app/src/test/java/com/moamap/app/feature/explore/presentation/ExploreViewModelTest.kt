@@ -81,9 +81,6 @@ class ExploreViewModelTest {
             delay(responseDelayMillis)
             return CommunityMapPage(maps = result(), isLast = true)
         }
-
-        override suspend fun getRecommendedMaps(): List<CommunityMap> =
-            throw UnsupportedOperationException("홈은 맞춤 추천을 부르지 않는다")
     }
 
     private class FakeOfficialMapRepository(

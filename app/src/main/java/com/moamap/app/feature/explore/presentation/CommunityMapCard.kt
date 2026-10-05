@@ -102,14 +102,12 @@ fun CommunityMapCard(
                         contentDescription = "참여 인원",
                     )
                     // 장소가 없어도 "0곳" 을 그린다. 줄을 숨기면 인원만 있는 카드와
-                    // 섞여 어느 쪽이 0인지 알 수 없다. 장소 수를 모를 때(추천)만 숨긴다.
-                    map.placeCount?.let { placeCount ->
-                        CommunityMapMeta(
-                            iconRes = R.drawable.ic_location,
-                            text = formatPlaceCount(placeCount),
-                            contentDescription = "등록 장소",
-                        )
-                    }
+                    // 섞여 어느 쪽이 0인지 알 수 없다.
+                    CommunityMapMeta(
+                        iconRes = R.drawable.ic_location,
+                        text = formatPlaceCount(map.placeCount),
+                        contentDescription = "등록 장소",
+                    )
                 }
             }
         }
