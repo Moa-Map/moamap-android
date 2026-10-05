@@ -2,6 +2,8 @@ package com.moamap.app.feature.mapdetail
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.Crossfade
+import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -59,17 +61,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
-import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -125,23 +123,24 @@ private val SheetFirstReviewPeek = 12.dp + 0.5.dp + 12.dp + 80.dp
 /** 내용이 아주 길어도 시트 윗변이 화면 위에서 이만큼은 내려와 있게 한다. 지도가 조금은 보여야 시트다. */
 private const val SheetMinTopFraction = 0.15f
 
-/** 시트를 이만큼 넘게 끌고 놓으면 페이지로·닫힘으로 간다. 머티리얼 바텀시트와 같은 값이다. */
+/** 시트 자리보다 이만큼 넘게 끌어내리고 놓으면 닫힌다. 머티리얼 바텀시트와 같은 값이다. */
 private val SheetDragThreshold = 56.dp
-private val SheetVelocityThreshold = 125.dp
+
+/** 시트 자리에서 화면 위까지 가는 길의 마지막 이 비율 안으로 끌어 올리고 놓으면 페이지가 된다(「거의 다」). */
+private const val PageSnapFraction = 0.2f
+/**
+ * 놓을 때 이보다 빠르면(초당) 튕긴 것으로 본다. 머티리얼 기본값 125 는 천천히 끌다 놓는 손끝 속도로도
+ * 넘어 「천천히 올리면 멈춘다」(사용자 결정)가 안 돼서, 일부러 튕길 때만 넘게 높게 잡는다.
+ */
+private val SheetVelocityThreshold = 1000.dp
 private val PlacePhotoShape = RoundedCornerShape(4.dp)
 private val PlaceTagShape = RoundedCornerShape(100.dp)
 private val PlaceActionShape = RoundedCornerShape(8.dp)
 private val ReviewPhotoShape = RoundedCornerShape(8.dp)
 
-/** 이름 줄 오른쪽 끝 외부 링크 버튼. 이름·태그는 이 폭에 간격 8 을 더한 만큼 비켜 선다. */
-private val LinkMenuButtonSize = 36.dp
-private val LinkMenuButtonClearance = LinkMenuButtonSize + 8.dp
-private val LinkMenuItemSize = 44.dp
-private val LinkMenuShareSize = 40.dp
-
-/** 시안의 메뉴 간격: 카카오맵·인스타그램 사이 12, 공유하기 앞 21. */
-private val LinkMenuItemGap = 12.dp
-private val LinkMenuShareGap = 21.dp
+/** 이름 줄 오른쪽 끝 인스타그램 버튼. 버튼이 있으면 이름·태그는 이 폭에 간격 8 을 더한 만큼 비켜 선다. */
+private val InstagramButtonSize = 36.dp
+private val InstagramButtonClearance = InstagramButtonSize + 8.dp
 private val ReviewAvatarSize = 28.dp
 private val ReviewAvatarImageSize = 24.dp
 private val ReviewRowMinHeight = 80.dp
@@ -165,30 +164,33 @@ internal data class PersonalMapActionUiModel(
     val failed: Boolean = false,
 )
 
-/** 장소 상세가 보이는 단계. 장소를 누르면 시트로 열리고, 시트를 위로 끌면 페이지로 펼쳐진다. */
+/** 장소 상세가 보이는 단계. 장소를 누르면 시트로 열리고, 시트를 거의 끝까지 끌어 올리면 페이지가 된다. */
 internal enum class PlaceDetailStage { Sheet, Page }
 
 /** 끌던 시트를 놓았을 때 갈 곳. [placeSheetDragTarget] 참고. */
-internal enum class PlaceSheetTarget { Page, Sheet, Hidden }
+internal enum class PlaceSheetTarget { Page, Sheet, Hidden, Stay }
 
 /**
  * 시트를 끌다 놓았을 때 갈 곳. 오프셋은 화면 위에서 시트 윗변까지 거리라 작을수록 위다.
  *
  * 빠르게 튕기면 그 방향으로 간다 - 위로는 페이지, 아래로는 시트 자리보다 내려와 있었으면 닫힘(아직
- * 위였으면 시트로 돌아옴). 천천히 놓으면 시트 자리에서 [distanceThreshold] 넘게 벗어났을 때만 움직인다.
+ * 위였으면 시트로 돌아옴). 천천히 놓으면 [pageLine] 위(거의 끝)는 페이지, 시트 자리와 그 사이는 놓은
+ * 자리에 멈춤(사용자 결정), 시트 자리보다 아래는 [distanceThreshold] 넘게 내렸으면 닫힘·아니면 시트로.
  */
 internal fun placeSheetDragTarget(
     offset: Float,
     velocity: Float,
     sheetOffset: Float,
+    pageLine: Float,
     distanceThreshold: Float,
     velocityThreshold: Float,
 ): PlaceSheetTarget = when {
     velocity <= -velocityThreshold -> PlaceSheetTarget.Page
     velocity >= velocityThreshold -> if (offset < sheetOffset) PlaceSheetTarget.Sheet else PlaceSheetTarget.Hidden
-    offset <= sheetOffset - distanceThreshold -> PlaceSheetTarget.Page
+    offset <= pageLine -> PlaceSheetTarget.Page
     offset >= sheetOffset + distanceThreshold -> PlaceSheetTarget.Hidden
-    else -> PlaceSheetTarget.Sheet
+    offset > sheetOffset -> PlaceSheetTarget.Sheet
+    else -> PlaceSheetTarget.Stay
 }
 
 /**
@@ -223,16 +225,16 @@ private class PlaceSheetProbe {
 }
 
 /**
- * 장소 상세. 장소를 누르면 지도 위로 시트 하나가 올라오고(뒤는 어둡게), 위로 끌면 화면을 덮는
- * 페이지로 펼쳐진다. 시안 「10/3」 장소 상세 시트·페이지.
+ * 장소 상세. 장소를 누르면 지도 위로 시트 하나가 올라오고(뒤는 어둡게), 끌어 올린 만큼 아래 내용이
+ * 드러난다. 중간에 놓으면 그 자리에 멈추고, 거의 끝까지 올리면 화면을 덮는 페이지가 된다. 시안
+ * 「10/3」 장소 상세 시트·페이지.
  *
  * 시트 높이는 장소마다 잰다 - 사진이 있으면 버튼 줄까지, 없으면 첫 댓글까지, 댓글이 없는 공식지도는
- * 버튼 줄까지. 사진이 있는 장소는 시트에서만 줄인 배치(태그 옆 주소, 설명·신고하기 없음)를 쓴다.
- * 시트는 화면 높이 그대로이고 아래로 밀어 둔 것이라, 아래쪽 댓글 입력은 페이지가 돼야 보인다.
+ * 버튼 줄까지. 사진이 있는 장소는 시트에서만 줄인 배치(태그 옆 주소, 설명·신고하기 없음)를 쓰고,
+ * 페이지가 되면 겹쳐 바뀐다. 시트는 화면 높이 그대로이고 아래로 밀어 둔 것이라, 아래쪽 댓글 입력은
+ * 페이지가 돼야 보인다.
  *
- * 닫는 길: 시트에서 ←·어두운 곳·아래로 끌기·기기 뒤로 = 장소 목록, × = 처음 들어온 상태. 페이지에서
- * ←·기기 뒤로 = 시트. 이름 오른쪽 버튼은 외부 링크 메뉴(카카오맵·인스타그램·공유하기)를 화면 전체를
- * 어둡게 덮고 그 자리에 펼친다.
+ * 닫는 길: 시트·페이지의 ←·기기 뒤로, 시트의 어두운 곳·아래로 끌기 = 장소 목록, × = 처음 들어온 상태.
  */
 @Composable
 internal fun PlaceDetailScreen(
@@ -242,10 +244,10 @@ internal fun PlaceDetailScreen(
     onBackClick: () -> Unit,
     /** 지도 상세에 처음 들어왔을 때의 화면으로 돌아간다. 시트가 다 내려간 뒤에 부른다. */
     onCloseClick: () -> Unit,
+    /** 「지도 보기」. 카카오맵에서 이 장소를 연다. */
     onKakaoMapClick: () -> Unit,
+    /** 인스타그램에서 가져온 장소의 원본 게시물을 연다. 그런 장소에만 버튼이 있다. */
     onInstagramClick: () -> Unit,
-    /** 상세를 닫고 지도를 이 장소 마커로 옮긴다. 시트가 다 내려간 뒤에 부른다. */
-    onShowOnMapClick: () -> Unit,
     modifier: Modifier = Modifier,
     onRetryReviews: () -> Unit = {},
     /** null 이면 「나만의 지도에 추가」를 띄우지 않는다. 나만의 지도를 보고 있을 때다. */
@@ -256,24 +258,17 @@ internal fun PlaceDetailScreen(
     onEditReview: (Long) -> Unit = {},
     onCancelEdit: () -> Unit = {},
     onDeleteReview: (Long) -> Unit = {},
-    /** false 면 하트·신고하기·댓글을 뺀다. 공식지도다. 나만의 지도 추가·지도 보기·외부 링크는 남는다. */
+    /** false 면 하트·신고하기·댓글을 뺀다. 공식지도다. 나만의 지도 추가·지도 보기는 남는다. */
     showsReactions: Boolean = true,
 ) {
     var stage by rememberSaveable(place.id) { mutableStateOf(PlaceDetailStage.Sheet) }
-    // 외부 링크 메뉴를 연 버튼의 자리(이 화면 기준). null 이면 메뉴가 닫혀 있다.
-    var linkMenuAnchor by remember(place.id) { mutableStateOf<Rect?>(null) }
-    var screenOrigin by remember { mutableStateOf(Offset.Zero) }
     val probe = remember(place.id) { PlaceSheetProbe() }
     SideEffect { probe.measuring = stage == PlaceDetailStage.Sheet }
     val listState = remember(place.id) { LazyListState() }
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
 
-    BoxWithConstraints(
-        modifier = modifier
-            .fillMaxSize()
-            .onGloballyPositioned { coordinates -> screenOrigin = coordinates.positionInRoot() },
-    ) {
+    BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         val screenHeight = constraints.maxHeight.toFloat()
         // 시트 윗변의 자리. 처음엔 화면 아래(닫힘)에서 시작해 높이를 재면 올라온다.
         val offset = remember(place.id) {
@@ -288,15 +283,16 @@ internal fun PlaceDetailScreen(
             val sheetHeight = actionsBottom + with(density) { belowActions.toPx() }
             (screenHeight - sheetHeight).coerceAtLeast(screenHeight * SheetMinTopFraction)
         }
+        // 이 선보다 위로 올리고 놓으면 페이지가 된다(시트 자리에서 끝까지의 마지막 20%).
+        val pageLine = sheetOffset?.let { anchor ->
+            (anchor * PageSnapFraction).coerceAtMost(anchor - with(density) { SheetDragThreshold.toPx() })
+        }
 
-        // 페이지는 위 끝까지, 시트는 잰 자리로. 페이지에서 시트로 내려오면 목록을 맨 위로 되돌린다.
+        // 페이지는 위 끝까지, 시트는 잰 자리로. 놓은 자리에 멈춘 시트는 단계가 그대로라 건드리지 않는다.
         LaunchedEffect(stage, sheetOffset) {
             when (stage) {
                 PlaceDetailStage.Page -> offset.animateTo(0f)
-                PlaceDetailStage.Sheet -> {
-                    listState.scrollToItem(0)
-                    sheetOffset?.let { target -> offset.animateTo(target) }
-                }
+                PlaceDetailStage.Sheet -> sheetOffset?.let { target -> offset.animateTo(target) }
             }
         }
 
@@ -307,9 +303,7 @@ internal fun PlaceDetailScreen(
                 then()
             }
         }
-        val onBack = {
-            if (stage == PlaceDetailStage.Page) stage = PlaceDetailStage.Sheet else dismissThen(onBackClick)
-        }
+        val onBack = { dismissThen(onBackClick) }
 
         // 시트 뒤 지도와 상단 바를 어둡게 덮는다. 시트가 올라온 만큼 짙어지고, 누르면 목록으로.
         Box(
@@ -325,7 +319,7 @@ internal fun PlaceDetailScreen(
                     interactionSource = null,
                     indication = null,
                     onClickLabel = "장소 상세 닫기",
-                ) { dismissThen(onBackClick) },
+                ) { onBack() },
         )
 
         PlaceDetailContent(
@@ -336,8 +330,8 @@ internal fun PlaceDetailScreen(
             listState = listState,
             onBackClick = onBack,
             onCloseClick = { dismissThen(onCloseClick) },
-            onLinkMenuClick = { anchorInRoot -> linkMenuAnchor = anchorInRoot.translate(-screenOrigin) },
-            onShowOnMapClick = { dismissThen(onShowOnMapClick) },
+            onInstagramClick = onInstagramClick,
+            onKakaoMapClick = onKakaoMapClick,
             onActionsPositioned = { coordinates -> probe.actions = coordinates },
             onRetryReviews = onRetryReviews,
             personalMapAction = personalMapAction,
@@ -352,11 +346,10 @@ internal fun PlaceDetailScreen(
                 .fillMaxSize()
                 .offset { IntOffset(0, offset.value.roundToInt()) }
                 .onGloballyPositioned { coordinates -> probe.panel = coordinates }
-                // 시트일 땐 위 모서리 38, 위로 끌수록 줄어 페이지에서 0 이 된다.
+                // 위 모서리 38. 거의 끝까지 올라와 페이지가 될 자리에 들어서면 줄어 페이지에서 0 이 된다.
                 .graphicsLayer {
-                    val sheetTop = sheetOffset ?: screenHeight
-                    val radius = SheetCornerRadius.toPx() *
-                        (offset.value / sheetTop.coerceAtLeast(1f)).coerceIn(0f, 1f)
+                    val line = pageLine ?: screenHeight
+                    val radius = SheetCornerRadius.toPx() * (offset.value / line.coerceAtLeast(1f)).coerceIn(0f, 1f)
                     shape = RoundedCornerShape(topStart = radius, topEnd = radius)
                     clip = true
                 }
@@ -372,11 +365,13 @@ internal fun PlaceDetailScreen(
                     },
                     onDragStopped = { velocity ->
                         val anchor = sheetOffset
-                        if (anchor != null) {
+                        val line = pageLine
+                        if (anchor != null && line != null) {
                             val target = placeSheetDragTarget(
                                 offset = offset.value,
                                 velocity = velocity,
                                 sheetOffset = anchor,
+                                pageLine = line,
                                 distanceThreshold = with(density) { SheetDragThreshold.toPx() },
                                 velocityThreshold = with(density) { SheetVelocityThreshold.toPx() },
                             )
@@ -387,32 +382,15 @@ internal fun PlaceDetailScreen(
                                     offset.animateTo(screenHeight)
                                     onBackClick()
                                 }
+                                PlaceSheetTarget.Stay -> Unit
                             }
                         }
                     },
-                )
-                .then(if (stage == PlaceDetailStage.Page) Modifier.statusBarsPadding() else Modifier),
+                ),
         )
 
-        linkMenuAnchor?.let { anchor ->
-            PlaceLinkMenu(
-                anchor = anchor,
-                showsInstagram = place.instagramUrl != null,
-                onKakaoMapClick = {
-                    linkMenuAnchor = null
-                    onKakaoMapClick()
-                },
-                onInstagramClick = {
-                    linkMenuAnchor = null
-                    onInstagramClick()
-                },
-                onDismiss = { linkMenuAnchor = null },
-            )
-        }
-
-        // 상세보다 나중에 생겨 지도 화면의 뒤로가기보다 먼저 받는다. 나중에 둔 메뉴 쪽이 가장 먼저다.
+        // 상세보다 나중에 생겨 지도 화면의 뒤로가기보다 먼저 받는다.
         BackHandler(onBack = onBack)
-        BackHandler(enabled = linkMenuAnchor != null) { linkMenuAnchor = null }
     }
 }
 
@@ -432,7 +410,8 @@ internal fun trySubmitReview(
  * 상세 내용. 상단 바와 입력창은 목록과 함께 스크롤되지 않고 위아래에 붙는다(시안).
  *
  * [sheet] 면 위에 손잡이와 ←·× 줄을 두고 목록 스크롤을 끈다(끌면 시트가 움직인다). 아니면 페이지라
- * ←만 둔다. [compact] 는 사진 있는 장소의 시트 배치다.
+ * ←만 둔다. [compact] 는 사진 있는 장소의 시트 배치다. 시트가 페이지가 될 때 상단 줄과 배치는 겹쳐
+ * 바뀌고 높이도 부드럽게 따라간다.
  *
  * 카메라·갤러리 고르기는 이 안에 겹쳐 띄운다. Popup 으로 띄우면 화면 밖에 그려져, 바깥을
  * 눌렀을 때 상세까지 함께 닫힌다.
@@ -442,10 +421,10 @@ private fun PlaceDetailContent(
     place: PlaceUiModel,
     reviews: PlaceReviewsUiModel,
     onBackClick: () -> Unit,
-    /** 외부 링크 버튼의 자리(화면 루트 기준)를 넘긴다. 메뉴가 그 자리에 펼쳐진다. */
-    onLinkMenuClick: (Rect) -> Unit,
-    onShowOnMapClick: () -> Unit,
+    onKakaoMapClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 인스타그램에서 가져온 장소에만 이름 오른쪽에 버튼을 두고, 누르면 이걸 부른다. */
+    onInstagramClick: () -> Unit = {},
     sheet: Boolean = false,
     compact: Boolean = false,
     onCloseClick: () -> Unit = {},
@@ -484,10 +463,14 @@ private fun PlaceDetailContent(
             .dismissKeyboardOnBackgroundTap(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            if (sheet) {
-                PlaceSheetTopBar(onBackClick = onBackClick, onCloseClick = onCloseClick)
-            } else {
-                PlaceDetailTopBar(onBackClick = onBackClick)
+            Box(modifier = Modifier.animateContentSize()) {
+                Crossfade(targetState = sheet, label = "placeDetailTopBar") { isSheet ->
+                    if (isSheet) {
+                        PlaceSheetTopBar(onBackClick = onBackClick, onCloseClick = onCloseClick)
+                    } else {
+                        PlaceDetailTopBar(onBackClick = onBackClick)
+                    }
+                }
             }
 
             LazyColumn(
@@ -503,29 +486,36 @@ private fun PlaceDetailContent(
                         PlaceActions(
                             personalMapAction = personalMapAction,
                             onAddToPersonalMapClick = onAddToPersonalMapClick,
-                            onShowOnMapClick = onShowOnMapClick,
+                            onShowOnMapClick = onKakaoMapClick,
                             buttonGap = buttonGap,
                             modifier = modifier.onGloballyPositioned(onActionsPositioned),
                         )
                     }
-                    // 블록 사이 간격은 시안 그대로 12씩이다.
-                    if (compact) {
-                        PlaceCompactHeader(
-                            place = place,
-                            onLikeClick = onLikeClick,
-                            onLinkMenuClick = onLinkMenuClick,
-                            showsReactions = showsReactions,
-                            actions = { actions(Modifier, CompactActionGap) },
-                        )
-                    } else {
-                        PlaceHeader(
-                            place = place,
-                            onLikeClick = onLikeClick,
-                            onLinkMenuClick = onLinkMenuClick,
-                            showsReactions = showsReactions,
-                        )
-                        Spacer(modifier = Modifier.height(12.dp))
-                        actions(Modifier.padding(horizontal = 20.dp), PageActionGap)
+                    val instagramClick = onInstagramClick.takeIf { place.instagramUrl != null }
+                    // 블록 사이 간격은 시안 그대로 12씩이다. 사진 있는 장소가 페이지가 되면 배치가 겹쳐 바뀐다.
+                    Box(modifier = Modifier.animateContentSize()) {
+                        Crossfade(targetState = compact, label = "placeDetailHeader") { isCompact ->
+                            if (isCompact) {
+                                PlaceCompactHeader(
+                                    place = place,
+                                    onLikeClick = onLikeClick,
+                                    onInstagramClick = instagramClick,
+                                    showsReactions = showsReactions,
+                                    actions = { actions(Modifier, CompactActionGap) },
+                                )
+                            } else {
+                                Column {
+                                    PlaceHeader(
+                                        place = place,
+                                        onLikeClick = onLikeClick,
+                                        onInstagramClick = instagramClick,
+                                        showsReactions = showsReactions,
+                                    )
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    actions(Modifier.padding(horizontal = 20.dp), PageActionGap)
+                                }
+                            }
+                        }
                     }
                     // 구분선은 댓글과 나누는 줄이라 댓글이 없으면 같이 뺀다.
                     if (showsReactions) {
@@ -736,12 +726,13 @@ internal fun BackCloseControls(
     }
 }
 
-/** 장소 상세 페이지 상단 바. 시안 GNB 58 에 뒤로가기만 있다. */
+/** 장소 상세 페이지 상단 바. 시안 GNB 58 에 뒤로가기만 있다. 페이지는 화면 맨 위라 상태 표시줄만큼 내린다. */
 @Composable
 private fun PlaceDetailTopBar(onBackClick: () -> Unit) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .height(PlaceDetailTopBarHeight),
     ) {
         MoaMapBackButton(
@@ -783,15 +774,17 @@ private fun PlaceSheetTopBar(onBackClick: () -> Unit, onCloseClick: () -> Unit) 
  * 장소 정보. 시안 「장소 상세 설명」(10/3 장소 상세 페이지·사진 없는 시트).
  *
  * 이름·태그·위치 → 사진(있을 때만) → 설명·하트·신고하기 순서다. 사진이 없는 장소는 사진 칸만
- * 빠지고 나머지 배치는 같다. 외부 링크 버튼은 이름 줄 오른쪽 끝에 겹쳐 선다.
+ * 빠지고 나머지 배치는 같다. 인스타그램에서 가져온 장소는 이름 줄 오른쪽 끝에 인스타그램 버튼이
+ * 겹쳐 선다([onInstagramClick] 가 null 이면 없다).
  */
 @Composable
 private fun PlaceHeader(
     place: PlaceUiModel,
     onLikeClick: () -> Unit,
-    onLinkMenuClick: (Rect) -> Unit,
+    onInstagramClick: (() -> Unit)?,
     showsReactions: Boolean,
 ) {
+    val clearance = if (onInstagramClick != null) InstagramButtonClearance else 0.dp
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -805,20 +798,19 @@ private fun PlaceHeader(
                     .padding(horizontal = 2.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                PlaceName(name = place.name)
+                PlaceName(name = place.name, endClearance = clearance)
                 if (place.tags.isNotEmpty()) {
                     PlaceTagRow(
                         tags = place.tags,
-                        modifier = Modifier.padding(end = LinkMenuButtonClearance),
+                        modifier = Modifier.padding(end = clearance),
                     )
                 }
                 if (place.address.isNotBlank()) PlaceLocation(address = place.address)
             }
 
-            PlaceLinkMenuButton(
-                onClick = onLinkMenuClick,
-                modifier = Modifier.align(Alignment.TopEnd),
-            )
+            onInstagramClick?.let { onClick ->
+                PlaceInstagramButton(onClick = onClick, modifier = Modifier.align(Alignment.TopEnd))
+            }
         }
 
         place.photoUrl?.let { url -> PlacePhoto(url = url, height = PlacePhotoHeight) }
@@ -856,19 +848,20 @@ private fun PlaceHeader(
 }
 
 /**
- * 사진 있는 장소의 시트 배치. 시안 「10/3」 시트(사진 있음).
+ * 사진 있는 장소의 시트 배치. 시안 「10/3」 시트(사진 있음·사진 있음 + 인스타 버튼).
  *
  * 이름 → 태그 · 주소 한 줄 → 하트 → 사진(167) → 버튼 줄(간격 4). 설명·신고하기·위치 아이콘은 없다.
- * 위로 끌어 페이지가 되면 [PlaceHeader] 배치로 바뀐다.
+ * 거의 끝까지 끌어 올려 페이지가 되면 [PlaceHeader] 배치로 겹쳐 바뀐다.
  */
 @Composable
 private fun PlaceCompactHeader(
     place: PlaceUiModel,
     onLikeClick: () -> Unit,
-    onLinkMenuClick: (Rect) -> Unit,
+    onInstagramClick: (() -> Unit)?,
     showsReactions: Boolean,
     actions: @Composable () -> Unit,
 ) {
+    val clearance = if (onInstagramClick != null) InstagramButtonClearance else 0.dp
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -882,19 +875,18 @@ private fun PlaceCompactHeader(
                     .padding(horizontal = 2.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                PlaceName(name = place.name)
+                PlaceName(name = place.name, endClearance = clearance)
                 PlaceTagAddressLine(
                     tags = place.tags,
                     address = place.address,
-                    modifier = Modifier.padding(end = LinkMenuButtonClearance),
+                    modifier = Modifier.padding(end = clearance),
                 )
                 if (showsReactions) PlaceLikeButton(place = place, onClick = onLikeClick)
             }
 
-            PlaceLinkMenuButton(
-                onClick = onLinkMenuClick,
-                modifier = Modifier.align(Alignment.TopEnd),
-            )
+            onInstagramClick?.let { onClick ->
+                PlaceInstagramButton(onClick = onClick, modifier = Modifier.align(Alignment.TopEnd))
+            }
         }
 
         place.photoUrl?.let { url -> PlacePhoto(url = url, height = SheetPhotoHeight) }
@@ -903,14 +895,14 @@ private fun PlaceCompactHeader(
 }
 
 @Composable
-private fun PlaceName(name: String) {
+private fun PlaceName(name: String, endClearance: Dp) {
     Text(
         text = name,
         style = MoaMapTheme.typography.subtitle1.withDesignLineHeight(),
         color = MoaMapTheme.colors.textNormal,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.padding(end = LinkMenuButtonClearance),
+        modifier = Modifier.padding(end = endClearance),
     )
 }
 
@@ -1035,109 +1027,29 @@ private fun PlaceLikeButton(place: PlaceUiModel, onClick: () -> Unit) {
 }
 
 /**
- * 외부 링크 메뉴를 여는 원 버튼(36). 누르는 칸은 48 이고 그림은 그 가운데라, 칸을 바깥으로 6 씩
- * 내밀어 그림이 시안 자리(이름 줄 오른쪽 끝)에 선다.
+ * 인스타그램 원본 게시물로 가는 원 버튼(36). 인스타그램 링크로 가져온 장소에만 둔다(사용자 결정).
+ * 누르는 칸은 48 이고 그림은 그 가운데라, 칸을 바깥으로 6 씩 내밀어 그림이 시안 자리(이름 줄 오른쪽
+ * 끝)에 선다.
  */
 @Composable
-private fun PlaceLinkMenuButton(
-    onClick: (Rect) -> Unit,
+private fun PlaceInstagramButton(
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // 같은 좌표계 객체가 계속 들어와 다시 그리게 하지 않는다. 자리는 누를 때 읽는다.
-    var imageCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     Box(
         modifier = modifier
             .offset(x = 6.dp, y = (-6).dp)
             .size(48.dp)
-            .clickable(role = Role.Button) {
-                imageCoordinates?.takeIf { it.isAttached }?.let { coordinates -> onClick(coordinates.boundsInRoot()) }
-            }
-            .semantics { contentDescription = "외부 링크 열기" },
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = "인스타그램 게시물 보기" },
         contentAlignment = Alignment.Center,
     ) {
         Image(
-            painter = painterResource(R.drawable.img_place_link_menu),
+            painter = painterResource(R.drawable.img_place_instagram_link),
             contentDescription = null,
-            modifier = Modifier
-                .size(LinkMenuButtonSize)
-                .onGloballyPositioned { coordinates -> imageCoordinates = coordinates },
+            modifier = Modifier.size(InstagramButtonSize),
         )
     }
-}
-
-/**
- * 외부 링크 메뉴. 시안 「상세지도/장소/장소선택」의 메뉴 모양: 화면 전체를 75% 검정으로 덮고, 버튼
- * 자리에서 아래로 카카오맵 → 인스타그램(인스타그램에서 가져온 장소만) → 공유하기를 세운다.
- * 오른쪽 끝은 버튼과 맞추고, 첫 아이콘은 버튼과 세로 가운데를 맞춘다. 어두운 곳을 누르면 닫힌다.
- */
-@Composable
-private fun PlaceLinkMenu(
-    anchor: Rect,
-    showsInstagram: Boolean,
-    onKakaoMapClick: () -> Unit,
-    onInstagramClick: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MoaMapPrimitiveColors.TransparentBlack)
-            .pointerInput(Unit) { detectTapGestures { onDismiss() } },
-    ) {
-        Column(
-            modifier = Modifier.offset {
-                val itemSize = LinkMenuItemSize.toPx()
-                IntOffset(
-                    x = (anchor.right - itemSize).roundToInt(),
-                    y = (anchor.center.y - itemSize / 2).roundToInt(),
-                )
-            },
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            LinkMenuItem(
-                imageRes = R.drawable.img_link_kakao_map,
-                label = "카카오맵에서 보기",
-                onClick = onKakaoMapClick,
-            )
-            if (showsInstagram) {
-                Spacer(modifier = Modifier.height(LinkMenuItemGap))
-                LinkMenuItem(
-                    imageRes = R.drawable.img_link_instagram,
-                    label = "인스타그램 게시물 보기",
-                    onClick = onInstagramClick,
-                )
-            }
-            Spacer(modifier = Modifier.height(LinkMenuShareGap))
-            // 공유는 아직 기능이 없다(사용자 결정). 눌러도 메뉴가 닫히지 않게 탭만 받아 둔다.
-            Box(
-                modifier = Modifier
-                    .size(LinkMenuShareSize)
-                    .clip(CircleShape)
-                    .background(MoaMapPrimitiveColors.Gray200)
-                    .pointerInput(Unit) { detectTapGestures { } }
-                    .semantics { contentDescription = "공유하기" },
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_send),
-                    contentDescription = null,
-                    tint = MoaMapPrimitiveColors.White,
-                    modifier = Modifier.size(32.dp),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun LinkMenuItem(imageRes: Int, label: String, onClick: () -> Unit) {
-    Image(
-        painter = painterResource(imageRes),
-        contentDescription = label,
-        modifier = Modifier
-            .size(LinkMenuItemSize)
-            .clickable(role = Role.Button, onClick = onClick),
-    )
 }
 
 @Composable
@@ -1657,8 +1569,7 @@ private fun PlaceDetailPreview() {
                 place = SamplePlaces.first().copy(photoUrl = "preview"),
                 reviews = PlaceReviewsUiModel(items = SamplePlaceReviews),
                 onBackClick = {},
-                onLinkMenuClick = {},
-                onShowOnMapClick = {},
+                onKakaoMapClick = {},
                 personalMapAction = PersonalMapActionUiModel(message = "나만의 지도에 추가했어요"),
                 onSubmitReview = { _, _ -> true },
                 modifier = Modifier.fillMaxSize(),
@@ -1677,8 +1588,7 @@ private fun PlaceDetailNoPhotoPreview() {
                 place = SamplePlaces[1],
                 reviews = PlaceReviewsUiModel(items = SamplePlaceReviews.take(2)),
                 onBackClick = {},
-                onLinkMenuClick = {},
-                onShowOnMapClick = {},
+                onKakaoMapClick = {},
                 modifier = Modifier.fillMaxSize(),
             )
         }
@@ -1695,8 +1605,7 @@ private fun PlaceDetailCompactSheetPreview() {
                 place = SamplePlaces.first().copy(photoUrl = "preview"),
                 reviews = PlaceReviewsUiModel(items = SamplePlaceReviews),
                 onBackClick = {},
-                onLinkMenuClick = {},
-                onShowOnMapClick = {},
+                onKakaoMapClick = {},
                 sheet = true,
                 compact = true,
                 personalMapAction = PersonalMapActionUiModel(),
@@ -1704,19 +1613,5 @@ private fun PlaceDetailCompactSheetPreview() {
                 modifier = Modifier.fillMaxSize(),
             )
         }
-    }
-}
-
-@Preview(showBackground = true, widthDp = 393, heightDp = 852)
-@Composable
-private fun PlaceLinkMenuPreview() {
-    MoaMapTheme {
-        PlaceLinkMenu(
-            anchor = Rect(left = 337f, top = 110f, right = 373f, bottom = 146f),
-            showsInstagram = true,
-            onKakaoMapClick = {},
-            onInstagramClick = {},
-            onDismiss = {},
-        )
     }
 }
