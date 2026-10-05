@@ -15,7 +15,8 @@ import com.moamap.app.feature.explore.domain.model.CommunityMapSort
 /**
  * 인기순·최신순. 커뮤니티 지도 전체보기에서 쓴다(탐색 탭은 10-03부터 인기순 고정).
  *
- * 시안: 왼쪽 정렬, 사이 8. 고른 쪽은 14 Bold 검정, 나머지는 14 Regular 회색.
+ * 시안: 왼쪽 정렬, 사이 8. 고른 쪽은 14 Bold, 나머지는 14 Regular 회색. 시안은 고른 쪽도 회색이지만
+ * 고른 게 잘 보이게 검정으로 둔다(10-06 사용자 결정).
  */
 @Composable
 internal fun CommunityMapSortRow(
