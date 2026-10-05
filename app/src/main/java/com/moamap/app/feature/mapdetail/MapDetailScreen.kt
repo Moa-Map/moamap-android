@@ -527,6 +527,7 @@ fun MapDetailScreen(
             onTabSelected = { tab -> uiState = uiState.selectTab(tab) },
             places = visiblePlaces,
             collapseSheetSignal = collapseSheetSignal,
+            placeSheetOpen = selectedPlace != null,
             categoryFilters = categoryFilters,
             selectedCategory = uiState.selectedCategory,
             onCategorySelect = { filter -> uiState = uiState.selectCategory(filter) },
@@ -684,6 +685,12 @@ fun MapDetailScreen(
                 place = place,
                 reviews = reviews,
                 onBackClick = closePlaceDetail,
+                // 닫기는 지도 상세에 처음 들어왔을 때로 되돌린다 - 장소 탭, 검색어 없음,
+                // 카테고리 전체, 그리고 접힌 장소 목록 시트.
+                onCloseClick = {
+                    uiState = MapDetailUiState()
+                    collapseSheetSignal++
+                },
                 onKakaoMapClick = {
                     openKakaoMap(context, kakaoPlaceId = place.kakaoPlaceId, placeName = place.name)
                 },
@@ -817,6 +824,8 @@ internal fun MapDetailContent(
     places: List<PlaceUiModel>,
     /** 값이 바뀌면 장소 목록 시트를 접는다. */
     collapseSheetSignal: Int,
+    /** 장소 시트가 떠 있다. 그동안 목록 시트를 접어 장소 시트 뒤로 숨긴다. */
+    placeSheetOpen: Boolean = false,
     categoryFilters: List<PlaceCategoryFilter>,
     selectedCategory: PlaceCategoryFilter,
     onCategorySelect: (PlaceCategoryFilter) -> Unit,
@@ -872,6 +881,7 @@ internal fun MapDetailContent(
                         places = places,
                         placeCount = placeCount,
                         collapseSheetSignal = collapseSheetSignal,
+                        placeSheetOpen = placeSheetOpen,
                         categoryFilters = categoryFilters,
                         selectedCategory = selectedCategory,
                         onCategorySelect = onCategorySelect,
@@ -955,6 +965,7 @@ private fun MapDetailPlacesContent(
     places: List<PlaceUiModel>,
     placeCount: Int?,
     collapseSheetSignal: Int,
+    placeSheetOpen: Boolean,
     categoryFilters: List<PlaceCategoryFilter>,
     selectedCategory: PlaceCategoryFilter,
     onCategorySelect: (PlaceCategoryFilter) -> Unit,
@@ -983,9 +994,29 @@ private fun MapDetailPlacesContent(
     // 접혔을 때 카테고리 칩까지 보이는 높이. 시트가 머리 부분을 재서 알려 준다.
     var peekHeight by remember { mutableStateOf(DefaultSheetPeekHeight) }
 
-    // 장소 상세를 닫기(X)로 나오면 처음 들어왔을 때처럼 시트가 접혀 있어야 한다.
+    // 장소 시트를 열기 전에 목록을 펼쳐 두었는지. 닫히면 그대로 다시 펼친다.
+    var expandedBeforePlaceSheet by rememberSaveable { mutableStateOf(false) }
+
+    // 장소 상세를 닫기(X)·지도 보기로 나오면 처음 들어왔을 때처럼 시트가 접혀 있어야 한다.
+    // 아래 효과보다 먼저 둔다 - 같은 순간에 장소 시트가 닫혀도 다시 펼치지 않게 기억부터 지운다.
     LaunchedEffect(collapseSheetSignal) {
-        if (collapseSheetSignal > 0) scaffoldState.bottomSheetState.partialExpand()
+        if (collapseSheetSignal > 0) {
+            expandedBeforePlaceSheet = false
+            scaffoldState.bottomSheetState.partialExpand()
+        }
+    }
+
+    // 장소 시트가 떠 있는 동안 목록 시트를 접어 둔다. 장소 시트가 더 높아 뒤로 가려져, 시트 위에
+    // 시트가 쌓여 보이지 않는다. 화면을 돌려 다시 들어와도 펼쳐 두었던 기억은 지우지 않는다.
+    LaunchedEffect(placeSheetOpen) {
+        val sheetState = scaffoldState.bottomSheetState
+        if (placeSheetOpen) {
+            if (sheetState.currentValue == SheetValue.Expanded) expandedBeforePlaceSheet = true
+            sheetState.partialExpand()
+        } else if (expandedBeforePlaceSheet) {
+            expandedBeforePlaceSheet = false
+            sheetState.expand()
+        }
     }
 
     BottomSheetScaffold(
