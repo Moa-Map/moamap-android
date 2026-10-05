@@ -55,6 +55,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -78,7 +79,6 @@ import com.moamap.app.feature.mapdetail.presentation.MapLoadState
 import com.moamap.app.feature.mapdetail.presentation.mapOrNull
 import com.moamap.app.feature.mapdetail.presentation.personal.PersonalMapAddViewModel
 import com.moamap.app.feature.mapdetail.presentation.review.PlaceReviewViewModel
-import com.mapbox.geojson.Point
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
@@ -691,26 +691,11 @@ fun MapDetailScreen(
                     uiState = MapDetailUiState()
                     collapseSheetSignal++
                 },
+                // 「지도 보기」는 카카오맵에서 이 장소를 연다(10-06 사용자 정정).
                 onKakaoMapClick = {
                     openKakaoMap(context, kakaoPlaceId = place.kakaoPlaceId, placeName = place.name)
                 },
                 onInstagramClick = { place.instagramUrl?.let { url -> openWebLink(context, url) } },
-                // 상세를 닫고 장소 목록 시트를 접은 채 지도를 이 장소 마커로 옮긴다. 이미 더 가까이
-                // 보고 있었으면 배율은 그대로 둔다. pitch 는 건드리지 않는다(내 위치 버튼과 같다).
-                onShowOnMapClick = {
-                    val target = screenState.places.firstOrNull { mapPlace -> mapPlace.id == place.id }
-                    closePlaceDetail()
-                    collapseSheetSignal++
-                    target?.let { mapPlace ->
-                        mapViewportState.easeTo(
-                            cameraOptions {
-                                center(Point.fromLngLat(mapPlace.longitude, mapPlace.latitude))
-                                zoom(maxOf(mapViewportState.cameraState?.zoom ?: 0.0, PlaceFocusZoom))
-                            },
-                            MapAnimationOptions.mapAnimationOptions { duration(600L) },
-                        )
-                    }
-                },
                 onRetryReviews = reviewViewModel::retry,
                 personalMapAction = personalMapAction,
                 onAddToPersonalMapClick = personalMapViewModel::add,
@@ -824,7 +809,7 @@ internal fun MapDetailContent(
     places: List<PlaceUiModel>,
     /** 값이 바뀌면 장소 목록 시트를 접는다. */
     collapseSheetSignal: Int,
-    /** 장소 시트가 떠 있다. 그동안 목록 시트를 접어 장소 시트 뒤로 숨긴다. */
+    /** 장소 시트가 떠 있다. 그동안 목록 시트를 아래로 내려 숨기고, 닫히면 새로 올린다. */
     placeSheetOpen: Boolean = false,
     categoryFilters: List<PlaceCategoryFilter>,
     selectedCategory: PlaceCategoryFilter,
@@ -983,10 +968,13 @@ private fun MapDetailPlacesContent(
     official: Boolean,
     mapContent: @Composable () -> Unit,
 ) {
+    // 장소 시트가 떠 있는 동안에만 목록 시트를 숨길 수 있다. 사람이 끌어서 숨기지는 못한다.
+    val currentPlaceSheetOpen by rememberUpdatedState(placeSheetOpen)
     val scaffoldState = rememberBottomSheetScaffoldState(
         bottomSheetState = rememberStandardBottomSheetState(
             initialValue = SheetValue.PartiallyExpanded,
-            skipHiddenState = true,
+            skipHiddenState = false,
+            confirmValueChange = { value -> value != SheetValue.Hidden || currentPlaceSheetOpen },
         ),
     )
     val scope = rememberCoroutineScope()
@@ -994,28 +982,41 @@ private fun MapDetailPlacesContent(
     // 접혔을 때 카테고리 칩까지 보이는 높이. 시트가 머리 부분을 재서 알려 준다.
     var peekHeight by remember { mutableStateOf(DefaultSheetPeekHeight) }
 
-    // 장소 시트를 열기 전에 목록을 펼쳐 두었는지. 닫히면 그대로 다시 펼친다.
-    var expandedBeforePlaceSheet by rememberSaveable { mutableStateOf(false) }
+    // 장소 시트가 닫히면 목록 시트를 이 높이로 다시 올린다. 장소 시트가 없으면 null.
+    var restoreAfterPlaceSheet by rememberSaveable { mutableStateOf<SheetValue?>(null) }
 
-    // 장소 상세를 닫기(X)·지도 보기로 나오면 처음 들어왔을 때처럼 시트가 접혀 있어야 한다.
-    // 아래 효과보다 먼저 둔다 - 같은 순간에 장소 시트가 닫혀도 다시 펼치지 않게 기억부터 지운다.
+    // 장소 상세를 닫기(X)로 나오면 처음 들어왔을 때처럼 접힌 높이로 올린다.
+    // 아래 효과보다 먼저 둔다 - 같은 순간에 장소 시트가 닫혀도 펼친 높이로 올리지 않게 기억부터 지운다.
     LaunchedEffect(collapseSheetSignal) {
         if (collapseSheetSignal > 0) {
-            expandedBeforePlaceSheet = false
+            restoreAfterPlaceSheet = null
             scaffoldState.bottomSheetState.partialExpand()
         }
     }
 
-    // 장소 시트가 떠 있는 동안 목록 시트를 접어 둔다. 장소 시트가 더 높아 뒤로 가려져, 시트 위에
-    // 시트가 쌓여 보이지 않는다. 화면을 돌려 다시 들어와도 펼쳐 두었던 기억은 지우지 않는다.
+    // 장소 시트가 떠 있는 동안 목록 시트를 아래로 완전히 내려 둔다. 접어 두기만 하면 장소 시트가
+    // 내려갈 때 접힌 목록이 비쳐 시트 위에 시트가 쌓여 보인다(10-06 사용자 지적). 장소 시트가 닫히면
+    // 아래에서 새로 올린다 - 펼쳐 두었으면 펼친 높이로, 아니면 접힌 높이로. 화면을 돌려 다시 들어와도
+    // 기억은 남는다.
     LaunchedEffect(placeSheetOpen) {
         val sheetState = scaffoldState.bottomSheetState
         if (placeSheetOpen) {
-            if (sheetState.currentValue == SheetValue.Expanded) expandedBeforePlaceSheet = true
-            sheetState.partialExpand()
-        } else if (expandedBeforePlaceSheet) {
-            expandedBeforePlaceSheet = false
-            sheetState.expand()
+            if (restoreAfterPlaceSheet == null) {
+                restoreAfterPlaceSheet = if (sheetState.currentValue == SheetValue.Expanded) {
+                    SheetValue.Expanded
+                } else {
+                    SheetValue.PartiallyExpanded
+                }
+            }
+            sheetState.hide()
+        } else {
+            val restore = restoreAfterPlaceSheet
+            restoreAfterPlaceSheet = null
+            when (restore) {
+                SheetValue.Expanded -> sheetState.expand()
+                SheetValue.PartiallyExpanded -> sheetState.partialExpand()
+                else -> Unit
+            }
         }
     }
 

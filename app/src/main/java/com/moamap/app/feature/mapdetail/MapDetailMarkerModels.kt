@@ -11,9 +11,6 @@ internal val MapDetailCenter: Point = Point.fromLngLat(126.9574, 37.4963)
 /** 동네 몇 개가 한눈에 들어오는 배율. 처음 열었을 때 마커를 찾아다니지 않아도 된다. */
 internal const val MapDetailDefaultZoom = 14.0
 
-/** 장소 상세의 「지도 보기」가 맞추는 배율. 골목 단위라 그 장소 마커가 바로 눈에 든다. */
-internal const val PlaceFocusZoom = 16.0
-
 /** 3D 로 토글했을 때만 쓰는 기울기. 건물이 입체로 보이게 한다. */
 internal const val MapDetailPitch = 55.0
 
