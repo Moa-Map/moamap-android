@@ -18,12 +18,12 @@ data class MapPlace(
     val photoUrl: String?,
     /** 등록자가 적은 한 줄 설명. 안 적었으면 빈 문자열. */
     val description: String = "",
-    /**
-     * 카카오 분류 경로. `"음식점 > 카페 > 커피전문점"` 처럼 온다.
-     *
-     * 경로 그대로 담는다. 화면에 띄울 땐 [categoryLabel] 로 마지막 토막만 꺼내 쓴다.
-     */
+    /** 카카오 분류 경로. `"음식점 > 카페 > 커피전문점"` 처럼 온다. 마커 아이콘과 카테고리 필터가 쓴다. */
     val category: String = "",
+    /** 장소를 등록할 때 사람이 단 태그. 장소 상세의 노란 칩이다. */
+    val tags: List<String> = emptyList(),
+    /** 인스타그램 링크로 가져온 장소의 원본 게시물 주소. 그 밖의 장소는 null 이다. */
+    val instagramUrl: String? = null,
     /**
      * 평균 평점. 아직 아무도 안 매겼으면 0.0 이다.
      *
@@ -42,15 +42,6 @@ data class MapPlace(
 
 /** 하트를 누르거나 취소한 뒤 서버가 확정한 상태. */
 data class PlaceLike(val liked: Boolean, val likeCount: Int)
-
-/**
- * 분류 경로에서 화면에 띄울 한 토막.
- *
- * 경로를 통째로 띄우면 상세 시트의 작은 알약을 넘겨 버린다. 가장 구체적인 마지막
- * 토막(`"커피전문점"`)이 그 자리에 맞고 사람이 읽기에도 낫다.
- */
-val MapPlace.categoryLabel: String
-    get() = category.split(">").lastOrNull()?.trim().orEmpty()
 
 /** 지도 설명 화면이 한 번에 받아오는 장소 목록. */
 @Immutable

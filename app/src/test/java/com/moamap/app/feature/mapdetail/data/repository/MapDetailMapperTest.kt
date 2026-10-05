@@ -4,7 +4,6 @@ import com.moamap.app.feature.collection.data.remote.MapDetailDto
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.explore.data.remote.PlaceDto
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
-import com.moamap.app.feature.mapdetail.domain.model.categoryLabel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -137,21 +136,29 @@ class MapDetailMapperTest {
     }
 
     @Test
-    fun `분류 경로에서 마지막 토막만 띄운다`() {
-        val place = PlaceDto(category = "음식점 > 카페 > 커피전문점").toMapPlace()
+    fun `태그는 앞뒤 공백을 걷고 빈 태그는 버린다`() {
+        val place = PlaceDto(tags = listOf(" 카페 ", "", "  ", "성수")).toMapPlace()
 
-        // 경로를 통째로 띄우면 상세 시트의 작은 알약을 넘겨 버린다.
-        assertEquals("커피전문점", place.categoryLabel)
+        assertEquals(listOf("카페", "성수"), place.tags)
     }
 
     @Test
-    fun `분류가 한 토막이면 그대로 띄운다`() {
-        assertEquals("관광명소", PlaceDto(category = "관광명소").toMapPlace().categoryLabel)
+    fun `인스타그램에서 가져온 장소만 원본 주소를 싣는다`() {
+        val reel = "https://www.instagram.com/reel/abc"
+
+        assertEquals(reel, PlaceDto(sourceType = "INSTAGRAM", sourceUrl = " $reel ").toMapPlace().instagramUrl)
+        // 카카오 검색으로 등록한 장소의 sourceUrl 은 카카오맵 주소다. 인스타그램 버튼을 띄우면 안 된다.
+        assertNull(PlaceDto(sourceType = "KAKAO_SEARCH", sourceUrl = "https://place.map.kakao.com/1").toMapPlace().instagramUrl)
+        assertNull(PlaceDto(sourceType = "INSTAGRAM", sourceUrl = null).toMapPlace().instagramUrl)
+        assertNull(PlaceDto(sourceType = "INSTAGRAM", sourceUrl = " ").toMapPlace().instagramUrl)
     }
 
     @Test
-    fun `분류가 없으면 라벨도 빈 문자열이다`() {
-        assertEquals("", PlaceDto(category = null).toMapPlace().categoryLabel)
+    fun `웹 주소가 아니면 인스타그램 원본으로 열지 않는다`() {
+        // 화면이 이 주소를 그대로 열어, 다른 앱을 띄우는 형식이 섞여 오면 막아야 한다.
+        assertNull(instagramSourceUrl("INSTAGRAM", "intent://scan#Intent;scheme=zxing;end"))
+        assertNull(instagramSourceUrl("INSTAGRAM", "javascript:alert(1)"))
+        assertEquals("HTTP://instagram.com/p/1", instagramSourceUrl("INSTAGRAM", "HTTP://instagram.com/p/1"))
     }
 
     @Test

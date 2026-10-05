@@ -15,6 +15,15 @@ class PlaceReviewMapperTest {
     }
 
     @Test
+    fun `프로필 사진은 앞뒤 공백을 걷고 비어 있으면 없음으로 남긴다`() {
+        val url = "https://img/profile.jpg"
+
+        assertEquals(url, PlaceReviewDto().toPlaceReview(authorName = null, authorImageUrl = " $url ").authorImageUrl)
+        assertNull(PlaceReviewDto().toPlaceReview(authorName = null, authorImageUrl = "  ").authorImageUrl)
+        assertNull(PlaceReviewDto().toPlaceReview(authorName = null).authorImageUrl)
+    }
+
+    @Test
     fun `본문이 없거나 공백뿐이면 빈 문자열로 옮긴다`() {
         assertEquals("", PlaceReviewDto(content = null).toPlaceReview(null).content)
         assertEquals("", PlaceReviewDto(content = "   ").toPlaceReview(null).content)
