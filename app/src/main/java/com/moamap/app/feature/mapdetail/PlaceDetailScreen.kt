@@ -1,7 +1,9 @@
 package com.moamap.app.feature.mapdetail
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.core.Animatable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -12,6 +14,8 @@ import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -20,6 +24,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -48,15 +53,22 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
@@ -68,8 +80,6 @@ import com.moamap.app.core.common.imagepicker.rememberImagePickerState
 import com.moamap.app.core.common.upload.ALLOWED_IMAGE_CONTENT_TYPES
 import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
 import com.moamap.app.core.designsystem.component.ButtonShadowColor
-import com.moamap.app.core.designsystem.component.CardShadowBlurRadius
-import com.moamap.app.core.designsystem.component.CardShadowColor
 import com.moamap.app.core.designsystem.component.ImageSourceMenu
 import com.moamap.app.core.designsystem.component.MoaMapBackButton
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
@@ -79,6 +89,7 @@ import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.mapdetail.presentation.addplace.PLACE_PHOTO_CACHE_DIRECTORY
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
@@ -87,11 +98,25 @@ private val SwipeActionWidth = 72.dp
 
 /** 시안의 삭제·신고 빨강. 디자인 토큰에 없는 색이라 여기 둔다. */
 private val SwipeDangerColor = Color(0xFFD9402F)
-private val PlaceImageSize = 107.dp
-private val PlaceCategoryShape = RoundedCornerShape(100.dp)
+private val PlaceDetailTopBarHeight = 58.dp
+private val PlacePhotoHeight = 175.dp
+private val PlacePhotoShape = RoundedCornerShape(4.dp)
+private val PlaceTagShape = RoundedCornerShape(100.dp)
 private val PlaceActionShape = RoundedCornerShape(8.dp)
-private val ReviewInputShape = RoundedCornerShape(100.dp)
 private val ReviewPhotoShape = RoundedCornerShape(8.dp)
+
+/** 이름 줄 오른쪽 끝 외부 링크 버튼. 이름·태그는 이 폭에 간격 8 을 더한 만큼 비켜 선다. */
+private val LinkMenuButtonSize = 36.dp
+private val LinkMenuButtonClearance = LinkMenuButtonSize + 8.dp
+private val LinkMenuItemSize = 44.dp
+private val LinkMenuShareSize = 40.dp
+
+/** 시안의 메뉴 간격: 카카오맵·인스타그램 사이 12, 공유하기 앞 21. */
+private val LinkMenuItemGap = 12.dp
+private val LinkMenuShareGap = 21.dp
+private val ReviewAvatarSize = 28.dp
+private val ReviewAvatarImageSize = 24.dp
+private val ReviewRowMinHeight = 80.dp
 
 /** 후기 자리의 로딩·오류·빈 상태가 함께 쓰는 높이. 상태가 바뀌어도 시트가 튀지 않는다. */
 private val ReviewPlaceholderHeight = 140.dp
@@ -117,16 +142,20 @@ internal data class PersonalMapActionUiModel(
  *
  * 바텀시트로 띄우면 지도 화면이 이미 깔아 둔 장소 목록 시트 위에 시트가 겹쳐 지저분하다.
  * 지도 관리·게시물 작성과 같은 방식으로 맞췄다 - 뒤 지도로 터치가 새지 않게 막고, 닫는 길은
- * 머리의 뒤로가기·닫기와 기기 뒤로가기다.
+ * 상단의 뒤로가기와 기기 뒤로가기다(시안에 닫기가 없다).
+ *
+ * 이름 오른쪽 버튼은 외부 링크 메뉴(카카오맵·인스타그램·공유하기)를 화면 전체를 어둡게 덮고
+ * 그 자리에 펼친다. 상태 표시줄까지 덮어야 해서 내용 바깥에 그린다.
  */
 @Composable
 internal fun PlaceDetailScreen(
     place: PlaceUiModel,
     reviews: PlaceReviewsUiModel,
     onBackClick: () -> Unit,
-    /** 지도 상세에 처음 들어왔을 때의 화면으로 돌아간다. */
-    onCloseClick: () -> Unit,
-    onExternalLinkClick: () -> Unit,
+    onKakaoMapClick: () -> Unit,
+    onInstagramClick: () -> Unit,
+    /** 상세를 닫고 지도를 이 장소 마커로 옮긴다. */
+    onShowOnMapClick: () -> Unit,
     modifier: Modifier = Modifier,
     onRetryReviews: () -> Unit = {},
     /** null 이면 「나만의 지도에 추가」를 띄우지 않는다. 나만의 지도를 보고 있을 때다. */
@@ -137,31 +166,60 @@ internal fun PlaceDetailScreen(
     onEditReview: (Long) -> Unit = {},
     onCancelEdit: () -> Unit = {},
     onDeleteReview: (Long) -> Unit = {},
-    /** false 면 하트·신고하기·댓글을 뺀다. 공식지도다. 나만의 지도 추가·외부 링크는 남는다. */
+    /** false 면 하트·신고하기·댓글을 뺀다. 공식지도다. 나만의 지도 추가·지도 보기·외부 링크는 남는다. */
     showsReactions: Boolean = true,
 ) {
-    PlaceDetailContent(
-        place = place,
-        reviews = reviews,
-        onBackClick = onBackClick,
-        onCloseClick = onCloseClick,
-        onExternalLinkClick = onExternalLinkClick,
-        onRetryReviews = onRetryReviews,
-        personalMapAction = personalMapAction,
-        onAddToPersonalMapClick = onAddToPersonalMapClick,
-        onSubmitReview = onSubmitReview,
-        onLikeClick = onLikeClick,
-        onEditReview = onEditReview,
-        onCancelEdit = onCancelEdit,
-        onDeleteReview = onDeleteReview,
-        showsReactions = showsReactions,
+    // 외부 링크 메뉴를 연 버튼의 자리(이 화면 기준). null 이면 메뉴가 닫혀 있다.
+    var linkMenuAnchor by remember(place.id) { mutableStateOf<Rect?>(null) }
+    var screenOrigin by remember { mutableStateOf(Offset.Zero) }
+
+    Box(
         modifier = modifier
             .fillMaxSize()
-            .background(MoaMapTheme.colors.backgroundSecondary)
-            // 뒤에 깔린 지도로 터치가 새지 않게 빈 자리의 탭을 여기서 받는다.
-            .pointerInput(Unit) { detectTapGestures() }
-            .statusBarsPadding(),
-    )
+            .onGloballyPositioned { coordinates -> screenOrigin = coordinates.positionInRoot() },
+    ) {
+        PlaceDetailContent(
+            place = place,
+            reviews = reviews,
+            onBackClick = onBackClick,
+            onLinkMenuClick = { anchorInRoot -> linkMenuAnchor = anchorInRoot.translate(-screenOrigin) },
+            onShowOnMapClick = onShowOnMapClick,
+            onRetryReviews = onRetryReviews,
+            personalMapAction = personalMapAction,
+            onAddToPersonalMapClick = onAddToPersonalMapClick,
+            onSubmitReview = onSubmitReview,
+            onLikeClick = onLikeClick,
+            onEditReview = onEditReview,
+            onCancelEdit = onCancelEdit,
+            onDeleteReview = onDeleteReview,
+            showsReactions = showsReactions,
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MoaMapTheme.colors.backgroundSecondary)
+                // 뒤에 깔린 지도로 터치가 새지 않게 빈 자리의 탭을 여기서 받는다.
+                .pointerInput(Unit) { detectTapGestures() }
+                .statusBarsPadding(),
+        )
+
+        linkMenuAnchor?.let { anchor ->
+            PlaceLinkMenu(
+                anchor = anchor,
+                showsInstagram = place.instagramUrl != null,
+                onKakaoMapClick = {
+                    linkMenuAnchor = null
+                    onKakaoMapClick()
+                },
+                onInstagramClick = {
+                    linkMenuAnchor = null
+                    onInstagramClick()
+                },
+                onDismiss = { linkMenuAnchor = null },
+            )
+        }
+    }
+
+    // 상세보다 나중에 생겨 지도 화면의 뒤로가기보다 먼저 받는다. 메뉴부터 닫는다.
+    BackHandler(enabled = linkMenuAnchor != null) { linkMenuAnchor = null }
 }
 
 internal fun likeIconRes(liked: Boolean): Int = if (liked) {
@@ -177,18 +235,19 @@ internal fun trySubmitReview(
 ): Boolean = onSubmitReview?.invoke(reviewText, photo) == true
 
 /**
- * 시트 내용. 입력창은 목록과 함께 스크롤되지 않고 아래에 붙는다(시안).
+ * 상세 내용. 상단 바와 입력창은 목록과 함께 스크롤되지 않고 위아래에 붙는다(시안).
  *
- * 카메라·갤러리 고르기는 시트 안에 겹쳐 띄운다. Popup 으로 띄우면 시트 밖에 그려져, 바깥을
- * 눌렀을 때 시트까지 함께 닫힌다.
+ * 카메라·갤러리 고르기는 이 안에 겹쳐 띄운다. Popup 으로 띄우면 화면 밖에 그려져, 바깥을
+ * 눌렀을 때 상세까지 함께 닫힌다.
  */
 @Composable
 private fun PlaceDetailContent(
     place: PlaceUiModel,
     reviews: PlaceReviewsUiModel,
     onBackClick: () -> Unit,
-    onCloseClick: () -> Unit,
-    onExternalLinkClick: () -> Unit,
+    /** 외부 링크 버튼의 자리(화면 루트 기준)를 넘긴다. 메뉴가 그 자리에 펼쳐진다. */
+    onLinkMenuClick: (Rect) -> Unit,
+    onShowOnMapClick: () -> Unit,
     modifier: Modifier = Modifier,
     onRetryReviews: () -> Unit = {},
     personalMapAction: PersonalMapActionUiModel? = null,
@@ -222,6 +281,8 @@ private fun PlaceDetailContent(
             .dismissKeyboardOnBackgroundTap(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
+            PlaceDetailTopBar(onBackClick = onBackClick)
+
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -229,22 +290,18 @@ private fun PlaceDetailContent(
                 contentPadding = PaddingValues(bottom = 16.dp),
             ) {
                 item {
-                    BackCloseControls(
-                        onBackClick = onBackClick,
-                        onCloseClick = onCloseClick,
-                    )
-                    // 블록 사이 간격은 시안(2572:11977) 그대로다: 닫기 줄 아래 20, 그 뒤로 12씩.
-                    Spacer(modifier = Modifier.height(20.dp))
+                    // 블록 사이 간격은 시안 그대로 12씩이다.
                     PlaceHeader(
                         place = place,
                         onLikeClick = onLikeClick,
+                        onLinkMenuClick = onLinkMenuClick,
                         showsReactions = showsReactions,
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     PlaceActions(
                         personalMapAction = personalMapAction,
                         onAddToPersonalMapClick = onAddToPersonalMapClick,
-                        onExternalLinkClick = onExternalLinkClick,
+                        onShowOnMapClick = onShowOnMapClick,
                     )
                     // 구분선은 댓글과 나누는 줄이라 댓글이 없으면 같이 뺀다.
                     if (showsReactions) {
@@ -369,10 +426,12 @@ private fun androidx.compose.foundation.lazy.LazyListScope.reviewItems(
                 )
                 else -> listOf(SwipeAction("신고", SwipeDangerColor, onClick = null))
             }
+            // 시안의 댓글 줄은 화면 좌우 20 안쪽 폭이다. 밀어서 드러나는 버튼도 그 안에 선다.
             SwipeRevealRow(
                 actions = actions,
                 open = openReviewId == review.id,
                 onOpenChange = { open -> onOpenChange(review.id, open) },
+                modifier = Modifier.padding(horizontal = 20.dp),
             ) {
                 ReviewRow(review = review)
             }
@@ -418,7 +477,7 @@ private fun ReviewLoadError(message: String, onRetryClick: () -> Unit) {
     }
 }
 
-/** 한 화면짜리 페이지 맨 위의 `←`·`×` 줄. 장소 상세와 장소 추가가 같이 쓴다. */
+/** 장소 추가 화면 맨 위의 `←`·`×` 줄. */
 @Composable
 internal fun BackCloseControls(
     onBackClick: () -> Unit,
@@ -452,97 +511,284 @@ internal fun BackCloseControls(
     }
 }
 
+/** 장소 상세 상단 바. 시안 GNB 58 에 뒤로가기만 있다. */
+@Composable
+private fun PlaceDetailTopBar(onBackClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(PlaceDetailTopBarHeight),
+    ) {
+        MoaMapBackButton(
+            onClick = onBackClick,
+            modifier = Modifier
+                .align(Alignment.CenterStart)
+                .padding(start = MoaMapTopBarIconEdgePadding),
+        )
+    }
+}
+
 /**
- * 장소 정보. 시안 「장소 상세 설명」(`2572:11977`).
+ * 장소 정보. 시안 「장소 상세 설명」(10/3 장소 상세 페이지).
  *
- * 이름·분류 태그 오른쪽에 하트와 신고하기가 선다. 신고는 아직 누를 수 없다 - 아이콘과 문구만 둔다.
- * 별점·후기 수는 시안에서 빠졌다.
+ * 이름·태그·위치 → 사진(있을 때만) → 설명·하트·신고하기 순서다. 사진이 없는 장소는 사진 칸만
+ * 빠지고 나머지 배치는 같다. 외부 링크 버튼은 이름 줄 오른쪽 끝에 겹쳐 선다.
  */
 @Composable
 private fun PlaceHeader(
     place: PlaceUiModel,
     onLikeClick: () -> Unit,
+    onLinkMenuClick: (Rect) -> Unit,
     showsReactions: Boolean,
 ) {
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 20.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(20.dp),
-        verticalAlignment = Alignment.Top,
+        verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        PhotoThumbnail(imageUrl = place.photoUrl, size = PlaceImageSize)
-
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 2.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(
-                        text = place.name,
-                        style = MoaMapTheme.typography.subtitle1,
-                        color = MoaMapTheme.colors.textNormal,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    if (place.category.isNotBlank()) PlaceCategoryTag(place.category)
-                }
-                if (showsReactions) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PlaceIconAction(
-                            iconRes = likeIconRes(place.liked),
-                            iconTint = if (place.liked) {
-                                MoaMapTheme.colors.statusAlert
-                            } else {
-                                MoaMapPrimitiveColors.Gray100
-                            },
-                            label = place.likeCount.toString(),
-                            contentDescription = if (place.liked) "하트 취소하기" else "하트 누르기",
-                            onClick = onLikeClick,
-                        )
-                        // 신고는 아직 기능이 없다. 누를 수 있는 것처럼 보이지 않게 클릭을 걸지 않는다.
-                        PlaceIconAction(
-                            iconRes = R.drawable.ic_emergency,
-                            iconTint = MoaMapTheme.colors.textNormal,
-                            label = "신고하기",
-                            contentDescription = null,
-                            onClick = null,
-                        )
-                    }
-                }
-            }
-
-            if (place.description.isNotBlank()) {
                 Text(
-                    text = place.description,
-                    style = MoaMapTheme.typography.body2,
-                    color = MoaMapTheme.colors.textAlternative,
-                )
-            }
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(
-                    painter = painterResource(R.drawable.ic_location),
-                    contentDescription = null,
-                    tint = MoaMapTheme.colors.textAlternative,
-                    modifier = Modifier.size(20.dp),
-                )
-                Text(
-                    text = place.address,
-                    style = MoaMapTheme.typography.body2,
-                    color = MoaMapTheme.colors.textAlternative,
+                    text = place.name,
+                    style = MoaMapTheme.typography.subtitle1.withDesignLineHeight(),
+                    color = MoaMapTheme.colors.textNormal,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(end = LinkMenuButtonClearance),
+                )
+                if (place.tags.isNotEmpty()) {
+                    PlaceTagRow(
+                        tags = place.tags,
+                        modifier = Modifier.padding(end = LinkMenuButtonClearance),
+                    )
+                }
+                if (place.address.isNotBlank()) PlaceLocation(address = place.address)
+            }
+
+            PlaceLinkMenuButton(
+                onClick = onLinkMenuClick,
+                modifier = Modifier.align(Alignment.TopEnd),
+            )
+        }
+
+        place.photoUrl?.let { url -> PlacePhoto(url = url) }
+
+        val showsDescription = place.description.isNotBlank()
+        if (showsDescription || showsReactions) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (showsDescription) {
+                    Text(
+                        text = place.description,
+                        style = MoaMapTheme.typography.body2.withDesignLineHeight(),
+                        color = MoaMapTheme.colors.textAlternative,
+                    )
+                }
+                if (showsReactions) PlaceReactionRow(place = place, onLikeClick = onLikeClick)
+            }
+        }
+    }
+}
+
+/** 등록할 때 단 태그. 이 줄이 넘치면 다음 줄로 내린다. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun PlaceTagRow(tags: List<String>, modifier: Modifier = Modifier) {
+    FlowRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        tags.forEach { tag ->
+            Text(
+                text = tag,
+                style = MoaMapTheme.typography.caption0,
+                color = MoaMapPrimitiveColors.Yellow900,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .background(color = MoaMapPrimitiveColors.Yellow50, shape = PlaceTagShape)
+                    .border(width = 1.dp, color = MoaMapPrimitiveColors.Yellow500, shape = PlaceTagShape)
+                    .padding(horizontal = 12.dp, vertical = 4.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlaceLocation(address: String) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_location),
+            contentDescription = null,
+            tint = MoaMapTheme.colors.textAlternative,
+            modifier = Modifier.size(20.dp),
+        )
+        Text(
+            text = address,
+            style = MoaMapTheme.typography.body2.withDesignLineHeight(),
+            color = MoaMapTheme.colors.textAlternative,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}
+
+/** 장소 사진 첫 장. 폭 가득, 높이 175. */
+@Composable
+private fun PlacePhoto(url: String) {
+    val placeholder = painterResource(R.drawable.img_photo_placeholder)
+    AsyncImage(
+        model = url,
+        contentDescription = "장소 사진",
+        placeholder = placeholder,
+        error = placeholder,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(PlacePhotoHeight)
+            .clip(PlacePhotoShape),
+    )
+}
+
+/**
+ * 하트와 「신고하기」. 신고는 아직 기능이 없어 누르지 않는다(사용자 결정) - 시안의 밑줄 글자만 둔다.
+ */
+@Composable
+private fun PlaceReactionRow(place: PlaceUiModel, onLikeClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            modifier = Modifier
+                .clickable(role = Role.Button, onClick = onLikeClick)
+                .semantics(mergeDescendants = true) {
+                    contentDescription = if (place.liked) "하트 취소하기" else "하트 누르기"
+                },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(likeIconRes(place.liked)),
+                contentDescription = null,
+                tint = if (place.liked) MoaMapTheme.colors.statusAlert else MoaMapPrimitiveColors.Gray100,
+                modifier = Modifier.size(28.dp),
+            )
+            Text(
+                text = place.likeCount.toString(),
+                style = MoaMapTheme.typography.caption0,
+                color = MoaMapTheme.colors.textAlternative,
+            )
+        }
+
+        Text(
+            text = "신고하기",
+            style = MoaMapTheme.typography.body2.copy(textDecoration = TextDecoration.Underline),
+            color = MoaMapTheme.colors.textAlternative,
+        )
+    }
+}
+
+/**
+ * 외부 링크 메뉴를 여는 원 버튼(36). 누르는 칸은 48 이고 그림은 그 가운데라, 칸을 바깥으로 6 씩
+ * 내밀어 그림이 시안 자리(이름 줄 오른쪽 끝)에 선다.
+ */
+@Composable
+private fun PlaceLinkMenuButton(
+    onClick: (Rect) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    // 같은 좌표계 객체가 계속 들어와 다시 그리게 하지 않는다. 자리는 누를 때 읽는다.
+    var imageCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    Box(
+        modifier = modifier
+            .offset(x = 6.dp, y = (-6).dp)
+            .size(48.dp)
+            .clickable(role = Role.Button) {
+                imageCoordinates?.takeIf { it.isAttached }?.let { coordinates -> onClick(coordinates.boundsInRoot()) }
+            }
+            .semantics { contentDescription = "외부 링크 열기" },
+        contentAlignment = Alignment.Center,
+    ) {
+        Image(
+            painter = painterResource(R.drawable.img_place_link_menu),
+            contentDescription = null,
+            modifier = Modifier
+                .size(LinkMenuButtonSize)
+                .onGloballyPositioned { coordinates -> imageCoordinates = coordinates },
+        )
+    }
+}
+
+/**
+ * 외부 링크 메뉴. 시안 「상세지도/장소/장소선택」의 메뉴 모양: 화면 전체를 75% 검정으로 덮고, 버튼
+ * 자리에서 아래로 카카오맵 → 인스타그램(인스타그램에서 가져온 장소만) → 공유하기를 세운다.
+ * 오른쪽 끝은 버튼과 맞추고, 첫 아이콘은 버튼과 세로 가운데를 맞춘다. 어두운 곳을 누르면 닫힌다.
+ */
+@Composable
+private fun PlaceLinkMenu(
+    anchor: Rect,
+    showsInstagram: Boolean,
+    onKakaoMapClick: () -> Unit,
+    onInstagramClick: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MoaMapPrimitiveColors.TransparentBlack)
+            .pointerInput(Unit) { detectTapGestures { onDismiss() } },
+    ) {
+        Column(
+            modifier = Modifier.offset {
+                val itemSize = LinkMenuItemSize.toPx()
+                IntOffset(
+                    x = (anchor.right - itemSize).roundToInt(),
+                    y = (anchor.center.y - itemSize / 2).roundToInt(),
+                )
+            },
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            LinkMenuItem(
+                imageRes = R.drawable.img_link_kakao_map,
+                label = "카카오맵에서 보기",
+                onClick = onKakaoMapClick,
+            )
+            if (showsInstagram) {
+                Spacer(modifier = Modifier.height(LinkMenuItemGap))
+                LinkMenuItem(
+                    imageRes = R.drawable.img_link_instagram,
+                    label = "인스타그램 게시물 보기",
+                    onClick = onInstagramClick,
+                )
+            }
+            Spacer(modifier = Modifier.height(LinkMenuShareGap))
+            // 공유는 아직 기능이 없다(사용자 결정). 눌러도 메뉴가 닫히지 않게 탭만 받아 둔다.
+            Box(
+                modifier = Modifier
+                    .size(LinkMenuShareSize)
+                    .clip(CircleShape)
+                    .background(MoaMapPrimitiveColors.Gray200)
+                    .pointerInput(Unit) { detectTapGestures { } }
+                    .semantics { contentDescription = "공유하기" },
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_send),
+                    contentDescription = null,
+                    tint = MoaMapPrimitiveColors.White,
+                    modifier = Modifier.size(32.dp),
                 )
             }
         }
@@ -550,59 +796,21 @@ private fun PlaceHeader(
 }
 
 @Composable
-private fun PlaceCategoryTag(category: String) {
-    Text(
-        text = category,
-        style = MoaMapTheme.typography.caption0,
-        color = MoaMapPrimitiveColors.Yellow900,
-        maxLines = 1,
+private fun LinkMenuItem(imageRes: Int, label: String, onClick: () -> Unit) {
+    Image(
+        painter = painterResource(imageRes),
+        contentDescription = label,
         modifier = Modifier
-            .background(
-                color = MoaMapPrimitiveColors.Yellow50,
-                shape = PlaceCategoryShape,
-            )
-            .border(
-                width = 1.dp,
-                color = MoaMapPrimitiveColors.Yellow500,
-                shape = PlaceCategoryShape,
-            )
-            .padding(horizontal = 12.dp, vertical = 4.dp),
+            .size(LinkMenuItemSize)
+            .clickable(role = Role.Button, onClick = onClick),
     )
-}
-
-/** 아이콘 아래 짧은 글자. [onClick] 이 null 이면 눌리지 않는다. */
-@Composable
-private fun PlaceIconAction(
-    iconRes: Int,
-    iconTint: Color,
-    label: String,
-    contentDescription: String?,
-    onClick: (() -> Unit)?,
-) {
-    Column(
-        modifier = if (onClick == null) Modifier else Modifier.clickable(onClick = onClick),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-    ) {
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = contentDescription,
-            tint = iconTint,
-            modifier = Modifier.size(24.dp),
-        )
-        Text(
-            text = label,
-            style = MoaMapTheme.typography.caption0,
-            color = MoaMapTheme.colors.textAlternative,
-        )
-    }
 }
 
 @Composable
 private fun PlaceActions(
     personalMapAction: PersonalMapActionUiModel?,
     onAddToPersonalMapClick: () -> Unit,
-    onExternalLinkClick: () -> Unit,
+    onShowOnMapClick: () -> Unit,
 ) {
     Column(
         modifier = Modifier
@@ -626,12 +834,12 @@ private fun PlaceActions(
                 )
             }
             PlaceActionButton(
-                label = "외부 링크로 가기",
-                iconRes = R.drawable.ic_arrow_outward,
-                containerColor = MoaMapPrimitiveColors.Yellow100,
-                contentColor = MoaMapPrimitiveColors.Yellow800,
+                label = "지도 보기",
+                iconRes = R.drawable.ic_map,
+                containerColor = MoaMapPrimitiveColors.Gray200,
+                contentColor = MoaMapPrimitiveColors.White,
                 loading = false,
-                onClick = onExternalLinkClick,
+                onClick = onShowOnMapClick,
                 modifier = Modifier.weight(1f),
             )
         }
@@ -784,18 +992,16 @@ private fun ReviewComposer(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // 그림자는 내용 뒤에 따로 깔아야 한다. blur 를 입력창 자체에 걸면 안의 글자까지 흐려진다.
+            // 시안은 「검색창」 모양(흰 바탕·모서리 12·카드 그림자)에 돋보기 대신 + 다. ShadowedSurface 기본값이
+            // 그 모양이다. 그림자는 내용 뒤에 따로 깔아야 한다 - blur 를 입력창에 걸면 글자까지 흐려진다.
             ShadowedSurface(
                 modifier = Modifier
                     .weight(1f)
                     .height(44.dp),
-                shape = ReviewInputShape,
-                color = MoaMapPrimitiveColors.White,
-                shadowBlurRadius = CardShadowBlurRadius,
-                shadowColor = CardShadowColor,
             ) {
                 Row(
-                    modifier = Modifier.padding(start = 8.dp, end = 16.dp),
+                    // + 는 누르는 칸 32 가운데 20 이라 왼쪽 10 이면 그림이 시안처럼 끝에서 16 에 선다.
+                    modifier = Modifier.padding(start = 10.dp, end = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -815,7 +1021,7 @@ private fun ReviewComposer(
                             painter = painterResource(R.drawable.ic_add),
                             contentDescription = null,
                             tint = if (inputEnabled && photo == null && editing == null) {
-                                MoaMapTheme.colors.textNormal
+                                MoaMapTheme.colors.textAssistive
                             } else {
                                 MoaMapTheme.colors.textDisable
                             },
@@ -878,11 +1084,12 @@ private fun ReviewComposer(
                         modifier = Modifier.size(20.dp),
                     )
                 } else {
+                    // 시안 보내기 원 40 안의 아이콘 32. 앱 ic_send 는 같은 그림을 24 틀로 줄인 것이다.
                     Icon(
                         painter = painterResource(R.drawable.ic_send),
                         contentDescription = null,
                         tint = MoaMapPrimitiveColors.White,
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(32.dp),
                     )
                 }
             }
@@ -952,10 +1159,11 @@ private fun SwipeRevealRow(
     actions: List<SwipeAction>,
     open: Boolean,
     onOpenChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
 ) {
     if (actions.isEmpty()) {
-        content()
+        Box(modifier = modifier) { content() }
         return
     }
 
@@ -965,7 +1173,7 @@ private fun SwipeRevealRow(
     LaunchedEffect(open, revealPx) { offset.animateTo(if (open) -revealPx else 0f) }
 
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(IntrinsicSize.Min),
     ) {
@@ -1017,24 +1225,22 @@ private fun SwipeRevealRow(
     }
 }
 
+/**
+ * 댓글 한 줄. 시안 「리뷰」: 높이 80, 안쪽 위아래 16·좌우 12, 프로필 원 28 → 12 → 이름·내용, 시간은 오른쪽 위.
+ * 사진이 붙은 댓글은 내용 아래에 사진을 둔다(시안에 없는 자리, 사용자 결정).
+ */
 @Composable
 private fun ReviewRow(review: PlaceReviewUiModel) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 16.dp),
+                .heightIn(min = ReviewRowMinHeight)
+                .padding(horizontal = 12.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.Top,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                modifier = Modifier
-                    .size(28.dp)
-                    .background(
-                        color = MoaMapPrimitiveColors.Black,
-                        shape = CircleShape,
-                    ),
-            )
+            ReviewAvatar(imageUrl = review.userImageUrl)
 
             Column(
                 modifier = Modifier.weight(1f),
@@ -1043,11 +1249,10 @@ private fun ReviewRow(review: PlaceReviewUiModel) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         text = review.userName,
-                        style = MoaMapTheme.typography.body2,
+                        style = MoaMapTheme.typography.body2.withDesignLineHeight(),
                         color = MoaMapTheme.colors.textNormal,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -1055,15 +1260,15 @@ private fun ReviewRow(review: PlaceReviewUiModel) {
                     )
                     Text(
                         text = review.relativeTime,
-                        style = MoaMapTheme.typography.caption0,
-                        color = MoaMapTheme.colors.textAlternative,
+                        style = MoaMapTheme.typography.caption0.withDesignLineHeight(),
+                        color = MoaMapTheme.colors.textAssistive,
                     )
                 }
                 // 사진만 남기고 글은 비워 둘 수 있다. 그때 빈 줄이 끼지 않게 통째로 뺀다.
                 if (review.message.isNotBlank()) {
                     Text(
                         text = review.message,
-                        style = MoaMapTheme.typography.body1,
+                        style = MoaMapTheme.typography.body1.withDesignLineHeight(),
                         color = MoaMapTheme.colors.textNormal,
                     )
                 }
@@ -1089,17 +1294,36 @@ private fun ReviewRow(review: PlaceReviewUiModel) {
     }
 }
 
+/** 작성자 프로필. 흰 원 28(테두리 1) 안에 사진 24, 사진이 없으면 기본 사진. */
+@Composable
+private fun ReviewAvatar(imageUrl: String?) {
+    Box(
+        modifier = Modifier
+            .size(ReviewAvatarSize)
+            .background(color = MoaMapPrimitiveColors.White, shape = CircleShape)
+            .border(width = 1.dp, color = MoaMapTheme.colors.lineNormal, shape = CircleShape),
+        contentAlignment = Alignment.Center,
+    ) {
+        PhotoThumbnail(
+            imageUrl = imageUrl,
+            size = ReviewAvatarImageSize,
+            modifier = Modifier.clip(CircleShape),
+        )
+    }
+}
+
 @Preview(showBackground = true, widthDp = 393, heightDp = 852)
 @Composable
-private fun PlaceDetailSheetPreview() {
+private fun PlaceDetailPreview() {
     MoaMapTheme {
         Surface(color = MoaMapTheme.colors.backgroundSecondary) {
             PlaceDetailContent(
-                place = SamplePlaces.first(),
+                // 프리뷰는 사진을 받지 않아 사진 칸에 기본 사진이 뜬다.
+                place = SamplePlaces.first().copy(photoUrl = "preview"),
                 reviews = PlaceReviewsUiModel(items = SamplePlaceReviews),
                 onBackClick = {},
-                onCloseClick = {},
-                onExternalLinkClick = {},
+                onLinkMenuClick = {},
+                onShowOnMapClick = {},
                 personalMapAction = PersonalMapActionUiModel(message = "나만의 지도에 추가했어요"),
                 onSubmitReview = { _, _ -> true },
                 modifier = Modifier.fillMaxSize(),
@@ -1108,20 +1332,34 @@ private fun PlaceDetailSheetPreview() {
     }
 }
 
-/** 나만의 지도를 보고 있을 때: 외부 링크만 남는다. 참여 전이라 입력도 막힌다. */
+/** 사진이 없는 장소. 나만의 지도를 보고 있어 지도 보기만 남고, 참여 전이라 입력도 막힌다. */
 @Preview(showBackground = true, widthDp = 393, heightDp = 852)
 @Composable
-private fun PlaceDetailSheetPersonalMapPreview() {
+private fun PlaceDetailNoPhotoPreview() {
     MoaMapTheme {
         Surface(color = MoaMapTheme.colors.backgroundSecondary) {
             PlaceDetailContent(
-                place = SamplePlaces.first(),
-                reviews = PlaceReviewsUiModel(),
+                place = SamplePlaces[1],
+                reviews = PlaceReviewsUiModel(items = SamplePlaceReviews.take(2)),
                 onBackClick = {},
-                onCloseClick = {},
-                onExternalLinkClick = {},
+                onLinkMenuClick = {},
+                onShowOnMapClick = {},
                 modifier = Modifier.fillMaxSize(),
             )
         }
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Composable
+private fun PlaceLinkMenuPreview() {
+    MoaMapTheme {
+        PlaceLinkMenu(
+            anchor = Rect(left = 337f, top = 110f, right = 373f, bottom = 146f),
+            showsInstagram = true,
+            onKakaoMapClick = {},
+            onInstagramClick = {},
+            onDismiss = {},
+        )
     }
 }

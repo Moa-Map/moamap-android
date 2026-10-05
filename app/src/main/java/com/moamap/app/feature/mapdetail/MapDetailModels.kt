@@ -4,7 +4,6 @@ import androidx.compose.runtime.Immutable
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.domain.model.PlaceCategoryGroup
 import com.moamap.app.feature.mapdetail.domain.model.PlaceReview
-import com.moamap.app.feature.mapdetail.domain.model.categoryLabel
 import com.moamap.app.feature.mapdetail.presentation.review.isMine
 
 internal enum class MapDetailTab(val label: String) {
@@ -57,19 +56,22 @@ internal data class PlaceUiModel(
     val id: Long,
     val name: String,
     val description: String,
-    val category: String,
     val address: String,
     val reviewCount: Int,
     /** 내가 하트를 눌러 둔 상태인지. */
     val liked: Boolean,
     /** 하트 수. 장소 상세에만 보인다(목록은 하트만). */
     val likeCount: Int = 0,
-    /** 목록 썸네일. 없으면 플레이스홀더를 띄운다. */
+    /** 첫 사진. 목록은 없으면 기본 사진을, 장소 상세는 없으면 사진 칸을 빼고 그린다. */
     val photoUrl: String? = null,
     /** 카카오맵으로 열 때 쓴다. 비어 있으면 이름으로 찾는다. */
     val kakaoPlaceId: String = "",
     /** 분류가 카카오 18종 어디에도 안 들면 null 이고, 필터에서는 「기타」로 묶인다. */
     val categoryGroup: PlaceCategoryGroup? = null,
+    /** 등록할 때 단 태그. 장소 상세의 노란 칩이다. */
+    val tags: List<String> = emptyList(),
+    /** 인스타그램에서 가져온 장소의 원본 게시물. 외부 링크 메뉴에 인스타그램을 띄울지 정한다. */
+    val instagramUrl: String? = null,
 )
 
 /**
@@ -79,7 +81,6 @@ internal fun MapPlace.toPlaceUiModel(): PlaceUiModel = PlaceUiModel(
     id = id,
     name = name,
     description = description,
-    category = categoryLabel,
     address = address,
     reviewCount = reviewCount,
     liked = liked,
@@ -87,6 +88,8 @@ internal fun MapPlace.toPlaceUiModel(): PlaceUiModel = PlaceUiModel(
     photoUrl = photoUrl,
     kakaoPlaceId = kakaoPlaceId,
     categoryGroup = PlaceCategoryGroup.fromCategoryPath(category),
+    tags = tags,
+    instagramUrl = instagramUrl,
 )
 
 /**
@@ -186,6 +189,8 @@ internal fun filterPlaces(
 internal data class PlaceReviewUiModel(
     val id: Long,
     val userName: String,
+    /** 작성자 프로필 사진. 없으면 기본 사진. */
+    val userImageUrl: String? = null,
     val message: String,
     val relativeTime: String,
     /** 첨부 사진. 서버가 한 장까지만 받아 첫 장만 보여준다. */
@@ -222,6 +227,7 @@ internal fun PlaceReview.toPlaceReviewUiModel(
     PlaceReviewUiModel(
         id = id,
         userName = authorName ?: ANONYMOUS_REVIEWER,
+        userImageUrl = authorImageUrl,
         message = content,
         relativeTime = relativeTimeLabel(createdAtMillis, nowMillis),
         photoUrl = imageUrls.firstOrNull(),
@@ -259,17 +265,17 @@ internal val SamplePlaces = listOf(
         id = 1L,
         name = "커피나무",
         description = "따뜻한 분위기에서 스페셜티 커피를 즐길 수 있는 카페",
-        category = "카페",
         address = "서울 성동구 성수이로 12",
         reviewCount = 124,
         liked = true,
         likeCount = 12,
+        tags = listOf("카페", "성수"),
+        instagramUrl = "https://www.instagram.com/reel/sample",
     ),
     PlaceUiModel(
         id = 2L,
         name = "달빛정원",
         description = "제철 식재료로 만든 계절 요리를 선보이는 아늑한 식당",
-        category = "식당",
         address = "서울 용산구 한남대로 21",
         reviewCount = 87,
         liked = false,
@@ -278,7 +284,6 @@ internal val SamplePlaces = listOf(
         id = 3L,
         name = "책향기",
         description = "책과 커피를 함께 즐기며 쉬어 갈 수 있는 조용한 공간",
-        category = "데이트",
         address = "서울 마포구 동교로5길 8",
         reviewCount = 63,
         liked = true,
@@ -288,7 +293,6 @@ internal val SamplePlaces = listOf(
         id = 4L,
         name = "루프탑 야경 바",
         description = "서울의 야경과 시그니처 칵테일을 함께 즐기는 루프탑 바",
-        category = "놀거리",
         address = "서울 용산구 이태원로 30",
         reviewCount = 51,
         liked = false,

@@ -129,7 +129,6 @@ class MapDetailUiStateTest {
         id = id,
         name = name,
         description = "Description $id",
-        category = "카페",
         address = address,
         reviewCount = 10,
         liked = false,
