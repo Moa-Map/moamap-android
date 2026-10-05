@@ -41,6 +41,16 @@ internal fun openKakaoMap(context: Context, kakaoPlaceId: String, placeName: Str
     }
 }
 
+/**
+ * 웹 주소를 연다. 인스타그램 게시물처럼 앱이 주소를 맡아 두었으면 그 앱이, 아니면 브라우저가 연다.
+ * 주소가 웹 주소인지는 넘기기 전에 거른다(`instagramSourceUrl`).
+ */
+internal fun openWebLink(context: Context, url: String) {
+    if (!startView(context, url)) {
+        Log.w(TAG, "링크를 열 앱이 없습니다")
+    }
+}
+
 private fun startView(context: Context, url: String): Boolean = try {
     context.startActivity(
         Intent(Intent.ACTION_VIEW, Uri.parse(url)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),

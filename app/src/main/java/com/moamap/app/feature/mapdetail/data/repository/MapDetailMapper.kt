@@ -54,6 +54,8 @@ fun PlaceDto.toMapPlace(): MapPlace = MapPlace(
     photoUrl = photoUrls.firstOrNull { url -> url.isNotBlank() },
     description = description?.takeIf { it.isNotBlank() }.orEmpty(),
     category = category?.takeIf { it.isNotBlank() }.orEmpty(),
+    tags = tags.map { tag -> tag.trim() }.filter { tag -> tag.isNotEmpty() },
+    instagramUrl = instagramSourceUrl(sourceType, sourceUrl),
     // 아직 아무도 안 매긴 장소는 avgRating 이 null 로 온다. 화면은 0.0 으로 읽는다.
     rating = avgRating ?: 0.0,
     reviewCount = commentCount,
@@ -61,3 +63,18 @@ fun PlaceDto.toMapPlace(): MapPlace = MapPlace(
     likeCount = likeCount,
     liked = likedByMe,
 )
+
+private const val INSTAGRAM_SOURCE_TYPE = "INSTAGRAM"
+
+/**
+ * 인스타그램에서 가져온 장소의 원본 주소. 서버는 가져올 때 앱이 보낸 게시물 주소를 그대로 저장한다.
+ *
+ * 화면이 이 주소를 그대로 열기 때문에 웹 주소만 남긴다. `intent:` 같은 다른 형식이 섞여 오면
+ * 다른 앱을 엉뚱하게 띄울 수 있다.
+ */
+internal fun instagramSourceUrl(sourceType: String?, sourceUrl: String?): String? {
+    if (sourceType != INSTAGRAM_SOURCE_TYPE) return null
+    val url = sourceUrl?.trim() ?: return null
+    val web = url.startsWith("https://", ignoreCase = true) || url.startsWith("http://", ignoreCase = true)
+    return url.takeIf { web }
+}

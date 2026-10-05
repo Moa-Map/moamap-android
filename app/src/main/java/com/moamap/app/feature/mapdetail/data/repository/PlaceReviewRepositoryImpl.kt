@@ -11,6 +11,7 @@ import com.moamap.app.feature.explore.data.remote.PlaceReviewUpdateRequestDto
 import com.moamap.app.feature.explore.data.remote.ReviewService
 import com.moamap.app.feature.mapdetail.domain.model.PlaceReview
 import com.moamap.app.feature.mapdetail.domain.repository.PlaceReviewRepository
+import com.moamap.app.feature.mypage.data.remote.UserProfileDto
 import com.moamap.app.feature.mypage.data.remote.UserService
 import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
@@ -53,8 +54,11 @@ internal class PlaceReviewRepositoryImpl @Inject constructor(
         }
         if (dtos.isEmpty()) return emptyList()
 
-        val nicknames = fetchNicknames(dtos.map { dto -> dto.userId })
-        return dtos.map { dto -> dto.toPlaceReview(authorName = nicknames[dto.userId]) }
+        val profiles = fetchProfiles(dtos.map { dto -> dto.userId })
+        return dtos.map { dto ->
+            val profile = profiles[dto.userId]
+            dto.toPlaceReview(authorName = profile?.nickname, authorImageUrl = profile?.profileImageUrl)
+        }
     }
 
     override suspend fun createReview(placeId: Long, content: String, photo: Uri?) {
@@ -106,23 +110,19 @@ internal class PlaceReviewRepositoryImpl @Inject constructor(
     }
 
     /**
-     * 작성자 닉네임을 식별자로 찾아 둔다.
+     * 작성자 닉네임·프로필 사진을 식별자로 찾아 둔다. 빈 값은 매퍼가 거른다.
      *
      * 곁들이는 정보라 실패를 삼킨다. 이름 한 줄 때문에 후기 목록을 통째로 못 여는 게 더 나쁘다.
      * 같은 사람이 여러 건을 남길 수 있어 중복을 지우고 묻는다.
      */
-    private suspend fun fetchNicknames(authorIds: List<Long>): Map<Long, String> {
+    private suspend fun fetchProfiles(authorIds: List<Long>): Map<Long, UserProfileDto> {
         val ids = authorIds.filter { id -> id > 0 }.distinct()
         if (ids.isEmpty()) return emptyMap()
 
         return try {
             ids.chunked(PROFILE_CHUNK_SIZE)
                 .flatMap { chunk -> userService.getProfiles(chunk) }
-                .mapNotNull { profile ->
-                    val nickname = profile.nickname?.takeIf { name -> name.isNotBlank() }
-                    nickname?.let { name -> profile.id to name }
-                }
-                .toMap()
+                .associateBy { profile -> profile.id }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

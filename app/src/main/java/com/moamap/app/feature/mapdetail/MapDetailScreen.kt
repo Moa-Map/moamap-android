@@ -78,6 +78,7 @@ import com.moamap.app.feature.mapdetail.presentation.MapLoadState
 import com.moamap.app.feature.mapdetail.presentation.mapOrNull
 import com.moamap.app.feature.mapdetail.presentation.personal.PersonalMapAddViewModel
 import com.moamap.app.feature.mapdetail.presentation.review.PlaceReviewViewModel
+import com.mapbox.geojson.Point
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
@@ -683,14 +684,25 @@ fun MapDetailScreen(
                 place = place,
                 reviews = reviews,
                 onBackClick = closePlaceDetail,
-                // 닫기는 지도 상세에 처음 들어왔을 때로 되돌린다 - 장소 탭, 검색어 없음,
-                // 카테고리 전체, 그리고 접힌 장소 목록 시트.
-                onCloseClick = {
-                    uiState = MapDetailUiState()
-                    collapseSheetSignal++
-                },
-                onExternalLinkClick = {
+                onKakaoMapClick = {
                     openKakaoMap(context, kakaoPlaceId = place.kakaoPlaceId, placeName = place.name)
+                },
+                onInstagramClick = { place.instagramUrl?.let { url -> openWebLink(context, url) } },
+                // 상세를 닫고 장소 목록 시트를 접은 채 지도를 이 장소 마커로 옮긴다. 이미 더 가까이
+                // 보고 있었으면 배율은 그대로 둔다. pitch 는 건드리지 않는다(내 위치 버튼과 같다).
+                onShowOnMapClick = {
+                    val target = screenState.places.firstOrNull { mapPlace -> mapPlace.id == place.id }
+                    closePlaceDetail()
+                    collapseSheetSignal++
+                    target?.let { mapPlace ->
+                        mapViewportState.easeTo(
+                            cameraOptions {
+                                center(Point.fromLngLat(mapPlace.longitude, mapPlace.latitude))
+                                zoom(maxOf(mapViewportState.cameraState?.zoom ?: 0.0, PlaceFocusZoom))
+                            },
+                            MapAnimationOptions.mapAnimationOptions { duration(600L) },
+                        )
+                    }
                 },
                 onRetryReviews = reviewViewModel::retry,
                 personalMapAction = personalMapAction,
