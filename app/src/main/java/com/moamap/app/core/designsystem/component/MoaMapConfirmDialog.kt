@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 
 private val ConfirmDialogWidth = 300.dp
 private val ConfirmDialogShape = RoundedCornerShape(12.dp)
@@ -81,7 +82,7 @@ fun MoaMapConfirmDialog(
             SingleLineTitle(title = title, suffix = titleSuffix)
             Text(
                 text = message,
-                style = MoaMapTheme.typography.caption2,
+                style = MoaMapTheme.typography.body2.withDesignLineHeight(),
                 color = MoaMapTheme.colors.textAlternative,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth(),
@@ -109,7 +110,8 @@ fun MoaMapConfirmDialog(
 @Composable
 private fun SingleLineTitle(title: String, suffix: String) {
     val textMeasurer = rememberTextMeasurer()
-    val style = MoaMapTheme.typography.title3
+    // 제목↔부제 4 는 줄 높이를 다 쓴 글 상자 사이 간격이다(피그마). 여백을 잘라내면 붙어 보인다.
+    val style = MoaMapTheme.typography.title3.withDesignLineHeight()
     val density = LocalDensity.current
 
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -206,8 +208,8 @@ private fun RowScope.ConfirmDialogButton(
             .height(ConfirmButtonHeight),
         shape = ConfirmButtonShape,
         color = color,
-        shadowBlurRadius = ButtonShadowBlurRadius,
-        shadowColor = ButtonShadowColor,
+        shadowBlurRadius = CardShadowBlurRadius,
+        shadowColor = CardShadowColor,
         onClick = onClick,
     ) {
         Box(contentAlignment = Alignment.Center) {

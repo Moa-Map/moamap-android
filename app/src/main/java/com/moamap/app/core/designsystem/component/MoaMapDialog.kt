@@ -11,14 +11,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 
@@ -28,7 +31,7 @@ private val DialogBorderWidth = 2.dp
 /**
  * 파란 테두리를 두른 중앙 카드 모달.
  *
- * 스크림과 뒤로가기·바깥 탭 닫기는 [Dialog] 가 처리한다. 여기서는 카드만 그린다.
+ * 스크림과 뒤로가기·바깥 탭 닫기는 [Dialog] 가 처리한다. 여기서는 카드와 스크림 어둡기만 정한다.
  * 키보드가 올라오는 모달도 있어 [imePadding] 으로 카드가 가리지 않게 한다.
  *
  * @param dismissible 바깥을 누르거나 뒤로가기로 닫을 수 있는지. 요청이 진행 중일 때 잠근다.
@@ -55,6 +58,10 @@ fun MoaMapDialog(
             usePlatformDefaultWidth = false,
         ),
     ) {
+        // 플랫폼 기본 어둡기(Material 테마 60%)가 아니라 시안 스크림(검정 75%)으로 맞춘다.
+        val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect { window?.setDimAmount(MoaMapPrimitiveColors.TransparentBlack.alpha) }
+
         Surface(
             modifier = modifier
                 .dismissKeyboardOnBackgroundTap()
