@@ -46,6 +46,16 @@ private val MarkerElevation = 6.dp
 private val FacepileAvatarSize = 40.dp
 private val FacepileOverlap = 14.dp
 
+/** 묶음 마커에 얼굴을 몇 개까지 보이나. 넘치면 「+N」 원이 하나 더 붙는다. */
+private const val FacepileMaxVisible = 3
+
+/**
+ * 묶음 마커가 가장 넓을 때의 폭(얼굴 셋 + 「+N」). 마커는 가운데가 좌표에 붙어 좌우로 절반씩 퍼진다.
+ * 화면에 맞출 때 좌우 여백이 이 절반보다 좁으면 가장자리 묶음이 잘린다.
+ */
+internal val FacepileMarkerMaxWidth =
+    FacepileAvatarSize * (FacepileMaxVisible + 1) - FacepileOverlap * FacepileMaxVisible + MarkerRingWidth * 2
+
 /** 원 지름 대비 아이콘 크기. 단독 마커(안쪽 50dp)에서 약 28dp 가 된다. */
 private const val CategoryIconRatio = 0.56f
 
@@ -187,7 +197,7 @@ internal fun PlaceFacepileMarker(
     cluster: MarkerCluster,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    maxVisible: Int = 3,
+    maxVisible: Int = FacepileMaxVisible,
 ) {
     val visible = cluster.members.take(maxVisible)
     val overflow = cluster.members.size - visible.size
