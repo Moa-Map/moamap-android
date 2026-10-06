@@ -61,6 +61,8 @@ internal fun MapDetailMap(
     onMarkerClick: (Long) -> Unit,
     onClusterClick: (MarkerCluster) -> Unit,
     modifier: Modifier = Modifier,
+    /** 위치 권한이 있으면 지도 위에 내 위치를 그린다. */
+    showsMyLocation: Boolean = false,
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -98,6 +100,7 @@ internal fun MapDetailMap(
                 MapboxStandardStyle(standardStyleState = standardStyleState)
             },
         ) {
+            MyLocationPuck(enabled = showsMyLocation)
             PlaceMarkerAnnotations(
                 clusters = clusters,
                 onMarkerClick = onMarkerClick,
@@ -179,6 +182,9 @@ internal fun PlaceMarkerAnnotations(
                 options = viewAnnotationOptions {
                     geometry(cluster.anchorPoint())
                     allowOverlap(true)
+                    // 기본값은 내 위치 점과 겹치면 마커를 숨긴다. 장소 바로 앞에 서 있으면 그 장소가
+                    // 사라지므로 겹쳐도 그린다.
+                    allowOverlapWithPuck(true)
                     annotationAnchor { anchor(ViewAnnotationAnchor.BOTTOM) }
                 },
             ) {

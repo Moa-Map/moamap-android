@@ -561,6 +561,8 @@ fun MapDetailScreen(
                     onMarkerClick = onMarkerClick,
                     onClusterClick = onClusterClick,
                     modifier = Modifier.fillMaxSize(),
+                    // 들어올 때 권한을 묻는다. 허용되는 순간부터 내 위치가 보인다.
+                    showsMyLocation = locationGranted,
                 )
             },
         )

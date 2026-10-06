@@ -20,6 +20,9 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import androidx.compose.ui.platform.LocalContext
+import com.moamap.app.feature.mapdetail.MyLocationPuck
+import com.moamap.app.feature.mapdetail.hasLocationPermission
 import com.moamap.app.feature.mapdetail.presentation.MapDetailViewModel
 import com.moamap.app.feature.officialmap.domain.model.CongestionLevel
 import com.moamap.app.feature.officialmap.domain.model.DensityArea
@@ -167,6 +170,8 @@ private fun DensityMapContent(
                 MapboxStandardStyle(standardStyleState = standardStyleState)
             },
         ) {
+            // 이 화면은 권한을 묻지 않는다. 이미 허용돼 있을 때만 내 위치가 보인다.
+            MyLocationPuck(enabled = hasLocationPermission(LocalContext.current))
             // 평상시: 부드러운 채움 + 흐린 경계 (하이브리드의 그라데이션 느낌)
             FillLayer(sourceState = densitySource, layerId = DENSITY_FILL_LAYER_ID) {
                 fillColor = ColorValue(levelColorExpression())
