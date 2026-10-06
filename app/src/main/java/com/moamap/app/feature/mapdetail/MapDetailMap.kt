@@ -8,10 +8,12 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.Modifier
 import com.mapbox.maps.ViewAnnotationAnchor
+import com.mapbox.maps.extension.compose.ComposeMapInitOptions
 import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.MapboxMapComposable
 import com.mapbox.maps.extension.compose.animation.viewport.MapViewportState
@@ -68,6 +70,7 @@ internal fun MapDetailMap(
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val density = LocalDensity.current.density
     BoxWithConstraints(modifier = modifier) {
         val widthDp = maxWidth.value.toDouble()
         val heightDp = maxHeight.value.toDouble()
@@ -89,6 +92,9 @@ internal fun MapDetailMap(
 
         MapboxMap(
             modifier = Modifier.matchParentSize(),
+            // 상단 메뉴가 지도를 흐려 바탕으로 깔려면 TextureView 여야 한다. 기본(SurfaceView)은 화면에
+            // 구멍을 뚫고 따로 그려져 Compose 흐림이 지도를 잡지 못한다.
+            composeMapInitOptions = remember(density) { ComposeMapInitOptions(density, textureView = true) },
             mapViewportState = mapViewportState,
             onMapClickListener = {
                 focusManager.clearFocus()

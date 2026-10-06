@@ -133,9 +133,11 @@ val MapDetail.staysAfterLeaving: Boolean
  *
  * 누를 수 없는 나가기(방장)와 나갈 대상이 아닌 나만의 지도는 메뉴에서 뺀다. 비활성 줄로 남겨
  * 봐야 왜 누를 수 없는지 설명할 자리가 메뉴에는 없다.
+ *
+ * 프라이빗 지도도 뺀다. 메뉴 자리를 초대코드가 쓰고, 나가기는 모음 탭 편집에서 한다(10-06 시안·사용자 결정).
  */
 val MapDetail.canLeaveFromMenu: Boolean
-    get() = topBarAction == MapDetailAction.Leave
+    get() = topBarAction == MapDetailAction.Leave && type != MapType.Private
 
 /**
  * 나가기가 지도 삭제로 처리되는 경우.
@@ -168,7 +170,9 @@ enum class LeaveOutcome {
 /** 메뉴의 나가기를 눌렀을 때 일어날 일. 나갈 수 없으면 null 이다. */
 val MapDetail.leaveOutcome: LeaveOutcome?
     get() = when {
-        !canLeaveFromMenu -> null
+        // 메뉴에 나가기를 띄우는지([canLeaveFromMenu])가 아니라 나갈 수 있는지를 본다. 프라이빗 지도는
+        // 메뉴에 나가기가 없어도 모음 탭 편집에서 나간다.
+        topBarAction != MapDetailAction.Leave -> null
         leavingDeletesMap -> LeaveOutcome.DeleteMap
         type == MapType.Private -> LeaveOutcome.LeaveNeedsInviteCode
         else -> LeaveOutcome.Leave

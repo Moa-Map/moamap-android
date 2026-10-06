@@ -204,9 +204,20 @@ class MapDetailRuleTest {
     @Test
     fun `나갈 수 있는 사람의 메뉴에만 나가기가 있다`() {
         assertTrue(map(MapType.Community, MapRole.Member, joined = true).canLeaveFromMenu)
-        assertTrue(map(MapType.Private, MapRole.Member, joined = true, memberCount = 3).canLeaveFromMenu)
-        // 혼자 남은 프라이빗 방장의 나가기는 지도 삭제로 처리돼 메뉴에 남는다.
-        assertTrue(map(MapType.Private, MapRole.Owner, joined = true, memberCount = 1).canLeaveFromMenu)
+        assertTrue(map(MapType.Community, MapRole.Admin, joined = true).canLeaveFromMenu)
+    }
+
+    /** 프라이빗 지도의 메뉴 자리는 초대코드가 쓰고, 나가기는 모음 탭 편집에서 한다(10-06 시안). */
+    @Test
+    fun `프라이빗 지도 메뉴에는 나가기가 없다`() {
+        assertFalse(map(MapType.Private, MapRole.Member, joined = true, memberCount = 3).canLeaveFromMenu)
+        // 혼자 남은 방장도 마찬가지다. 나가기(= 지도 삭제)는 모음 탭 편집에서 한다.
+        assertFalse(map(MapType.Private, MapRole.Owner, joined = true, memberCount = 1).canLeaveFromMenu)
+        // 나가기 규칙 자체는 그대로라 모음 탭 편집은 계속 나갈 수 있다.
+        assertEquals(
+            MapDetailAction.Leave,
+            map(MapType.Private, MapRole.Member, joined = true, memberCount = 3).topBarAction,
+        )
     }
 
     /** 누를 수 없는 줄을 남겨 봐야 이유를 설명할 자리가 메뉴에는 없다. */

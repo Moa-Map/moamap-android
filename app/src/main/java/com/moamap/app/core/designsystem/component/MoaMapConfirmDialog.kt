@@ -196,8 +196,9 @@ private fun shortenedTitle(title: String, keep: Int, suffix: String): String {
     return head.trimEnd() + TITLE_ELLIPSIS + suffix
 }
 
+/** 팝업 아래 버튼 한 칸(높이 44, 모서리 8, 연한 그림자). 확인 팝업과 초대코드 팝업이 함께 쓴다. */
 @Composable
-private fun RowScope.ConfirmDialogButton(
+internal fun RowScope.ConfirmDialogButton(
     text: String,
     color: Color,
     onClick: () -> Unit,

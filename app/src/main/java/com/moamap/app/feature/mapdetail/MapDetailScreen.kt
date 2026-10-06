@@ -84,6 +84,8 @@ import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
 import com.mapbox.maps.plugin.animation.MapAnimationOptions
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.launch
 
 /** 시트가 가리지 않도록 지도 컨트롤을 시트 위로 띄우는 여백. */
@@ -551,14 +553,13 @@ fun MapDetailScreen(
         }
     }
 
+    val menuHazeState = rememberHazeState()
     Box(modifier = modifier.fillMaxSize()) {
         MapDetailContent(
             mapTitle = screenState.title ?: initialTitle,
             roleBadge = screenState.roleBadge,
             action = screenState.action,
             actionEnabled = !screenState.actionInProgress,
-            inviteCode = screenState.inviteCode,
-            onInviteCodeClick = { inviteCodeDialogVisible = true },
             placeCount = screenState.placeCount,
             is3d = is3d,
             canAddPlace = screenState.canAddPlace,
@@ -628,6 +629,8 @@ fun MapDetailScreen(
                     onMapClick = onMapClick,
                 )
             },
+            // 상단 메뉴가 이 화면(지도 포함)을 흐려 바탕으로 깐다.
+            modifier = Modifier.hazeSource(menuHazeState),
         )
 
         if (postCreateVisible) {
@@ -713,6 +716,7 @@ fun MapDetailScreen(
                     },
             )
             MapDetailMenu(
+                canShareInviteCode = screenState.inviteCode != null,
                 canLeave = screenState.canLeave,
                 onMembersClick = {
                     menuVisible = false
@@ -722,14 +726,19 @@ fun MapDetailScreen(
                     menuVisible = false
                     mapManageVisible = true
                 },
+                onInviteCodeClick = {
+                    menuVisible = false
+                    inviteCodeDialogVisible = true
+                },
                 onLeaveClick = {
                     menuVisible = false
                     leaveDialogVisible = true
                 },
+                hazeState = menuHazeState,
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(top = MapDetailTopBarHeight, end = 20.dp),
+                    .padding(top = MapDetailMenuTop, end = MapDetailMenuEnd),
             )
         }
 
@@ -858,8 +867,6 @@ internal fun MapDetailContent(
     roleBadge: String?,
     action: MapDetailAction,
     actionEnabled: Boolean,
-    inviteCode: String?,
-    onInviteCodeClick: () -> Unit,
     placeCount: Int?,
     is3d: Boolean,
     canAddPlace: Boolean,
@@ -914,8 +921,6 @@ internal fun MapDetailContent(
             roleBadge = roleBadge,
             action = action,
             actionEnabled = actionEnabled,
-            inviteCode = inviteCode,
-            onInviteCodeClick = onInviteCodeClick,
             onBackClick = onBackClick,
             onActionClick = onActionClick,
             showMenu = showMenu,
@@ -1156,8 +1161,6 @@ private fun MapDetailScreenPreview() {
             roleBadge = "방장",
             action = MapDetailAction.Leave,
             actionEnabled = true,
-            inviteCode = null,
-            onInviteCodeClick = {},
             placeCount = 32,
             is3d = true,
             canAddPlace = true,
@@ -1213,8 +1216,6 @@ private fun MapDetailScreenNotJoinedPreview() {
             roleBadge = null,
             action = MapDetailAction.Join,
             actionEnabled = true,
-            inviteCode = null,
-            onInviteCodeClick = {},
             placeCount = 12,
             is3d = false,
             canAddPlace = false,

@@ -38,11 +38,10 @@ internal val MapDetailTopBarHeight = 58.dp
 /**
  * 제목을 좌우에서 밀어 두는 여백.
  *
- * 제목은 화면 한가운데 놓여야 해서 좌우를 같은 값으로 잡는다. 우측에 글자가 하나 더
- * 붙으면(초대코드) 그만큼 넓혀 준다 - 그러지 않으면 긴 제목이 액션 글자 밑으로 파고든다.
+ * 제목은 화면 한가운데 놓여야 해서 좌우를 같은 값으로 잡는다. 그러지 않으면 긴 제목이 액션 글자
+ * 밑으로 파고든다.
  */
 private val TitleSidePadding = 72.dp
-private val TitleSidePaddingWithInviteCode = 132.dp
 
 /**
  * 우측 액션 글자 위아래로 넓히는 터치 영역.
@@ -50,8 +49,7 @@ private val TitleSidePaddingWithInviteCode = 132.dp
  * 글자 높이가 18dp 뿐이라 그대로 두면 누를 자리가 너무 얇다. `clickable` **뒤에** 두어야
  * 여백이 클릭 영역 안으로 들어간다 - 앞에 두면 여백만큼 밀리고 누르는 자리는 그대로다.
  *
- * 가로는 건드리지 않는다. 폭을 48dp 로 고정하면 51dp 인 "초대코드" 가 말줄임으로 잘린다.
- * 옆 버튼과는 12dp 를 띄워 두어 잘못 눌릴 일이 없다.
+ * 가로는 건드리지 않는다. 폭을 48dp 로 고정하면 "참여하기" 가 말줄임으로 잘린다.
  */
 private val ActionTouchPadding = 12.dp
 
@@ -61,7 +59,7 @@ private val ActionTouchPadding = 12.dp
  * 우측은 참여 전에는 참여하기 글자, 참여한 뒤에는 메뉴 아이콘이다. 나가기는 메뉴 안으로
  * 들어갔다 - `MapDetail.showsMenu` 참고. 메뉴가 없는 공식지도만 참여한 뒤 나가기 글자다.
  *
- * 프라이빗 지도에 참여한 사람에게는 그 왼쪽에 초대코드가 하나 더 붙는다.
+ * 프라이빗 지도의 초대코드도 메뉴 안에 있다(10-06 시안, 전에는 메뉴 아이콘 왼쪽 글자였다).
  */
 @Composable
 internal fun MapDetailTopBar(
@@ -71,9 +69,6 @@ internal fun MapDetailTopBar(
     onBackClick: () -> Unit,
     onActionClick: () -> Unit,
     modifier: Modifier = Modifier,
-    /** 초대코드 버튼에 실을 코드. null 이면 버튼을 띄우지 않는다. */
-    inviteCode: String? = null,
-    onInviteCodeClick: () -> Unit = {},
     /** 요청이 도는 동안 잠근다. 라벨은 그대로 두고 누를 수만 없게 한다. */
     actionEnabled: Boolean = true,
     showMenu: Boolean = false,
@@ -97,13 +92,7 @@ internal fun MapDetailTopBar(
                 .align(Alignment.Center)
                 .fillMaxWidth()
                 // 좌우 아이콘·액션과 겹치지 않도록 안쪽으로 밀어 둔다.
-                .padding(
-                    horizontal = if (inviteCode != null) {
-                        TitleSidePaddingWithInviteCode
-                    } else {
-                        TitleSidePadding
-                    },
-                ),
+                .padding(horizontal = TitleSidePadding),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
@@ -140,21 +129,8 @@ internal fun MapDetailTopBar(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
                 .padding(end = 20.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (inviteCode != null) {
-                Text(
-                    text = "초대코드",
-                    style = MoaMapTheme.typography.button2,
-                    color = MoaMapPrimitiveColors.Blue600,
-                    maxLines = 1,
-                    modifier = Modifier
-                        .clickable(onClick = onInviteCodeClick)
-                        .padding(vertical = ActionTouchPadding),
-                )
-            }
-
             when {
                 action == MapDetailAction.Join -> TextAction(
                     text = "참여하기",
@@ -259,22 +235,6 @@ private fun MapDetailTopBarOfficialLeavePreview() {
 
 @Preview(showBackground = true, widthDp = 393)
 @Composable
-private fun MapDetailTopBarPrivatePreview() {
-    MoaMapTheme {
-        MapDetailTopBar(
-            mapTitle = "우리끼리 맛집",
-            roleBadge = null,
-            action = MapDetailAction.Leave,
-            onBackClick = {},
-            onActionClick = {},
-            inviteCode = "A1B2C3",
-            showMenu = true,
-        )
-    }
-}
-
-@Preview(showBackground = true, widthDp = 393)
-@Composable
 private fun MapDetailTopBarPrivateLongTitlePreview() {
     MoaMapTheme {
         MapDetailTopBar(
@@ -283,7 +243,6 @@ private fun MapDetailTopBarPrivateLongTitlePreview() {
             action = MapDetailAction.Leave,
             onBackClick = {},
             onActionClick = {},
-            inviteCode = "A1B2C3",
             showMenu = true,
         )
     }
