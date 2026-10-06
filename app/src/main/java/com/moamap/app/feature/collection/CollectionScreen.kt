@@ -159,9 +159,9 @@ fun CollectionScreen(
     if (edit?.confirmVisible == true) {
         MoaMapConfirmDialog(
             title = "${edit.selected.size}개의 지도",
-            titleSuffix = "를 나가시겠습니까?",
-            message = "삭제하면 모음 탭에서 지도가 사라집니다",
-            confirmText = "확인",
+            titleSuffix = "에서 나가시겠습니까?",
+            message = "나가면 모음 탭에서 지도가 사라집니다",
+            confirmText = "나가기",
             onConfirm = viewModel::leaveSelected,
             onDismissRequest = viewModel::closeLeaveConfirm,
             dismissText = "닫기",
