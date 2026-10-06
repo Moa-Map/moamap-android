@@ -32,7 +32,7 @@ import kotlin.math.floor
  * 프레임마다 새로 만들어진다. 0.25 단위로 양자화해 재계산을 눈에 띄는
  * 변화가 있을 때로 제한한다.
  */
-private const val ClusterZoomStep = 0.25
+internal const val ClusterZoomStep = 0.25
 
 // 중심 양자화는 컬링 마진과 짝지어 봐야 해서 MapDetailViewport 에 있다. quantizeCenter 참고.
 
@@ -63,6 +63,8 @@ internal fun MapDetailMap(
     modifier: Modifier = Modifier,
     /** 위치 권한이 있으면 지도 위에 내 위치를 그린다. */
     showsMyLocation: Boolean = false,
+    /** 마커가 아닌 빈 지도를 눌렀을 때. 마커는 안드로이드 View 라 마커를 누르면 오지 않는다. */
+    onMapClick: () -> Unit = {},
 ) {
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
@@ -91,6 +93,7 @@ internal fun MapDetailMap(
             onMapClickListener = {
                 focusManager.clearFocus()
                 keyboardController?.hide()
+                onMapClick()
                 false
             },
             // 축척과 나침반을 띄우지 않는다. 로고와 저작권 표시는 약관상 남긴다.
