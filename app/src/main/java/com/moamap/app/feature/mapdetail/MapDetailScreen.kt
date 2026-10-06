@@ -107,6 +107,13 @@ internal fun hasLocationPermission(context: Context): Boolean =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
     }
 
+/**
+ * 지도를 옮겨 줄 장소와 그 시트의 높이(px).
+ *
+ * data class 가 아니다. 같은 장소를 닫았다 다시 열면 값이 같아도 새로 옮겨야 해서, 알릴 때마다 다른 값으로 본다.
+ */
+private class PlaceFocus(val placeId: Long, val sheetHeightPx: Float)
+
 private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
     save = { state ->
         listOf(
@@ -490,6 +497,32 @@ fun MapDetailScreen(
             }
         }
     }
+    // 장소 시트가 자리를 잡으면 그 장소를 시트 위 빈 곳의 가운데로 옮긴다. 목록·마커·묶음 어디서 열었든 같다.
+    var placeFocus by remember { mutableStateOf<PlaceFocus?>(null) }
+    LaunchedEffect(placeFocus) {
+        val focus = placeFocus ?: return@LaunchedEffect
+        val place = screenState.places.firstOrNull { place -> place.id == focus.placeId }
+            ?: return@LaunchedEffect
+        val camera = mapViewportState.cameraForCoordinates(
+            coordinates = listOf(Point.fromLngLat(place.longitude, place.latitude)),
+            // 마커는 좌표 위로 그려진다. 위 여백을 마커 높이만큼 주면 마커가 칸 한가운데에 온다. 카메라
+            // padding 이 아니라 좌표 여백이라 지도에 남지 않는다 - 시트를 닫은 뒤 다른 이동이 어긋나지 않는다.
+            coordinatesPadding = EdgeInsets(
+                with(density) { PlacePhotoMarkerHeight.toPx().toDouble() },
+                0.0,
+                focus.sheetHeightPx.toDouble(),
+                0.0,
+            ),
+            maxZoom = placeFocusZoom(markers, place.id, mapViewportState.cameraState?.zoom),
+        )
+        mapViewportState.easeTo(camera, MapAnimationOptions.mapAnimationOptions { duration(600L) })
+    }
+    // 시트 위 빈 지도를 누를 때마다 오른다. 장소 시트가 보고 내려가며 닫힌다.
+    var placeSheetCloseSignal by remember { mutableIntStateOf(0) }
+    val onMapClick: () -> Unit = remember {
+        { if (uiState.selectedPlaceId != null) placeSheetCloseSignal++ }
+    }
+
     var is3d by rememberSaveable { mutableStateOf(false) }
     val on3dToggleClick: () -> Unit = remember(mapViewportState) {
         {
@@ -576,6 +609,7 @@ fun MapDetailScreen(
                     modifier = Modifier.fillMaxSize(),
                     // 들어올 때 권한을 묻는다. 허용되는 순간부터 내 위치가 보인다.
                     showsMyLocation = locationGranted,
+                    onMapClick = onMapClick,
                 )
             },
         )
@@ -725,6 +759,8 @@ fun MapDetailScreen(
                     null
                 },
                 showsReactions = !screenState.isOfficial,
+                onSheetPlaced = { sheetHeightPx -> placeFocus = PlaceFocus(place.id, sheetHeightPx) },
+                closeSignal = placeSheetCloseSignal,
             )
         }
 
@@ -1053,29 +1089,33 @@ private fun MapDetailPlacesContent(
     ) { _ ->
         Box(modifier = Modifier.fillMaxSize()) {
             mapContent()
-            if (!official) {
-                MapDetailTabBar(
-                    selectedTab = MapDetailTab.Places,
-                    onTabSelected = onTabSelected,
-                    modifier = Modifier.align(Alignment.TopCenter),
+            // 장소 시트가 떠 있는 동안 지도 위 탭·버튼을 숨긴다. 시트 위가 비친 지도라 버튼이 시트 가장자리에
+            // 걸쳐 보이고, 로그 탭을 누르면 시트 뒤 화면만 바뀐다.
+            if (!placeSheetOpen) {
+                if (!official) {
+                    MapDetailTabBar(
+                        selectedTab = MapDetailTab.Places,
+                        onTabSelected = onTabSelected,
+                        modifier = Modifier.align(Alignment.TopCenter),
+                    )
+                }
+                MyLocationButton(
+                    inProgress = myLocationInProgress,
+                    onClick = onMyLocationClick,
+                    modifier = Modifier
+                        .align(Alignment.BottomStart)
+                        .padding(start = 20.dp, bottom = peekHeight + MapControlsBottomGap),
+                )
+                MapDetailMapControls(
+                    is3d = is3d,
+                    canAddPlace = canAddPlace,
+                    on3dToggleClick = on3dToggleClick,
+                    onAddPlaceClick = onAddPlaceClick,
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 20.dp, bottom = peekHeight + MapControlsBottomGap),
                 )
             }
-            MyLocationButton(
-                inProgress = myLocationInProgress,
-                onClick = onMyLocationClick,
-                modifier = Modifier
-                    .align(Alignment.BottomStart)
-                    .padding(start = 20.dp, bottom = peekHeight + MapControlsBottomGap),
-            )
-            MapDetailMapControls(
-                is3d = is3d,
-                canAddPlace = canAddPlace,
-                on3dToggleClick = on3dToggleClick,
-                onAddPlaceClick = onAddPlaceClick,
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = peekHeight + MapControlsBottomGap),
-            )
         }
     }
 }

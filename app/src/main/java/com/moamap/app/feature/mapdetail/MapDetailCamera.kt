@@ -11,6 +11,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
+import kotlin.math.floor
+import kotlin.math.log2
 
 private const val TAG = "MapDetailCamera"
 
@@ -85,6 +87,42 @@ private const val ClusterZoomTolerance = 0.01
  */
 internal fun isClusterZoomMaxed(currentZoom: Double?): Boolean =
     currentZoom != null && currentZoom >= ClusterMaxZoom - ClusterZoomTolerance
+
+/** 장소를 눌러 그리로 옮길 때의 기본 줌. 동네 몇 블록이 보인다. */
+internal const val PlaceFocusZoom = 16.0
+
+/**
+ * 장소를 눌러 그리로 옮길 때의 줌.
+ *
+ * 지금 줌과 [PlaceFocusZoom] 중 큰 쪽이다 - 이미 더 확대해 본 사람의 줌은 뺏지 않는다. 그 줌에서 다른
+ * 장소와 묶여 얼굴 묶음으로 보이면 혼자 보일 때까지 더 확대한다([ClusterMaxZoom] 까지). 누른 장소가
+ * 마커로 안 보이면 어디로 왔는지 알 수 없어서다.
+ *
+ * 가장 가까운 장소가 묶음 기준보다 멀면 혼자다 - 묶음은 시드에서 기준 안에 든 것만 모으기 때문이다.
+ * 화면 거리는 줌이 하나 오를 때마다 두 배라 필요한 줌을 바로 셈한다. 묶음은 0.25 단위로 내려 셈한
+ * 줌에서 그리므로([ClusterZoomStep]) 그 격자에서 기준을 넘는 첫 칸으로 올린다.
+ */
+internal fun placeFocusZoom(
+    markers: List<PlaceMarker>,
+    placeId: Long,
+    currentZoom: Double?,
+): Double {
+    val start = maxOf(currentZoom ?: PlaceFocusZoom, PlaceFocusZoom)
+    if (start >= ClusterMaxZoom) return start
+    val place = markers.firstOrNull { marker -> marker.placeId == placeId } ?: return start
+
+    val drawnZoom = floor(start / ClusterZoomStep) * ClusterZoomStep
+    val nearest = markers
+        .filter { marker -> marker.placeId != placeId }
+        .minOfOrNull { marker -> screenDistanceDp(place, marker, drawnZoom) }
+    if (nearest == null || nearest > ClusterThresholdDp) return start
+    // 좌표가 같으면 어떤 줌에서도 갈라지지 않는다. 한도까지만 간다.
+    if (nearest == 0.0) return ClusterMaxZoom
+
+    val separates = drawnZoom + log2(ClusterThresholdDp / nearest)
+    val zoom = (floor(separates / ClusterZoomStep) + 1) * ClusterZoomStep
+    return zoom.coerceAtMost(ClusterMaxZoom)
+}
 
 /**
  * 마지막으로 알려진 기기 위치. 못 얻으면 null 이다.

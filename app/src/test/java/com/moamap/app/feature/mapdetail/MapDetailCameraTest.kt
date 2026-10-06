@@ -116,4 +116,64 @@ class MapDetailCameraTest {
     fun `카메라가 아직 없으면 확대 쪽으로 보낸다`() {
         assertFalse(isClusterZoomMaxed(null))
     }
+
+    // ---------- 장소로 옮길 때의 줌 ----------
+
+    private fun marker(id: Long, longitude: Double, latitude: Double = 37.5) =
+        PlaceMarker(placeId = id, name = "장소$id", longitude = longitude, latitude = latitude, photoUrl = null)
+
+    /** [PlaceFocusZoom] 에서 기준 경도로부터 [dp] 만큼 떨어진 경도. */
+    private fun longitudeAtDp(dp: Double) = 126.95 + dp * degreesPerDp(PlaceFocusZoom)
+
+    @Test
+    fun `멀리서 보고 있으면 기본 줌으로 당긴다`() {
+        assertEquals(PlaceFocusZoom, placeFocusZoom(listOf(marker(1L, 126.95)), 1L, 12.0), 1e-9)
+        assertEquals(PlaceFocusZoom, placeFocusZoom(listOf(marker(1L, 126.95)), 1L, null), 1e-9)
+    }
+
+    @Test
+    fun `이미 더 확대해 봤으면 그 줌을 둔다`() {
+        assertEquals(17.3, placeFocusZoom(listOf(marker(1L, 126.95)), 1L, 17.3), 1e-9)
+    }
+
+    @Test
+    fun `이웃이 멀면 기본 줌 그대로다`() {
+        val markers = listOf(marker(1L, 126.95), marker(2L, longitudeAtDp(200.0)))
+
+        assertEquals(PlaceFocusZoom, placeFocusZoom(markers, 1L, null), 1e-9)
+    }
+
+    @Test
+    fun `묶여 보이면 혼자 보일 때까지 확대한다`() {
+        // 기본 줌에서 30dp - 묶음 기준(72dp) 안이다.
+        val markers = listOf(marker(1L, 126.95), marker(2L, longitudeAtDp(30.0)), marker(3L, longitudeAtDp(400.0)))
+
+        val zoom = placeFocusZoom(markers, 1L, null)
+
+        // 지도가 묶음을 셈하는 줌(0.25 단위로 내림)에서 그 장소가 혼자여야 한다.
+        val drawn = clusterMarkers(markers, kotlin.math.floor(zoom / ClusterZoomStep) * ClusterZoomStep)
+        assertTrue(drawn.any { cluster -> cluster.isSingle && cluster.members.first().placeId == 1L })
+        // 갈라지는 바로 그 칸이다. 한 칸 덜 확대하면 아직 묶인다.
+        val before = clusterMarkers(markers, zoom - ClusterZoomStep)
+        assertTrue(before.none { cluster -> cluster.isSingle && cluster.members.first().placeId == 1L })
+    }
+
+    @Test
+    fun `좌표가 같은 장소와는 한도까지만 확대한다`() {
+        val markers = listOf(marker(1L, 126.95), marker(2L, 126.95))
+
+        assertEquals(ClusterMaxZoom, placeFocusZoom(markers, 1L, null), 1e-9)
+    }
+
+    @Test
+    fun `아주 가까운 장소가 있어도 한도를 넘지 않는다`() {
+        val markers = listOf(marker(1L, 126.95), marker(2L, 126.95 + 1e-7))
+
+        assertEquals(ClusterMaxZoom, placeFocusZoom(markers, 1L, null), 1e-9)
+    }
+
+    @Test
+    fun `지도에 없는 장소면 기본 규칙만 따른다`() {
+        assertEquals(PlaceFocusZoom, placeFocusZoom(listOf(marker(2L, 126.95)), 1L, null), 1e-9)
+    }
 }
