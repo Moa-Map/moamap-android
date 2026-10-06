@@ -33,6 +33,7 @@ import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.mapdetail.LocationPermissions
 import com.moamap.app.feature.mapdetail.MyLocationButton
+import com.moamap.app.feature.mapdetail.MyLocationPuck
 import com.moamap.app.feature.mapdetail.ViewportBounds
 import com.moamap.app.feature.mapdetail.currentLocation
 import com.moamap.app.feature.mapdetail.hasLocationPermission
@@ -123,6 +124,8 @@ fun RestroomPreviewMap(
         selected = null,
         onCameraIdle = viewModel::onCameraIdle,
         modifier = modifier,
+        // 소개 화면은 권한을 묻지 않는다. 이미 허용돼 있을 때만 내 위치가 보인다.
+        showsMyLocation = hasLocationPermission(LocalContext.current),
     )
 }
 
@@ -182,6 +185,8 @@ private fun RestroomMapBody(
             onMapClick = onMapClick,
             mapViewportState = mapViewportState,
             modifier = Modifier.fillMaxSize(),
+            // 권한은 내 위치 버튼을 누를 때 묻는다. 허용되는 순간부터 내 위치가 보인다.
+            showsMyLocation = locationGranted,
         )
 
         val mapMessage = when {
@@ -257,6 +262,8 @@ private fun RestroomMarkersMap(
     onRestroomClick: (Long) -> Unit = {},
     onMapClick: () -> Unit = {},
     mapViewportState: MapViewportState = rememberRestroomViewportState(),
+    /** 위치 권한이 있으면 지도 위에 내 위치를 그린다. */
+    showsMyLocation: Boolean = false,
 ) {
     val mapState = rememberMapState {
         gesturesSettings = GesturesSettings {
@@ -300,6 +307,7 @@ private fun RestroomMarkersMap(
         scaleBar = {},
         style = { MapboxStandardStyle(standardStyleState = standardStyleState) },
     ) {
+        MyLocationPuck(enabled = showsMyLocation)
         MapEffect(Unit) { mapView ->
             val map = mapView.mapboxMap
             map.mapIdleEvents.collect {

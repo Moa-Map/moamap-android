@@ -9,11 +9,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.moamap.app.feature.mapdetail.InitialCamera
 import com.moamap.app.feature.mapdetail.MapDetailCenter
+import com.moamap.app.feature.mapdetail.MyLocationPuck
 import com.moamap.app.feature.mapdetail.PlaceMarkerAnnotations
+import com.moamap.app.feature.mapdetail.hasLocationPermission
 import com.moamap.app.feature.mapdetail.rememberMarkerClusters
 import com.moamap.app.feature.mapdetail.toPlaceMarker
 import com.moamap.app.feature.mapdetail.initialCamera
@@ -122,6 +125,8 @@ internal fun MapIntroMap(
             scaleBar = {},
             style = { MapboxStandardStyle(standardStyleState = standardStyleState) },
         ) {
+            // 이 화면은 권한을 묻지 않는다. 이미 허용돼 있을 때만 내 위치가 보인다.
+            MyLocationPuck(enabled = hasLocationPermission(LocalContext.current))
             PlaceMarkerAnnotations(
                 clusters = clusters,
                 // 참여 전에는 장소 상세도, 묶음 펼치기도 열지 않는다. 그릴 뿐이다.
