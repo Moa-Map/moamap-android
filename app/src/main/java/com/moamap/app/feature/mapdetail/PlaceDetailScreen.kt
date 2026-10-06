@@ -55,6 +55,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -225,7 +226,7 @@ private class PlaceSheetProbe {
 }
 
 /**
- * 장소 상세. 장소를 누르면 지도 위로 시트 하나가 올라오고(뒤는 어둡게), 끌어 올린 만큼 아래 내용이
+ * 장소 상세. 장소를 누르면 지도 위로 시트 하나가 올라오고(위는 지도가 그대로 보인다), 끌어 올린 만큼 아래 내용이
  * 드러난다. 중간에 놓으면 그 자리에 멈추고, 거의 끝까지 올리면 화면을 덮는 페이지가 된다. 시안
  * 「10/3」 장소 상세 시트·페이지.
  *
@@ -234,7 +235,8 @@ private class PlaceSheetProbe {
  * 페이지가 되면 겹쳐 바뀐다. 시트는 화면 높이 그대로이고 아래로 밀어 둔 것이라, 아래쪽 댓글 입력은
  * 페이지가 돼야 보인다.
  *
- * 닫는 길: 시트·페이지의 ←·기기 뒤로, 시트의 어두운 곳·아래로 끌기 = 장소 목록, × = 처음 들어온 상태.
+ * 닫는 길: 시트·페이지의 ←·기기 뒤로, 시트 위 빈 지도 누르기([closeSignal])·아래로 끌기 = 장소 목록,
+ * × = 처음 들어온 상태.
  */
 @Composable
 internal fun PlaceDetailScreen(
@@ -260,6 +262,10 @@ internal fun PlaceDetailScreen(
     onDeleteReview: (Long) -> Unit = {},
     /** false 면 하트·신고하기·댓글을 뺀다. 공식지도다. 나만의 지도 추가·지도 보기는 남는다. */
     showsReactions: Boolean = true,
+    /** 시트 자리가 정해졌을 때. 화면 아래에서 시트 윗변까지의 높이(px)를 준다. */
+    onSheetPlaced: (sheetHeightPx: Float) -> Unit = {},
+    /** 올리면 시트가 내려가며 닫힌다(장소 목록으로). 시트 위 빈 지도를 눌렀을 때다. */
+    closeSignal: Int = 0,
 ) {
     var stage by rememberSaveable(place.id) { mutableStateOf(PlaceDetailStage.Sheet) }
     val probe = remember(place.id) { PlaceSheetProbe() }
@@ -305,22 +311,18 @@ internal fun PlaceDetailScreen(
         }
         val onBack = { dismissThen(onBackClick) }
 
-        // 시트 뒤 지도와 상단 바를 어둡게 덮는다. 시트가 올라온 만큼 짙어지고, 누르면 목록으로.
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    val sheetTop = sheetOffset ?: screenHeight
-                    alpha = ((screenHeight - offset.value) / (screenHeight - sheetTop).coerceAtLeast(1f))
-                        .coerceIn(0f, 1f)
-                }
-                .background(MoaMapPrimitiveColors.TransparentBlack)
-                .clickable(
-                    interactionSource = null,
-                    indication = null,
-                    onClickLabel = "장소 상세 닫기",
-                ) { onBack() },
-        )
+        // 시트 자리가 정해지면 밖에 알린다. 지도가 그 위 빈 곳으로 장소를 옮긴다. 장소가 바뀌면 높이가
+        // 같아도 다시 알린다 - 다른 장소로 옮겨야 한다.
+        val currentOnSheetPlaced by rememberUpdatedState(onSheetPlaced)
+        LaunchedEffect(place.id, sheetOffset) {
+            sheetOffset?.let { top -> currentOnSheetPlaced(screenHeight - top) }
+        }
+
+        // 시트 위 빈 지도를 누르면 오른다. 열릴 때의 값과 다르면 내려가며 닫는다.
+        val closeSignalAtOpen = remember { closeSignal }
+        LaunchedEffect(closeSignal) {
+            if (closeSignal != closeSignalAtOpen) onBack()
+        }
 
         PlaceDetailContent(
             place = place,
@@ -354,7 +356,7 @@ internal fun PlaceDetailScreen(
                     clip = true
                 }
                 .background(MoaMapTheme.colors.backgroundSecondary)
-                // 뒤에 깔린 어두운 막으로 터치가 새지 않게 빈 자리의 탭을 여기서 받는다.
+                // 뒤에 깔린 지도로 터치가 새지 않게 빈 자리의 탭을 여기서 받는다. 새면 빈 지도 탭이 돼 닫힌다.
                 .pointerInput(Unit) { detectTapGestures() }
                 // 시트일 땐 어디를 끌어도 시트가 움직인다(목록은 스크롤을 꺼 둔다). 페이지는 목록이 스크롤된다.
                 .draggable(

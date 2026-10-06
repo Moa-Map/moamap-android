@@ -39,6 +39,9 @@ private val MarkerPhotoSize = 56.dp
 private val MarkerRingWidth = 3.dp
 private val MarkerTailWidth = 12.dp
 private val MarkerTailHeight = 8.dp
+
+/** 사진 마커가 좌표 위로 차지하는 높이. 마커는 아래 끝(꼬리)이 좌표에 붙는다. */
+internal val PlacePhotoMarkerHeight = MarkerPhotoSize + MarkerTailHeight
 private val MarkerElevation = 6.dp
 private val FacepileAvatarSize = 40.dp
 private val FacepileOverlap = 14.dp
