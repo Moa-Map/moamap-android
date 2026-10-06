@@ -79,6 +79,7 @@ import com.moamap.app.feature.mapdetail.presentation.MapLoadState
 import com.moamap.app.feature.mapdetail.presentation.mapOrNull
 import com.moamap.app.feature.mapdetail.presentation.personal.PersonalMapAddViewModel
 import com.moamap.app.feature.mapdetail.presentation.review.PlaceReviewViewModel
+import com.mapbox.geojson.Point
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
@@ -106,16 +107,12 @@ internal fun hasLocationPermission(context: Context): Boolean =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
     }
 
-/** 펼친 묶음의 placeId 를 한 칸에 담을 때 쓰는 구분자. */
-private const val ClusterIdSeparator = ","
-
 private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
     save = { state ->
         listOf(
             state.selectedTab.name,
             state.selectedPlaceId?.toString().orEmpty(),
             state.searchQuery,
-            state.expandedClusterPlaceIds.joinToString(ClusterIdSeparator),
             state.selectedCategory.saveKey(),
         )
     },
@@ -126,11 +123,7 @@ private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
             } ?: MapDetailTab.Places,
             selectedPlaceId = values.getOrNull(1)?.toLongOrNull(),
             searchQuery = values.getOrNull(2).orEmpty(),
-            expandedClusterPlaceIds = values.getOrNull(3)
-                ?.split(ClusterIdSeparator)
-                ?.mapNotNull { id -> id.toLongOrNull() }
-                .orEmpty(),
-            selectedCategory = placeCategoryFilterOf(values.getOrNull(4)),
+            selectedCategory = placeCategoryFilterOf(values.getOrNull(3)),
         )
     },
 )
@@ -270,11 +263,6 @@ fun MapDetailScreen(
     val selectedPlace = places.firstOrNull { place ->
         place.id == uiState.selectedPlaceId
     }
-    // 묶음이 들고 있는 건 placeId 뿐이다. 목록 카드가 읽을 모양으로 되찾아 온다.
-    val expandedClusterPlaces = remember(places, uiState.expandedClusterPlaceIds) {
-        val byId = places.associateBy { place -> place.id }
-        uiState.expandedClusterPlaceIds.mapNotNull { placeId -> byId[placeId] }
-    }
     val closePlaceDetail = { uiState = uiState.closePlaceDetail() }
 
     // 시트를 연 장소의 후기를 읽는다. 닫으면 비워, 다음에 열 때 서버에서 다시 읽는다.
@@ -388,13 +376,16 @@ fun MapDetailScreen(
     /**
      * 마커를 화면에 맞출 때 가장자리에 두는 여백.
      */
-    val fitPadding = with(LocalDensity.current) {
-        EdgeInsets(
-            80.dp.toPx().toDouble(),
-            40.dp.toPx().toDouble(),
-            (DefaultSheetPeekHeight + 40.dp).toPx().toDouble(),
-            40.dp.toPx().toDouble(),
-        )
+    val density = LocalDensity.current
+    val fitPadding = remember(density) {
+        with(density) {
+            EdgeInsets(
+                80.dp.toPx().toDouble(),
+                40.dp.toPx().toDouble(),
+                (DefaultSheetPeekHeight + 40.dp).toPx().toDouble(),
+                40.dp.toPx().toDouble(),
+            )
+        }
     }
 
     LaunchedEffect(loadFinished, permissionAnswered, cameraSettled) {
@@ -465,16 +456,38 @@ fun MapDetailScreen(
     val onMarkerClick: (Long) -> Unit = remember {
         { placeId -> uiState = uiState.selectPlace(placeId) }
     }
+    val cameraScope = rememberCoroutineScope()
     /**
-     * 묶음 마커를 누르면 목록으로 펼친다.
+     * 묶음 마커를 누르면 그 장소들이 지도 보이는 칸에 꽉 차게 확대한다. 확대하면서 갈라지고,
+     * 아직 붙은 묶음은 다시 누르면 같은 식으로 확대된다.
      *
-     * 확대로 풀지 않는다. 좌표가 같은 장소는 어떤 줌에서도 갈라지지 않아 - 화면 거리가
-     * 0이라 임계값을 넘을 수가 없다 - 확대만으로는 열 방법이 영영 생기지 않는다. 공공데이터
-     * 화장실처럼 한 자리에 여러 칸이 따로 등록되는 지도에서 실제로 겪은 문제다.
+     * 묶음은 서로 [ClusterThresholdDp] 안이라 퍼진 폭이 그 두 배를 넘지 않는다. 보이는 칸은
+     * 그보다 넓어 누를 때마다 적어도 한 단계는 확대된다 - 눌렀는데 그대로인 일은 없다.
+     *
+     * [ClusterMaxZoom] 에서도 붙어 있으면 한 장소로 보고 맨 앞 장소의 상세를 연다. 좌표가 같은
+     * 장소는 어떤 줌에서도 갈라지지 않아, 확대만 하면 영영 열 수가 없다. 그 자리의 나머지 장소는
+     * 아래 장소 목록에서 연다.
      */
-    val onClusterClick: (MarkerCluster) -> Unit = remember {
+    val onClusterClick: (MarkerCluster) -> Unit = remember(mapViewportState, cameraScope, fitPadding) {
         { cluster ->
-            uiState = uiState.expandCluster(cluster.members.map { member -> member.placeId })
+            if (isClusterZoomMaxed(mapViewportState.cameraState?.zoom)) {
+                uiState = uiState.selectPlace(cluster.members.first().placeId)
+            } else {
+                cameraScope.launch {
+                    // 기울기·방향은 넘기지 않는다. 비워 두면 지금 값을 쓴다 - 3D 로 보던 지도가 펴지지 않는다.
+                    val camera = mapViewportState.cameraForCoordinates(
+                        coordinates = cluster.members.map { member ->
+                            Point.fromLngLat(member.longitude, member.latitude)
+                        },
+                        coordinatesPadding = fitPadding,
+                        maxZoom = ClusterMaxZoom,
+                    )
+                    mapViewportState.easeTo(
+                        camera,
+                        MapAnimationOptions.mapAnimationOptions { duration(600L) },
+                    )
+                }
+            }
         }
     }
     var is3d by rememberSaveable { mutableStateOf(false) }
@@ -749,17 +762,6 @@ fun MapDetailScreen(
     BackHandler(enabled = uiState.selectedPlaceId != null) { closePlaceDetail() }
     // 장소 추가는 지도 위의 버튼에서만 열려 장소 상세와 함께 떠 있지 않는다.
     BackHandler(enabled = addPlaceVisible) { addPlaceBack() }
-
-    // 상세보다 먼저 그린다. 목록에서 하나를 고르면 목록은 닫히고 상세만 남는다.
-    if (expandedClusterPlaces.isNotEmpty()) {
-        ClusterPlacesSheet(
-            places = expandedClusterPlaces,
-            onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
-            onLikeClick = viewModel::toggleLike,
-            onDismiss = { uiState = uiState.closeCluster() },
-            showsReactions = !screenState.isOfficial,
-        )
-    }
 
     // 코드가 사라진 채로 열려 있으면 안 된다. 나가기·삭제로 자격을 잃으면 같이 닫힌다.
     val inviteCode = screenState.inviteCode
