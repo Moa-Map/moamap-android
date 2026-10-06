@@ -9,14 +9,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,7 +24,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
@@ -38,9 +34,11 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.ConfirmDialogButton
 import com.moamap.app.core.designsystem.component.MoaMapDialog
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import kotlinx.coroutines.launch
 
 private val DialogWidth = 300.dp
@@ -48,9 +46,6 @@ private val DialogContentPadding = PaddingValues(horizontal = 24.dp, vertical = 
 
 private val CodeBoxShape = RoundedCornerShape(12.dp)
 private val CodeBoxPadding = PaddingValues(horizontal = 24.dp, vertical = 20.dp)
-
-private val ButtonHeight = 44.dp
-private val ButtonShape = RoundedCornerShape(8.dp)
 
 private val CopyIconSize = 16.dp
 
@@ -65,7 +60,7 @@ internal fun MapInviteCodeDialog(
     mapName: String,
     inviteCode: String,
     onDismiss: () -> Unit,
-    title: String = "초대코드",
+    title: String = "친구 초대하기",
 ) {
     val context = LocalContext.current
     val clipboard = LocalClipboard.current
@@ -86,16 +81,17 @@ internal fun MapInviteCodeDialog(
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
+                // 제목↔부제 4 는 줄 높이를 다 쓴 글 상자 사이 간격이다(피그마). 여백을 잘라내면 붙어 보인다.
                 Text(
                     text = title,
-                    style = MoaMapTheme.typography.title3,
+                    style = MoaMapTheme.typography.title3.withDesignLineHeight(),
                     color = MoaMapTheme.colors.textNormal,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
                     text = "초대코드를 공유하고 친구와 함께 해보세요",
-                    style = MoaMapTheme.typography.caption2,
+                    style = MoaMapTheme.typography.caption2.withDesignLineHeight(),
                     color = MoaMapPrimitiveColors.Gray500,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
@@ -123,12 +119,12 @@ internal fun MapInviteCodeDialog(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            DialogButton(
+            ConfirmDialogButton(
                 text = "닫기",
                 color = MoaMapPrimitiveColors.Gray200,
                 onClick = onDismiss,
             )
-            DialogButton(
+            ConfirmDialogButton(
                 text = "공유하기",
                 color = MoaMapPrimitiveColors.Blue500,
                 onClick = { context.shareInviteCode(mapName = mapName, inviteCode = inviteCode) },
@@ -160,7 +156,7 @@ private fun InviteCodeBox(
     ) {
         Text(
             text = "초대코드",
-            style = MoaMapTheme.typography.subtitle4,
+            style = MoaMapTheme.typography.subtitle4.withDesignLineHeight(),
             color = MoaMapPrimitiveColors.Gray500,
         )
         SingleLineInviteCode(inviteCode)
@@ -178,7 +174,7 @@ private fun InviteCodeBox(
             )
             Text(
                 text = "초대 코드 복사하기",
-                style = MoaMapTheme.typography.caption2,
+                style = MoaMapTheme.typography.caption2.withDesignLineHeight(),
                 color = MoaMapPrimitiveColors.Gray300,
             )
         }
@@ -188,7 +184,7 @@ private fun InviteCodeBox(
 @Composable
 private fun SingleLineInviteCode(inviteCode: String) {
     val textMeasurer = rememberTextMeasurer()
-    val style = MoaMapTheme.typography.display1
+    val style = MoaMapTheme.typography.display1.withDesignLineHeight()
     val density = LocalDensity.current
 
     BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
@@ -218,28 +214,6 @@ private fun SingleLineInviteCode(inviteCode: String) {
     }
 }
 
-@Composable
-private fun RowScope.DialogButton(
-    text: String,
-    color: Color,
-    onClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .weight(1f)
-            .height(ButtonHeight)
-            .clip(ButtonShape)
-            .background(color)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(
-            text = text,
-            style = MoaMapTheme.typography.button2,
-            color = MoaMapTheme.colors.textWhite,
-        )
-    }
-}
 
 /** 딥링크가 없어 코드 텍스트만 보낸다. */
 private fun Context.shareInviteCode(mapName: String, inviteCode: String) {
