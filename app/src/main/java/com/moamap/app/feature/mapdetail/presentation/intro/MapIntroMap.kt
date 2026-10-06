@@ -129,7 +129,7 @@ internal fun MapIntroMap(
             MyLocationPuck(enabled = hasLocationPermission(LocalContext.current))
             PlaceMarkerAnnotations(
                 clusters = clusters,
-                // 참여 전에는 장소 상세도, 묶음 펼치기도 열지 않는다. 그릴 뿐이다.
+                // 참여 전에는 장소 상세를 열지 않고, 묶음을 눌러도 확대하지 않는다. 그릴 뿐이다.
                 onMarkerClick = {},
                 onClusterClick = {},
             )

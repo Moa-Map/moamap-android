@@ -68,6 +68,25 @@ internal fun myLocationZoom(currentZoom: Double?): Double =
     maxOf(currentZoom ?: MapDetailDefaultZoom, MapDetailDefaultZoom)
 
 /**
+ * 묶음 마커를 눌러 확대할 때의 한도. 건물 하나가 화면을 채우는 정도다.
+ *
+ * 여기서도 붙어 있는 묶음은 더 확대해도 갈라질 기대가 없다고 보고 장소 하나처럼 다룬다.
+ * 서울 위도에서 묶음 기준([ClusterThresholdDp])이 약 4m 라, 그보다 가까운 장소들이 그렇다.
+ */
+internal const val ClusterMaxZoom = 20.0
+
+/** 한도로 옮긴 카메라가 19.9999 처럼 읽혀도 한도로 보게 하는 여유. */
+private const val ClusterZoomTolerance = 0.01
+
+/**
+ * 묶음을 더 확대하지 않고 장소로 열지.
+ *
+ * 카메라가 아직 없으면([currentZoom] null) 확대 쪽으로 보낸다. 확대는 지도가 붙을 때까지 기다린다.
+ */
+internal fun isClusterZoomMaxed(currentZoom: Double?): Boolean =
+    currentZoom != null && currentZoom >= ClusterMaxZoom - ClusterZoomTolerance
+
+/**
  * 마지막으로 알려진 기기 위치. 못 얻으면 null 이다.
  *
  * 실시간 추적을 걸지 않는다. 초기 카메라를 한 번 정하는 게 전부라 구독을 열 이유가 없다.
