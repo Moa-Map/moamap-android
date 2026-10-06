@@ -100,7 +100,37 @@ class MapDetailCameraTest {
     }
 
     @Test
-    fun `한도에 닿은 묶음은 장소로 연다`() {
+    fun `좌표가 같은 장소 묶음은 확대해도 안 갈라진다`() {
+        val cluster = MarkerCluster(listOf(marker(1L, 126.95), marker(2L, 126.95)))
+
+        assertFalse(cluster.splitsByZoom())
+    }
+
+    @Test
+    fun `한도에서도 묶음 기준 안에 붙은 장소는 안 갈라진다`() {
+        // 한도 줌에서 30dp - 서울에서 2m 쯤이다.
+        val cluster = MarkerCluster(listOf(marker(1L, 126.95), marker(2L, 126.95 + 30 * degreesPerDp(ClusterMaxZoom))))
+
+        assertFalse(cluster.splitsByZoom())
+    }
+
+    @Test
+    fun `한도까지 확대해 갈라지면 확대한다`() {
+        // 기본 줌에서는 묶이는 30m 남짓 떨어진 두 곳이다.
+        val cluster = MarkerCluster(listOf(marker(1L, 126.95), marker(2L, 126.9504)))
+
+        assertTrue(cluster.splitsByZoom())
+    }
+
+    @Test
+    fun `같은 자리 둘과 떨어진 하나는 일부라도 갈라지니 확대한다`() {
+        val cluster = MarkerCluster(listOf(marker(1L, 126.95), marker(2L, 126.95), marker(3L, 126.9504)))
+
+        assertTrue(cluster.splitsByZoom())
+    }
+
+    @Test
+    fun `한도에 닿은 묶음은 목록으로 연다`() {
         assertTrue(isClusterZoomMaxed(ClusterMaxZoom))
         // 손으로 더 확대해 봤어도 마찬가지다.
         assertTrue(isClusterZoomMaxed(21.0))

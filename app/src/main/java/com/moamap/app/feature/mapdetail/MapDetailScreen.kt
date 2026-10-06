@@ -114,6 +114,9 @@ internal fun hasLocationPermission(context: Context): Boolean =
  */
 private class PlaceFocus(val placeId: Long, val sheetHeightPx: Float)
 
+/** 펼친 묶음의 placeId 를 한 칸에 담을 때 쓰는 구분자. */
+private const val ClusterIdSeparator = ","
+
 private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
     save = { state ->
         listOf(
@@ -121,6 +124,7 @@ private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
             state.selectedPlaceId?.toString().orEmpty(),
             state.searchQuery,
             state.selectedCategory.saveKey(),
+            state.expandedClusterPlaceIds.joinToString(ClusterIdSeparator),
         )
     },
     restore = { values ->
@@ -131,6 +135,10 @@ private val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
             selectedPlaceId = values.getOrNull(1)?.toLongOrNull(),
             searchQuery = values.getOrNull(2).orEmpty(),
             selectedCategory = placeCategoryFilterOf(values.getOrNull(3)),
+            expandedClusterPlaceIds = values.getOrNull(4)
+                ?.split(ClusterIdSeparator)
+                ?.mapNotNull { id -> id.toLongOrNull() }
+                .orEmpty(),
         )
     },
 )
@@ -270,6 +278,11 @@ fun MapDetailScreen(
     val selectedPlace = places.firstOrNull { place ->
         place.id == uiState.selectedPlaceId
     }
+    // 묶음이 들고 있는 건 placeId 뿐이다. 목록 카드가 읽을 모양으로 되찾아 온다.
+    val expandedClusterPlaces = remember(places, uiState.expandedClusterPlaceIds) {
+        val byId = places.associateBy { place -> place.id }
+        uiState.expandedClusterPlaceIds.mapNotNull { placeId -> byId[placeId] }
+    }
     val closePlaceDetail = { uiState = uiState.closePlaceDetail() }
 
     // 시트를 연 장소의 후기를 읽는다. 닫으면 비워, 다음에 열 때 서버에서 다시 읽는다.
@@ -386,11 +399,14 @@ fun MapDetailScreen(
     val density = LocalDensity.current
     val fitPadding = remember(density) {
         with(density) {
+            // 좌우는 가장 넓은 묶음 마커의 절반보다 넓어야 한다. 마커가 좌표 가운데에 붙어 있어 그보다
+            // 좁으면 가장자리 묶음이 잘린다(40 이던 때 실제로 잘렸다).
+            val side = (FacepileMarkerMaxWidth / 2 + 8.dp).toPx().toDouble()
             EdgeInsets(
                 80.dp.toPx().toDouble(),
-                40.dp.toPx().toDouble(),
+                side,
                 (DefaultSheetPeekHeight + 40.dp).toPx().toDouble(),
-                40.dp.toPx().toDouble(),
+                side,
             )
         }
     }
@@ -471,14 +487,14 @@ fun MapDetailScreen(
      * 묶음은 서로 [ClusterThresholdDp] 안이라 퍼진 폭이 그 두 배를 넘지 않는다. 보이는 칸은
      * 그보다 넓어 누를 때마다 적어도 한 단계는 확대된다 - 눌렀는데 그대로인 일은 없다.
      *
-     * [ClusterMaxZoom] 에서도 붙어 있으면 한 장소로 보고 맨 앞 장소의 상세를 연다. 좌표가 같은
-     * 장소는 어떤 줌에서도 갈라지지 않아, 확대만 하면 영영 열 수가 없다. 그 자리의 나머지 장소는
-     * 아래 장소 목록에서 연다.
+     * [ClusterMaxZoom] 까지 확대해도 안 갈라지는 묶음은 확대하지 않고 바로 목록으로 연다. 좌표가 같은
+     * 장소는 어떤 줌에서도 갈라지지 않아, 확대만 하면 영영 열 수가 없다. 이미 한도인데 묶여 있어도
+     * 목록이다 - 카메라 줌의 소수점 오차로 한 칸 낮게 그려진 경우다.
      */
     val onClusterClick: (MarkerCluster) -> Unit = remember(mapViewportState, cameraScope, fitPadding) {
         { cluster ->
-            if (isClusterZoomMaxed(mapViewportState.cameraState?.zoom)) {
-                uiState = uiState.selectPlace(cluster.members.first().placeId)
+            if (!cluster.splitsByZoom() || isClusterZoomMaxed(mapViewportState.cameraState?.zoom)) {
+                uiState = uiState.expandCluster(cluster.members.map { member -> member.placeId })
             } else {
                 cameraScope.launch {
                     // 기울기·방향은 넘기지 않는다. 비워 두면 지금 값을 쓴다 - 3D 로 보던 지도가 펴지지 않는다.
@@ -798,6 +814,17 @@ fun MapDetailScreen(
     BackHandler(enabled = uiState.selectedPlaceId != null) { closePlaceDetail() }
     // 장소 추가는 지도 위의 버튼에서만 열려 장소 상세와 함께 떠 있지 않는다.
     BackHandler(enabled = addPlaceVisible) { addPlaceBack() }
+
+    // 상세보다 먼저 그린다. 목록에서 하나를 고르면 목록은 닫히고 상세만 남는다.
+    if (expandedClusterPlaces.isNotEmpty()) {
+        ClusterPlacesSheet(
+            places = expandedClusterPlaces,
+            onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
+            onLikeClick = viewModel::toggleLike,
+            onDismiss = { uiState = uiState.closeCluster() },
+            showsReactions = !screenState.isOfficial,
+        )
+    }
 
     // 코드가 사라진 채로 열려 있으면 안 된다. 나가기·삭제로 자격을 잃으면 같이 닫힌다.
     val inviteCode = screenState.inviteCode

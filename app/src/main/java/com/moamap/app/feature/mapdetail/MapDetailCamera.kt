@@ -72,16 +72,24 @@ internal fun myLocationZoom(currentZoom: Double?): Double =
 /**
  * 묶음 마커를 눌러 확대할 때의 한도. 건물 하나가 화면을 채우는 정도다.
  *
- * 여기서도 붙어 있는 묶음은 더 확대해도 갈라질 기대가 없다고 보고 장소 하나처럼 다룬다.
+ * 여기서도 붙어 있는 묶음은 더 확대해도 갈라질 기대가 없다고 보고 목록으로 연다([splitsByZoom]).
  * 서울 위도에서 묶음 기준([ClusterThresholdDp])이 약 4m 라, 그보다 가까운 장소들이 그렇다.
  */
 internal const val ClusterMaxZoom = 20.0
+
+/**
+ * 한도까지 확대하면 이 묶음이 둘 이상으로 갈라지는지.
+ *
+ * 아니면 눌러도 확대하지 않고 바로 목록으로 연다 - 확대해 봐야 같은 묶음만 커진다. 좌표가 같은 장소들이
+ * 대표적이다. 일부만 갈라지는 묶음(같은 자리 둘 + 떨어진 하나)은 확대하고, 남은 묶음을 다시 누르면 목록이다.
+ */
+internal fun MarkerCluster.splitsByZoom(): Boolean = clusterMarkers(members, ClusterMaxZoom).size > 1
 
 /** 한도로 옮긴 카메라가 19.9999 처럼 읽혀도 한도로 보게 하는 여유. */
 private const val ClusterZoomTolerance = 0.01
 
 /**
- * 묶음을 더 확대하지 않고 장소로 열지.
+ * 이미 한도까지 확대해 묶음을 더 확대하지 않고 목록으로 열지.
  *
  * 카메라가 아직 없으면([currentZoom] null) 확대 쪽으로 보낸다. 확대는 지도가 붙을 때까지 기다린다.
  */
