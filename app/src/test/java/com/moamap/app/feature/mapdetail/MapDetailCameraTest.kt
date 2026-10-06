@@ -3,6 +3,8 @@ package com.moamap.app.feature.mapdetail
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.mapbox.geojson.Point
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MapDetailCameraTest {
@@ -89,5 +91,29 @@ class MapDetailCameraTest {
     @Test
     fun `이미 더 확대해 봤으면 그 줌을 유지한다`() {
         assertEquals(17.5, myLocationZoom(17.5), 1e-9)
+    }
+
+    @Test
+    fun `묶음은 한도에 닿기 전까지 확대한다`() {
+        assertFalse(isClusterZoomMaxed(MapDetailDefaultZoom))
+        assertFalse(isClusterZoomMaxed(19.5))
+    }
+
+    @Test
+    fun `한도에 닿은 묶음은 장소로 연다`() {
+        assertTrue(isClusterZoomMaxed(ClusterMaxZoom))
+        // 손으로 더 확대해 봤어도 마찬가지다.
+        assertTrue(isClusterZoomMaxed(21.0))
+    }
+
+    @Test
+    fun `한도로 옮긴 카메라의 소수점 오차는 한도로 본다`() {
+        // 아니면 눌러도 같은 자리로 다시 확대만 하고 상세는 영영 안 열린다.
+        assertTrue(isClusterZoomMaxed(ClusterMaxZoom - 1e-6))
+    }
+
+    @Test
+    fun `카메라가 아직 없으면 확대 쪽으로 보낸다`() {
+        assertFalse(isClusterZoomMaxed(null))
     }
 }
