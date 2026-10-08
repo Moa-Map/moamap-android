@@ -54,6 +54,8 @@ import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.collection.ImportActionCard
 import com.moamap.app.feature.collection.domain.model.MapVisibility
 import com.moamap.app.feature.mapdetail.MapInviteCodeDialog
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.flow.collectLatest
 
 /** 촬영본이 쌓이는 캐시 위치. `res/xml/profile_image_paths.xml` 의 `cache-path` 와 맞춰야 한다. */
@@ -152,6 +154,8 @@ private fun CreateMapContent(
         mimeTypes = CoverImageMimeTypes,
         onImageSelected = { uri -> onImageSelected(uri.toString()) },
     )
+    // 사진 고르기 메뉴가 이 화면을 흐려 바탕으로 깐다.
+    val photoMenuHazeState = rememberHazeState()
 
     // enableEdgeToEdge 라 키보드가 떠도 창이 줄지 않는다. imePadding 을 화면 전체에 걸어야
     // 스크롤 영역의 뷰포트가 함께 줄어들어, 포커스된 입력창이 키보드 위로 올라온다.
@@ -164,7 +168,7 @@ private fun CreateMapContent(
             .statusBarsPadding()
             .imePadding(),
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().hazeSource(photoMenuHazeState)) {
             CreateMapTopBar(onBackClick = onBackClick)
 
             Column(
@@ -198,6 +202,7 @@ private fun CreateMapContent(
                             ImageSourceMenu(
                                 onCameraClick = pickerController::requestCamera,
                                 onGalleryClick = pickerController::requestGallery,
+                                hazeState = photoMenuHazeState,
                             )
                         }
                     }

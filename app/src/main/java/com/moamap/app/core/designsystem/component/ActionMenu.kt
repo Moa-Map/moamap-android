@@ -2,20 +2,16 @@ package com.moamap.app.core.designsystem.component
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,7 +24,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -38,10 +33,9 @@ import dev.chrisbanes.haze.HazeStyle
 import dev.chrisbanes.haze.HazeTint
 import dev.chrisbanes.haze.hazeEffect
 
-private val ActionMenuWidth = 172.dp
 private val ActionMenuRowHeight = 50.dp
 
-/** [ActionMenu] 한 줄. */
+/** [ModalActionMenu] 한 줄. */
 @Immutable
 internal data class ActionMenuItem(
     @DrawableRes val iconRes: Int,
@@ -152,105 +146,28 @@ private fun ModalActionMenuRow(item: ActionMenuItem) {
     }
 }
 
-/** 줄 사이에 구분선을 넣는 흰 바탕 팝업 메뉴. 사진 소스 선택이 쓴다(프로필·지도 메뉴는 [ModalActionMenu]). */
-@Composable
-internal fun ActionMenu(
-    items: List<ActionMenuItem>,
-    cornerRadius: Dp,
-    modifier: Modifier = Modifier,
-) {
-    val shape = RoundedCornerShape(cornerRadius)
+/** 사진 고르기 메뉴 바탕색: 시안 「모달창」(`4196:25768`) #4A4F52 의 70%. */
+private val ImageSourceMenuScrim = MoaMapPrimitiveColors.Gray500.copy(alpha = 0.7f)
 
-    // 높이는 줄 수에 따라 늘어나므로 고정하지 않고 Column 이 정하게 둔다.
-    Box(modifier = modifier.width(ActionMenuWidth)) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .compatibleShadow(
-                    shape = shape,
-                    blurRadius = 5.dp,
-                    color = MoaMapPrimitiveColors.Black.copy(alpha = 0.12f),
-                ),
-        )
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(shape)
-                .background(MoaMapTheme.colors.backgroundSecondary)
-                .border(
-                    width = 1.dp,
-                    color = MoaMapPrimitiveColors.Blue600,
-                    shape = shape,
-                )
-                .padding(horizontal = 4.dp),
-        ) {
-            items.forEachIndexed { index, item ->
-                if (index > 0) {
-                    HorizontalDivider(
-                        thickness = 1.dp,
-                        color = MoaMapTheme.colors.lineNormal,
-                    )
-                }
-                ActionMenuRow(
-                    iconRes = item.iconRes,
-                    label = item.label,
-                    onClick = item.onClick,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ActionMenuRow(
-    @DrawableRes iconRes: Int,
-    label: String,
-    onClick: () -> Unit,
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(ActionMenuRowHeight)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = null,
-            tint = MoaMapTheme.colors.textNormal,
-            modifier = Modifier.size(20.dp),
-        )
-        Spacer(Modifier.width(8.dp))
-        Text(
-            text = label,
-            style = MoaMapTheme.typography.body2,
-            color = MoaMapTheme.colors.textNormal,
-            modifier = Modifier.weight(1f),
-        )
-        Icon(
-            painter = painterResource(R.drawable.ic_arrow_right),
-            contentDescription = null,
-            tint = MoaMapTheme.colors.textNormal,
-            modifier = Modifier.size(20.dp),
-        )
-    }
-}
-
-/** 사진을 어디서 가져올지 고르는 메뉴. */
+/**
+ * 사진을 어디서 가져올지 고르는 메뉴. 댓글·프로필·새 지도·장소 추가·가져온 장소 편집이 함께 쓴다.
+ *
+ * @param hazeState 바탕으로 흐릴 화면. 없으면 회색만 깐다 - [ModalActionMenu].
+ */
 @Composable
 internal fun ImageSourceMenu(
     onCameraClick: () -> Unit,
     onGalleryClick: () -> Unit,
     modifier: Modifier = Modifier,
+    hazeState: HazeState? = null,
 ) {
-    ActionMenu(
+    ModalActionMenu(
         items = listOf(
             ActionMenuItem(R.drawable.ic_photo_camera, "카메라", onCameraClick),
             ActionMenuItem(R.drawable.ic_gallery, "갤러리", onGalleryClick),
         ),
-        cornerRadius = 12.dp,
+        scrimColor = ImageSourceMenuScrim,
+        hazeState = hazeState,
         modifier = modifier,
     )
 }
