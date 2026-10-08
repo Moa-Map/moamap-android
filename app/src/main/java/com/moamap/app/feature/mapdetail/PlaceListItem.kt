@@ -60,7 +60,7 @@ internal fun PlaceListItem(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PhotoThumbnail(imageUrl = place.photoUrl, size = 64.dp)
+            PhotoThumbnail(imageUrl = place.photoUrl, size = 68.dp)
 
             // 설명은 이름 바로 아래에 붙고, 댓글 수만 12 떨어진다.
             Column(
