@@ -21,17 +21,23 @@ sealed interface PlaceSearchState {
     data class Error(val message: String) : PlaceSearchState
 }
 
+/** 장소 추가의 단계. 검색 → 지도에서 위치 확인 → 등록 폼. */
+enum class AddPlaceStep { Search, Location, Form }
+
 /**
- * 장소 추가 시트 상태.
+ * 장소 추가 화면 상태.
  *
- * 단계를 [selected] 하나로 가른다 - null 이면 검색, 값이 있으면 등록 폼이다. 별도 step 값을
- * 두면 둘이 어긋날 수 있다.
+ * 단계는 [selected] 와 [locationConfirmed] 로 정한다([step]) - 고른 장소가 없으면 검색, 골랐지만
+ * 지도에서 확인하기 전이면 위치 확인, 확인했으면 등록 폼이다. 단계 값을 따로 두면 고른 장소와
+ * 어긋날 수 있다.
  */
 @Immutable
 data class AddPlaceUiState(
     val query: String = "",
     val search: PlaceSearchState = PlaceSearchState.Idle,
     val selected: PlaceCandidate? = null,
+    /** 고른 장소를 지도에서 보고 「이 위치로 장소 추가하기」를 눌렀는지. */
+    val locationConfirmed: Boolean = false,
     val photos: List<Uri> = emptyList(),
     val tags: List<String> = emptyList(),
     val tagInput: String = "",
@@ -49,7 +55,14 @@ data class AddPlaceUiState(
     /** 등록이 끝났다. 화면이 이 신호로 시트를 닫는다. 안내 문구가 함께 담긴다. */
     val addedMessage: String? = null,
 ) {
-    val isFormStep: Boolean get() = selected != null
+    val step: AddPlaceStep
+        get() = when {
+            selected == null -> AddPlaceStep.Search
+            !locationConfirmed -> AddPlaceStep.Location
+            else -> AddPlaceStep.Form
+        }
+
+    val isFormStep: Boolean get() = step == AddPlaceStep.Form
 
     val canAddPhoto: Boolean get() = photos.size < MAX_PLACE_PHOTOS
 }

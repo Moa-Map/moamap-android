@@ -134,8 +134,21 @@ class AddPlaceViewModel @Inject constructor(
 
     // ---------- 단계 이동 ----------
 
+    /** 검색 결과에서 장소를 골랐다. 지도에서 위치부터 확인한다. */
     fun selectCandidate(candidate: PlaceCandidate) {
-        _uiState.update { state -> state.copy(selected = candidate) }
+        _uiState.update { state -> state.copy(selected = candidate, locationConfirmed = false) }
+    }
+
+    /** 지도에서 위치를 확인했다(「이 위치로 장소 추가하기」). 등록 폼으로 넘어간다. */
+    fun confirmLocation() {
+        _uiState.update { state ->
+            if (state.selected == null) state else state.copy(locationConfirmed = true)
+        }
+    }
+
+    /** 등록 폼에서 위치 확인으로 돌아간다. 같은 장소라 폼에 적은 것은 남긴다. */
+    fun backToLocation() {
+        _uiState.update { state -> state.copy(locationConfirmed = false) }
     }
 
     /** 검색으로 돌아간다. 검색 결과는 남겨 두고 폼에 적은 것만 버린다. */
@@ -143,6 +156,7 @@ class AddPlaceViewModel @Inject constructor(
         _uiState.update { state ->
             state.copy(
                 selected = null,
+                locationConfirmed = false,
                 photos = emptyList(),
                 uploadedPhotoUrls = emptyList(),
                 tags = emptyList(),
