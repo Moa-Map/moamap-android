@@ -22,10 +22,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
+import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 
@@ -171,21 +170,8 @@ internal fun LogAuthor(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .size(AvatarSize)
-                .clip(CircleShape)
-                .background(MoaMapPrimitiveColors.Blue50),
-        ) {
-            if (userImageUrl != null) {
-                AsyncImage(
-                    model = userImageUrl,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.size(AvatarSize),
-                )
-            }
-        }
+        // 프로필 사진이 없으면 시안 「이미지 플레이스홀더」 24 원형.
+        PhotoThumbnail(imageUrl = userImageUrl, size = AvatarSize, shape = CircleShape)
         Text(
             text = userName,
             style = MoaMapTheme.typography.caption0,

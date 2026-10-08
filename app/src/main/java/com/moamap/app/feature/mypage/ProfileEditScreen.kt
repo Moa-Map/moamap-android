@@ -35,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -45,7 +44,6 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
 import com.moamap.app.R
 import com.moamap.app.core.common.imagepicker.rememberImagePickerController
 import com.moamap.app.core.common.imagepicker.rememberImagePickerState
@@ -55,6 +53,7 @@ import com.moamap.app.core.designsystem.component.ImageSourceMenu
 import com.moamap.app.core.designsystem.component.MoaMapBackButton
 import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.component.MoaMapInputSurface
+import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -323,16 +322,14 @@ private fun ProfileImageEditor(
             shadowBlurRadius = 10.dp,
             shadowColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.08f),
         ) {
-            imageModel?.let { model ->
-                AsyncImage(
-                    model = model,
-                    contentDescription = "프로필 이미지",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .matchParentSize()
-                        .clip(CircleShape),
-                )
-            }
+            // 사진이 없으면 시안 기본 사진. 테두리는 그림자 원이 대신한다.
+            PhotoThumbnail(
+                imageUrl = imageModel,
+                size = ProfileImageSize,
+                shape = CircleShape,
+                bordered = false,
+                contentDescription = "프로필 이미지",
+            )
         }
 
         Box(

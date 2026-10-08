@@ -76,7 +76,7 @@ import com.moamap.app.feature.collection.presentation.placeimport.selectedCardBo
 import com.moamap.app.feature.collection.presentation.splitPersonal
 
 /** 카드 썸네일과 같은 높이를 유지해 제목/메타가 위아래로 벌어지도록 한다. */
-private val CardThumbnailSize = 64.dp
+private val CardThumbnailSize = 68.dp
 
 /** 모음 카드끼리의 간격. 순서를 바꿀 때 이웃을 넘었는지 재는 데도 쓴다. */
 private val CardSpacing = 8.dp

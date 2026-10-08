@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import com.moamap.app.R
 import com.moamap.app.core.common.format.formatMemberCount
 import com.moamap.app.core.common.format.formatPlaceCount
+import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.explore.domain.model.CommunityMap
@@ -59,7 +60,7 @@ fun CommunityMapCard(
             horizontalArrangement = Arrangement.spacedBy(16.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            MapThumbnail(imageUrl = map.imageUrl, size = 90.dp)
+            PhotoThumbnail(imageUrl = map.imageUrl, size = 90.dp)
 
             // 글 영역은 높이 84(위아래 4)에 이름·태그는 위, 인원·장소 수는 아래 오른쪽.
             // 태그가 없으면 이름 아래가 비어 보여 이름을 가운데(= 사진 높이 가운데)에 둔다.
