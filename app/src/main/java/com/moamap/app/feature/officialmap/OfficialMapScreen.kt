@@ -47,10 +47,10 @@ import com.moamap.app.core.designsystem.component.BelowAnchorPosition
 import com.moamap.app.core.designsystem.component.MoaMapBackButton
 import com.moamap.app.core.designsystem.component.MoaMapTooltip
 import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
+import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
-import com.moamap.app.feature.explore.presentation.MapThumbnail
 import com.moamap.app.feature.officialmap.domain.model.OfficialMap
 import com.moamap.app.feature.officialmap.presentation.OfficialMapViewModel
 import com.moamap.app.feature.officialmap.presentation.OfficialMapsState
@@ -164,7 +164,7 @@ private fun OfficialMapCard(
             modifier = Modifier.padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            MapThumbnail(imageUrl = imageUrl, size = 90.dp)
+            PhotoThumbnail(imageUrl = imageUrl, size = 90.dp)
 
             Column(
                 modifier = Modifier

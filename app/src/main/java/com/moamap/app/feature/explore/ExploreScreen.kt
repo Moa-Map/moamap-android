@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.MoaMapTopBarLogo
+import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -59,7 +60,6 @@ import com.moamap.app.feature.explore.presentation.ExploreUiState
 import com.moamap.app.feature.explore.presentation.ExploreViewModel
 import com.moamap.app.feature.explore.presentation.FeaturedMapCarousel
 import com.moamap.app.feature.explore.presentation.FeaturedMapMocks
-import com.moamap.app.feature.explore.presentation.MapThumbnail
 import com.moamap.app.feature.mypage.ProfileMenu
 import com.moamap.app.feature.mypage.rememberProfileMenuState
 import com.moamap.app.feature.officialmap.domain.model.OfficialMap
@@ -103,7 +103,7 @@ private val ProfileMenuTop = 42.dp
 private val HeroBottomGap = 21.dp
 
 /** 공식 지도 카드 사진. 글 폭도 이 폭에 맞춘다. */
-private val OfficialCardImageSize = 120.dp
+private val OfficialCardImageSize = 140.dp
 
 /** 이름 줄 높이. 글자보다 커서 이름은 줄 가운데에 선다. 커뮤니티 카드와 같다. */
 private val CardTitleRowHeight = 24.dp
@@ -426,7 +426,7 @@ private fun OfficialMapSection(
 }
 
 /**
- * 홈의 공식 지도 카드. 시안: 여백 12, 사진 120(모서리 12) ↔ 글 16, 이름 줄 24 ↔ 설명 4.
+ * 홈의 공식 지도 카드. 시안: 여백 12, 사진 140(모서리 8) ↔ 글 16, 이름 줄 24 ↔ 설명 4.
  *
  * 이름과 설명은 사진 폭 안에서 한 줄로, 넘치면 「…」.
  */
@@ -440,7 +440,7 @@ private fun OfficialMapCard(
             modifier = Modifier.padding(12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            MapThumbnail(imageUrl = map.imageUrl, size = OfficialCardImageSize)
+            PhotoThumbnail(imageUrl = map.imageUrl, size = OfficialCardImageSize)
             Column(
                 modifier = Modifier.width(OfficialCardImageSize),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
