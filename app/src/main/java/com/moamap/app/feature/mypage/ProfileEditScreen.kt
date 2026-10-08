@@ -63,6 +63,9 @@ import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.mypage.presentation.ProfileEditUiState
 import com.moamap.app.feature.mypage.presentation.ProfileEditViewModel
 import com.moamap.app.feature.mypage.presentation.ProfileLoadState
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
 /** 촬영본이 쌓이는 캐시 위치. `res/xml/profile_image_paths.xml` 의 `cache-path` 와 맞춰야 한다. */
 private const val ProfileImageCacheDirectory = "profile_images"
@@ -159,6 +162,8 @@ private fun ProfileEditContent(
         onImageSelected = { uri -> onImageSelected(uri.toString()) },
     )
     val serverImageUrl = (uiState.load as? ProfileLoadState.Success)?.profileImageUrl
+    // 사진 고르기 메뉴가 이 화면을 흐려 바탕으로 깐다.
+    val photoMenuHazeState = rememberHazeState()
 
     Box(
         modifier = modifier
@@ -169,6 +174,7 @@ private fun ProfileEditContent(
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .hazeSource(photoMenuHazeState)
                 .statusBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
@@ -194,6 +200,7 @@ private fun ProfileEditContent(
                     onMenuDismissRequest = pickerState::dismissSourceMenu,
                     onCameraClick = pickerController::requestCamera,
                     onGalleryClick = pickerController::requestGallery,
+                    menuHazeState = photoMenuHazeState,
                 )
                 Spacer(Modifier.height(ProfileImageBottomGap))
 
@@ -296,6 +303,8 @@ private fun ProfileImageEditor(
     onMenuDismissRequest: () -> Unit,
     onCameraClick: () -> Unit,
     onGalleryClick: () -> Unit,
+    /** 사진 고르기 메뉴가 흐려 바탕으로 깔 화면. */
+    menuHazeState: HazeState? = null,
 ) {
     val density = LocalDensity.current
     // 사진 고르기 메뉴는 카메라 버튼 아래 8 에, 오른쪽 끝을 버튼(= 원의 네모 칸) 끝에 맞춘다.
@@ -355,6 +364,7 @@ private fun ProfileImageEditor(
                 ImageSourceMenu(
                     onCameraClick = onCameraClick,
                     onGalleryClick = onGalleryClick,
+                    hazeState = menuHazeState,
                 )
             }
         }

@@ -29,6 +29,8 @@ import com.moamap.app.feature.mapdetail.presentation.addplace.PLACE_PHOTO_CACHE_
 import com.moamap.app.feature.mapdetail.presentation.addplace.PlaceFormContent
 import com.moamap.app.feature.mapdetail.presentation.addplace.applyTagInput
 import com.moamap.app.feature.mapdetail.presentation.addplace.removeLastTag
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
 /**
  * 고른 장소 하나에 사진·태그·메모를 붙이는 화면.
@@ -62,6 +64,7 @@ internal fun PlaceImportEditDetailScreen(
         onImageSelected = onAddPhoto,
     )
 
+    val photoMenuHazeState = rememberHazeState()
     Box(
         modifier = modifier
             .dismissKeyboardOnBackgroundTap()
@@ -69,7 +72,8 @@ internal fun PlaceImportEditDetailScreen(
             .background(MoaMapTheme.colors.backgroundSecondary)
             .statusBarsPadding(),
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        // 사진 고르기 메뉴가 이 화면을 흐려 바탕으로 깐다.
+        Column(modifier = Modifier.fillMaxSize().hazeSource(photoMenuHazeState)) {
             PlaceImportTopBar(onBackClick = onBackClick)
 
             Box(modifier = Modifier.weight(1f)) {
@@ -120,6 +124,7 @@ internal fun PlaceImportEditDetailScreen(
                 ImageSourceMenu(
                     onCameraClick = pickerController::requestCamera,
                     onGalleryClick = pickerController::requestGallery,
+                    hazeState = photoMenuHazeState,
                 )
             }
         }

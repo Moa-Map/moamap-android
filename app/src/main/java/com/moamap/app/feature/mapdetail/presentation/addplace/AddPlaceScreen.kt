@@ -35,6 +35,8 @@ import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.mapdetail.BackCloseControls
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
 internal val AddPlaceHorizontalPadding = 20.dp
 
@@ -87,6 +89,7 @@ internal fun AddPlaceScreen(
     // 돌아간 뒤에도 메뉴가 남는다.
     BackHandler(enabled = pickerState.isSourceMenuVisible) { pickerState.dismissSourceMenu() }
 
+    val photoMenuHazeState = rememberHazeState()
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -96,7 +99,8 @@ internal fun AddPlaceScreen(
             .statusBarsPadding()
             .imePadding(),
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        // 사진 고르기 메뉴가 이 화면을 흐려 바탕으로 깐다.
+        Column(modifier = Modifier.fillMaxSize().hazeSource(photoMenuHazeState)) {
             BackCloseControls(onBackClick = onBackClick, onCloseClick = onCloseClick)
             // 시안: 닫기 줄 아래 8 에 제목.
             Spacer(modifier = Modifier.height(8.dp))
@@ -159,6 +163,7 @@ internal fun AddPlaceScreen(
                 ImageSourceMenu(
                     onCameraClick = pickerController::requestCamera,
                     onGalleryClick = pickerController::requestGallery,
+                    hazeState = photoMenuHazeState,
                 )
             }
         }
