@@ -179,13 +179,57 @@ class AddPlaceViewModelTest {
     // ---------- 단계 이동 ----------
 
     @Test
-    fun `후보를 고르면 등록 폼으로 넘어간다`() = runTest {
+    fun `후보를 고르면 지도에서 위치부터 확인하고, 확인하면 등록 폼이다`() = runTest {
         val viewModel = viewModel()
 
         viewModel.selectCandidate(candidate("1"))
 
-        assertTrue(viewModel.uiState.value.isFormStep)
+        assertEquals(AddPlaceStep.Location, viewModel.uiState.value.step)
         assertEquals("1", viewModel.uiState.value.selected?.kakaoPlaceId)
+
+        viewModel.confirmLocation()
+
+        assertEquals(AddPlaceStep.Form, viewModel.uiState.value.step)
+        assertTrue(viewModel.uiState.value.isFormStep)
+    }
+
+    @Test
+    fun `고른 장소 없이 위치를 확인해도 검색 단계 그대로다`() = runTest {
+        val viewModel = viewModel()
+
+        viewModel.confirmLocation()
+
+        assertEquals(AddPlaceStep.Search, viewModel.uiState.value.step)
+    }
+
+    @Test
+    fun `등록 폼에서 위치 확인으로 돌아가도 적은 것은 남는다`() = runTest {
+        val viewModel = viewModel()
+        viewModel.selectCandidate(candidate("1"))
+        viewModel.confirmLocation()
+        viewModel.updateTagInput("성수 ")
+        viewModel.updateMemo("메모")
+
+        viewModel.backToLocation()
+
+        assertEquals(AddPlaceStep.Location, viewModel.uiState.value.step)
+        assertEquals(listOf("성수"), viewModel.uiState.value.tags)
+        assertEquals("메모", viewModel.uiState.value.memo)
+        // 다시 확인하면 같은 폼으로 돌아온다.
+        viewModel.confirmLocation()
+        assertEquals("메모", viewModel.uiState.value.memo)
+    }
+
+    @Test
+    fun `다른 장소를 고르면 위치 확인부터 다시 한다`() = runTest {
+        val viewModel = viewModel()
+        viewModel.selectCandidate(candidate("1"))
+        viewModel.confirmLocation()
+        viewModel.backToSearch()
+
+        viewModel.selectCandidate(candidate("2"))
+
+        assertEquals(AddPlaceStep.Location, viewModel.uiState.value.step)
     }
 
     @Test
@@ -195,10 +239,12 @@ class AddPlaceViewModelTest {
         dispatcher.scheduler.advanceUntilIdle()
 
         viewModel.selectCandidate(candidate("1"))
+        viewModel.confirmLocation()
         viewModel.updateTagInput("성수 ")
         viewModel.updateMemo("메모")
         viewModel.backToSearch()
 
+        assertEquals(AddPlaceStep.Search, viewModel.uiState.value.step)
         assertFalse(viewModel.uiState.value.isFormStep)
         assertTrue(viewModel.uiState.value.search is PlaceSearchState.Success)
         assertEquals("카페", viewModel.uiState.value.query)

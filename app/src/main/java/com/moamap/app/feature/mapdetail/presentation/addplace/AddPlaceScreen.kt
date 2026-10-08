@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,6 +20,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.core.common.imagepicker.rememberImagePickerController
@@ -29,11 +29,11 @@ import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
 import com.moamap.app.core.designsystem.component.ButtonShadowColor
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.component.ImageSourceMenu
+import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
-import com.moamap.app.feature.mapdetail.BackCloseControls
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
@@ -56,19 +56,18 @@ internal const val PLACE_PHOTO_CACHE_DIRECTORY = "place_photos"
 /**
  * 장소 추가 화면. 지도 상세 위를 덮는 한 장이다.
  *
- * 검색과 등록 폼 두 단계가 이 화면 안에서 오간다. 단계는 `selected` 하나로 갈린다.
- * 시안(검색 `1841:11886`, 등록 `1841:11938`)은 바텀시트라 요소·간격만 따른다.
+ * 검색 → 지도에서 위치 확인 → 등록 폼 세 단계가 이 화면 안에서 오간다([AddPlaceUiState.step]).
+ * 시안 「상세지도/장소추가」(검색 `4070:37922`·결과 `4070:38652`·위치 확인 `4070:38291`·등록
+ * `4070:38883`). 위는 단계 제목과 `←` 뿐이다(시안, 10-09 `×` 삭제).
  *
- * @param onBackClick `←`. 등록 폼이면 검색으로, 검색이면 닫는다. 기기 뒤로가기와 같은 길이라
- * 부르는 쪽이 한 곳에서 정한다.
- * @param onCloseClick `×`. 어느 단계든 닫는다.
+ * @param onBackClick `←`. 한 단계씩 뒤로 - 등록 폼 → 위치 확인 → 검색 → 닫기. 기기 뒤로가기와 같은
+ * 길이라 부르는 쪽이 한 곳에서 정한다.
  * @param onAdded 등록이 끝났다. 안내 문구를 받아 상세 화면이 띄운다.
  */
 @Composable
 internal fun AddPlaceScreen(
     map: MapDetail,
     onBackClick: () -> Unit,
-    onCloseClick: () -> Unit,
     onAdded: (String) -> Unit,
     viewModel: AddPlaceViewModel,
 ) {
@@ -101,22 +100,34 @@ internal fun AddPlaceScreen(
     ) {
         // 사진 고르기 메뉴가 이 화면을 흐려 바탕으로 깐다.
         Column(modifier = Modifier.fillMaxSize().hazeSource(photoMenuHazeState)) {
-            BackCloseControls(onBackClick = onBackClick, onCloseClick = onCloseClick)
-            // 시안: 닫기 줄 아래 8 에 제목.
-            Spacer(modifier = Modifier.height(8.dp))
+            MoaMapTitleTopBar(
+                title = when (uiState.step) {
+                    AddPlaceStep.Search -> "장소 검색"
+                    AddPlaceStep.Location -> "지도에서 위치 확인"
+                    AddPlaceStep.Form -> "장소 추가"
+                },
+                onBackClick = onBackClick,
+            )
 
             Box(modifier = Modifier.weight(1f)) {
                 val selected = uiState.selected
-                if (selected == null) {
-                    PlaceSearchContent(
+                when {
+                    selected == null -> PlaceSearchContent(
                         query = uiState.query,
                         search = uiState.search,
                         onQueryChange = viewModel::updateQuery,
                         onRetryClick = viewModel::retrySearch,
                         onCandidateClick = viewModel::selectCandidate,
                     )
-                } else {
-                    PlaceFormContent(
+
+                    uiState.step == AddPlaceStep.Location -> PlaceLocationContent(
+                        candidate = selected,
+                        onConfirmClick = viewModel::confirmLocation,
+                    )
+
+                    else -> PlaceFormContent(
+                        // 단계 제목이 위에 있어 본문 제목은 뺀다(시안).
+                        showsTitle = false,
                         placeName = selected.name,
                         placeAddress = selected.displayAddress,
                         photos = uiState.photos,
@@ -176,17 +187,19 @@ internal fun AddPlaceScreen(
     }
 }
 
+/** 아래 파란 버튼. 등록 폼(54)과 위치 확인(약 49)이 함께 쓴다. */
 @Composable
-private fun SubmitButton(
+internal fun SubmitButton(
     label: String,
     enabled: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    height: Dp = 54.dp,
 ) {
     ShadowedSurface(
         modifier = modifier
             .fillMaxWidth()
-            .height(54.dp),
+            .height(height),
         shape = SubmitButtonShape,
         // 비활성은 전송 중일 때뿐이다. 입력값은 모두 선택이라 처음부터 누를 수 있다.
         color = if (enabled) MoaMapPrimitiveColors.Blue500 else MoaMapPrimitiveColors.Gray200,

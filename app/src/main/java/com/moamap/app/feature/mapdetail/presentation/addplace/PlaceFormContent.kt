@@ -45,7 +45,7 @@ import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 
-private val SelectedCardShape = RoundedCornerShape(16.dp)
+private val SelectedCardShape = RoundedCornerShape(12.dp)
 private val InputShape = RoundedCornerShape(12.dp)
 private val TagChipShape = RoundedCornerShape(1000.dp)
 private val PhotoShape = RoundedCornerShape(12.dp)
@@ -75,19 +75,25 @@ internal fun PlaceFormContent(
     onRemoveTag: (String) -> Unit,
     onMemoChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    /** 본문 맨 위 「장소등록」 제목. 단계 제목이 상단 바에 있는 장소 추가는 뺀다. */
+    showsTitle: Boolean = true,
 ) {
     Column(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = AddPlaceHorizontalPadding),
+            .padding(horizontal = AddPlaceHorizontalPadding)
+            // 제목이 없으면 상단 바 아래 16 에서 고른 장소 카드가 시작한다(시안).
+            .padding(top = if (showsTitle) 0.dp else 16.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
-        Text(
-            text = "장소등록",
-            style = MoaMapTheme.typography.title3,
-            color = MoaMapTheme.colors.textNormal,
-        )
+        if (showsTitle) {
+            Text(
+                text = "장소등록",
+                style = MoaMapTheme.typography.title3,
+                color = MoaMapTheme.colors.textNormal,
+            )
+        }
 
         SelectedPlaceCard(name = placeName, address = placeAddress)
 
@@ -176,11 +182,11 @@ private fun SelectedPlaceCard(name: String, address: String) {
         border = androidx.compose.foundation.BorderStroke(1.dp, MoaMapPrimitiveColors.Yellow500),
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.padding(16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            // 카카오 검색은 사진을 주지 않아 늘 기본 사진이다(시안 `1841:11938`, 모서리 4).
+            // 카카오 검색은 사진을 주지 않아 늘 기본 사진이다(시안 `4070:38883` 「장소」 카드).
             PhotoThumbnail(imageUrl = null, size = 64.dp)
 
             Column(

@@ -727,12 +727,12 @@ private fun ReviewLoadError(message: String, onRetryClick: () -> Unit) {
     }
 }
 
-/** 맨 위의 `←`·`×` 줄. 장소 추가 화면과 장소 시트가 같이 쓴다. */
+/** 맨 위의 `←`·`×` 줄. 장소 시트가 쓴다(장소 추가는 10-09 시안부터 제목 바에 `←` 만). */
 @Composable
 internal fun BackCloseControls(
     onBackClick: () -> Unit,
     onCloseClick: () -> Unit,
-    // 장소 추가 시안은 위아래 여백 12 + 아이콘 32, 장소 시트 시안은 GNB 58 이다.
+    // 장소 시트 시안은 GNB 58 이다.
     height: Dp = 56.dp,
 ) {
     // 두 아이콘 모두 48 칸 가운데에 선다. 바깥 12 + 안쪽 8 이라 양 끝에서 20 이다.
