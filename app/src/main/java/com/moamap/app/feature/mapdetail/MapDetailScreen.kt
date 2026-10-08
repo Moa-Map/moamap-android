@@ -74,6 +74,7 @@ import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.mapdetail.domain.model.MapDetailAction
 import com.moamap.app.feature.mapdetail.presentation.MapDetailViewModel
 import com.moamap.app.feature.mapdetail.presentation.addplace.AddPlaceScreen
+import com.moamap.app.feature.mapdetail.presentation.addplace.AddPlaceStep
 import com.moamap.app.feature.mapdetail.presentation.addplace.AddPlaceViewModel
 import com.moamap.app.feature.mapdetail.presentation.MapLoadState
 import com.moamap.app.feature.mapdetail.presentation.mapOrNull
@@ -236,12 +237,12 @@ fun MapDetailScreen(
     }
 
     var addPlaceVisible by rememberSaveable { mutableStateOf(false) }
-    // 장소 추가의 `←` 와 기기 뒤로가기가 같이 쓴다. 등록 폼이면 검색으로, 검색이면 닫는다.
+    // 장소 추가의 `←` 와 기기 뒤로가기가 같이 쓴다. 한 단계씩 뒤로 - 등록 폼 → 위치 확인 → 검색 → 닫기.
     val addPlaceBack = {
-        if (addPlaceViewModel.uiState.value.isFormStep) {
-            addPlaceViewModel.backToSearch()
-        } else {
-            addPlaceVisible = false
+        when (addPlaceViewModel.uiState.value.step) {
+            AddPlaceStep.Form -> addPlaceViewModel.backToLocation()
+            AddPlaceStep.Location -> addPlaceViewModel.backToSearch()
+            AddPlaceStep.Search -> { addPlaceVisible = false }
         }
     }
     var memberPageVisible by rememberSaveable { mutableStateOf(false) }
@@ -655,7 +656,6 @@ fun MapDetailScreen(
                 map = addPlaceMap,
                 viewModel = addPlaceViewModel,
                 onBackClick = addPlaceBack,
-                onCloseClick = { addPlaceVisible = false },
                 onAdded = { message ->
                     addPlaceVisible = false
                     mapNotice = message
