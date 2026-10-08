@@ -66,9 +66,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -98,6 +103,8 @@ import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.mapdetail.presentation.addplace.PLACE_PHOTO_CACHE_DIRECTORY
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
@@ -108,6 +115,9 @@ private val SwipeDangerColor = Color(0xFFD9402F)
 private val PlaceDetailTopBarHeight = 58.dp
 private val PlacePhotoHeight = 175.dp
 private val SheetPhotoHeight = 167.dp
+
+/** 사진 고르기 메뉴 아래 끝과 댓글 입력칸 사이(시안). */
+private val PhotoMenuGapAboveInput = 4.dp
 private val PageActionGap = 8.dp
 private val CompactActionGap = 4.dp
 
@@ -457,14 +467,19 @@ private fun PlaceDetailContent(
         mimeTypes = ALLOWED_IMAGE_CONTENT_TYPES.toTypedArray(),
         onImageSelected = { uri -> reviewPhoto = uri },
     )
+    // 사진 고르기 메뉴는 이 화면을 흐려 바탕으로 깔고, 댓글 입력칸 바로 위에 붙는다(시안).
+    val photoMenuHazeState = rememberHazeState()
+    var contentOrigin by remember { mutableStateOf(Offset.Zero) }
+    var composerInputBounds by remember { mutableStateOf<Rect?>(null) }
 
     // 시트도 화면 높이 그대로라 높이를 제한하지 않는다. 목록이 남은 자리를 다 쓴다.
     Box(
         modifier = modifier
             .fillMaxWidth()
+            .onGloballyPositioned { coordinates -> contentOrigin = coordinates.positionInRoot() }
             .dismissKeyboardOnBackgroundTap(),
     ) {
-        Column(modifier = Modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize().hazeSource(photoMenuHazeState)) {
             Box(modifier = Modifier.animateContentSize()) {
                 Crossfade(targetState = sheet, label = "placeDetailTopBar") { isSheet ->
                     if (isSheet) {
@@ -564,6 +579,7 @@ private fun PlaceDetailContent(
                     onSubmitReview = onSubmitReview,
                     editing = reviews.items.firstOrNull { item -> item.id == reviews.editingReviewId },
                     onCancelEdit = onCancelEdit,
+                    onInputPositioned = { coordinates -> composerInputBounds = coordinates.boundsInRoot() },
                 )
             }
         }
@@ -582,17 +598,35 @@ private fun PlaceDetailContent(
         }
 
         if (pickerState.isSourceMenuVisible) {
+            // 입력칸 자리는 화면 기준이라 이 화면 기준으로 옮긴다. 키보드가 올라와 입력칸이 움직여도 따라간다.
+            val anchor = composerInputBounds?.translate(-contentOrigin)
             Box(
                 modifier = Modifier
                     .matchParentSize()
                     .pointerInput(Unit) {
                         detectTapGestures { pickerState.dismissSourceMenu() }
                     },
-                contentAlignment = Alignment.Center,
+                // 입력칸을 아직 못 쟀으면 예전처럼 가운데에 띄운다.
+                contentAlignment = if (anchor == null) Alignment.Center else Alignment.TopStart,
             ) {
                 ImageSourceMenu(
                     onCameraClick = pickerController::requestCamera,
                     onGalleryClick = pickerController::requestGallery,
+                    hazeState = photoMenuHazeState,
+                    modifier = if (anchor == null) {
+                        Modifier
+                    } else {
+                        // 메뉴 왼쪽 끝은 입력칸 왼쪽 끝, 아래 끝은 입력칸 위 [PhotoMenuGapAboveInput](시안).
+                        Modifier.layout { measurable, constraints ->
+                            val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+                            layout(placeable.width, placeable.height) {
+                                placeable.place(
+                                    x = anchor.left.roundToInt(),
+                                    y = (anchor.top - PhotoMenuGapAboveInput.toPx()).roundToInt() - placeable.height,
+                                )
+                            }
+                        }
+                    },
                 )
             }
         }
@@ -1173,6 +1207,8 @@ private fun ReviewComposer(
     /** 고치고 있는 내 댓글. 있으면 입력창이 그 글로 채워지고 보내기가 수정이 된다. */
     editing: PlaceReviewUiModel? = null,
     onCancelEdit: () -> Unit = {},
+    /** 흰 입력칸의 자리. 사진 고르기 메뉴가 그 바로 위에 붙는다. */
+    onInputPositioned: (LayoutCoordinates) -> Unit = {},
 ) {
     var reviewText by rememberSaveable(placeId) { mutableStateOf("") }
     val inputEnabled = onSubmitReview != null && !reviews.submitting
@@ -1246,7 +1282,8 @@ private fun ReviewComposer(
             ShadowedSurface(
                 modifier = Modifier
                     .weight(1f)
-                    .height(44.dp),
+                    .height(44.dp)
+                    .onGloballyPositioned(onInputPositioned),
             ) {
                 Row(
                     // + 는 누르는 칸 32 가운데 20 이라 왼쪽 10 이면 그림이 시안처럼 끝에서 16 에 선다.
