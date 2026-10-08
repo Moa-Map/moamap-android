@@ -32,7 +32,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -42,10 +41,10 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
-import coil3.compose.AsyncImage
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.BelowAnchorPosition
 import com.moamap.app.core.designsystem.component.MoaMapTooltip
+import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -339,21 +338,8 @@ private fun MemberCard(
 
 @Composable
 private fun MemberAvatar(imageUrl: String?) {
-    Box(
-        modifier = Modifier
-            .size(AvatarSize)
-            .clip(CircleShape)
-            .background(MoaMapPrimitiveColors.Blue50),
-    ) {
-        if (imageUrl != null) {
-            AsyncImage(
-                model = imageUrl,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.size(AvatarSize),
-            )
-        }
-    }
+    // 프로필 사진이 없으면 시안 「이미지 플레이스홀더」 50 원형.
+    PhotoThumbnail(imageUrl = imageUrl, size = AvatarSize, shape = CircleShape)
 }
 
 /** 방장은 파란 태그, 관리자는 회색 태그. 일반 멤버는 [tag] 가 null 이라 여기까지 오지 않는다. */

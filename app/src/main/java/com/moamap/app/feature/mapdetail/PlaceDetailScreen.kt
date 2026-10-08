@@ -1590,10 +1590,12 @@ private fun ReviewAvatar(imageUrl: String?) {
             .border(width = 1.dp, color = MoaMapTheme.colors.lineNormal, shape = CircleShape),
         contentAlignment = Alignment.Center,
     ) {
+        // 테두리는 바깥 28 원이 그린다. 안쪽까지 그리면 두 겹이 된다.
         PhotoThumbnail(
             imageUrl = imageUrl,
             size = ReviewAvatarImageSize,
-            modifier = Modifier.clip(CircleShape),
+            shape = CircleShape,
+            bordered = false,
         )
     }
 }
