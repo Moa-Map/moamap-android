@@ -78,6 +78,13 @@ class CreateMapViewModelTest {
 
         override suspend fun getMyMaps(type: MapType) = TODO("사용하지 않음")
         override suspend fun updateMyMapOrder(type: MapType, mapIds: List<Long>) = TODO("사용하지 않음")
+        override suspend fun updateMap(
+            mapId: Long,
+            name: String,
+            description: String?,
+            imageUrl: String?,
+            tags: List<String>,
+        ) = TODO("사용하지 않음")
         override suspend fun joinByInviteCode(inviteCode: String) = TODO("사용하지 않음")
         override suspend fun getLeaveOutcome(mapId: Long) = TODO("사용하지 않음")
         override suspend fun leaveMap(mapId: Long) = TODO("사용하지 않음")

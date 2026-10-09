@@ -74,4 +74,19 @@ class MapRequestMapperTest {
         assertEquals("성수 카페 투어", newMap(name = "  성수 카페 투어  ").toCreateRequest().name)
     }
 
+    /** 수정은 통째로 덮어써서, 다 지운 태그는 빈 목록으로 가야 지워진다. */
+    @Test
+    fun `수정 요청은 빈 태그 목록도 그대로 보낸다`() {
+        val request = mapUpdateRequest(
+            name = " 새 이름 ",
+            description = "  ",
+            imageUrl = "https://cdn/cover.jpg",
+            tags = emptyList(),
+        )
+
+        assertEquals("새 이름", request.name)
+        assertNull(request.description)
+        assertEquals("https://cdn/cover.jpg", request.imageUrl)
+        assertEquals(emptyList<String>(), request.tags)
+    }
 }

@@ -31,6 +31,7 @@ internal val MapDetailMenuEnd = 25.dp
  * 뒤를 흐리지 않고 회색만 깐다. 메뉴 뒤 대부분이 지도인데 지도는 Compose 흐림이 잡지 못한다 -
  * [ModalActionMenu] 참고.
  *
+ * @param canEditInfo 지도 정보 줄을 넣을지. 지도를 만든 방장만이다 - `MapDetail.canEditInfo` 참고.
  * @param canShareInviteCode 초대코드 줄을 넣을지. 초대코드를 쥔 프라이빗 지도 참여자다 -
  * `MapDetail.shareableInviteCode` 참고.
  * @param canLeave 나가기 줄을 넣을지. 나갈 수 없는 사람에게는 줄 자체를 보여주지 않는다 -
@@ -38,10 +39,12 @@ internal val MapDetailMenuEnd = 25.dp
  */
 @Composable
 internal fun MapDetailMenu(
+    canEditInfo: Boolean,
     canShareInviteCode: Boolean,
     canLeave: Boolean,
     onMembersClick: () -> Unit,
     onManageClick: () -> Unit,
+    onInfoClick: () -> Unit,
     onInviteCodeClick: () -> Unit,
     onLeaveClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -52,6 +55,7 @@ internal fun MapDetailMenu(
         items = buildList {
             add(ActionMenuItem(R.drawable.ic_person, "멤버 관리", onMembersClick))
             add(ActionMenuItem(R.drawable.ic_map, "지도 관리", onManageClick))
+            if (canEditInfo) add(ActionMenuItem(R.drawable.ic_info, "지도 정보", onInfoClick))
             if (canShareInviteCode) add(ActionMenuItem(R.drawable.ic_key, "초대코드", onInviteCodeClick))
             if (canLeave) add(ActionMenuItem(R.drawable.ic_exit, "나가기", onLeaveClick))
         },
@@ -71,10 +75,12 @@ private fun MapDetailMenuPreview() {
                 .background(MoaMapTheme.colors.backgroundSecondary),
         ) {
             MapDetailMenu(
+                canEditInfo = false,
                 canShareInviteCode = false,
                 canLeave = true,
                 onMembersClick = {},
                 onManageClick = {},
+                onInfoClick = {},
                 onInviteCodeClick = {},
                 onLeaveClick = {},
                 modifier = Modifier
@@ -85,7 +91,7 @@ private fun MapDetailMenuPreview() {
     }
 }
 
-/** 프라이빗 지도: 초대코드가 메뉴에 들어 있고 나가기는 없다(모음 탭 편집에서 나간다). */
+/** 프라이빗 지도 방장: 지도 정보·초대코드가 메뉴에 들어 있고 나가기는 없다(모음 탭 편집에서 나간다). */
 @Preview(showBackground = true, widthDp = 393, heightDp = 300)
 @Composable
 private fun MapDetailMenuPrivatePreview() {
@@ -96,10 +102,12 @@ private fun MapDetailMenuPrivatePreview() {
                 .background(MoaMapTheme.colors.backgroundSecondary),
         ) {
             MapDetailMenu(
+                canEditInfo = true,
                 canShareInviteCode = true,
                 canLeave = false,
                 onMembersClick = {},
                 onManageClick = {},
+                onInfoClick = {},
                 onInviteCodeClick = {},
                 onLeaveClick = {},
                 modifier = Modifier

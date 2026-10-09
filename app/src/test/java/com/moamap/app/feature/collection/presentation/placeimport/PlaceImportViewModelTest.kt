@@ -70,6 +70,13 @@ private class FakeMapRepository : MapRepository {
 
     override suspend fun createMap(newMap: NewMap) = TODO("사용하지 않음")
 
+    override suspend fun updateMap(
+        mapId: Long,
+        name: String,
+        description: String?,
+        imageUrl: String?,
+        tags: List<String>,
+    ) = TODO("사용하지 않음")
     override suspend fun joinByInviteCode(inviteCode: String) = TODO("사용하지 않음")
 
     override suspend fun getLeaveOutcome(mapId: Long) = TODO("사용하지 않음")

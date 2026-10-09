@@ -56,6 +56,16 @@ internal class MapRepositoryImpl @Inject constructor(
     override suspend fun createMap(newMap: NewMap): CreatedMap =
         mapService.createMap(newMap.toCreateRequest()).toCreatedMap()
 
+    override suspend fun updateMap(
+        mapId: Long,
+        name: String,
+        description: String?,
+        imageUrl: String?,
+        tags: List<String>,
+    ) {
+        mapService.updateMap(mapId, mapUpdateRequest(name, description, imageUrl, tags))
+    }
+
     override suspend fun joinByInviteCode(inviteCode: String): Long =
         mapService.joinByInviteCode(JoinByInviteCodeRequestDto(inviteCode.trim())).id
 

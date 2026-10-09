@@ -268,7 +268,7 @@ private fun SavedStateHandle.save(state: CreateMapUiState) {
 }
 
 /** 빈 값과 이미 담긴 태그는 걸러낸다. 한 번에 들어온 값들 사이의 중복도 마찬가지다. */
-private fun List<String>.plusTags(candidates: List<String>): List<String> {
+internal fun List<String>.plusTags(candidates: List<String>): List<String> {
     val added = candidates
         .map { candidate -> candidate.trim().take(TAG_MAX_LENGTH) }
         .filter { candidate -> candidate.isNotEmpty() }
@@ -288,7 +288,7 @@ private fun Throwable.toUserMessage(): String = when (this) {
  * 둘 다 "지도를 만들지 못했어요" 로 뭉개면 사용자가 할 조치를 알 수 없다 - 사진을 바꿔야 하는
  * 경우와 그냥 다시 눌러야 하는 경우가 다르다.
  */
-private fun Throwable.toCoverMessage(): String = when (this) {
+internal fun Throwable.toCoverMessage(): String = when (this) {
     // 무엇이 문제인지는 예외가 이미 문구로 들고 있다.
     is ImageUploadException -> message ?: COVER_UPLOAD_FAILED_MESSAGE
     is ConnectionException -> NETWORK_ERROR_MESSAGE

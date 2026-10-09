@@ -34,6 +34,21 @@ interface MapRepository {
     /** 지도를 만든다. 커버는 [uploadCoverImage] 로 먼저 올려 [NewMap.imageUrl] 에 담아 넘긴다. */
     suspend fun createMap(newMap: NewMap): CreatedMap
 
+    /**
+     * 지도 이름·설명·사진·태그를 고친다.
+     *
+     * 서버가 통째로 덮어써서 빠진 값은 지워진다. 그대로 둘 값도 늘 함께 넘긴다.
+     *
+     * @param imageUrl 올라가 있는 사진 주소. 새 사진은 [uploadCoverImage] 로 먼저 올려 받은 주소를 넣는다.
+     */
+    suspend fun updateMap(
+        mapId: Long,
+        name: String,
+        description: String?,
+        imageUrl: String?,
+        tags: List<String>,
+    )
+
     /** 초대 코드로 프라이빗 지도에 합류하고, 합류한 지도의 id 를 돌려준다. */
     suspend fun joinByInviteCode(inviteCode: String): Long
 
