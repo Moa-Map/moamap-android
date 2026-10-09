@@ -66,6 +66,21 @@ internal fun memberRoleDisplayOf(type: MapType): MemberRoleDisplay = when (type)
     MapType.Official -> MemberRoleDisplay.None
 }
 
+/**
+ * 「내 역할」(내 카드)과 「다른 멤버」로 나눈다. 다른 멤버는 받은 순서 그대로다.
+ *
+ * 역할이 나뉘는 커뮤니티 지도에서 내가 목록에 있을 때만 나눈다. 아니면 null 이고, 한 줄 목록 그대로 그린다
+ * - 프라이빗 지도, 그리고 내 id 를 모르는 옛 세션이 그렇다.
+ */
+internal fun List<MemberUiModel>.splitMine(
+    myId: Long?,
+    display: MemberRoleDisplay,
+): Pair<MemberUiModel, List<MemberUiModel>>? {
+    if (display != MemberRoleDisplay.All) return null
+    val me = firstOrNull { member -> member.id == myId } ?: return null
+    return me to filter { member -> member.id != me.id }
+}
+
 /** 이름 옆에 붙일 태그. 일반 멤버에게는 붙지 않는다. */
 internal fun MemberUiModel.tag(display: MemberRoleDisplay): MemberRole? = when {
     role == MemberRole.Owner && display != MemberRoleDisplay.None -> MemberRole.Owner

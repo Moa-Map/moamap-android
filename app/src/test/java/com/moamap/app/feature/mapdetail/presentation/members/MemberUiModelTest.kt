@@ -52,4 +52,39 @@ class MemberUiModelTest {
     fun `사진이 없으면 비운다`() {
         assertNull(member(MapRole.Member).toUiModel().imageUrl)
     }
+
+    // ---------- 내 카드 나누기 ----------
+
+    private val members = listOf(
+        MemberUiModel(1L, "방장", null, MemberRole.Owner),
+        MemberUiModel(2L, "관리자", null, MemberRole.Admin),
+        MemberUiModel(3L, "멤버", null, MemberRole.Member),
+    )
+
+    @Test
+    fun `커뮤니티 지도에서는 내 카드를 떼고 나머지는 순서 그대로 둔다`() {
+        val (me, others) = members.splitMine(myId = 2L, display = MemberRoleDisplay.All)!!
+
+        assertEquals(2L, me.id)
+        assertEquals(listOf(1L, 3L), others.map { it.id })
+    }
+
+    @Test
+    fun `다른 멤버가 없어도 나눈다`() {
+        val (me, others) = members.take(1).splitMine(myId = 1L, display = MemberRoleDisplay.All)!!
+
+        assertEquals(1L, me.id)
+        assertEquals(emptyList<MemberUiModel>(), others)
+    }
+
+    @Test
+    fun `프라이빗 지도는 나누지 않는다`() {
+        assertNull(members.splitMine(myId = 1L, display = MemberRoleDisplay.OwnerOnly))
+    }
+
+    @Test
+    fun `내 id 를 모르거나 목록에 없으면 나누지 않는다`() {
+        assertNull(members.splitMine(myId = null, display = MemberRoleDisplay.All))
+        assertNull(members.splitMine(myId = 9L, display = MemberRoleDisplay.All))
+    }
 }

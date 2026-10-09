@@ -694,6 +694,7 @@ fun MapDetailScreen(
 
             MemberScreen(
                 members = memberState.members,
+                myId = memberState.myId,
                 loading = memberState.loading,
                 errorMessage = memberState.errorMessage,
                 roleDisplay = screenState.memberRoleDisplay,
