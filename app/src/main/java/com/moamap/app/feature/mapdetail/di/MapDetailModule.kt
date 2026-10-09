@@ -7,6 +7,7 @@ import com.moamap.app.feature.mapdetail.data.repository.KakaoPlaceSearchReposito
 import com.moamap.app.feature.mapdetail.data.repository.MapActivityRepositoryImpl
 import com.moamap.app.feature.mapdetail.data.repository.MapDetailRepositoryImpl
 import com.moamap.app.feature.mapdetail.data.repository.MapMemberRepositoryImpl
+import com.moamap.app.feature.mapdetail.data.repository.MapPostCommentRepositoryImpl
 import com.moamap.app.feature.mapdetail.data.repository.MapPostRepositoryImpl
 import com.moamap.app.feature.mapdetail.data.repository.PendingPlaceRepositoryImpl
 import com.moamap.app.feature.mapdetail.data.repository.PersonalMapRepositoryImpl
@@ -15,6 +16,7 @@ import com.moamap.app.feature.mapdetail.data.repository.PlaceReviewRepositoryImp
 import com.moamap.app.feature.mapdetail.domain.repository.MapActivityRepository
 import com.moamap.app.feature.mapdetail.domain.repository.MapDetailRepository
 import com.moamap.app.feature.mapdetail.domain.repository.MapMemberRepository
+import com.moamap.app.feature.mapdetail.domain.repository.MapPostCommentRepository
 import com.moamap.app.feature.mapdetail.domain.repository.MapPostRepository
 import com.moamap.app.feature.mapdetail.domain.repository.PendingPlaceRepository
 import com.moamap.app.feature.mapdetail.domain.repository.PersonalMapRepository
@@ -68,6 +70,10 @@ internal abstract class MapDetailModule {
     @Binds
     @Singleton
     abstract fun bindMapPostRepository(impl: MapPostRepositoryImpl): MapPostRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMapPostCommentRepository(impl: MapPostCommentRepositoryImpl): MapPostCommentRepository
 
     @Binds
     @Singleton

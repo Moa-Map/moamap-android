@@ -4,6 +4,7 @@ import android.net.Uri
 import com.moamap.app.core.common.upload.PhotoSpec
 import com.moamap.app.core.common.upload.PhotoUploader
 import com.moamap.app.core.network.model.PageResponse
+import com.moamap.app.feature.mapdetail.data.remote.MapPostCommentCreateRequestDto
 import com.moamap.app.feature.mapdetail.data.remote.MapPostCreateRequestDto
 import com.moamap.app.feature.mapdetail.data.remote.MapPostDto
 import com.moamap.app.feature.mapdetail.data.remote.MapPostPhotoUploadUrlDto
@@ -48,6 +49,12 @@ private class FakeMapPostService(
         mapId: Long,
         request: MapPostPhotoUploadUrlRequestDto,
     ): MapPostPhotoUploadUrlDto = TODO("사진이 없으면 발급하지 않는다")
+
+    override suspend fun getComments(mapId: Long, postId: Long, page: Int?, size: Int?, sort: String?) =
+        TODO("게시물 저장소는 댓글을 읽지 않는다")
+
+    override suspend fun createComment(mapId: Long, postId: Long, request: MapPostCommentCreateRequestDto) =
+        TODO("게시물 저장소는 댓글을 쓰지 않는다")
 }
 
 /**

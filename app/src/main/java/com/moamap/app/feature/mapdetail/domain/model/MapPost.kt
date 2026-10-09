@@ -16,6 +16,21 @@ data class MapPost(
     val createdAtMillis: Long?,
 )
 
+/**
+ * 게시물에 달린 댓글 한 건. 글만 있다.
+ *
+ * 서버 응답에는 작성자 식별자만 있어 닉네임·프로필 사진은 프로필 조회로 따로 채운다. 못 얻으면 null 이다.
+ */
+@Immutable
+data class MapPostComment(
+    val id: Long,
+    val authorId: Long,
+    val authorName: String?,
+    val authorImageUrl: String?,
+    val content: String,
+    val createdAtMillis: Long?,
+)
+
 /** 게시물 목록 정렬. */
 enum class MapPostSort {
     /** 최신순. 서버 기본값이다. */

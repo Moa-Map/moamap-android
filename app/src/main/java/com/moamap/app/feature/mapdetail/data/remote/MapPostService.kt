@@ -45,4 +45,26 @@ interface MapPostService {
         @Path("mapId") mapId: Long,
         @Body request: MapPostPhotoUploadUrlRequestDto,
     ): MapPostPhotoUploadUrlDto
+
+    /**
+     * 게시물 댓글. 게시물을 볼 수 있으면 댓글도 볼 수 있다.
+     *
+     * @param sort 빼면 서버가 오래된 것부터 준다.
+     */
+    @GET("api/v1/maps/{mapId}/posts/{postId}/comments")
+    suspend fun getComments(
+        @Path("mapId") mapId: Long,
+        @Path("postId") postId: Long,
+        @Query("page") page: Int? = null,
+        @Query("size") size: Int? = null,
+        @Query("sort") sort: String? = null,
+    ): PageResponse<MapPostCommentDto>
+
+    /** 댓글 작성. 지도 멤버만 쓸 수 있다. */
+    @POST("api/v1/maps/{mapId}/posts/{postId}/comments")
+    suspend fun createComment(
+        @Path("mapId") mapId: Long,
+        @Path("postId") postId: Long,
+        @Body request: MapPostCommentCreateRequestDto,
+    ): MapPostCommentDto
 }
