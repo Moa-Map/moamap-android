@@ -25,8 +25,11 @@ import javax.inject.Inject
 
 private const val TAG = "MapPostCreateViewModel"
 
-/** 서버가 게시물 하나에 받는 한도. */
-internal const val MAX_POST_PHOTOS = 5
+/**
+ * 게시물 하나에 넣는 사진 수. 서버는 5장까지 받지만 한 장만 받는다 - 상세도 한 장만 크게 보여준다(10-10 사용자 결정).
+ * 바꾸려면 고른 사진을 빼고 다시 고른다.
+ */
+internal const val MAX_POST_PHOTOS = 1
 internal const val MAX_POST_CONTENT_LENGTH = 1000
 
 /**
