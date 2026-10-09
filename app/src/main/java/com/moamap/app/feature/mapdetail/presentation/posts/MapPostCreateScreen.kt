@@ -165,7 +165,7 @@ internal fun MapPostCreateScreen(
 
         if (galleryVisible) {
             GalleryPickerScreen(
-                // 남은 자리만큼만 고르게 한다. 다섯 장을 채우면 더 고를 수 없다.
+                // 남은 자리만큼만 고르게 한다. 한 장을 채우면 더 고를 수 없다.
                 maxSelectable = MAX_POST_PHOTOS - state.photos.size,
                 onCameraClick = {
                     galleryVisible = false

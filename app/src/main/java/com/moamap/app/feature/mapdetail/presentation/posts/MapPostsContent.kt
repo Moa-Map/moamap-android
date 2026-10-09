@@ -101,6 +101,8 @@ internal fun MapPostsContent(
     onRetryClick: () -> Unit,
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 카드를 누르면 게시물 상세를 연다. */
+    onPostClick: (MapPost) -> Unit = {},
     gridState: LazyStaggeredGridState = rememberLazyStaggeredGridState(),
 ) {
     LoadMoreEffect(gridState = gridState, onLoadMore = onLoadMore)
@@ -152,7 +154,7 @@ internal fun MapPostsContent(
 
             else -> {
                 items(state.posts, key = { post -> post.id }) { post ->
-                    MapPostCard(post = post)
+                    MapPostCard(post = post, modifier = Modifier.clickable { onPostClick(post) })
                 }
 
                 if (state.loadingMore) {

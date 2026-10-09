@@ -26,6 +26,11 @@ class GallerySelectionTest {
     }
 
     @Test
+    fun `한 장만 고를 때는 새로 누른 것으로 바꾼다`() {
+        assertEquals(listOf("b"), toggleSelection(listOf("a"), "b", max = 1))
+    }
+
+    @Test
     fun `상한을 채웠어도 빼는 건 된다`() {
         assertEquals(listOf("b"), toggleSelection(listOf("a", "b"), "a", max = 2))
     }

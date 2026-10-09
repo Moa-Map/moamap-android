@@ -23,7 +23,10 @@ import com.moamap.app.feature.mapdetail.presentation.logs.toPendingRequestUiMode
 import com.moamap.app.feature.mapdetail.presentation.manage.MapManageScreen
 import com.moamap.app.feature.mapdetail.presentation.members.MemberScreen
 import com.moamap.app.feature.mapdetail.presentation.members.MemberViewModel
+import com.moamap.app.feature.mapdetail.domain.model.MapPost
 import com.moamap.app.feature.mapdetail.domain.model.MapPostSort
+import com.moamap.app.feature.mapdetail.presentation.posts.MapPostDetailScreen
+import com.moamap.app.feature.mapdetail.presentation.posts.MapPostDetailViewModel
 import com.moamap.app.feature.mapdetail.presentation.posts.MapPostListUiState
 import com.moamap.app.feature.mapdetail.presentation.posts.CalendarDay
 import com.moamap.app.feature.mapdetail.presentation.posts.MapPostCalendarContent
@@ -167,6 +170,7 @@ fun MapDetailScreen(
     postListViewModel: MapPostListViewModel = hiltViewModel(),
     postCreateViewModel: MapPostCreateViewModel = hiltViewModel(),
     postCalendarViewModel: MapPostCalendarViewModel = hiltViewModel(),
+    postDetailViewModel: MapPostDetailViewModel = hiltViewModel(),
 ) {
     // 멤버 화면 모델은 이 파일 밖으로 드러내지 않는다. 매개변수로 받으면 공개 함수가
     // internal 타입을 노출하게 되고, 그걸 풀려면 카드 모델까지 공개로 넓혀야 한다.
@@ -180,6 +184,7 @@ fun MapDetailScreen(
     val postListState by postListViewModel.uiState.collectAsStateWithLifecycle()
     val postCreateState by postCreateViewModel.uiState.collectAsStateWithLifecycle()
     val postCalendarState by postCalendarViewModel.uiState.collectAsStateWithLifecycle()
+    val postDetailState by postDetailViewModel.uiState.collectAsStateWithLifecycle()
     val memberState by memberViewModel.uiState.collectAsStateWithLifecycle()
 
     // 나가기가 끝나면 왔던 곳(탐색 또는 모음)으로 돌아간다.
@@ -610,6 +615,7 @@ fun MapDetailScreen(
             onCalendarNextMonth = postCalendarViewModel::showNextMonth,
             onCalendarDayClick = postCalendarViewModel::selectDay,
             onCalendarRetry = postCalendarViewModel::retry,
+            onPostClick = postDetailViewModel::open,
             // 장소를 더할 수 있는 지도(참여한 커뮤니티·프라이빗)와 같은 기준이다. 서버도 멤버만 받는다.
             canWritePost = screenState.canAddPlace,
             onWritePostClick = {
@@ -646,6 +652,18 @@ fun MapDetailScreen(
                 onSubmitClick = postCreateViewModel::submit,
                 onErrorShown = postCreateViewModel::consumeErrorMessage,
                 onBackClick = { postCreateVisible = false },
+            )
+        }
+
+        postDetailState.post?.let { post ->
+            MapPostDetailScreen(
+                post = post,
+                state = postDetailState,
+                // 게시물을 쓸 수 있는 사람(참여한 커뮤니티·프라이빗)과 같은 기준이다. 서버도 멤버만 받는다.
+                canComment = screenState.canAddPlace,
+                onSendClick = postDetailViewModel::send,
+                onRetryClick = postDetailViewModel::retry,
+                onCloseClick = postDetailViewModel::close,
             )
         }
 
@@ -817,6 +835,7 @@ fun MapDetailScreen(
     // 이 화면에서 참여했으면 기기 뒤로가기도 상단 바 뒤로가기와 같은 길로 보낸다.
     BackHandler(enabled = screenState.joinedHere) { onBackClick(true) }
     BackHandler(enabled = postCreateVisible) { postCreateVisible = false }
+    BackHandler(enabled = postDetailState.post != null) { postDetailViewModel.close() }
     BackHandler(enabled = mapManageVisible) { mapManageVisible = false }
     BackHandler(enabled = memberPageVisible) { memberPageVisible = false }
     BackHandler(enabled = menuVisible) { menuVisible = false }
@@ -905,6 +924,8 @@ internal fun MapDetailContent(
     onCalendarDayClick: (CalendarDay) -> Unit,
     onCalendarRetry: () -> Unit,
     canWritePost: Boolean,
+    /** 로그 탭 카드(카드 형식·달력 형식)를 누르면 게시물 상세를 연다. */
+    onPostClick: (MapPost) -> Unit = {},
     onWritePostClick: () -> Unit,
     modifier: Modifier = Modifier,
     /** 공식지도. 시안대로 장소/로그 탭을 띄우지 않고, 장소 시트도 검색·칩·하트 없이 그린다. */
@@ -967,6 +988,7 @@ internal fun MapDetailContent(
                                 onSortSelect = onPostSortSelect,
                                 onRetryClick = onPostsRetry,
                                 onLoadMore = onPostsLoadMore,
+                                onPostClick = onPostClick,
                             )
 
                             MapPostViewMode.Calendar -> MapPostCalendarContent(
@@ -976,6 +998,7 @@ internal fun MapDetailContent(
                                 onNextMonthClick = onCalendarNextMonth,
                                 onDayClick = onCalendarDayClick,
                                 onRetryClick = onCalendarRetry,
+                                onPostClick = onPostClick,
                             )
                         }
                         MapDetailTabBar(

@@ -73,6 +73,8 @@ internal fun MapPostCalendarContent(
     onDayClick: (CalendarDay) -> Unit,
     onRetryClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 고른 날의 카드를 누르면 게시물 상세를 연다. */
+    onPostClick: (MapPost) -> Unit = {},
 ) {
     val month = state.month
     // 게시물·달·날이 바뀔 때만 다시 묶는다. 재구성마다 전체 게시물을 훑지 않게 한다.
@@ -140,7 +142,7 @@ internal fun MapPostCalendarContent(
                     item(key = "day-empty") { EmptyDayCard() }
                 } else {
                     items(dayPosts, key = { post -> "day-post-${post.id}" }) { post ->
-                        ExpandedPostCard(post = post)
+                        ExpandedPostCard(post = post, modifier = Modifier.clickable { onPostClick(post) })
                     }
                 }
             }
@@ -330,8 +332,8 @@ private fun EmptyDayCard() {
 /**
  * 고른 날의 게시물을 크게 보여주는 카드.
  *
- * 사진은 첫 장만 보여준다. 여러 장을 넘겨 보는 방식은 팀 논의 후 정한다. 링크 아이콘은 공유할
- * 곳이 아직 없어 그리지 않는다.
+ * 사진은 첫 장만 보여준다. 게시물 사진은 한 장으로 줄일 예정이라 넘겨 보기는 두지 않는다(10-10 사용자 결정).
+ * 링크 아이콘은 공유할 곳이 아직 없어 그리지 않는다. 게시물 상세도 맨 위에 이 카드를 쓴다.
  */
 @Composable
 internal fun ExpandedPostCard(post: MapPost, modifier: Modifier = Modifier) {

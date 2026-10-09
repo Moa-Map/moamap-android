@@ -44,6 +44,27 @@ data class MapPostPlaceTagRequestDto(
     val name: String,
 )
 
+/**
+ * GET·POST api/v1/maps/{mapId}/posts/{postId}/comments 응답 항목.
+ *
+ * 작성자는 식별자([userId])만 온다. 사진 필드는 없다 - 게시물 댓글은 글만 받는다.
+ */
+@Serializable
+data class MapPostCommentDto(
+    val id: Long = 0,
+    val mapPostId: Long = 0,
+    val userId: Long = 0,
+    val content: String? = null,
+    val createdAt: String? = null,
+    val updatedAt: String? = null,
+)
+
+/** POST api/v1/maps/{mapId}/posts/{postId}/comments 요청. 서버 한도는 500자다. */
+@Serializable
+data class MapPostCommentCreateRequestDto(
+    val content: String,
+)
+
 /** POST api/v1/maps/{mapId}/posts/photo-upload-url 요청. 한 장씩 발급한다. */
 @Serializable
 data class MapPostPhotoUploadUrlRequestDto(
