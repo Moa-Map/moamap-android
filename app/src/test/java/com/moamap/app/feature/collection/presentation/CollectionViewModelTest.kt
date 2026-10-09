@@ -53,13 +53,13 @@ class CollectionViewModelTest {
         return viewModel
     }
 
-    private fun myMap(id: Long, personal: Boolean = false) = MyMap(
+    private fun myMap(id: Long, personal: Boolean = false, official: Boolean = false) = MyMap(
         id = id,
         title = "지도$id",
         imageUrl = null,
         memberCount = 1,
         placeCount = 0,
-        official = false,
+        official = official,
         personal = personal,
     )
 
@@ -78,6 +78,19 @@ class CollectionViewModelTest {
         val calls = mutableListOf<MapType>()
         val joinedCodes = mutableListOf<String>()
 
+        /** 순서 저장·나가기·목록 조회(공식지도 제외)가 일어난 차례. */
+        val events = mutableListOf<String>()
+
+        val orderUpdates = mutableListOf<Pair<MapType, List<Long>>>()
+        var orderFailure: Throwable? = null
+
+        override suspend fun updateMyMapOrder(type: MapType, mapIds: List<Long>) {
+            delay(delayMillis)
+            orderFailure?.let { throw it }
+            orderUpdates += type to mapIds
+            events += "save"
+        }
+
         /**
          * 커뮤니티 탭을 읽을 때 함께 불리는 참여한 공식지도.
          *
@@ -93,6 +106,7 @@ class CollectionViewModelTest {
                 return officialResult()
             }
             calls += type
+            events += "load"
             delay(delayMillis)
             return result(type)
         }
@@ -125,6 +139,7 @@ class CollectionViewModelTest {
             delay(delayMillis)
             if (mapId in leaveFailures) throw IOException("boom")
             leftMapIds += mapId
+            events += "leave"
         }
     }
 
@@ -628,15 +643,175 @@ class CollectionViewModelTest {
     }
 
     @Test
-    fun `바꾼 순서는 편집을 마쳐도 남고 새로고침하면 서버 순서로 돌아간다`() = runTest(dispatcher) {
+    fun `편집을 마치면 바꾼 순서를 저장한다`() = runTest(dispatcher) {
         val viewModel = editingViewModel()
         viewModel.moveMap(mapId = 1L, targetId = 2L)
 
         viewModel.finishEdit()
-        assertEquals(listOf(2L, 1L, 3L, 4L), viewModel.communityIds())
+        advanceUntilIdle()
 
+        // 서버는 그 탭의 지도를 빠짐없이 받아야 한다. 나만의 지도(3)도 들어간다.
+        assertEquals(listOf(MapType.Community to listOf(2L, 1L, 3L, 4L)), repository.orderUpdates)
+        assertEquals(listOf(2L, 1L, 3L, 4L), viewModel.communityIds())
+        assertNull(viewModel.uiState.value.notice)
+    }
+
+    @Test
+    fun `순서가 처음과 같으면 저장하지 않는다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+        // 옮겼다가 제자리로 돌려놓았다.
+        viewModel.moveMap(mapId = 1L, targetId = 2L)
+        viewModel.moveMap(mapId = 1L, targetId = 2L)
+
+        viewModel.finishEdit()
+        advanceUntilIdle()
+
+        assertTrue(repository.orderUpdates.isEmpty())
+    }
+
+    @Test
+    fun `순서를 저장하지 못하면 알리고 서버 순서로 되돌린다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+        repository.orderFailure = IOException("boom")
+        viewModel.moveMap(mapId = 1L, targetId = 2L)
+
+        viewModel.finishEdit()
+        advanceUntilIdle()
+
+        assertEquals(ORDER_SAVE_FAILED_MESSAGE, viewModel.uiState.value.notice)
+        assertEquals(listOf(1L, 2L, 3L, 4L), viewModel.communityIds())
+    }
+
+    @Test
+    fun `화면에 돌아와 다시 읽을 때는 순서 저장이 끝난 뒤에 읽는다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+        repository.delayMillis = 1_000
+        repository.events.clear()
+        viewModel.moveMap(mapId = 1L, targetId = 2L)
+
+        // 편집 중에 다른 화면에 갔다 돌아왔다. 편집이 끝나며 저장하고 목록을 다시 읽는다.
         viewModel.refresh()
         advanceUntilIdle()
-        assertEquals(listOf(1L, 2L, 3L, 4L), viewModel.communityIds())
+
+        // 먼저 읽으면 저장 전 순서를 받아 되돌아간다.
+        assertEquals(listOf("save", "load"), repository.events)
+    }
+
+    @Test
+    fun `탭을 옮기면 떠난 탭의 바꾼 순서를 저장한다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+        viewModel.moveMap(mapId = 4L, targetId = 1L)
+
+        viewModel.selectTab(MapType.Private)
+        advanceUntilIdle()
+
+        assertEquals(listOf(MapType.Community to listOf(4L, 1L, 2L, 3L)), repository.orderUpdates)
+    }
+
+    @Test
+    fun `커뮤니티 탭의 공식지도는 공식지도 순서로 따로 저장한다`() = runTest(dispatcher) {
+        repository.officialResult = { listOf(myMap(9L, official = true), myMap(8L, official = true)) }
+        repository.result = { listOf(myMap(1L), myMap(2L)) }
+        val viewModel = startedViewModel()
+        viewModel.startEdit()
+        advanceUntilIdle()
+
+        viewModel.moveMap(mapId = 8L, targetId = 9L)
+        viewModel.moveMap(mapId = 2L, targetId = 1L)
+        viewModel.finishEdit()
+        advanceUntilIdle()
+
+        assertEquals(
+            listOf(MapType.Official to listOf(8L, 9L), MapType.Community to listOf(2L, 1L)),
+            repository.orderUpdates,
+        )
+    }
+
+    @Test
+    fun `순서가 그대로인 종류는 보내지 않는다`() = runTest(dispatcher) {
+        repository.officialResult = { listOf(myMap(9L, official = true), myMap(8L, official = true)) }
+        repository.result = { listOf(myMap(1L), myMap(2L)) }
+        val viewModel = startedViewModel()
+        viewModel.startEdit()
+        advanceUntilIdle()
+
+        viewModel.moveMap(mapId = 8L, targetId = 9L)
+        viewModel.finishEdit()
+        advanceUntilIdle()
+
+        assertEquals(listOf(MapType.Official to listOf(8L, 9L)), repository.orderUpdates)
+    }
+
+    @Test
+    fun `공식지도와 커뮤니티 지도는 서로의 자리로 옮기지 않는다`() = runTest(dispatcher) {
+        repository.officialResult = { listOf(myMap(9L, official = true)) }
+        repository.result = { listOf(myMap(1L), myMap(2L)) }
+        val viewModel = startedViewModel()
+        viewModel.startEdit()
+        advanceUntilIdle()
+
+        viewModel.moveMap(mapId = 1L, targetId = 9L)
+
+        // 서버가 공식지도를 늘 위에 두므로, 섞어 두면 다시 읽을 때 순서가 바뀐다.
+        assertEquals(listOf(9L, 1L, 2L), viewModel.communityIds())
+    }
+
+    @Test
+    fun `프라이빗 탭은 나만의 지도까지 프라이빗 순서로 저장한다`() = runTest(dispatcher) {
+        repository.result = { listOf(myMap(1L, personal = true), myMap(2L), myMap(3L)) }
+        val viewModel = startedViewModel()
+        viewModel.selectTab(MapType.Private)
+        advanceUntilIdle()
+        viewModel.startEdit()
+        advanceUntilIdle()
+
+        viewModel.moveMap(mapId = 3L, targetId = 2L)
+        viewModel.finishEdit()
+        advanceUntilIdle()
+
+        assertEquals(listOf(MapType.Private to listOf(1L, 3L, 2L)), repository.orderUpdates)
+    }
+
+    @Test
+    fun `순서를 바꾸고 나가면 나가기 전에 순서를 저장한다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+        repository.events.clear()
+        viewModel.moveMap(mapId = 4L, targetId = 1L)
+        viewModel.toggleSelection(1L)
+
+        viewModel.leaveSelected()
+        advanceUntilIdle()
+
+        // 나가기 전이라 나갈 지도(1)까지 모두 보낸다. 나간 뒤에도 남은 지도의 순서는 그대로다.
+        assertEquals(listOf(MapType.Community to listOf(4L, 1L, 2L, 3L)), repository.orderUpdates)
+        assertEquals(listOf("save", "leave", "load"), repository.events)
+    }
+
+    @Test
+    fun `순서 저장 실패 안내는 나가기가 성공해도 남는다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+        repository.orderFailure = IOException("boom")
+        viewModel.moveMap(mapId = 4L, targetId = 1L)
+        viewModel.toggleSelection(1L)
+
+        viewModel.leaveSelected()
+        advanceUntilIdle()
+
+        assertEquals(listOf(1L), repository.leftMapIds)
+        assertEquals(ORDER_SAVE_FAILED_MESSAGE, viewModel.uiState.value.notice)
+    }
+
+    @Test
+    fun `편집 중 초대 코드로 합류하면 편집을 끝내고 바꾼 순서를 저장한다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+        viewModel.moveMap(mapId = 1L, targetId = 2L)
+        viewModel.openJoinDialog()
+        viewModel.updateInviteCode("A1B2C3")
+
+        viewModel.join()
+        advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.edit)
+        assertEquals(listOf(MapType.Community to listOf(2L, 1L, 3L, 4L)), repository.orderUpdates)
     }
 }

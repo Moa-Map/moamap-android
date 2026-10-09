@@ -29,6 +29,7 @@ private const val NETWORK_ERROR_MESSAGE = "네트워크에 연결할 수 없어�
 internal const val OWNER_CANNOT_LEAVE_MESSAGE = "방장인 지도는 나갈 수 없어요"
 internal const val PERSONAL_CANNOT_LEAVE_MESSAGE = "나만의 지도는 나갈 수 없어요"
 internal const val LEAVE_CHECK_FAILED_MESSAGE = "지도 정보를 불러오지 못했어요"
+internal const val ORDER_SAVE_FAILED_MESSAGE = "순서를 저장하지 못했어요"
 
 internal fun leaveFailedMessage(count: Int): String = "${count}개 지도에서 나가지 못했어요"
 
@@ -72,6 +73,9 @@ class CollectionViewModel @Inject constructor(
     /** 편집을 시작하며 지도마다 나갈 수 있는지 확인하는 요청. */
     private var editJob: Job? = null
 
+    /** 편집을 마치며 바꾼 순서를 저장하는 요청. 목록을 다시 읽기 전에 끝나길 기다린다. */
+    private var orderSaveJob: Job? = null
+
     fun selectTab(type: MapType) {
         if (_uiState.value.selectedTab == type) return
         // 나가는 중에는 탭을 옮기지 않는다. 끝나면 떠난 탭의 목록을 다시 읽어야 한다.
@@ -109,7 +113,7 @@ class CollectionViewModel @Inject constructor(
         _uiState.update { state -> state.copy(notice = null) }
     }
 
-    // ---------- 편집: 골라서 나가기 ----------
+    // ---------- 편집: 순서 바꾸기·골라서 나가기 ----------
 
     /**
      * 편집을 시작한다.
@@ -124,7 +128,9 @@ class CollectionViewModel @Inject constructor(
 
         val personal = maps.filter { map -> map.personal }
             .associate { map -> map.id to LeaveEligibility.Personal }
-        _uiState.update { current -> current.copy(edit = CollectionEditState(eligibility = personal)) }
+        _uiState.update { current ->
+            current.copy(edit = CollectionEditState(initialOrder = maps.map { map -> map.id }, eligibility = personal))
+        }
 
         editJob = viewModelScope.launch {
             maps.filterNot { map -> map.personal }.forEach { map ->
@@ -141,16 +147,31 @@ class CollectionViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 편집을 끝낸다. 「완료」·뒤로가기·탭 전환·화면 복귀가 모두 여기로 온다.
+     *
+     * 순서를 바꿨으면 이때 한 번 저장한다. 못 하면 알리고 서버 순서로 되돌린다.
+     */
     fun finishEdit() {
-        if (_uiState.value.edit?.leaving == true) return
+        val edit = _uiState.value.edit ?: return
+        if (edit.leaving) return
         editJob?.cancel()
+        val tab = _uiState.value.selectedTab
+        val moved = movedMaps(edit)
         _uiState.update { state -> state.copy(edit = null) }
+
+        if (moved != null) {
+            orderSaveJob = viewModelScope.launch {
+                if (!saveOrder(tab, moved, edit.initialOrder)) load(tab, keepCurrent = true)
+            }
+        }
     }
 
     /**
      * 편집 중 [mapId] 를 [targetId] 자리로 옮긴다. 손잡이를 끌어 이웃 카드를 넘을 때마다 불린다.
      *
-     * 순서 저장 API가 아직 없어 화면 안에서만 바뀐다. 목록을 다시 읽으면 서버 순서로 돌아간다.
+     * 화면 안에서만 바꾸고, 저장은 편집을 끝낼 때 한 번 한다([finishEdit]).
+     * 공식지도와 커뮤니티 지도는 서버가 순서를 따로 둬서 서로의 자리로는 옮기지 않는다.
      */
     fun moveMap(mapId: Long, targetId: Long) {
         val state = _uiState.value
@@ -159,6 +180,7 @@ class CollectionViewModel @Inject constructor(
         val from = maps.indexOfFirst { map -> map.id == mapId }
         val to = maps.indexOfFirst { map -> map.id == targetId }
         if (from < 0 || to < 0) return
+        if (maps[from].official != maps[to].official) return
 
         val moved = maps.toMutableList().apply { add(to, removeAt(from)) }
         _uiState.update { current -> current.withState(current.selectedTab, MyMapsState.Success(moved)) }
@@ -201,23 +223,53 @@ class CollectionViewModel @Inject constructor(
      *
      * 한 곳씩 나간다. 일부가 실패해도 나머지는 계속하고, 끝나면 편집을 닫고 목록을 다시 읽는다.
      * 실패한 지도는 목록에 그대로 남으니 몇 개인지만 알린다.
+     *
+     * 순서를 바꿨으면 나가기 전에 저장한다. 나간 지도가 빠져도 남은 지도의 순서는 그대로다.
      */
     fun leaveSelected() {
         val edit = _uiState.value.edit ?: return
         if (edit.leaving || edit.selected.isEmpty()) return
         val type = _uiState.value.selectedTab
+        val moved = movedMaps(edit)
 
         _uiState.update { state ->
             state.copy(edit = edit.copy(confirmVisible = false, leaving = true))
         }
         editJob?.cancel()
         viewModelScope.launch {
+            if (moved != null) saveOrder(type, moved, edit.initialOrder)
             val failed = edit.selected.count { mapId -> !tryLeave(mapId) }
             _uiState.update { state ->
-                state.copy(edit = null, notice = if (failed > 0) leaveFailedMessage(failed) else null)
+                // 순서 저장 실패 안내가 떠 있으면 나가기 실패가 없는 한 지우지 않는다.
+                state.copy(edit = null, notice = if (failed > 0) leaveFailedMessage(failed) else state.notice)
             }
             load(type, keepCurrent = true)
         }
+    }
+
+    /** 편집하며 순서를 바꿨으면 지금 탭 목록, 안 바꿨으면 null. */
+    private fun movedMaps(edit: CollectionEditState): List<MyMap>? =
+        (_uiState.value.currentMaps as? MyMapsState.Success)?.maps
+            ?.takeIf { maps -> maps.map { map -> map.id } != edit.initialOrder }
+
+    /**
+     * 바꾼 순서를 저장한다. 실패하면 알리고 false 를 돌려준다.
+     *
+     * 서버는 종류별로 그 종류의 내 지도를 빠짐없이 받아야 한다. 커뮤니티 탭에 함께 보이는 공식지도는
+     * 따로 보내고, 순서가 그대로인 종류는 보내지 않는다.
+     */
+    private suspend fun saveOrder(tab: MapType, maps: List<MyMap>, initialOrder: List<Long>): Boolean = try {
+        maps.groupBy { map -> if (map.official) MapType.Official else tab }.forEach { (type, group) ->
+            val ids = group.map { map -> map.id }
+            if (ids != initialOrder.filter { id -> id in ids }) repository.updateMyMapOrder(type, ids)
+        }
+        true
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.w(TAG, "지도 순서 저장 실패 (tab=$tab)", e)
+        _uiState.update { state -> state.copy(notice = ORDER_SAVE_FAILED_MESSAGE) }
+        false
     }
 
     private suspend fun checkEligibility(mapId: Long): LeaveEligibility = try {
@@ -283,6 +335,8 @@ class CollectionViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 repository.joinByInviteCode(editing.code)
+                // 탭을 옮기니 편집 중이었으면 끝낸다(바꾼 순서도 이때 저장된다). [selectTab] 과 같다.
+                finishEdit()
                 _uiState.update { state ->
                     state.copy(join = JoinState.Hidden, selectedTab = MapType.Private)
                 }
@@ -315,6 +369,8 @@ class CollectionViewModel @Inject constructor(
         }
 
         loadJobs[type] = viewModelScope.launch {
+            // 바꾼 순서를 저장하는 중이면 기다린다. 먼저 읽으면 저장 전 순서로 되돌아간다.
+            orderSaveJob?.join()
             try {
                 val maps = if (type == MapType.Community) getCommunityTabMaps() else repository.getMyMaps(type)
                 _uiState.update { state ->
