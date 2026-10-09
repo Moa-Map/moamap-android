@@ -204,8 +204,14 @@ internal fun MoaMapNavHost(
             composable(MoaMapRoute.CommunityMaps.route) {
                 CommunityMapListScreen(
                     onBackClick = navController::popBackStack,
+                    // 검색 결과에는 공식지도가 섞여 온다. 홈의 공식 카드와 같은 길로 보내야 유동인구·화장실 화면으로 간다.
                     onMapClick = { map ->
-                        navController.navigateToMap(mapId = map.id, mapTitle = map.title, joined = map.joined)
+                        navController.navigateToMap(
+                            mapId = map.id,
+                            mapTitle = map.title,
+                            joined = map.joined,
+                            official = map.official,
+                        )
                     },
                 )
             }

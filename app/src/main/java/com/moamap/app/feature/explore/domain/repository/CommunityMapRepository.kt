@@ -17,4 +17,22 @@ interface CommunityMapRepository {
         page: Int,
         size: Int,
     ): CommunityMapPage
+
+    /**
+     * 전체보기 목록의 한 페이지. [getCommunityMaps] 와 달리 **참여한 지도도 함께** 준다(10-10 사용자 결정).
+     * 참여 여부(`joined`)는 내가 참여한 커뮤니티 지도 목록으로 채운다.
+     */
+    suspend fun getAllCommunityMaps(
+        tag: String?,
+        sort: CommunityMapSort,
+        page: Int,
+        size: Int,
+    ): CommunityMapPage
+
+    /**
+     * 지도 검색의 한 페이지. 커뮤니티 지도와 공식지도가 섞여 오고, 참여한 지도도 나온다. 순서는 서버 기본(인기순)이다.
+     *
+     * @param keyword 앞뒤 공백을 지운, 비지 않은 검색어. 50자까지.
+     */
+    suspend fun searchMaps(keyword: String, page: Int, size: Int): CommunityMapPage
 }

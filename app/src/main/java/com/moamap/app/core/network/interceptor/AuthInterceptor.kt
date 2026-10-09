@@ -19,6 +19,14 @@ private val NO_AUTH_PATHS = setOf(
 )
 
 /**
+ * 이 헤더가 붙은 요청은 토큰 없이 보낸다. 헤더는 떼고 보낸다.
+ *
+ * 경로가 아니라 요청 하나를 고르는 표시다. 같은 경로라도 로그인 없이 보내야 하는 요청이 있다 - 커뮤니티 지도
+ * 전체보기(`GET /maps`)는 로그인하면 서버가 참여한 지도를 빼고 주지만, 지도 만들기(`POST /maps`)는 로그인이 필요하다.
+ */
+internal const val ANONYMOUS_REQUEST_HEADER = "X-MoaMap-Anonymous"
+
+/**
  * 저장된 액세스 토큰을 요청 헤더에 싣는다.
  *
  * 토큰이 없으면 헤더 없이 그대로 보낸다. 서버가 401 을 내려주고 그게 정상 흐름이다.
@@ -32,6 +40,9 @@ class AuthInterceptor(
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
         if (request.url.encodedPath in NO_AUTH_PATHS) return chain.proceed(request)
+        if (request.header(ANONYMOUS_REQUEST_HEADER) != null) {
+            return chain.proceed(request.newBuilder().removeHeader(ANONYMOUS_REQUEST_HEADER).build())
+        }
 
         val accessToken = tokenStore.blockingAccessToken() ?: return chain.proceed(request)
 

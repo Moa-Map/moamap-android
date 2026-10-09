@@ -21,6 +21,9 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,7 +33,11 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -66,9 +73,10 @@ private val TopBarHeight = 58.dp
 private val ChipShape = RoundedCornerShape(1000.dp)
 
 /**
- * 커뮤니티 지도 전체보기. 시안 「Home/커뮤니티지도」.
+ * 커뮤니티 지도 전체보기. 시안 「Home/커뮤니티지도」(`3258:14163`).
  *
- * 탐색 탭에서 빠진 검색창·칩·정렬이 여기로 왔다. 검색은 서버 API가 없어 모양만 둔다.
+ * 검색창에 글자가 있으면 칩·정렬을 숨기고 같은 목록 자리에 검색 결과를 그린다. 결과가 없으면 아무것도
+ * 띄우지 않는다. 지우면 검색 전 칩·정렬의 목록으로 돌아간다(10-10 사용자 결정).
  */
 @Composable
 fun CommunityMapListScreen(
@@ -93,6 +101,8 @@ fun CommunityMapListScreen(
         onSortClick = viewModel::selectSort,
         onRetryClick = viewModel::retry,
         onLoadMore = viewModel::loadMore,
+        onQueryChange = viewModel::updateQuery,
+        onSearch = viewModel::searchNow,
         modifier = modifier,
     )
 }
@@ -107,7 +117,10 @@ private fun CommunityMapListContent(
     onRetryClick: () -> Unit,
     onLoadMore: () -> Unit,
     modifier: Modifier = Modifier,
+    onQueryChange: (String) -> Unit = {},
+    onSearch: () -> Unit = {},
 ) {
+    val searching = uiState.searchKeyword != null
     val listState = rememberLazyListState()
     val currentOnLoadMore by rememberUpdatedState(onLoadMore)
 
@@ -143,20 +156,30 @@ private fun CommunityMapListContent(
             ),
         ) {
             item(key = "search") {
-                SearchBar(modifier = Modifier.padding(horizontal = MoaMapDimens.ScreenHorizontalPadding))
-            }
-            item(key = "chips") {
-                Spacer(Modifier.height(12.dp))
-                TagChipRow(tags = uiState.tags, selected = uiState.selectedTag, onClick = onTagClick)
-            }
-            item(key = "sort") {
-                Spacer(Modifier.height(20.dp))
-                CommunityMapSortRow(
-                    selected = uiState.sort,
-                    onClick = onSortClick,
+                SearchBar(
+                    query = uiState.query,
+                    onQueryChange = onQueryChange,
+                    onSearch = onSearch,
                     modifier = Modifier.padding(horizontal = MoaMapDimens.ScreenHorizontalPadding),
                 )
-                Spacer(Modifier.height(12.dp))
+            }
+            if (searching) {
+                // 칩·정렬 묶음이 빠진 자리. 시안의 검색창 묶음과 목록 묶음 사이 20 을 그대로 둔다.
+                item(key = "search-gap") { Spacer(Modifier.height(20.dp)) }
+            } else {
+                item(key = "chips") {
+                    Spacer(Modifier.height(12.dp))
+                    TagChipRow(tags = uiState.tags, selected = uiState.selectedTag, onClick = onTagClick)
+                }
+                item(key = "sort") {
+                    Spacer(Modifier.height(20.dp))
+                    CommunityMapSortRow(
+                        selected = uiState.sort,
+                        onClick = onSortClick,
+                        modifier = Modifier.padding(horizontal = MoaMapDimens.ScreenHorizontalPadding),
+                    )
+                    Spacer(Modifier.height(12.dp))
+                }
             }
 
             when {
@@ -172,6 +195,9 @@ private fun CommunityMapListContent(
                         }
                     }
                 }
+
+                // 검색 결과가 없으면 아무것도 띄우지 않는다.
+                uiState.maps.isEmpty() && searching -> Unit
 
                 uiState.maps.isEmpty() -> item(key = "empty") {
                     CommunityMapsPlaceholder {
@@ -256,15 +282,45 @@ private fun CommunityMapListTopBar(onBackClick: () -> Unit) {
 }
 
 /**
- * 검색창. 서버에 지도 검색 API가 없어 모양만 둔다 - 누르지 않고, 키보드도 띄우지 않는다.
+ * 검색창. 입력을 멈추면 찾고([CommunityMapListViewModel.updateQuery]), 키보드 검색 버튼은 바로 찾는다.
+ *
+ * 서버는 지도만 찾지만 안내 문구는 시안 그대로 둔다(10-10 사용자 결정).
  */
 @Composable
-private fun SearchBar(modifier: Modifier = Modifier) {
+private fun SearchBar(
+    query: String,
+    onQueryChange: (String) -> Unit,
+    onSearch: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val keyboardController = LocalSoftwareKeyboardController.current
     MoaMapSearchBar(modifier = modifier) {
-        Text(
-            text = "장소,지도를 검색해보세요",
-            style = MoaMapTheme.typography.body2,
-            color = MoaMapTheme.colors.textAssistive,
+        BasicTextField(
+            value = query,
+            onValueChange = onQueryChange,
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            textStyle = MoaMapTheme.typography.body2.copy(color = MoaMapTheme.colors.textNormal),
+            cursorBrush = SolidColor(MoaMapPrimitiveColors.Blue500),
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+            keyboardActions = KeyboardActions(
+                onSearch = {
+                    onSearch()
+                    keyboardController?.hide()
+                },
+            ),
+            decorationBox = { innerTextField ->
+                if (query.isEmpty()) {
+                    Text(
+                        text = "장소,지도를 검색해보세요",
+                        style = MoaMapTheme.typography.body2,
+                        color = MoaMapTheme.colors.textAssistive,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                innerTextField()
+            },
         )
     }
 }

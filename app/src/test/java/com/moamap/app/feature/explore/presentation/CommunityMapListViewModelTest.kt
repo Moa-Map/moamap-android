@@ -67,6 +67,24 @@ class CommunityMapListViewModelTest {
             delay(responseDelayMillis)
             return result(call)
         }
+
+        /** 전체보기는 참여한 지도까지 받는 목록을 쓴다. 조건 기록은 [getCommunityMaps] 와 같은 자리에 남긴다. */
+        override suspend fun getAllCommunityMaps(
+            tag: String?,
+            sort: CommunityMapSort,
+            page: Int,
+            size: Int,
+        ): CommunityMapPage = getCommunityMaps(tag, sort, page, size)
+
+        /** 검색 요청. 목록 요청([calls])과 따로 센다. */
+        val searches = mutableListOf<Pair<String, Int>>()
+        var searchResult: (String) -> CommunityMapPage = { CommunityMapPage(maps = emptyList(), isLast = true) }
+
+        override suspend fun searchMaps(keyword: String, page: Int, size: Int): CommunityMapPage {
+            searches += keyword to page
+            delay(responseDelayMillis)
+            return searchResult(keyword)
+        }
     }
 
     private fun loaded(repository: FakeRepository) = CommunityMapListViewModel(repository).apply {
@@ -294,6 +312,114 @@ class CommunityMapListViewModelTest {
 
         assertEquals("데이트", viewModel.uiState.value.selectedTag)
         assertEquals(listOf(2L), viewModel.uiState.value.maps.map { it.id })
+    }
+
+    // ---------- 검색 ----------
+
+    @Test
+    fun `입력을 멈추고 잠시 뒤에 앞뒤 공백을 지운 검색어로 찾는다`() = runTest {
+        val repository = FakeRepository { page(1L..3L, isLast = true) }
+        repository.searchResult = { CommunityMapPage(listOf(map(9L)), isLast = true) }
+        val viewModel = loaded(repository)
+
+        viewModel.updateQuery(" 카페 ")
+        dispatcher.scheduler.advanceTimeBy(SEARCH_DEBOUNCE_MILLIS - 1)
+        dispatcher.scheduler.runCurrent()
+        assertTrue(repository.searches.isEmpty())
+
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf("카페" to 0), repository.searches)
+        assertEquals("카페", viewModel.uiState.value.searchKeyword)
+        assertEquals(listOf(9L), viewModel.uiState.value.maps.map { it.id })
+    }
+
+    @Test
+    fun `연달아 입력하면 마지막 검색어로 한 번만 찾는다`() = runTest {
+        val repository = FakeRepository { page(1L..3L, isLast = true) }
+        val viewModel = loaded(repository)
+
+        viewModel.updateQuery("카")
+        dispatcher.scheduler.advanceTimeBy(100L)
+        viewModel.updateQuery("카페")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf("카페" to 0), repository.searches)
+    }
+
+    @Test
+    fun `키보드 검색 버튼은 기다리지 않고 찾고 같은 검색어를 두 번 찾지 않는다`() = runTest {
+        val repository = FakeRepository { page(1L..3L, isLast = true) }
+        val viewModel = loaded(repository)
+
+        viewModel.updateQuery("카페")
+        viewModel.searchNow()
+        dispatcher.scheduler.runCurrent()
+        assertEquals(listOf("카페" to 0), repository.searches)
+
+        viewModel.searchNow()
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(1, repository.searches.size)
+    }
+
+    @Test
+    fun `검색어를 다 지우면 검색 전 태그와 정렬의 목록을 다시 읽는다`() = runTest {
+        val repository = FakeRepository { page(1L..3L, isLast = true) }
+        val viewModel = loaded(repository)
+        viewModel.selectTag("카페")
+        viewModel.selectSort(CommunityMapSort.LATEST)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.updateQuery("데이트")
+        dispatcher.scheduler.advanceUntilIdle()
+        repository.calls.clear()
+
+        viewModel.updateQuery("")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        val state = viewModel.uiState.value
+        assertNull(state.searchKeyword)
+        assertEquals("카페", state.selectedTag)
+        assertEquals(CommunityMapSort.LATEST, state.sort)
+        assertEquals(listOf(Call("카페", CommunityMapSort.LATEST, 0, COMMUNITY_MAP_PAGE_SIZE)), repository.calls)
+    }
+
+    @Test
+    fun `검색 결과도 끝에 닿으면 다음 페이지를 검색으로 받는다`() = runTest {
+        val repository = FakeRepository { page(1L..3L, isLast = true) }
+        repository.searchResult = { CommunityMapPage(listOf(map(9L)), isLast = false) }
+        val viewModel = loaded(repository)
+        viewModel.updateQuery("카페")
+        dispatcher.scheduler.advanceUntilIdle()
+        repository.calls.clear()
+
+        viewModel.loadMore()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf("카페" to 0, "카페" to 1), repository.searches)
+        assertTrue(repository.calls.isEmpty())
+    }
+
+    @Test
+    fun `검색 결과로는 태그 칩을 만들지 않는다`() = runTest {
+        val repository = FakeRepository { CommunityMapPage(listOf(map(1L, "산책")), isLast = true) }
+        repository.searchResult = { CommunityMapPage(listOf(map(9L, "카페")), isLast = true) }
+        val viewModel = loaded(repository)
+
+        viewModel.updateQuery("카페")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf("산책"), viewModel.uiState.value.tags)
+    }
+
+    @Test
+    fun `검색어는 서버 한도까지만 받는다`() = runTest {
+        val viewModel = loaded(FakeRepository { page(1L..3L, isLast = true) })
+
+        viewModel.updateQuery("가".repeat(SEARCH_KEYWORD_MAX_LENGTH + 5))
+
+        assertEquals(SEARCH_KEYWORD_MAX_LENGTH, viewModel.uiState.value.query.length)
+        dispatcher.scheduler.advanceUntilIdle()
     }
 
     @Test

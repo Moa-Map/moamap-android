@@ -27,12 +27,26 @@ class AuthInterceptorTest {
         server.shutdown()
     }
 
-    private fun call(path: String, store: FakeAuthTokenStore) {
+    private fun call(path: String, store: FakeAuthTokenStore, anonymous: Boolean = false) {
         val client = OkHttpClient.Builder()
             .addInterceptor(AuthInterceptor(store))
             .build()
         server.enqueue(MockResponse().setResponseCode(200))
-        client.newCall(Request.Builder().url(server.url(path)).build()).execute().close()
+        val request = Request.Builder().url(server.url(path))
+            .apply { if (anonymous) header(ANONYMOUS_REQUEST_HEADER, "true") }
+            .build()
+        client.newCall(request).execute().close()
+    }
+
+    @Test
+    fun `로그인 없이 보내라는 표시가 있으면 토큰도 표시도 싣지 않는다`() {
+        val store = FakeAuthTokenStore(AuthToken("access-1", "refresh-1"))
+
+        call("/api/v1/maps", store, anonymous = true)
+
+        val recorded = server.takeRequest()
+        assertNull(recorded.getHeader("Authorization"))
+        assertNull(recorded.getHeader(ANONYMOUS_REQUEST_HEADER))
     }
 
     @Test
