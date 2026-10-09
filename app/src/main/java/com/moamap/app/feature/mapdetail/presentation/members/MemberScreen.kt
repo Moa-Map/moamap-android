@@ -54,6 +54,9 @@ import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.mapdetail.presentation.manage.MapOverlayTopBar
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
 private val MemberCardShape = RoundedCornerShape(12.dp)
 private val AvatarSize = 50.dp
@@ -62,6 +65,7 @@ private val RoleTagShape = RoundedCornerShape(1000.dp)
 /** 꼬리가 ⓘ 가운데를 가리키도록 말풍선을 안내 줄 왼쪽 끝에서 당기는 거리와, 안내 줄과의 틈. */
 private val TooltipOffsetX = (-12).dp
 private val TooltipGap = 3.dp
+private val RoleGuideScrim = MoaMapPrimitiveColors.Gray500.copy(alpha = 0.7f)
 
 /**
  * 멤버 관리. 상단바 메뉴에서 들어온다.
@@ -89,9 +93,12 @@ internal fun MemberScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // 역할 안내 말풍선이 이 화면을 흐려 바탕으로 깐다.
+    val roleGuideHazeState = rememberHazeState()
     Column(
         modifier = modifier
             .fillMaxSize()
+            .hazeSource(roleGuideHazeState)
             .background(MoaMapTheme.colors.backgroundSecondary)
             // 뒤에 깔린 지도로 터치가 새지 않게 빈 자리의 탭을 여기서 받는다.
             .pointerInput(Unit) { detectTapGestures() }
@@ -115,6 +122,7 @@ internal fun MemberScreen(
                     memberCount = members.size.takeIf { !loading && errorMessage == null },
                     // 역할이 나뉘는 지도에서만 역할 안내를 띄운다.
                     showRoleGuide = roleDisplay == MemberRoleDisplay.All,
+                    roleGuideHazeState = roleGuideHazeState,
                     // 목록 간격 8 과 합쳐 머리글과 목록 사이가 시안대로 20 이 된다.
                     modifier = Modifier.padding(bottom = 12.dp),
                 )
@@ -216,6 +224,7 @@ private fun CenteredMemberNotice(content: @Composable () -> Unit) {
 private fun MemberHeader(
     memberCount: Int?,
     showRoleGuide: Boolean,
+    roleGuideHazeState: HazeState,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -229,13 +238,13 @@ private fun MemberHeader(
                 color = MoaMapTheme.colors.textNormal,
             )
         }
-        if (showRoleGuide) RoleGuideRow()
+        if (showRoleGuide) RoleGuideRow(roleGuideHazeState)
     }
 }
 
 /** 「ⓘ 어떤 역할이 있는지 궁금하신가요?」. 누르면 바로 아래에 역할 안내 말풍선이 뜬다. */
 @Composable
-private fun RoleGuideRow() {
+private fun RoleGuideRow(hazeState: HazeState) {
     var guideVisible by remember { mutableStateOf(false) }
     val density = LocalDensity.current
     val position = remember(density) {
@@ -269,16 +278,25 @@ private fun RoleGuideRow() {
                 onDismissRequest = { guideVisible = false },
                 properties = PopupProperties(focusable = true),
             ) {
-                RoleGuideTooltip()
+                RoleGuideTooltip(hazeState)
             }
         }
     }
 }
 
-/** 역할별로 무엇을 할 수 있는지. 커뮤니티 지도에만 뜬다. 꼬리는 ⓘ 가운데 아래에 온다. */
+/**
+ * 역할별로 무엇을 할 수 있는지. 커뮤니티 지도에만 뜬다. 꼬리는 ⓘ 가운데 아래에 온다.
+ *
+ * 시안 `4243:29277`: 진회색 70% 에 뒤 흐림. 멤버 설명의 「별점·댓글」은 앱에 별점이 없어 「댓글」로 둔다.
+ */
 @Composable
-private fun RoleGuideTooltip() {
-    MoaMapTooltip(tailAlignment = Alignment.Start, tailInset = 14.dp) {
+private fun RoleGuideTooltip(hazeState: HazeState? = null) {
+    MoaMapTooltip(
+        tailAlignment = Alignment.Start,
+        tailInset = 14.dp,
+        color = RoleGuideScrim,
+        hazeState = hazeState,
+    ) {
         RoleGuideColumn("방장", "장소 신청 수락·거절,\n권한 위임, 강퇴")
         RoleGuideColumn("관리자", "장소 신청 수락·거절")
         RoleGuideColumn("멤버", "장소 신청,\n댓글")
