@@ -1,5 +1,6 @@
 package com.moamap.app.feature.mapdetail.presentation.members
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -34,6 +35,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -49,9 +52,9 @@ import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.mapdetail.presentation.manage.MapOverlayTopBar
 
-private val MemberTopBarHeight = 52.dp
 private val MemberCardShape = RoundedCornerShape(12.dp)
 private val AvatarSize = 50.dp
 private val RoleTagShape = RoundedCornerShape(1000.dp)
@@ -68,10 +71,14 @@ private val TooltipGap = 3.dp
  *
  * [roleDisplay] 와 [canGrantRole] 을 밖에서 받는다. 화면이 지도 종류를 직접 알 필요는 없고,
  * 그래야 프리뷰로 각 경우를 만들 수 있다.
+ *
+ * 커뮤니티 지도는 시안 `4243:29310` 대로 내 카드를 「내 역할」로 맨 위에 따로 두고, 나머지를
+ * 「다른 멤버 N명」 아래에 둔다([splitMine]).
  */
 @Composable
 internal fun MemberScreen(
     members: List<MemberUiModel>,
+    myId: Long?,
     loading: Boolean,
     errorMessage: String?,
     roleDisplay: MemberRoleDisplay,
@@ -90,16 +97,13 @@ internal fun MemberScreen(
             .pointerInput(Unit) { detectTapGestures() }
             .statusBarsPadding(),
     ) {
-        MapOverlayTopBar(
-            title = "멤버 관리",
-            onBackClick = onBackClick,
-            height = MemberTopBarHeight,
-        )
+        // 시안: 상단 바 58, 그 아래 8 에서 목록이 시작한다.
+        MapOverlayTopBar(title = "멤버 관리", onBackClick = onBackClick)
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(
                 start = MoaMapDimens.ScreenHorizontalPadding,
-                top = 11.dp,
+                top = 8.dp,
                 end = MoaMapDimens.ScreenHorizontalPadding,
                 bottom = 32.dp,
             ),
@@ -123,15 +127,37 @@ internal fun MemberScreen(
                     MembersError(message = errorMessage, onRetryClick = onRetryClick)
                 }
 
-                else -> items(members, key = { member -> member.id }) { member ->
-                    MemberCard(
-                        member = member,
-                        tag = member.tag(roleDisplay),
-                        canGrant = member.canGrantRole(canGrantRole),
-                        // 오가는 중에는 다른 카드의 버튼도 잠근다. 한 번에 하나만 처리한다.
-                        grantEnabled = !granting,
-                        onGrantRoleClick = { onGrantRoleClick(member.id) },
-                    )
+                else -> {
+                    val sections = members.splitMine(myId, roleDisplay)
+                    if (sections != null) {
+                        val (me, others) = sections
+                        item(key = "my-title") { MemberSectionTitle("내 역할") }
+                        item(key = me.id) {
+                            // 시안 「본인」 카드에는 권한 부여 버튼이 없다.
+                            MemberCard(
+                                member = me,
+                                tag = me.tag(roleDisplay),
+                                canGrant = false,
+                                grantEnabled = false,
+                                onGrantRoleClick = {},
+                                mine = true,
+                            )
+                        }
+                        // 시안: 묶음 사이 16. 목록 간격 8 에 8 을 더한다. 다른 멤버가 없어도 제목은 남긴다.
+                        item(key = "others-title") {
+                            MemberSectionTitle("다른 멤버 ${others.size}명", Modifier.padding(top = 8.dp))
+                        }
+                    }
+                    items(sections?.second ?: members, key = { member -> member.id }) { member ->
+                        MemberCard(
+                            member = member,
+                            tag = member.tag(roleDisplay),
+                            canGrant = member.canGrantRole(canGrantRole),
+                            // 오가는 중에는 다른 카드의 버튼도 잠근다. 한 번에 하나만 처리한다.
+                            grantEnabled = !granting,
+                            onGrantRoleClick = { onGrantRoleClick(member.id) },
+                        )
+                    }
                 }
             }
         }
@@ -275,6 +301,19 @@ private fun RoleGuideColumn(title: String, description: String) {
     }
 }
 
+/** 「내 역할」·「다른 멤버 N명」. */
+@Composable
+private fun MemberSectionTitle(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        // 한 줄 글자도 줄 높이만큼 차지해야 시안 간격(제목 → 카드 8)이 맞는다.
+        style = MoaMapTheme.typography.subtitle4.withDesignLineHeight(),
+        color = MoaMapTheme.colors.textNormal,
+        modifier = modifier.semantics { heading() },
+    )
+}
+
+/** @param mine 내 카드. 시안 「사용자 리스트 / State=본인」 대로 노란 바탕에 노란 테두리다. */
 @Composable
 private fun MemberCard(
     member: MemberUiModel,
@@ -282,11 +321,13 @@ private fun MemberCard(
     canGrant: Boolean,
     grantEnabled: Boolean,
     onGrantRoleClick: () -> Unit,
+    mine: Boolean = false,
 ) {
     ShadowedSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = MemberCardShape,
-        color = MoaMapPrimitiveColors.White,
+        color = if (mine) MoaMapPrimitiveColors.Yellow50 else MoaMapPrimitiveColors.White,
+        border = if (mine) BorderStroke(1.dp, MoaMapPrimitiveColors.Yellow500) else null,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
@@ -400,6 +441,8 @@ private fun MemberScreenCommunityPreview() {
     MoaMapTheme {
         MemberScreen(
             members = PreviewMembers,
+            // 방장인 내가 「내 역할」로 맨 위에.
+            myId = 1L,
             loading = false,
             errorMessage = null,
             roleDisplay = MemberRoleDisplay.All,
@@ -412,13 +455,14 @@ private fun MemberScreenCommunityPreview() {
     }
 }
 
-/** 프라이빗 지도: 역할 안내·관리자 태그·권한 부여 없이 만든 사람의 방장 태그만. */
+/** 프라이빗 지도: 역할 안내·관리자 태그·권한 부여 없이 만든 사람의 방장 태그만. 내 카드도 따로 두지 않는다. */
 @Preview(showBackground = true, widthDp = 393, heightDp = 852)
 @Composable
 private fun MemberScreenPrivatePreview() {
     MoaMapTheme {
         MemberScreen(
             members = PreviewMembers,
+            myId = 1L,
             loading = false,
             errorMessage = null,
             roleDisplay = MemberRoleDisplay.OwnerOnly,
