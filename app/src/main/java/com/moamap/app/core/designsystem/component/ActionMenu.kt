@@ -50,13 +50,8 @@ private val ModalMenuRowWidth = 164.dp
  * 흐린 회색 바탕의 줄 메뉴. 시안 「모달창」(폭 172 = 줄 164 + 좌우 4, 모서리 12, 줄 높이 50·안쪽 16,
  * 흰 아이콘 20·글자 body2·오른쪽 화살표, 줄 사이 1px 선). 홈 프로필 메뉴와 지도 상세 메뉴가 쓴다.
  *
- * 바탕은 한 겹이다. [hazeState] 의 원본을 흐리고 [scrimColor] 를 덮는다. [hazeState] 가 없으면 색만
- * 깐다 - 지도 상세의 지도는 SurfaceView 라 Compose 흐림이 잡지 못한다. 시안의 줄에도 흐림이 걸려
- * 있지만 줄에 칠한 색이 없어 피그마에서는 아무것도 그려지지 않는다 - 앱에서 그대로 걸면 줄마다
- * 유리판처럼 테두리가 생긴다(10-04 실기기에서 발견).
- *
- * 흐림은 시안 값 5 대신 10 이다. Haze 에 5 를 주면 시안보다 덜 흐려 밑의 글자가 읽힌다. 문의 유형
- * 목록에서 시안 그림과 나란히 놓고 맞춰 봤다(10-05).
+ * 바탕은 한 겹이다([modalScrim]). 시안의 줄에도 흐림이 걸려 있지만 줄에 칠한 색이 없어 피그마에서는
+ * 아무것도 그려지지 않는다 - 앱에서 그대로 걸면 줄마다 유리판처럼 테두리가 생긴다(10-04 실기기에서 발견).
  */
 @Composable
 internal fun ModalActionMenu(
@@ -70,26 +65,7 @@ internal fun ModalActionMenu(
             modifier = Modifier
                 .matchParentSize()
                 .clip(ModalMenuShape)
-                .then(
-                    if (hazeState == null) {
-                        Modifier.background(scrimColor)
-                    } else {
-                        Modifier.hazeEffect(
-                            hazeState,
-                            HazeStyle(
-                                tint = HazeTint(scrimColor),
-                                blurRadius = 10.dp,
-                                // 시안에 없는 노이즈는 끈다.
-                                noiseFactor = 0f,
-                                fallbackTint = HazeTint(scrimColor),
-                            ),
-                        ) {
-                            // Haze 는 안드로이드 12 미만에서 흐림을 끄고 회색만 깐다. 그러면 밑의 글자가 메뉴
-                            // 글자와 겹쳐 읽히지 않아(10-05 에뮬레이터 API 30 에서 발견), 그 기기에서도 흐린다.
-                            blurEnabled = true
-                        }
-                    },
-                ),
+                .modalScrim(hazeState, scrimColor),
         )
 
         Column(modifier = Modifier.padding(horizontal = 4.dp)) {
@@ -114,6 +90,33 @@ internal fun ModalActionMenu(
         }
     }
 }
+
+/**
+ * 시안 「modal」 바탕: [hazeState] 의 원본을 흐리고 [color] 를 덮는다. 모양은 앞에서 `clip` 으로 정한다.
+ *
+ * [hazeState] 가 없으면 색만 깐다 - 지도 상세의 지도는 SurfaceView 라 Compose 흐림이 잡지 못한다.
+ * 흐림은 시안 값 5 대신 10 이다. Haze 에 5 를 주면 시안보다 덜 흐려 밑의 글자가 읽힌다. 문의 유형
+ * 목록에서 시안 그림과 나란히 놓고 맞춰 봤다(10-05).
+ */
+internal fun Modifier.modalScrim(hazeState: HazeState?, color: Color): Modifier =
+    if (hazeState == null) {
+        background(color)
+    } else {
+        hazeEffect(
+            hazeState,
+            HazeStyle(
+                tint = HazeTint(color),
+                blurRadius = 10.dp,
+                // 시안에 없는 노이즈는 끈다.
+                noiseFactor = 0f,
+                fallbackTint = HazeTint(color),
+            ),
+        ) {
+            // Haze 는 안드로이드 12 미만에서 흐림을 끄고 회색만 깐다. 그러면 밑의 글자가 메뉴
+            // 글자와 겹쳐 읽히지 않아(10-05 에뮬레이터 API 30 에서 발견), 그 기기에서도 흐린다.
+            blurEnabled = true
+        }
+    }
 
 @Composable
 private fun ModalActionMenuRow(item: ActionMenuItem) {
