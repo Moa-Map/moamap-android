@@ -5,6 +5,7 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moamap.app.core.auth.CurrentUserStore
 import com.moamap.app.core.navigation.MoaMapRoute
 import com.moamap.app.feature.mapdetail.domain.repository.MapMemberRepository
 import com.moamap.app.feature.mapdetail.presentation.toUserMessage
@@ -35,6 +36,8 @@ internal const val GRANT_ROLE_FAILED_MESSAGE = "권한을 주지 못했어요"
 internal data class MemberUiState(
     val loading: Boolean = true,
     val members: List<MemberUiModel> = emptyList(),
+    /** 로그인한 내 id. 커뮤니티 지도에서 내 카드를 맨 위에 따로 둔다. 모르면(옛 세션) null 이다. */
+    val myId: Long? = null,
     val errorMessage: String? = null,
     /** 권한 부여가 오가는 중. 버튼을 연달아 눌러도 서버에는 한 번만 간다. */
     val granting: Boolean = false,
@@ -52,6 +55,7 @@ internal data class MemberUiState(
 internal class MemberViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val repository: MapMemberRepository,
+    private val currentUserStore: CurrentUserStore,
 ) : ViewModel() {
 
     private val mapId: Long = checkNotNull(savedStateHandle[MoaMapRoute.MapDetail.ARG_MAP_ID]) {
@@ -84,6 +88,9 @@ internal class MemberViewModel @Inject constructor(
      *
      * 성공하면 목록을 다시 받지 않고 그 사람의 역할만 바꾼다. 시트를 다시 그리려고 통신을 한
      * 번 더 하면, 그 조회가 실패했을 때 이미 반영된 권한이 없던 일처럼 보인다.
+     *
+     * 바꾼 뒤 서버처럼 역할순(방장 → 관리자 → 멤버)으로 다시 놓는다. 같은 역할 안에서는 지금 순서를
+     * 지켜, 새 관리자는 관리자들 맨 아래로 간다.
      */
     fun grantAdmin(userId: Long) {
         if (_uiState.value.granting) return
@@ -102,7 +109,7 @@ internal class MemberViewModel @Inject constructor(
                             } else {
                                 member
                             }
-                        },
+                        }.sortedBy { member -> member.role },
                     )
                 }
             } catch (e: CancellationException) {
@@ -130,8 +137,9 @@ internal class MemberViewModel @Inject constructor(
         loadJob = viewModelScope.launch {
             try {
                 val members = repository.getMembers(mapId).map { member -> member.toUiModel() }
+                val myId = currentUserStore.load()
                 _uiState.update { state ->
-                    state.copy(loading = false, members = members, errorMessage = null)
+                    state.copy(loading = false, members = members, myId = myId, errorMessage = null)
                 }
             } catch (e: CancellationException) {
                 throw e
