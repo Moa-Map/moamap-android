@@ -48,6 +48,14 @@ interface MapService {
         @Query("sort") sort: String? = null,
     ): PageResponse<MapSummaryDto>
 
+    /**
+     * 모음 탭 순서 저장. 그 종류에서 참여 중인 지도를 빠짐없이, 원하는 순서대로 보낸다.
+     *
+     * 하나라도 빠지거나 겹치면 400 `MAP_022` 로 통째로 거절된다.
+     */
+    @PATCH("api/v1/maps/me/order")
+    suspend fun updateMyMapOrder(@Body request: MapOrderUpdateRequestDto)
+
     @POST("api/v1/maps/join")
     suspend fun joinByInviteCode(@Body request: JoinByInviteCodeRequestDto): MapDetailDto
 

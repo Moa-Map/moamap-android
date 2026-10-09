@@ -5,6 +5,7 @@ import com.moamap.app.core.common.upload.PhotoUploader
 import com.moamap.app.core.common.upload.validateImageUpload
 import com.moamap.app.feature.collection.data.remote.CoverUploadUrlRequestDto
 import com.moamap.app.feature.collection.data.remote.JoinByInviteCodeRequestDto
+import com.moamap.app.feature.collection.data.remote.MapOrderUpdateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapService
 import com.moamap.app.feature.collection.domain.model.CreatedMap
 import com.moamap.app.feature.collection.domain.model.MapType
@@ -25,9 +26,12 @@ internal class MapRepositoryImpl @Inject constructor(
 ) : MapRepository {
 
     override suspend fun getMyMaps(type: MapType): List<MyMap> = mapService
-        .getMyMaps(type = type.requestValue, size = PAGE_SIZE)
+        .getMyMaps(type = type.requestValue, size = MY_MAPS_SIZE)
         .content
         .map { dto -> dto.toMyMap() }
+
+    override suspend fun updateMyMapOrder(type: MapType, mapIds: List<Long>) =
+        mapService.updateMyMapOrder(MapOrderUpdateRequestDto(type = type.requestValue, mapIds = mapIds))
 
     /**
      * 살펴보기 → 검증 → 발급 → 업로드 순으로 간다.
@@ -70,7 +74,11 @@ internal class MapRepositoryImpl @Inject constructor(
     }
 
     private companion object {
-        /** 탐색 탭과 같은 값. 무한 스크롤을 붙이기 전까지는 첫 페이지만 쓴다. */
-        const val PAGE_SIZE = 20
+        /**
+         * 내 지도는 한 번에 다 받는다. 순서를 저장할 때 그 종류의 지도를 빠짐없이 보내야 해서,
+         * 앞 페이지만 들고 있으면 서버가 거절한다. 300 은 순서 저장 요청이 받는 최대 개수다.
+         */
+        // ponytail: 300개를 넘으면 뒤는 안 보이고 순서 저장도 거절된다. 그럴 일이 생기면 페이지를 이어 받는다.
+        const val MY_MAPS_SIZE = 300
     }
 }

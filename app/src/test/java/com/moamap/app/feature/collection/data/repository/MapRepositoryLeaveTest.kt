@@ -13,6 +13,7 @@ import com.moamap.app.feature.collection.data.remote.MapMemberListDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleUpdateDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleUpdateRequestDto
+import com.moamap.app.feature.collection.data.remote.MapOrderUpdateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapService
 import com.moamap.app.feature.collection.data.remote.MapSummaryDto
 import com.moamap.app.feature.collection.data.remote.MapUpdateRequestDto
@@ -53,6 +54,8 @@ private class LeaveRecordingMapService(var detail: MapDetailDto) : MapService {
         size: Int?,
         sort: String?,
     ): PageResponse<MapSummaryDto> = TODO("사용하지 않음")
+
+    override suspend fun updateMyMapOrder(request: MapOrderUpdateRequestDto) = TODO("사용하지 않음")
 
     override suspend fun joinByInviteCode(request: JoinByInviteCodeRequestDto): MapDetailDto =
         TODO("사용하지 않음")

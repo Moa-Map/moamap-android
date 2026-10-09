@@ -11,6 +11,7 @@ import com.moamap.app.feature.collection.data.remote.MapMemberRoleDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleUpdateDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleUpdateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapMemberSummaryDto
+import com.moamap.app.feature.collection.data.remote.MapOrderUpdateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapService
 import com.moamap.app.feature.collection.data.remote.MapSummaryDto
 import com.moamap.app.feature.collection.data.remote.MapUpdateRequestDto
@@ -51,6 +52,7 @@ private class FakeMapService(
         CoverUploadUrlDto = notUsed()
     override suspend fun getMyMaps(type: String, page: Int?, size: Int?, sort: String?):
         PageResponse<MapSummaryDto> = notUsed()
+    override suspend fun updateMyMapOrder(request: MapOrderUpdateRequestDto) = notUsed()
     override suspend fun joinByInviteCode(request: JoinByInviteCodeRequestDto) = notUsed()
     override suspend fun getMap(mapId: Long): MapDetailDto = notUsed()
     override suspend fun updateMap(mapId: Long, request: MapUpdateRequestDto) = notUsed()

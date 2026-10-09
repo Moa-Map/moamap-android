@@ -10,6 +10,7 @@ import com.moamap.app.feature.collection.data.remote.MapMemberListDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleUpdateDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleUpdateRequestDto
+import com.moamap.app.feature.collection.data.remote.MapOrderUpdateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapService
 import com.moamap.app.feature.collection.data.remote.MapSummaryDto
 import com.moamap.app.feature.collection.data.remote.MapUpdateRequestDto
@@ -113,6 +114,7 @@ private class PagedMyMapService(private val pages: List<List<MapSummaryDto>>) : 
         )
     }
 
+    override suspend fun updateMyMapOrder(request: MapOrderUpdateRequestDto) = notUsed()
     override suspend fun getMaps(page: Int?, size: Int?, sort: String?) = notUsed()
     override suspend fun createMap(request: MapCreateRequestDto) = notUsed()
     override suspend fun createCoverUploadUrl(request: CoverUploadUrlRequestDto):

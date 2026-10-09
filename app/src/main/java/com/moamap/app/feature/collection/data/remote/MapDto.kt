@@ -54,6 +54,14 @@ data class JoinByInviteCodeRequestDto(
     val inviteCode: String,
 )
 
+/** PATCH api/v1/maps/me/order 요청 */
+@Serializable
+data class MapOrderUpdateRequestDto(
+    // OFFICIAL, COMMUNITY, PRIVATE
+    val type: String,
+    val mapIds: List<Long>,
+)
+
 /** GET api/v1/maps, /me 응답 항목 */
 @Serializable
 data class MapSummaryDto(
