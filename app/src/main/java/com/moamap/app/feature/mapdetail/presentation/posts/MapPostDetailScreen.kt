@@ -45,6 +45,7 @@ import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.mapdetail.CommentInputRow
 import com.moamap.app.feature.mapdetail.domain.model.MapPost
 import com.moamap.app.feature.mapdetail.domain.model.MapPostComment
@@ -232,7 +233,8 @@ private fun PostComment(comment: MapPostComment, mine: Boolean) {
         }
         Text(
             text = comment.content,
-            style = MoaMapTheme.typography.body2,
+            // 시안 말풍선은 여백 12 + 줄 높이 21 이다. 줄 높이 여백을 자르면 말풍선이 5 쯤 낮아진다.
+            style = MoaMapTheme.typography.body2.withDesignLineHeight(),
             color = MoaMapTheme.colors.textNormal,
             modifier = Modifier
                 .widthIn(max = CommentBubbleMaxWidth)
