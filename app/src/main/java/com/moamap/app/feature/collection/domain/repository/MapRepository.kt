@@ -12,6 +12,13 @@ interface MapRepository {
     suspend fun getMyMaps(type: MapType): List<MyMap>
 
     /**
+     * 모음 탭의 지도 순서를 저장한다.
+     *
+     * @param mapIds 그 종류에서 참여 중인 지도 전부를 원하는 순서대로. 빠지거나 겹치면 서버가 거절한다.
+     */
+    suspend fun updateMyMapOrder(type: MapType, mapIds: List<Long>)
+
+    /**
      * 커버 이미지를 올리고 저장된 주소를 돌려준다.
      *
      * 지도를 만들기 전에 부를 수 있다 - 발급 API 가 `mapId` 를 받지 않는다.

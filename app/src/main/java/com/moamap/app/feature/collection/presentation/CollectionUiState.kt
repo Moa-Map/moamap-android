@@ -40,9 +40,11 @@ enum class LeaveEligibility {
     Unknown,
 }
 
-/** 모음 편집. 고른 지도에서 한 번에 나간다. */
+/** 모음 편집. 순서를 바꾸고, 고른 지도에서 한 번에 나간다. */
 @Immutable
 data class CollectionEditState(
+    /** 편집을 시작할 때의 지도 순서. 끝낼 때 달라졌으면 서버에 저장한다. */
+    val initialOrder: List<Long> = emptyList(),
     /** 지도별로 고를 수 있는지. 아직 확인하지 못한 지도는 키가 없다. */
     val eligibility: Map<Long, LeaveEligibility> = emptyMap(),
     val selected: Set<Long> = emptySet(),

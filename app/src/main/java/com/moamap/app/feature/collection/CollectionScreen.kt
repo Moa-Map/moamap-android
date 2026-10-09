@@ -482,7 +482,18 @@ private fun CommunityTabContent(
         emptyMessage = "아직 참여한 지도가 없어요",
         onRetryClick = onRetryClick,
     ) { maps ->
-        val reorder = rememberMapReorderState(ids = maps.map { map -> map.id }, spacing = CardSpacing, onMove = onMapMove)
+        // 맨 위 공식지도와 커뮤니티 지도는 서버가 순서를 따로 둔다. 끌기도 각자 안에서만 한다.
+        val (official, community) = maps.partition { map -> map.official }
+        val officialReorder = rememberMapReorderState(
+            ids = official.map { map -> map.id },
+            spacing = CardSpacing,
+            onMove = onMapMove,
+        )
+        val communityReorder = rememberMapReorderState(
+            ids = community.map { map -> map.id },
+            spacing = CardSpacing,
+            onMove = onMapMove,
+        )
         // 시안 `1974:7318`: 목록 오른쪽 위에 「편집」, 목록과 12. 폭을 채워야 「편집」이 오른쪽 끝에 붙는다.
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -491,15 +502,17 @@ private fun CommunityTabContent(
             EditToggle(edit = edit, onClick = onEditClick, modifier = Modifier.align(Alignment.End))
             Column(verticalArrangement = Arrangement.spacedBy(CardSpacing)) {
                 // 순서를 바꾸면 카드가 자리째 옮겨가야 끌던 손잡이의 동작이 끊기지 않는다.
-                maps.forEach { map ->
-                    key(map.id) {
-                        MyMapCard(
-                            map = map,
-                            uiModel = map.toCommunityUiModel(),
-                            edit = edit,
-                            reorder = reorder,
-                            onClick = { onMapClick(map) },
-                        )
+                listOf(official to officialReorder, community to communityReorder).forEach { (group, reorder) ->
+                    group.forEach { map ->
+                        key(map.id) {
+                            MyMapCard(
+                                map = map,
+                                uiModel = map.toCommunityUiModel(),
+                                edit = edit,
+                                reorder = reorder,
+                                onClick = { onMapClick(map) },
+                            )
+                        }
                     }
                 }
             }
@@ -784,7 +797,7 @@ private fun EditToggle(edit: CollectionEditState?, onClick: () -> Unit, modifier
 /**
  * 모음 목록의 카드. 시안 `1974:7318`·`1974:7468`.
  *
- * 편집 중에만 순서 손잡이가 보이고, 손잡이를 끌어 순서를 바꾼다. 순서 저장은 서버가 준비되면 붙인다.
+ * 편집 중에만 순서 손잡이가 보이고, 손잡이를 끌어 순서를 바꾼다. 바꾼 순서는 편집을 마칠 때 저장한다.
  * 편집 중에는 체크박스가 붙고 누르는 동안 회색이 된다. 고를 수 없는 지도는 체크박스가 회색이다.
  */
 @Composable
