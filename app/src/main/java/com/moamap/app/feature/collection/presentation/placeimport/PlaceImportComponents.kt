@@ -36,7 +36,6 @@ import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
 import com.moamap.app.core.designsystem.component.ButtonShadowColor
 import com.moamap.app.core.designsystem.component.MoaMapBackButton
 import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
-import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -49,9 +48,17 @@ internal val PlaceImportCardShape = RoundedCornerShape(12.dp)
 internal val PlaceImportButtonShape = RoundedCornerShape(8.dp)
 private val SelectedPlacesCardShape = RoundedCornerShape(12.dp)
 
-/** 고른 장소 카드의 안쪽 여백과 장소 사이 간격. */
+/**
+ * 고른 장소 카드(시안 「추가 전_장소카드」 접힌·펼쳐진 드롭다운)의 여백. 접으면 사방 16, 펼치면 위아래 20,
+ * 장소 사이는 구분선을 가운데 두고 16 이다. 장소 줄은 안쪽으로 2 더 들어간다.
+ */
 private val SelectedPlacesCardPadding = 16.dp
-private val SelectedPlacesRowSpacing = 12.dp
+private val SelectedPlacesExpandedVerticalPadding = 20.dp
+private val SelectedPlacesRowSpacing = 16.dp
+private val SelectedPlaceRowInset = 2.dp
+
+/** 이름·주소와 오른쪽 체크박스·편집하기·접기 사이. */
+private val PlaceCardTrailingGap = 8.dp
 
 private val ExpandIconSize = 14.dp
 
@@ -61,14 +68,14 @@ private val EditLinkTouchPadding = 12.dp
 private val CheckBoxSize = 20.dp
 private val CheckBoxShape = RoundedCornerShape(4.dp)
 
-/** 썸네일 크기. 장소 카드와 선택된 장소 카드가 같은 값을 쓴다. */
-private val PlaceThumbnailSize = 64.dp
+/** 상단 바 높이. 시안 GNB 58. */
+private val PlaceImportTopBarHeight = 58.dp
 
-/** GNB 아래 첫 요소까지의 여백. 피그마 393x852 기준 좌표에서 계산했다. */
-internal val PlaceImportContentTopSpacing = 23.dp
+/** GNB 아래 첫 요소까지의 여백. 시안 「장소 가져오기」 페이지(`4362:34880`) 기준. */
+internal val PlaceImportContentTopSpacing = 20.dp
 
 /** 안내 문구와 그 아래 블록 사이 간격. */
-internal val PlaceImportSectionSpacing = 24.dp
+internal val PlaceImportSectionSpacing = 20.dp
 
 @Composable
 internal fun PlaceImportTopBar(
@@ -77,7 +84,7 @@ internal fun PlaceImportTopBar(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp),
+            .height(PlaceImportTopBarHeight),
     ) {
         MoaMapBackButton(
             onClick = onBackClick,
@@ -258,9 +265,10 @@ internal fun PlaceImportCheckBox(
 }
 
 /**
- * 추출된 장소 후보 카드.
+ * 추출된 장소 후보 카드. 시안 「추가 전_장소카드」 선택·미선택(`4183:34212`).
  *
- * 장소를 여러 개 고를 수 있어 지도 카드와 같이 파란 테두리 + 체크박스로 표시한다.
+ * 장소를 여러 개 고를 수 있어 지도 카드와 같이 파란 테두리 + 체크박스로 표시한다. 링크에서는 장소 사진을
+ * 가져올 수 없어 이름·주소만 둔다.
  */
 @Composable
 internal fun ImportedPlaceCard(
@@ -279,10 +287,9 @@ internal fun ImportedPlaceCard(
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(PlaceCardTrailingGap),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PlaceThumbnail()
             PlaceLabels(
                 name = place.name,
                 address = place.displayAddress,
@@ -294,9 +301,10 @@ internal fun ImportedPlaceCard(
 }
 
 /**
- * 편집 단계에 나열되는 장소 카드.
+ * 편집 단계에 나열되는 장소 카드. 시안 「추가 전_장소카드」 편집가능.
  *
  * 이미 고른 장소를 다시 보여주는 것이라 카드 자체는 눌리지 않고 편집하기만 눌린다.
+ * 사진·태그·메모 중 하나라도 넣은 장소는 「편집하기」를 회색으로 바꿔 편집했다고 알린다(시안 `4362:34992`).
  */
 @Composable
 internal fun EditablePlaceCard(
@@ -312,22 +320,22 @@ internal fun EditablePlaceCard(
     ) {
         Row(
             modifier = Modifier.padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(PlaceCardTrailingGap),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PlaceThumbnail()
             PlaceLabels(
                 name = place.name,
                 address = place.displayAddress,
-                // 편집한 장소는 무엇을 붙였는지 한 줄로 알린다. 카드가 전부 같아 보이면
-                // 어디를 고쳤는지 되짚으려고 하나씩 다시 열어봐야 한다.
-                extra = edit?.summary(),
                 modifier = Modifier.weight(1f),
             )
             Text(
                 text = "편집하기",
                 style = MoaMapTheme.typography.button4,
-                color = MoaMapTheme.colors.statusAlert,
+                color = if (edit != null && !edit.isEmpty) {
+                    MoaMapTheme.colors.textAlternative
+                } else {
+                    MoaMapTheme.colors.statusAlert
+                },
                 textDecoration = TextDecoration.Underline,
                 maxLines = 1,
                 modifier = Modifier
@@ -380,10 +388,9 @@ internal fun SelectedPlacesCard(
                     },
                 )
                 .padding(
-                horizontal = SelectedPlacesCardPadding,
-                // 펼치면 구분선 위아래 간격이 붙어 위아래 여백을 그만큼 줄인다.
-                vertical = if (expanded) SelectedPlacesRowSpacing else SelectedPlacesCardPadding,
-            ),
+                    horizontal = SelectedPlacesCardPadding,
+                    vertical = if (expanded) SelectedPlacesExpandedVerticalPadding else SelectedPlacesCardPadding,
+                ),
             verticalArrangement = Arrangement.spacedBy(SelectedPlacesRowSpacing),
         ) {
             SelectedPlaceRow(place = first) {
@@ -412,11 +419,12 @@ private fun SelectedPlaceRow(
     trailingContent: @Composable () -> Unit = {},
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = SelectedPlaceRowInset),
+        horizontalArrangement = Arrangement.spacedBy(PlaceCardTrailingGap),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        PlaceThumbnail()
         PlaceLabels(
             name = place.name,
             address = place.displayAddress,
@@ -450,19 +458,15 @@ private fun SelectedPlacesToggle(
     }
 }
 
-// TODO: 추출 응답에 사진이 없어 늘 기본 사진이다. 응답에 사진이 생기면 여기로 넘긴다.
-@Composable
-private fun PlaceThumbnail() {
-    PhotoThumbnail(imageUrl = null, size = PlaceThumbnailSize)
-}
-
+/**
+ * 이름·주소 두 줄. 시안의 사이 4 는 글자가 아니라 줄 높이 상자(이름 20.8·주소 15.6) 사이 값이라,
+ * 줄 높이 여백을 살려야([withDesignLineHeight]) 간격과 카드 높이가 시안과 같다.
+ */
 @Composable
 private fun PlaceLabels(
     name: String,
     address: String,
     modifier: Modifier = Modifier,
-    /** 주소 아래 한 줄 더. 편집 목록에서만 쓰고 다른 카드는 넘기지 않는다. */
-    extra: String? = null,
 ) {
     Column(
         modifier = modifier,
@@ -470,40 +474,17 @@ private fun PlaceLabels(
     ) {
         Text(
             text = name,
-            style = MoaMapTheme.typography.subtitle2,
+            style = MoaMapTheme.typography.subtitle2.withDesignLineHeight(),
             color = MoaMapTheme.colors.textNormal,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
         Text(
             text = address,
-            style = MoaMapTheme.typography.caption0,
+            style = MoaMapTheme.typography.caption0.withDesignLineHeight(),
             color = MoaMapTheme.colors.textNormal,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
-        if (extra != null) {
-            Text(
-                text = extra,
-                style = MoaMapTheme.typography.caption0,
-                color = MoaMapTheme.colors.primary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-        }
     }
-}
-
-/**
- * 편집 목록 카드에 붙일 한 줄 요약. 붙인 것이 없으면 `null` 이라 줄 자체가 생기지 않는다.
- *
- * 태그는 개수만 센다. 이름을 늘어놓으면 긴 태그 하나에 줄이 다 먹힌다.
- */
-private fun PlaceEdit.summary(): String? {
-    val parts = buildList {
-        if (photos.isNotEmpty()) add("사진 ${photos.size}")
-        if (tags.isNotEmpty()) add("태그 ${tags.size}")
-        if (memo.isNotBlank()) add("메모")
-    }
-    return parts.takeIf { it.isNotEmpty() }?.joinToString(" · ")
 }
