@@ -5,11 +5,13 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moamap.app.feature.explore.domain.model.CommunityMap
+import com.moamap.app.feature.explore.domain.model.CommunityMapPage
 import com.moamap.app.feature.explore.domain.model.CommunityMapSort
 import com.moamap.app.feature.explore.domain.repository.CommunityMapRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,6 +32,12 @@ internal const val COMMUNITY_MAP_PAGE_SIZE = 20
 internal const val MAX_TAG_CHIPS = 10
 
 private const val LOAD_FAILED_MESSAGE = "지도 목록을 불러오지 못했어요"
+
+/** 서버가 받는 검색어 길이. 넘으면 400 이라 입력에서 자른다. */
+internal const val SEARCH_KEYWORD_MAX_LENGTH = 50
+
+/** 입력을 멈추고 이만큼 기다렸다 찾는다. 장소 추가 검색과 같다. */
+internal const val SEARCH_DEBOUNCE_MILLIS = 300L
 
 /**
  * 커뮤니티 지도 전체보기 상태.
@@ -56,6 +64,15 @@ data class CommunityMapListUiState(
     val loadMoreFailed: Boolean = false,
     /** 마지막 페이지까지 받았다. */
     val endReached: Boolean = false,
+    /** 검색창에 적힌 글자. */
+    val query: String = "",
+    /**
+     * 지금 목록이 검색 결과면 그 검색어, 태그·정렬 목록이면 null.
+     *
+     * 검색 중에는 칩·정렬을 숨기고 전체에서 찾는다(10-10 사용자 결정). [selectedTag]·[sort] 는 그대로 두어,
+     * 검색어를 지우면 그 조건의 목록으로 돌아간다.
+     */
+    val searchKeyword: String? = null,
 )
 
 @HiltViewModel
@@ -77,6 +94,9 @@ class CommunityMapListViewModel @Inject constructor(
     /** 다음에 받을 페이지 번호. 0 이면 아직 한 페이지도 받지 못했다. */
     private var nextPage = 0
 
+    /** 입력을 멈추길 기다리는 검색. 글자가 바뀌면 버리고 다시 기다린다. */
+    private var searchJob: Job? = null
+
     /**
      * 화면이 보일 때 부른다.
      *
@@ -97,12 +117,7 @@ class CommunityMapListViewModel @Inject constructor(
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             try {
-                val result = repository.getCommunityMaps(
-                    tag = state.selectedTag,
-                    sort = state.sort,
-                    page = 0,
-                    size = loadedPages * COMMUNITY_MAP_PAGE_SIZE,
-                )
+                val result = fetch(state, page = 0, size = loadedPages * COMMUNITY_MAP_PAGE_SIZE)
                 _uiState.update { current ->
                     current.copy(maps = result.maps, endReached = result.isLast, loadMoreFailed = false)
                 }
@@ -146,12 +161,7 @@ class CommunityMapListViewModel @Inject constructor(
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             try {
-                val result = repository.getCommunityMaps(
-                    tag = state.selectedTag,
-                    sort = state.sort,
-                    page = page,
-                    size = COMMUNITY_MAP_PAGE_SIZE,
-                )
+                val result = fetch(state, page = page, size = COMMUNITY_MAP_PAGE_SIZE)
                 nextPage = page + 1
                 _uiState.update { current ->
                     // 받는 사이 새 지도가 생기면 페이지 경계가 밀려 앞 페이지의 지도가 한 번 더 온다.
@@ -171,10 +181,60 @@ class CommunityMapListViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 검색창 글자가 바뀌었다. 입력을 멈추고 [SEARCH_DEBOUNCE_MILLIS] 뒤에 찾는다.
+     *
+     * 다 지우면 기다리지 않고 검색 전 태그·정렬 목록으로 돌아간다.
+     */
+    fun updateQuery(text: String) {
+        val query = text.take(SEARCH_KEYWORD_MAX_LENGTH)
+        _uiState.update { state -> state.copy(query = query) }
+        searchJob?.cancel()
+
+        val keyword = query.trim()
+        if (keyword.isEmpty()) {
+            applySearchKeyword(null)
+            return
+        }
+        searchJob = viewModelScope.launch {
+            delay(SEARCH_DEBOUNCE_MILLIS)
+            applySearchKeyword(keyword)
+        }
+    }
+
+    /** 키보드 검색 버튼. 기다리지 않고 바로 찾는다. */
+    fun searchNow() {
+        searchJob?.cancel()
+        val keyword = _uiState.value.query.trim()
+        if (keyword.isNotEmpty()) applySearchKeyword(keyword)
+    }
+
+    /** 같은 조건이면 다시 읽지 않는다. 자동 검색 뒤 검색 버튼을 눌러도 요청이 한 번이다. */
+    private fun applySearchKeyword(keyword: String?) {
+        if (keyword == _uiState.value.searchKeyword) return
+        _uiState.update { state -> state.copy(searchKeyword = keyword) }
+        loadFirstPage()
+    }
+
+    /**
+     * 검색어가 있으면 검색, 없으면 태그·정렬 목록.
+     *
+     * 목록은 참여한 지도도 함께 받는다(10-10 사용자 결정). 홈의 커뮤니티 지도 3장은 그대로 참여한 지도를 뺀다.
+     */
+    private suspend fun fetch(state: CommunityMapListUiState, page: Int, size: Int): CommunityMapPage {
+        val keyword = state.searchKeyword
+        return if (keyword != null) {
+            repository.searchMaps(keyword = keyword, page = page, size = size)
+        } else {
+            repository.getAllCommunityMaps(tag = state.selectedTag, sort = state.sort, page = page, size = size)
+        }
+    }
+
     private fun loadFirstPage() {
         val state = _uiState.value
         val tag = state.selectedTag
         val sort = state.sort
+        val searching = state.searchKeyword != null
         _uiState.update { current ->
             current.copy(
                 loading = true,
@@ -190,19 +250,15 @@ class CommunityMapListViewModel @Inject constructor(
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
             try {
-                val result = repository.getCommunityMaps(
-                    tag = tag,
-                    sort = sort,
-                    page = 0,
-                    size = COMMUNITY_MAP_PAGE_SIZE,
-                )
+                val result = fetch(state, page = 0, size = COMMUNITY_MAP_PAGE_SIZE)
                 nextPage = 1
                 _uiState.update { current ->
                     current.copy(
                         loading = false,
                         maps = result.maps,
                         endReached = result.isLast,
-                        tags = if (current.tags.isEmpty() && tag == null) {
+                        // 칩은 거르지 않은 목록에서만 모은다. 검색 결과로 만들면 검색어에 걸린 태그만 남는다.
+                        tags = if (current.tags.isEmpty() && tag == null && !searching) {
                             tagsByFrequency(result.maps)
                         } else {
                             current.tags
@@ -212,7 +268,8 @@ class CommunityMapListViewModel @Inject constructor(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.w(TAG, "커뮤니티 지도 조회 실패 (tag=$tag, sort=$sort)", e)
+                // 검색어는 남기지 않는다. 사용자가 적은 글이라 로그가 수집·보관되는 경로를 타면 안 된다.
+                Log.w(TAG, "커뮤니티 지도 조회 실패 (search=$searching, tag=$tag, sort=$sort)", e)
                 _uiState.update { current ->
                     current.copy(loading = false, errorMessage = LOAD_FAILED_MESSAGE)
                 }
