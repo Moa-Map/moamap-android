@@ -27,6 +27,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.moamap.app.R
@@ -34,8 +35,12 @@ import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 
 internal val MapIntroHeroHeight = 295.dp
+
+/** 히어로 아래 끝에서 제작자 줄까지. */
+private val MapIntroHeroTextBottomPadding = 32.dp
 internal val MapIntroMapHeight = 236.dp
 
 private val TagShape = RoundedCornerShape(1000.dp)
@@ -46,6 +51,8 @@ private val TagShape = RoundedCornerShape(1000.dp)
  * 대표 이미지 위에 아래로 갈수록 짙어지는 그라데이션을 덮어 흰 글자가 읽히게 한다.
  * 이미지가 없어도 같은 그라데이션을 쓴다 - 글자 위치가 이미지 유무로 달라지면 안 된다.
  * 이미지가 없으면 회색 바탕 가운데 사진 아이콘(시안 `1841:13206`).
+ *
+ * 지도 정보 화면도 같은 모양을 높이만 바꿔 쓴다.
  */
 @Composable
 internal fun MapIntroHero(
@@ -53,11 +60,13 @@ internal fun MapIntroHero(
     ownerName: String?,
     imageUrl: String?,
     modifier: Modifier = Modifier,
+    height: Dp = MapIntroHeroHeight,
+    textBottomPadding: Dp = MapIntroHeroTextBottomPadding,
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(MapIntroHeroHeight)
+            .height(height)
             .background(MoaMapPrimitiveColors.Gray50),
     ) {
         // 사진이 없거나 받는 중이거나 받지 못하면 이 아이콘이 드러난다.
@@ -90,12 +99,13 @@ internal fun MapIntroHero(
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
+                .padding(start = 24.dp, end = 24.dp, bottom = textBottomPadding),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
                 text = title,
-                style = MoaMapTheme.typography.title1,
+                // 제목과 제작자 줄 사이 4 는 줄 높이 상자 사이 값이다.
+                style = MoaMapTheme.typography.title1.withDesignLineHeight(),
                 color = MoaMapTheme.colors.textWhite,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -114,7 +124,7 @@ internal fun MapIntroHero(
                     )
                     Text(
                         text = ownerName,
-                        style = MoaMapTheme.typography.body3,
+                        style = MoaMapTheme.typography.body3.withDesignLineHeight(),
                         color = MoaMapTheme.colors.textWhite,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
@@ -130,7 +140,7 @@ internal fun MapIntroHero(
 internal fun MapIntroSectionTitle(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text,
-        style = MoaMapTheme.typography.title3,
+        style = MoaMapTheme.typography.title3.withDesignLineHeight(),
         color = MoaMapTheme.colors.textNormal,
         modifier = modifier,
     )
@@ -161,7 +171,7 @@ internal fun MapIntroTagRow(tags: List<String>, modifier: Modifier = Modifier) {
         tags.forEach { tag ->
             Text(
                 text = tag,
-                style = MoaMapTheme.typography.caption0,
+                style = MoaMapTheme.typography.caption0.withDesignLineHeight(),
                 color = MoaMapPrimitiveColors.Blue900,
                 maxLines = 1,
                 modifier = Modifier

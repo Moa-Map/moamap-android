@@ -2,6 +2,7 @@ package com.moamap.app.feature.collection.data.repository
 
 import com.moamap.app.feature.collection.data.remote.MapCreateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapDetailDto
+import com.moamap.app.feature.collection.data.remote.MapUpdateRequestDto
 import com.moamap.app.feature.collection.domain.model.CreatedMap
 import com.moamap.app.feature.collection.domain.model.MapVisibility
 import com.moamap.app.feature.collection.domain.model.NewMap
@@ -17,6 +18,24 @@ fun NewMap.toCreateRequest() = MapCreateRequestDto(
     imageUrl = imageUrl.normalized(),
     visibility = visibility.toRequestValue(),
     tags = tags.normalized(),
+)
+
+/**
+ * 수정 요청.
+ *
+ * 생성과 달리 빈 태그 목록도 그대로 보낸다. 서버가 통째로 덮어써서, 다 지운 태그는 빈 목록으로
+ * 가야 지워진다(서버는 null 도 빈 목록으로 저장한다).
+ */
+fun mapUpdateRequest(
+    name: String,
+    description: String?,
+    imageUrl: String?,
+    tags: List<String>,
+) = MapUpdateRequestDto(
+    name = name.trim(),
+    description = description.normalized(),
+    imageUrl = imageUrl.normalized(),
+    tags = tags,
 )
 
 /**

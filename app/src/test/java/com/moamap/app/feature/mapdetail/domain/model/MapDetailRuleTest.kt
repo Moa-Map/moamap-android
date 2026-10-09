@@ -202,6 +202,23 @@ class MapDetailRuleTest {
     }
 
     @Test
+    fun `지도 정보는 지도를 만든 방장만 고친다`() {
+        assertTrue(map(MapType.Community, MapRole.Owner, joined = true).canEditInfo)
+        assertTrue(map(MapType.Private, MapRole.Owner, joined = true).canEditInfo)
+        // 서버는 관리자도 받지만 방장만 연다.
+        assertFalse(map(MapType.Community, MapRole.Admin, joined = true).canEditInfo)
+        assertFalse(map(MapType.Community, MapRole.Member, joined = true).canEditInfo)
+        // 프라이빗에 초대로 들어온 사람은 서버가 거절한다.
+        assertFalse(map(MapType.Private, MapRole.Member, joined = true).canEditInfo)
+    }
+
+    @Test
+    fun `나만의 지도와 공식지도에는 지도 정보가 없다`() {
+        assertFalse(map(MapType.Private, MapRole.Owner, joined = true, personal = true).canEditInfo)
+        assertFalse(map(MapType.Official, MapRole.Owner, joined = true).canEditInfo)
+    }
+
+    @Test
     fun `나갈 수 있는 사람의 메뉴에만 나가기가 있다`() {
         assertTrue(map(MapType.Community, MapRole.Member, joined = true).canLeaveFromMenu)
         assertTrue(map(MapType.Community, MapRole.Admin, joined = true).canLeaveFromMenu)

@@ -120,6 +120,17 @@ val MapDetail.showsMenu: Boolean
     get() = joined && type != MapType.Official
 
 /**
+ * 상단바 메뉴에 「지도 정보」를 넣을지. 그 화면에서 이름·설명·태그·사진을 고칠 수 있다.
+ *
+ * 지도를 만든 방장만이다. 커뮤니티·프라이빗 모두 같다 - 서버는 관리자도 받지만 지도 소개는 만든
+ * 사람의 것으로 둔다(10-10 사용자 결정). 프라이빗에 초대로 들어온 사람은 서버가 거절한다.
+ *
+ * 나만의 지도는 뺀다. 가입하면 누구에게나 생기는 지도라 직접 정한 이름·소개가 없다.
+ */
+val MapDetail.canEditInfo: Boolean
+    get() = showsMenu && !personal && role == MapRole.Owner
+
+/**
  * 나간 뒤에도 이 화면에 남는지.
  *
  * 공식지도는 나가면 그 자리에서 다시 참여하기로 돌아간다. 다른 지도는 나가면 이전 화면으로

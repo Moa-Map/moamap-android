@@ -20,6 +20,9 @@ import com.moamap.app.feature.mapdetail.presentation.logs.MapActivityViewModel
 import com.moamap.app.feature.mapdetail.presentation.logs.PendingRequestViewModel
 import com.moamap.app.feature.mapdetail.presentation.logs.toMapLogUiModels
 import com.moamap.app.feature.mapdetail.presentation.logs.toPendingRequestUiModels
+import com.moamap.app.feature.mapdetail.presentation.info.MapInfoEditScreen
+import com.moamap.app.feature.mapdetail.presentation.info.MapInfoEditViewModel
+import com.moamap.app.feature.mapdetail.presentation.info.MapInfoScreen
 import com.moamap.app.feature.mapdetail.presentation.manage.MapManageScreen
 import com.moamap.app.feature.mapdetail.presentation.members.MemberScreen
 import com.moamap.app.feature.mapdetail.presentation.members.MemberViewModel
@@ -175,6 +178,7 @@ fun MapDetailScreen(
     // 멤버 화면 모델은 이 파일 밖으로 드러내지 않는다. 매개변수로 받으면 공개 함수가
     // internal 타입을 노출하게 되고, 그걸 풀려면 카드 모델까지 공개로 넓혀야 한다.
     val memberViewModel: MemberViewModel = hiltViewModel()
+    val mapInfoEditViewModel: MapInfoEditViewModel = hiltViewModel()
 
     val screenState by viewModel.uiState.collectAsStateWithLifecycle()
     val reviewState by reviewViewModel.uiState.collectAsStateWithLifecycle()
@@ -186,6 +190,7 @@ fun MapDetailScreen(
     val postCalendarState by postCalendarViewModel.uiState.collectAsStateWithLifecycle()
     val postDetailState by postDetailViewModel.uiState.collectAsStateWithLifecycle()
     val memberState by memberViewModel.uiState.collectAsStateWithLifecycle()
+    val mapInfoEditState by mapInfoEditViewModel.uiState.collectAsStateWithLifecycle()
 
     // 나가기가 끝나면 왔던 곳(탐색 또는 모음)으로 돌아간다.
     LaunchedEffect(screenState.left) {
@@ -251,6 +256,7 @@ fun MapDetailScreen(
         }
     }
     var memberPageVisible by rememberSaveable { mutableStateOf(false) }
+    var mapInfoVisible by rememberSaveable { mutableStateOf(false) }
 
     // 메뉴는 화면을 돌리면 닫혀도 된다. 지도 관리는 들어가 있던 화면이라 되살린다.
     var menuVisible by remember { mutableStateOf(false) }
@@ -335,6 +341,11 @@ fun MapDetailScreen(
 
         activityViewModel.loadOnce()
         if (screenState.canReviewRequests) pendingViewModel.loadOnce()
+    }
+
+    // 지도 정보를 고치면 상단 제목과 지도 정보 화면이 새 값을 그려야 한다.
+    LaunchedEffect(mapInfoEditState.savedCount) {
+        if (mapInfoEditState.savedCount > 0) viewModel.refresh()
     }
 
     // 수락한 장소는 지도에 새로 떠야 한다. 거절은 지도를 바꾸지 않아 신호가 오지 않는다.
@@ -724,6 +735,34 @@ fun MapDetailScreen(
             )
         }
 
+        // 지도를 다시 읽다 권한이 바뀌면 함께 닫힌다.
+        val infoMap = screenState.map.mapOrNull?.takeIf { screenState.canEditInfo }
+        if (mapInfoVisible && infoMap != null) {
+            MapInfoScreen(
+                map = infoMap,
+                onBackClick = { mapInfoVisible = false },
+                onEditClick = { mapInfoEditViewModel.open(infoMap) },
+            )
+        }
+
+        mapInfoEditState.form?.let { form ->
+            MapInfoEditScreen(
+                form = form,
+                saving = mapInfoEditState.saving,
+                canSave = mapInfoEditState.canSave,
+                errorMessage = mapInfoEditState.errorMessage,
+                onBackClick = mapInfoEditViewModel::close,
+                onPhotoSelected = mapInfoEditViewModel::selectPhoto,
+                onNameChange = mapInfoEditViewModel::updateName,
+                onDescriptionChange = mapInfoEditViewModel::updateDescription,
+                onTagInputChange = mapInfoEditViewModel::updateTagInput,
+                onTagCommit = mapInfoEditViewModel::commitTag,
+                onTagRemove = mapInfoEditViewModel::removeTag,
+                onSaveClick = mapInfoEditViewModel::save,
+                onErrorShown = mapInfoEditViewModel::consumeError,
+            )
+        }
+
         // 나가서 참여가 풀리면 메뉴도 함께 닫힌다.
         if (menuVisible && screenState.showMenu) {
             // 메뉴 밖을 누르면 닫는다.
@@ -735,6 +774,7 @@ fun MapDetailScreen(
                     },
             )
             MapDetailMenu(
+                canEditInfo = screenState.canEditInfo,
                 canShareInviteCode = screenState.inviteCode != null,
                 canLeave = screenState.canLeave,
                 onMembersClick = {
@@ -744,6 +784,10 @@ fun MapDetailScreen(
                 onManageClick = {
                     menuVisible = false
                     mapManageVisible = true
+                },
+                onInfoClick = {
+                    menuVisible = false
+                    mapInfoVisible = true
                 },
                 onInviteCodeClick = {
                     menuVisible = false
@@ -838,6 +882,9 @@ fun MapDetailScreen(
     BackHandler(enabled = postDetailState.post != null) { postDetailViewModel.close() }
     BackHandler(enabled = mapManageVisible) { mapManageVisible = false }
     BackHandler(enabled = memberPageVisible) { memberPageVisible = false }
+    BackHandler(enabled = mapInfoVisible) { mapInfoVisible = false }
+    // 지도 정보 위에 뜬다. 저장 중에는 닫지 않는다 - MapInfoEditViewModel.close 참고.
+    BackHandler(enabled = mapInfoEditState.form != null) { mapInfoEditViewModel.close() }
     BackHandler(enabled = menuVisible) { menuVisible = false }
     // 장소 상세가 가장 위에 떠 있다. 기기 뒤로가기는 이걸 먼저 닫는다.
     BackHandler(enabled = uiState.selectedPlaceId != null) { closePlaceDetail() }
