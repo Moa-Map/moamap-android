@@ -81,6 +81,16 @@ class ExploreViewModelTest {
             delay(responseDelayMillis)
             return CommunityMapPage(maps = result(), isLast = true)
         }
+
+        override suspend fun searchMaps(keyword: String, page: Int, size: Int): CommunityMapPage =
+            TODO("탐색 홈은 검색하지 않는다")
+
+        override suspend fun getAllCommunityMaps(
+            tag: String?,
+            sort: CommunityMapSort,
+            page: Int,
+            size: Int,
+        ): CommunityMapPage = TODO("탐색 홈은 참여한 지도를 뺀 목록을 쓴다")
     }
 
     private class FakeOfficialMapRepository(

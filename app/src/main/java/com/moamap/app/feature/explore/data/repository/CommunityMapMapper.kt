@@ -14,4 +14,5 @@ fun CommunityMapDto.toDomain(): CommunityMap = CommunityMap(
     memberCount = memberCount,
     placeCount = placeCount,
     joined = joined,
+    official = type == "OFFICIAL",
 )

@@ -12,4 +12,6 @@ data class CommunityMap(
     val memberCount: Int,
     val placeCount: Int,
     val joined: Boolean,
+    /** 공식지도. 검색 결과에만 섞여 온다. 누르면 공식지도 화면(유동인구·화장실 등)으로 가야 한다. */
+    val official: Boolean = false,
 )

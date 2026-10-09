@@ -62,6 +62,14 @@ class CommunityMapMapperTest {
         assertNull(CommunityMapDto(imageUrl = "   ").toDomain().imageUrl)
     }
 
+    /** 검색 결과에 섞여 오는 공식지도는 공식지도 화면으로 보내야 한다. 목록 응답은 종류가 없어도 커뮤니티다. */
+    @Test
+    fun `종류가 OFFICIAL 이면 공식지도로 본다`() {
+        assertEquals(true, CommunityMapDto(type = "OFFICIAL").toDomain().official)
+        assertEquals(false, CommunityMapDto(type = "COMMUNITY").toDomain().official)
+        assertEquals(false, CommunityMapDto(type = null).toDomain().official)
+    }
+
     @Test
     fun `빈 태그는 해시태그에서 걸러낸다`() {
         val map = CommunityMapDto(tags = listOf("맛집", "", "  ", "데이트")).toDomain()
