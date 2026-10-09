@@ -35,16 +35,14 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
-import com.moamap.app.core.common.imagepicker.rememberImagePickerController
-import com.moamap.app.core.common.imagepicker.rememberImagePickerState
-import com.moamap.app.core.common.upload.ALLOWED_IMAGE_CONTENT_TYPES
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
-import com.moamap.app.core.designsystem.component.ImageSourceMenu
+import com.moamap.app.core.designsystem.component.MapFormInputField
+import com.moamap.app.core.designsystem.component.MapFormSectionTitle
+import com.moamap.app.core.designsystem.component.MapFormSubmitButton
+import com.moamap.app.core.designsystem.component.MapTagChipRow
 import com.moamap.app.core.designsystem.component.MoaMapBackButton
 import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
@@ -57,18 +55,6 @@ import com.moamap.app.feature.mapdetail.MapInviteCodeDialog
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.flow.collectLatest
-
-/** 촬영본이 쌓이는 캐시 위치. `res/xml/profile_image_paths.xml` 의 `cache-path` 와 맞춰야 한다. */
-private const val MapImageCacheDirectory = "map_images"
-private const val MapImageFilePrefix = "map"
-
-/**
- * 갤러리에 보일 형식.
- *
- * 발급 전에 거르는 형식과 같은 값을 써야 한다. 고르고 나서 거절당하지 않도록 선택기에서
- * 미리 좁히는 것뿐이라, 목록을 따로 두면 서버 계약이 바뀔 때 조용히 어긋난다.
- */
-private val CoverImageMimeTypes = ALLOWED_IMAGE_CONTENT_TYPES.toTypedArray()
 
 /** 버튼과 홈 인디케이터 사이 간격. */
 private val SubmitButtonBottomPadding = 13.dp
@@ -146,14 +132,6 @@ private fun CreateMapContent(
             .collectLatest { tagBringIntoViewRequester.bringIntoView() }
     }
 
-    val pickerState = rememberImagePickerState()
-    val pickerController = rememberImagePickerController(
-        state = pickerState,
-        cacheDirectoryName = MapImageCacheDirectory,
-        fileNamePrefix = MapImageFilePrefix,
-        mimeTypes = CoverImageMimeTypes,
-        onImageSelected = { uri -> onImageSelected(uri.toString()) },
-    )
     // 사진 고르기 메뉴가 이 화면을 흐려 바탕으로 깐다.
     val photoMenuHazeState = rememberHazeState()
 
@@ -183,32 +161,14 @@ private fun CreateMapContent(
                     .padding(top = 14.dp, bottom = 20.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                Box {
-                    MapPhotoField(
-                        imageUri = uiState.imageUri,
-                        // 올리는 중에는 잠근다. 선택기를 띄워놓고 고른 값을 버리면
-                        // 왜 안 바뀌는지 알 수 없다.
-                        onClick = {
-                            if (!uiState.isSubmitting) pickerState.showSourceMenu()
-                        },
-                    )
+                MapCoverPickerField(
+                    photo = uiState.imageUri,
+                    onPhotoSelected = onImageSelected,
+                    enabled = !uiState.isSubmitting,
+                    hazeState = photoMenuHazeState,
+                )
 
-                    if (pickerState.isSourceMenuVisible) {
-                        Popup(
-                            alignment = Alignment.BottomCenter,
-                            onDismissRequest = pickerState::dismissSourceMenu,
-                            properties = PopupProperties(focusable = true),
-                        ) {
-                            ImageSourceMenu(
-                                onCameraClick = pickerController::requestCamera,
-                                onGalleryClick = pickerController::requestGallery,
-                                hazeState = photoMenuHazeState,
-                            )
-                        }
-                    }
-                }
-
-                CreateMapInputField(
+                MapFormInputField(
                     label = "지도 이름",
                     value = uiState.name,
                     onValueChange = onNameChange,
@@ -216,7 +176,7 @@ private fun CreateMapContent(
                     required = true,
                 )
 
-                CreateMapInputField(
+                MapFormInputField(
                     label = "지도 설명",
                     value = uiState.description,
                     onValueChange = onDescriptionChange,
@@ -228,7 +188,7 @@ private fun CreateMapContent(
                     onSelect = onVisibilitySelect,
                 )
 
-                CreateMapInputField(
+                MapFormInputField(
                     label = "태그",
                     value = uiState.tagInput,
                     onValueChange = onTagInputChange,
@@ -242,7 +202,7 @@ private fun CreateMapContent(
                         null
                     } else {
                         {
-                            TagChipRow(
+                            MapTagChipRow(
                                 tags = uiState.tags,
                                 onRemoveTag = onTagRemove,
                             )
@@ -279,7 +239,8 @@ private fun CreateMapContent(
         ) {
             ErrorSnackbar(message = uiState.errorMessage, onShown = onErrorShown)
 
-            CreateMapSubmitButton(
+            MapFormSubmitButton(
+                label = "지도 만들기",
                 enabled = uiState.canSubmit,
                 submitting = uiState.isSubmitting,
                 onClick = onSubmitClick,
@@ -324,7 +285,7 @@ private fun VisibilitySection(
     onSelect: (MapVisibility) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        CreateMapSectionTitle(text = "공개 범위", required = true)
+        MapFormSectionTitle(text = "공개 범위", required = true)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(9.dp),
