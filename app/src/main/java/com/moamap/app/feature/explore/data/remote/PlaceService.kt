@@ -59,15 +59,6 @@ interface PlaceService {
     @GET("api/v1/places/{id}")
     suspend fun getPlace(@Path("id") id: Long): PlaceDto
 
-    @PATCH("api/v1/places/{id}")
-    suspend fun updatePlace(
-        @Path("id") id: Long,
-        @Body request: PlaceUpdateRequestDto,
-    ): PlaceDto
-
-    @DELETE("api/v1/places/{id}")
-    suspend fun deletePlace(@Path("id") id: Long)
-
     @PATCH("api/v1/places/{id}/approve")
     suspend fun approvePlace(@Path("id") id: Long): PlaceDto
 

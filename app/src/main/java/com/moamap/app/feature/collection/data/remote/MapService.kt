@@ -12,13 +12,6 @@ import retrofit2.http.Query
 
 interface MapService {
 
-    @GET("api/v1/maps")
-    suspend fun getMaps(
-        @Query("page") page: Int? = null,
-        @Query("size") size: Int? = null,
-        @Query("sort") sort: String? = null,
-    ): PageResponse<MapSummaryDto>
-
     @POST("api/v1/maps")
     suspend fun createMap(@Body request: MapCreateRequestDto): MapDetailDto
 
@@ -76,12 +69,6 @@ interface MapService {
 
     @DELETE("api/v1/maps/{mapId}/members/me")
     suspend fun leaveMap(@Path("mapId") mapId: Long)
-
-    @GET("api/v1/maps/{mapId}/members/{userId}")
-    suspend fun getMemberRole(
-        @Path("mapId") mapId: Long,
-        @Path("userId") userId: Long,
-    ): MapMemberRoleDto
 
     /** 지도에 참여한 사람 전부. 페이지를 나누지 않고 한 번에 내려온다. */
     @GET("api/v1/maps/{mapId}/members")

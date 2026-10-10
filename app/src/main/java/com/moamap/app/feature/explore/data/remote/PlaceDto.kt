@@ -81,19 +81,6 @@ data class PlaceBulkResultDto(
     val reason: String? = null,
 )
 
-/** PATCH api/v1/places/{id} 요청. 변경할 필드만 채운다. */
-@Serializable
-data class PlaceUpdateRequestDto(
-    val name: String? = null,
-    val address: String? = null,
-    val roadAddress: String? = null,
-    val lat: Double? = null,
-    val lng: Double? = null,
-    val category: String? = null,
-    val description: String? = null,
-    val tags: List<String>? = null,
-)
-
 /**
  * POST api/v1/places/photo-upload-url 요청.
  *

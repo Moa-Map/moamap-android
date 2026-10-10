@@ -18,7 +18,6 @@ import com.moamap.app.feature.explore.data.remote.PlaceCreateRequestDto
 import com.moamap.app.feature.explore.data.remote.PlaceDto
 import com.moamap.app.feature.explore.data.remote.PlaceLikeDto
 import com.moamap.app.feature.explore.data.remote.PlaceService
-import com.moamap.app.feature.explore.data.remote.PlaceUpdateRequestDto
 import com.moamap.app.feature.mapdetail.domain.model.NewPlace
 import com.moamap.app.feature.mapdetail.domain.model.PlaceCandidate
 import kotlinx.coroutines.test.runTest
@@ -69,8 +68,6 @@ private class RecordingPlaceService : PlaceService {
     ): PageResponse<PlaceActivityDto> = TODO("사용하지 않음")
 
     override suspend fun getPlace(id: Long) = TODO("사용하지 않음")
-    override suspend fun updatePlace(id: Long, request: PlaceUpdateRequestDto) = TODO("사용하지 않음")
-    override suspend fun deletePlace(id: Long) = TODO("사용하지 않음")
     override suspend fun approvePlace(id: Long) = TODO("사용하지 않음")
     override suspend fun rejectPlace(id: Long) = TODO("사용하지 않음")
     override suspend fun extractFromInstagram(

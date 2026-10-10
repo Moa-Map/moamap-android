@@ -102,15 +102,6 @@ data class MapDetailDto(
     val updatedAt: String? = null,
 )
 
-/** GET api/v1/maps/{mapId}/members/{userId} 응답 */
-@Serializable
-data class MapMemberRoleDto(
-    // OFFICIAL, COMMUNITY, PRIVATE
-    val mapType: String? = null,
-    // OWNER, ADMIN, MEMBER, NONE
-    val role: String? = null,
-)
-
 /** GET api/v1/maps/{mapId}/members 응답 */
 @Serializable
 data class MapMemberListDto(

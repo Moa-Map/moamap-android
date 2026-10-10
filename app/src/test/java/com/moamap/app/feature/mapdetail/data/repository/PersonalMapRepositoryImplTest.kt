@@ -7,7 +7,6 @@ import com.moamap.app.feature.collection.data.remote.JoinByInviteCodeRequestDto
 import com.moamap.app.feature.collection.data.remote.MapCreateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapDetailDto
 import com.moamap.app.feature.collection.data.remote.MapMemberListDto
-import com.moamap.app.feature.collection.data.remote.MapMemberRoleDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleUpdateDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleUpdateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapOrderUpdateRequestDto
@@ -28,7 +27,6 @@ import com.moamap.app.feature.explore.data.remote.PlaceCreateRequestDto
 import com.moamap.app.feature.explore.data.remote.PlaceDto
 import com.moamap.app.feature.explore.data.remote.PlaceLikeDto
 import com.moamap.app.feature.explore.data.remote.PlaceService
-import com.moamap.app.feature.explore.data.remote.PlaceUpdateRequestDto
 import com.moamap.app.feature.mapdetail.domain.repository.PersonalMapNotFoundException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -77,8 +75,6 @@ private class CopyingPlaceService(private val place: PlaceDto) : PlaceService {
         request: PhotoUploadUrlRequestDto,
     ): List<PhotoUploadUrlDto> = TODO("사용하지 않음")
 
-    override suspend fun updatePlace(id: Long, request: PlaceUpdateRequestDto) = TODO("사용하지 않음")
-    override suspend fun deletePlace(id: Long) = TODO("사용하지 않음")
     override suspend fun approvePlace(id: Long) = TODO("사용하지 않음")
     override suspend fun rejectPlace(id: Long) = TODO("사용하지 않음")
     override suspend fun extractFromInstagram(
@@ -115,7 +111,6 @@ private class PagedMyMapService(private val pages: List<List<MapSummaryDto>>) : 
     }
 
     override suspend fun updateMyMapOrder(request: MapOrderUpdateRequestDto) = notUsed()
-    override suspend fun getMaps(page: Int?, size: Int?, sort: String?) = notUsed()
     override suspend fun createMap(request: MapCreateRequestDto) = notUsed()
     override suspend fun createCoverUploadUrl(request: CoverUploadUrlRequestDto):
         CoverUploadUrlDto = notUsed()
@@ -125,7 +120,6 @@ private class PagedMyMapService(private val pages: List<List<MapSummaryDto>>) : 
     override suspend fun updateMap(mapId: Long, request: MapUpdateRequestDto) = notUsed()
     override suspend fun deleteMap(mapId: Long): Unit = notUsed()
     override suspend fun leaveMap(mapId: Long): Unit = notUsed()
-    override suspend fun getMemberRole(mapId: Long, userId: Long): MapMemberRoleDto = notUsed()
     override suspend fun getMembers(mapId: Long): MapMemberListDto = notUsed()
     override suspend fun updateMemberRole(
         mapId: Long,
