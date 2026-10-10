@@ -149,14 +149,6 @@ sealed interface MoaMapRoute {
             "map_detail/$mapId?$ARG_MAP_TITLE=${Uri.encode(mapTitle)}"
     }
 
-    data object Notification : MoaMapRoute {
-        override val route = "notification"
-    }
-
-    data object MyPage : MoaMapRoute {
-        override val route = "mypage"
-    }
-
     data object ProfileEdit : MoaMapRoute {
         override val route = "profile_edit"
     }

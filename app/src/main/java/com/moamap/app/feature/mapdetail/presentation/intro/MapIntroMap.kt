@@ -21,7 +21,6 @@ import com.moamap.app.feature.mapdetail.rememberMarkerClusters
 import com.moamap.app.feature.mapdetail.toPlaceMarker
 import com.moamap.app.feature.mapdetail.initialCamera
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
-import com.mapbox.geojson.Point
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState

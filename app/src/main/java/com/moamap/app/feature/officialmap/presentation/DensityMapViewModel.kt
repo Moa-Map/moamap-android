@@ -30,7 +30,8 @@ sealed interface DensityMapUiState {
             get() = visibleAreas.firstOrNull { it.code == selectedCode }
     }
 
-    data class Error(val message: String) : DensityMapUiState
+    /** 화면은 고정 문구를 띄운다. 서버 메시지는 사용자에게 보일 모양이 아니다. */
+    data object Error : DensityMapUiState
 }
 
 @HiltViewModel
@@ -70,11 +71,7 @@ class DensityMapViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { repository.getDensityAreas() }
                 .onSuccess { areas -> _uiState.value = DensityMapUiState.Success(areas) }
-                .onFailure { throwable ->
-                    _uiState.value = DensityMapUiState.Error(
-                        throwable.message ?: "밀집도 정보를 불러오지 못했어요"
-                    )
-                }
+                .onFailure { _uiState.value = DensityMapUiState.Error }
         }
     }
 }

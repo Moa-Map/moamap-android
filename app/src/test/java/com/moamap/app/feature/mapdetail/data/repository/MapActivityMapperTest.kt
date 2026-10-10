@@ -60,13 +60,6 @@ class MapActivityMapperTest {
     }
 
     @Test
-    fun `별점은 별 다섯 칸을 벗어나지 않는다`() {
-        assertEquals(5, PlaceActivityDto(type = "REVIEW_CREATED", rating = 9).toMapActivity()?.rating)
-        assertEquals(0, PlaceActivityDto(type = "REVIEW_CREATED", rating = -1).toMapActivity()?.rating)
-        assertNull(PlaceActivityDto(type = "PLACE_ADDED", rating = null).toMapActivity()?.rating)
-    }
-
-    @Test
     fun `읽을 수 없는 시각은 비운다`() {
         assertNull(PlaceActivityDto(type = "PLACE_ADDED", occurredAt = null).toMapActivity()?.occurredAtMillis)
         assertNotNull(

@@ -114,17 +114,8 @@ class MapDetailMapperTest {
     }
 
     @Test
-    fun `평점과 댓글 수를 목록이 읽을 값으로 옮긴다`() {
-        val place = PlaceDto(avgRating = 4.8, commentCount = 124).toMapPlace()
-
-        assertEquals(4.8, place.rating, 1e-9)
-        assertEquals(124, place.reviewCount)
-    }
-
-    @Test
-    fun `아무도 평점을 안 매겼으면 0이다`() {
-        // avgRating 이 null 로 온다. 목록은 숫자를 그려야 하니 0.0 으로 읽는다.
-        assertEquals(0.0, PlaceDto(avgRating = null).toMapPlace().rating, 1e-9)
+    fun `댓글 수를 목록이 읽을 값으로 옮긴다`() {
+        assertEquals(124, PlaceDto(commentCount = 124).toMapPlace().reviewCount)
     }
 
     @Test

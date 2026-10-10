@@ -24,12 +24,6 @@ data class MapPlace(
     val tags: List<String> = emptyList(),
     /** 인스타그램 링크로 가져온 장소의 원본 게시물 주소. 그 밖의 장소는 null 이다. */
     val instagramUrl: String? = null,
-    /**
-     * 평균 평점. 아직 아무도 안 매겼으면 0.0 이다.
-     *
-     * 화면에서 별점을 없애 지금은 쓰지 않는다. 후기가 고정 별점으로 쌓여 의미 있는 값도 아니다.
-     */
-    val rating: Double = 0.0,
     /** 댓글 수. */
     val reviewCount: Int = 0,
     /** 카카오 장소 id. 카카오맵으로 열 때 쓴다. 서버 필수값이라 보통 채워져 온다. */

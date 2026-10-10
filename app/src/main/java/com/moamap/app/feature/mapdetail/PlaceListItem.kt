@@ -104,40 +104,25 @@ internal fun PlaceListItem(
                     )
                 }
 
-                // 별점은 보여주지 않는다. 후기가 고정 별점으로 쌓여 평균에 의미가 없다.
-                PlaceMetric(
-                    iconRes = R.drawable.ic_comment,
-                    value = place.reviewCount.toString(),
-                    contentDescription = "댓글 수",
-                    tint = MoaMapPrimitiveColors.Blue500,
-                )
+                // 댓글 수만 둔다. 별점은 화면에서 없앴다.
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_comment),
+                        contentDescription = "댓글 수",
+                        tint = MoaMapPrimitiveColors.Blue500,
+                        modifier = Modifier.size(20.dp),
+                    )
+                    Text(
+                        text = place.reviewCount.toString(),
+                        style = MoaMapTheme.typography.caption2,
+                        color = MoaMapTheme.colors.textNormal,
+                    )
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun PlaceMetric(
-    iconRes: Int,
-    value: String,
-    contentDescription: String,
-    tint: androidx.compose.ui.graphics.Color,
-) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = contentDescription,
-            tint = tint,
-            modifier = Modifier.size(20.dp),
-        )
-        Text(
-            text = value,
-            style = MoaMapTheme.typography.caption2,
-            color = MoaMapTheme.colors.textNormal,
-        )
     }
 }
 

@@ -32,7 +32,5 @@ fun PlaceActivityDto.toMapActivity(): MapActivity? {
         actorImageUrl = actorProfileImageUrl?.trim()?.takeIf { url -> url.isNotBlank() },
         placeId = placeId,
         placeName = placeName?.trim()?.takeIf { name -> name.isNotBlank() },
-        // 별 다섯 칸을 벗어난 옛 데이터가 문구에 그대로 찍히지 않게 한다.
-        rating = rating?.coerceIn(0, 5),
     )
 }

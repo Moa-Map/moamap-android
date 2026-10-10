@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -75,7 +74,7 @@ fun MapIntroScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val map = uiState.map.mapOrNull
-    val mapTitle = map?.title.orEmpty()
+    val mapTitle = uiState.title
     val official = map?.type == MapType.Official
 
     // 미리보기로 상세에 들어가 거기서 참여하고 돌아오면 하단 버튼이 낡는다. 다시 읽는다.
