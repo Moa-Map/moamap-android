@@ -15,7 +15,6 @@ import com.moamap.app.feature.explore.data.remote.PlaceCreateRequestDto
 import com.moamap.app.feature.explore.data.remote.PlaceDto
 import com.moamap.app.feature.explore.data.remote.PlaceLikeDto
 import com.moamap.app.feature.explore.data.remote.PlaceService
-import com.moamap.app.feature.explore.data.remote.PlaceUpdateRequestDto
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -75,10 +74,7 @@ private class FakePlaceService(
     ): PageResponse<PlaceActivityDto> = TODO("사용하지 않음")
 
     override suspend fun getPlace(id: Long) = TODO("사용하지 않음")
-    override suspend fun updatePlace(id: Long, request: PlaceUpdateRequestDto) =
-        TODO("사용하지 않음")
 
-    override suspend fun deletePlace(id: Long) = TODO("사용하지 않음")
     override suspend fun extractFromInstagram(
         request: InstagramExtractRequestDto,
     ): List<PlaceCandidateDto> = TODO("사용하지 않음")

@@ -1,14 +1,11 @@
 package com.moamap.app.feature.officialmap.presentation
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -19,7 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
-import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
 import androidx.compose.ui.platform.LocalContext
 import com.moamap.app.feature.mapdetail.MyLocationPuck
 import com.moamap.app.feature.mapdetail.hasLocationPermission
@@ -87,22 +84,11 @@ private fun DensityMapBody(
             }
 
             is DensityMapUiState.Error -> {
-                Column(
+                MoaMapErrorNotice(
+                    message = "밀집도 정보를 불러오지 못했어요",
+                    onRetryClick = onRetryClick,
                     modifier = Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(
-                        text = "밀집도 정보를 불러오지 못했어요",
-                        style = MoaMapTheme.typography.body1,
-                        color = MoaMapTheme.colors.textNormal,
-                    )
-                    Button(
-                        onClick = onRetryClick,
-                        modifier = Modifier.padding(top = 12.dp),
-                    ) {
-                        Text(text = "다시 시도")
-                    }
-                }
+                )
             }
 
             is DensityMapUiState.Success -> {

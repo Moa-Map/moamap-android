@@ -14,14 +14,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -43,15 +41,12 @@ import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 
-// 새 지도 만들기와 지도 정보 수정이 함께 쓰는 입력 부품.
+// 새 지도 만들기와 지도 정보 수정이 함께 쓰는 입력 부품. 아래 고정 버튼은 MoaMapLargeButton.
 
 private val FieldShape = RoundedCornerShape(12.dp)
-private val SubmitButtonShape = RoundedCornerShape(8.dp)
 private val ChipShape = RoundedCornerShape(100.dp)
 
 private const val PhotoCardAspectRatio = 3f / 2f
-
-private val SubmitButtonHeight = 54.dp
 
 /** 제목과 그 아래 내용 사이 간격. 피그마의 섹션 공통값이다. */
 private val SectionTitleGap = 6.dp
@@ -290,42 +285,3 @@ private fun MapTagChip(
     }
 }
 
-/** 진행 표시 크기. 버튼 높이 안에 들어가면서 글자와 비슷한 무게로 보이는 값. */
-private val SubmitProgressSize = 20.dp
-
-/** 화면 아래 고정 버튼. 누를 수 없으면 회색이고, 보내는 중에는 글자 대신 진행 표시를 띄운다. */
-@Composable
-internal fun MapFormSubmitButton(
-    label: String,
-    enabled: Boolean,
-    submitting: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    ShadowedSurface(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(SubmitButtonHeight),
-        shape = SubmitButtonShape,
-        color = if (enabled) MoaMapTheme.colors.primary else MoaMapPrimitiveColors.Gray200,
-        shadowBlurRadius = ButtonShadowBlurRadius,
-        shadowColor = ButtonShadowColor,
-        onClick = if (enabled) onClick else null,
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            if (submitting) {
-                CircularProgressIndicator(
-                    color = MoaMapTheme.colors.textWhite,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(SubmitProgressSize),
-                )
-            } else {
-                Text(
-                    text = label,
-                    style = MoaMapTheme.typography.button0,
-                    color = MoaMapTheme.colors.textWhite,
-                )
-            }
-        }
-    }
-}

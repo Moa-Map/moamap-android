@@ -55,6 +55,8 @@ import com.moamap.app.core.common.format.formatMemberCount
 import com.moamap.app.core.common.format.formatPlaceCount
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
+import com.moamap.app.core.designsystem.component.MoaMapListPlaceholder
 import com.moamap.app.core.designsystem.component.MoaMapTopBarLogo
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
@@ -89,7 +91,6 @@ private val InstagramCardTitle = Color(0xFFAF0069)
 private val ActionCardHeight = 72.dp
 
 /** 목록 자리에 로딩·오류·빈 상태를 같은 높이로 앉혀 화면이 튀지 않게 한다. */
-private val ListPlaceholderHeight = 200.dp
 
 /** 편집에서 지도를 고르면 하단 탭 대신 뜨는 막대. 시안 `1974:8444`. */
 private val SelectionBarHeight = 75.dp
@@ -579,36 +580,15 @@ internal fun MapsStateContent(
     content: @Composable (List<MyMap>) -> Unit,
 ) {
     when (state) {
-        MyMapsState.Loading -> ListPlaceholder { CircularProgressIndicator() }
+        MyMapsState.Loading -> MoaMapListPlaceholder { CircularProgressIndicator() }
 
-        is MyMapsState.Error -> ListPlaceholder {
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text(
-                    text = state.message,
-                    style = MoaMapTheme.typography.body2,
-                    color = MoaMapTheme.colors.textAssistive,
-                )
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MoaMapPrimitiveColors.Blue500,
-                    onClick = onRetryClick,
-                ) {
-                    Text(
-                        text = "다시 시도",
-                        style = MoaMapTheme.typography.button2,
-                        color = MoaMapTheme.colors.textWhite,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
-                }
-            }
+        is MyMapsState.Error -> MoaMapListPlaceholder {
+            MoaMapErrorNotice(message = state.message, onRetryClick = onRetryClick)
         }
 
         is MyMapsState.Success -> {
             if (state.maps.isEmpty() && emptyMessage != null) {
-                ListPlaceholder {
+                MoaMapListPlaceholder {
                     Text(
                         text = emptyMessage,
                         style = MoaMapTheme.typography.body2,
@@ -619,18 +599,6 @@ internal fun MapsStateContent(
                 content(state.maps)
             }
         }
-    }
-}
-
-@Composable
-private fun ListPlaceholder(content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(ListPlaceholderHeight),
-        contentAlignment = Alignment.Center,
-    ) {
-        content()
     }
 }
 

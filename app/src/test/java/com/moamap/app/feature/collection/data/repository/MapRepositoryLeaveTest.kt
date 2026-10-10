@@ -10,7 +10,6 @@ import com.moamap.app.feature.collection.data.remote.JoinByInviteCodeRequestDto
 import com.moamap.app.feature.collection.data.remote.MapCreateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapDetailDto
 import com.moamap.app.feature.collection.data.remote.MapMemberListDto
-import com.moamap.app.feature.collection.data.remote.MapMemberRoleDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleUpdateDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleUpdateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapOrderUpdateRequestDto
@@ -40,9 +39,6 @@ private class LeaveRecordingMapService(var detail: MapDetailDto) : MapService {
         calls += "leaveMap"
     }
 
-    override suspend fun getMaps(page: Int?, size: Int?, sort: String?): PageResponse<MapSummaryDto> =
-        TODO("사용하지 않음")
-
     override suspend fun createMap(request: MapCreateRequestDto): MapDetailDto = TODO("사용하지 않음")
 
     override suspend fun createCoverUploadUrl(request: CoverUploadUrlRequestDto): CoverUploadUrlDto =
@@ -64,9 +60,6 @@ private class LeaveRecordingMapService(var detail: MapDetailDto) : MapService {
         TODO("사용하지 않음")
 
     override suspend fun joinMap(mapId: Long): MapDetailDto = TODO("사용하지 않음")
-
-    override suspend fun getMemberRole(mapId: Long, userId: Long): MapMemberRoleDto =
-        TODO("사용하지 않음")
 
     override suspend fun getMembers(mapId: Long): MapMemberListDto = TODO("사용하지 않음")
 

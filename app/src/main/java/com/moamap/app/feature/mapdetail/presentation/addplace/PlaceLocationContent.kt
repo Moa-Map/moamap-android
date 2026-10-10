@@ -1,6 +1,5 @@
 package com.moamap.app.feature.mapdetail.presentation.addplace
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -41,7 +40,7 @@ import com.mapbox.maps.viewannotation.annotationAnchor
 import com.mapbox.maps.viewannotation.geometry
 import com.mapbox.maps.viewannotation.viewAnnotationOptions
 import com.moamap.app.R
-import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
+import com.moamap.app.core.designsystem.component.MoaMapSheetGrabber
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.mapdetail.PlaceFocusZoom
 import com.moamap.app.feature.mapdetail.PlaceMarker
@@ -51,7 +50,6 @@ import com.moamap.app.feature.mapdetail.domain.model.PlaceCandidate
 import com.moamap.app.feature.mapdetail.domain.model.PlaceCategoryGroup
 
 private val SheetShape = RoundedCornerShape(topStart = 38.dp, topEnd = 38.dp)
-private val SheetGrabberShape = RoundedCornerShape(100.dp)
 
 /** 손잡이를 담은 시트 맨 위 줄(시안 Toolbar 56). 글은 그 아래 24 에서 시작한다. */
 private val SheetToolbarHeight = 56.dp
@@ -165,12 +163,10 @@ private fun LocationSheet(
                     .height(SheetToolbarHeight),
             ) {
                 // 손잡이는 모양만이다. 이 시트는 끌어 올리지 않는다.
-                Box(
+                MoaMapSheetGrabber(
                     modifier = Modifier
                         .align(Alignment.TopCenter)
-                        .padding(top = 5.dp)
-                        .size(width = 35.dp, height = 5.dp)
-                        .background(color = MoaMapPrimitiveColors.Gray100, shape = SheetGrabberShape),
+                        .padding(top = 5.dp),
                 )
             }
 

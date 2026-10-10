@@ -1,7 +1,6 @@
 package com.moamap.app.feature.mapdetail.presentation.intro
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,8 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -40,6 +37,8 @@ import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
 import com.moamap.app.core.designsystem.component.ButtonShadowColor
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.component.MoaMapBackButton
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
+import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -138,7 +137,7 @@ internal fun MapIntroContent(
                     modifier = if (official) Modifier.statusBarsPadding() else Modifier,
                 ) {
                     if (official) {
-                        OfficialIntroTopBar(title = state.map.title, onBackClick = onBackClick)
+                        MoaMapTitleTopBar(title = state.map.title, onBackClick = onBackClick)
                     }
                     MapIntroBody(
                         map = state.map,
@@ -341,38 +340,6 @@ private fun IntroSection(content: @Composable ColumnScope.() -> Unit) {
     )
 }
 
-/** 공식지도 상세 상단 바. 시안 GNB: 높이 58, 왼쪽 20 에 뒤로가기 32, 가운데 지도 이름. */
-@Composable
-private fun OfficialIntroTopBar(
-    title: String,
-    onBackClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(58.dp),
-    ) {
-        MoaMapBackButton(
-            onClick = onBackClick,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = MoaMapTopBarIconEdgePadding),
-        )
-        // 긴 이름이 뒤로가기 밑으로 파고들지 않게 좌우를 같이 밀어 가운데를 지킨다.
-        Text(
-            text = title,
-            style = MoaMapTheme.typography.title3,
-            color = MoaMapTheme.colors.textNormal,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .padding(horizontal = 72.dp),
-        )
-    }
-}
-
 @Composable
 private fun PreviewButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
     ShadowedSurface(
@@ -435,23 +402,7 @@ private fun ErrorContent(
     onRetryClick: () -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = message,
-                style = MoaMapTheme.typography.body2,
-                color = MoaMapTheme.colors.textAssistive,
-                textAlign = TextAlign.Center,
-            )
-            Text(
-                text = "다시 시도",
-                style = MoaMapTheme.typography.button2,
-                color = MoaMapTheme.colors.textNormal,
-                modifier = Modifier.clickable(onClick = onRetryClick),
-            )
-        }
+        MoaMapErrorNotice(message = message, onRetryClick = onRetryClick)
     }
 }
 

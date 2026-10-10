@@ -20,10 +20,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -37,7 +35,6 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
@@ -46,6 +43,10 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.BelowAnchorPosition
+import com.moamap.app.core.designsystem.component.MoaMapCenteredNotice
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
+import com.moamap.app.core.designsystem.component.MoaMapLoadingIndicator
+import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.component.MoaMapTooltip
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
@@ -53,7 +54,6 @@ import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.designsystem.theme.withDesignLineHeight
-import com.moamap.app.feature.mapdetail.presentation.manage.MapOverlayTopBar
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
@@ -105,7 +105,7 @@ internal fun MemberScreen(
             .statusBarsPadding(),
     ) {
         // 시안: 상단 바 58, 그 아래 8 에서 목록이 시작한다.
-        MapOverlayTopBar(title = "멤버 관리", onBackClick = onBackClick)
+        MoaMapTitleTopBar(title = "멤버 관리", onBackClick = onBackClick)
         LazyColumn(
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(
@@ -129,10 +129,10 @@ internal fun MemberScreen(
             }
 
             when {
-                loading -> item(key = "members-loading") { LoadingMembers() }
+                loading -> item(key = "members-loading") { MoaMapCenteredNotice { MoaMapLoadingIndicator() } }
 
                 errorMessage != null -> item(key = "members-error") {
-                    MembersError(message = errorMessage, onRetryClick = onRetryClick)
+                    MoaMapCenteredNotice { MoaMapErrorNotice(message = errorMessage, onRetryClick = onRetryClick) }
                 }
 
                 else -> {
@@ -169,54 +169,6 @@ internal fun MemberScreen(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun LoadingMembers() {
-    CenteredMemberNotice {
-        CircularProgressIndicator(
-            color = MoaMapTheme.colors.textAssistive,
-            strokeWidth = 2.dp,
-            modifier = Modifier.size(24.dp),
-        )
-    }
-}
-
-@Composable
-private fun MembersError(message: String, onRetryClick: () -> Unit) {
-    CenteredMemberNotice {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = message,
-                style = MoaMapTheme.typography.body2,
-                color = MoaMapTheme.colors.textAssistive,
-                textAlign = TextAlign.Center,
-            )
-            TextButton(onClick = onRetryClick) {
-                Text(
-                    text = "다시 시도",
-                    style = MoaMapTheme.typography.body2,
-                    color = MoaMapTheme.colors.textNormal,
-                )
-            }
-        }
-    }
-}
-
-/** 목록 자리를 대신 채우는 안내. */
-@Composable
-private fun CenteredMemberNotice(content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 60.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        content()
     }
 }
 

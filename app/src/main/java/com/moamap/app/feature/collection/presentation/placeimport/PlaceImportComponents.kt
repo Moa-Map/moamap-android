@@ -34,8 +34,7 @@ import androidx.compose.ui.unit.dp
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
 import com.moamap.app.core.designsystem.component.ButtonShadowColor
-import com.moamap.app.core.designsystem.component.MoaMapBackButton
-import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
+import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -68,9 +67,6 @@ private val EditLinkTouchPadding = 12.dp
 private val CheckBoxSize = 20.dp
 private val CheckBoxShape = RoundedCornerShape(4.dp)
 
-/** 상단 바 높이. 시안 GNB 58. */
-private val PlaceImportTopBarHeight = 58.dp
-
 /** GNB 아래 첫 요소까지의 여백. 시안 「장소 가져오기」 페이지(`4362:34880`) 기준. */
 internal val PlaceImportContentTopSpacing = 20.dp
 
@@ -78,27 +74,8 @@ internal val PlaceImportContentTopSpacing = 20.dp
 internal val PlaceImportSectionSpacing = 20.dp
 
 @Composable
-internal fun PlaceImportTopBar(
-    onBackClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(PlaceImportTopBarHeight),
-    ) {
-        MoaMapBackButton(
-            onClick = onBackClick,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = MoaMapTopBarIconEdgePadding),
-        )
-        Text(
-            text = "장소 가져오기",
-            style = MoaMapTheme.typography.title3,
-            color = MoaMapPrimitiveColors.Black,
-            modifier = Modifier.align(Alignment.Center),
-        )
-    }
+internal fun PlaceImportTopBar(onBackClick: () -> Unit) {
+    MoaMapTitleTopBar(title = "장소 가져오기", onBackClick = onBackClick)
 }
 
 /** 각 단계 상단의 제목 + 설명. 피그마상 좌측으로 4dp 더 들어가 있다. */

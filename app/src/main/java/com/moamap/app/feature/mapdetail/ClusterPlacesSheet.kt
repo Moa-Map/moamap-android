@@ -1,6 +1,5 @@
 package com.moamap.app.feature.mapdetail
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -23,11 +22,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
+import com.moamap.app.core.designsystem.component.MoaMapSheetGrabber
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 
 private val ClusterSheetShape = RoundedCornerShape(topStart = 20.dp, topEnd = 20.dp)
-private val ClusterSheetGrabberShape = RoundedCornerShape(100.dp)
 
 /**
  * 목록이 길어져도 시트가 화면을 다 먹지 않게 잡는 상한.
@@ -68,14 +66,7 @@ internal fun ClusterPlacesSheet(
                     .height(25.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(width = 35.dp, height = 5.dp)
-                        .background(
-                            color = MoaMapPrimitiveColors.Gray100,
-                            shape = ClusterSheetGrabberShape,
-                        ),
-                )
+                MoaMapSheetGrabber()
             }
         },
     ) {

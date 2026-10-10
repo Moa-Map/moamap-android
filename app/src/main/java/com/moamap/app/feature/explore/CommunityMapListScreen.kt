@@ -1,7 +1,6 @@
 package com.moamap.app.feature.explore
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -35,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -45,9 +43,11 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
 import com.moamap.app.core.designsystem.component.ListCardShadowColor
-import com.moamap.app.core.designsystem.component.MoaMapBackButton
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
+import com.moamap.app.core.designsystem.component.MoaMapListPlaceholder
+import com.moamap.app.core.designsystem.component.MoaMapRetryText
 import com.moamap.app.core.designsystem.component.MoaMapSearchBar
-import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
+import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -59,8 +59,6 @@ import com.moamap.app.feature.explore.presentation.CommunityMapCard
 import com.moamap.app.feature.explore.presentation.CommunityMapListUiState
 import com.moamap.app.feature.explore.presentation.CommunityMapListViewModel
 import com.moamap.app.feature.explore.presentation.CommunityMapSortRow
-import com.moamap.app.feature.explore.presentation.CommunityMapsError
-import com.moamap.app.feature.explore.presentation.CommunityMapsPlaceholder
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 
@@ -69,7 +67,6 @@ private const val LOAD_MORE_THRESHOLD = 4
 
 private const val ALL_TAG_LABEL = "전체"
 
-private val TopBarHeight = 58.dp
 private val ChipShape = RoundedCornerShape(1000.dp)
 
 /**
@@ -143,7 +140,7 @@ private fun CommunityMapListContent(
             .background(MoaMapTheme.colors.backgroundPrimary)
             .statusBarsPadding(),
     ) {
-        CommunityMapListTopBar(onBackClick = onBackClick)
+        MoaMapTitleTopBar(title = "커뮤니티 지도", onBackClick = onBackClick)
 
         LazyColumn(
             state = listState,
@@ -184,14 +181,14 @@ private fun CommunityMapListContent(
 
             when {
                 uiState.loading -> item(key = "loading") {
-                    CommunityMapsPlaceholder { CircularProgressIndicator() }
+                    MoaMapListPlaceholder { CircularProgressIndicator() }
                 }
 
                 uiState.errorMessage != null -> {
                     val message = uiState.errorMessage
                     item(key = "error") {
-                        CommunityMapsPlaceholder {
-                            CommunityMapsError(message = message, onRetryClick = onRetryClick)
+                        MoaMapListPlaceholder {
+                            MoaMapErrorNotice(message = message, onRetryClick = onRetryClick)
                         }
                     }
                 }
@@ -200,7 +197,7 @@ private fun CommunityMapListContent(
                 uiState.maps.isEmpty() && searching -> Unit
 
                 uiState.maps.isEmpty() -> item(key = "empty") {
-                    CommunityMapsPlaceholder {
+                    MoaMapListPlaceholder {
                         Text(
                             text = if (uiState.selectedTag == null) {
                                 "아직 등록된 지도가 없어요"
@@ -244,40 +241,11 @@ private fun CommunityMapListContent(
                             .padding(vertical = 12.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        Text(
-                            text = "다시 시도",
-                            style = MoaMapTheme.typography.button2,
-                            color = MoaMapTheme.colors.textNormal,
-                            modifier = Modifier.clickable(role = Role.Button, onClick = onLoadMore),
-                        )
+                        MoaMapRetryText(onClick = onLoadMore)
                     }
                 }
             }
         }
-    }
-}
-
-/** 시안 GNB: 높이 58, 왼쪽 20 에 뒤로가기 32, 가운데 제목. */
-@Composable
-private fun CommunityMapListTopBar(onBackClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(TopBarHeight),
-    ) {
-        // 누르는 자리는 48 로 넓히고 아이콘이 왼쪽 20 에 서도록 12 만 띄운다.
-        MoaMapBackButton(
-            onClick = onBackClick,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = MoaMapTopBarIconEdgePadding),
-        )
-        Text(
-            text = "커뮤니티 지도",
-            style = MoaMapTheme.typography.title3,
-            color = MoaMapTheme.colors.textNormal,
-            modifier = Modifier.align(Alignment.Center),
-        )
     }
 }
 

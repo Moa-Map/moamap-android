@@ -7,7 +7,6 @@ import com.moamap.app.feature.collection.data.remote.JoinByInviteCodeRequestDto
 import com.moamap.app.feature.collection.data.remote.MapCreateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapDetailDto
 import com.moamap.app.feature.collection.data.remote.MapMemberListDto
-import com.moamap.app.feature.collection.data.remote.MapMemberRoleDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleUpdateDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleUpdateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapMemberSummaryDto
@@ -46,7 +45,6 @@ private class FakeMapService(
         return MapMemberRoleUpdateDto(mapId = mapId, userId = userId, role = request.role)
     }
 
-    override suspend fun getMaps(page: Int?, size: Int?, sort: String?) = notUsed()
     override suspend fun createMap(request: MapCreateRequestDto) = notUsed()
     override suspend fun createCoverUploadUrl(request: CoverUploadUrlRequestDto):
         CoverUploadUrlDto = notUsed()
@@ -59,7 +57,6 @@ private class FakeMapService(
     override suspend fun deleteMap(mapId: Long) = notUsed()
     override suspend fun joinMap(mapId: Long): MapDetailDto = notUsed()
     override suspend fun leaveMap(mapId: Long) = notUsed()
-    override suspend fun getMemberRole(mapId: Long, userId: Long): MapMemberRoleDto = notUsed()
 
     private fun notUsed(): Nothing = error("멤버 저장소가 부를 일이 없는 호출이다")
 }

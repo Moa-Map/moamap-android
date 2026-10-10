@@ -35,10 +35,8 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
-import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
-import com.moamap.app.core.designsystem.component.ButtonShadowColor
+import com.moamap.app.core.designsystem.component.MoaMapLargeButton
 import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
-import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.designsystem.theme.withDesignLineHeight
@@ -149,7 +147,7 @@ private fun TermsAgreementContent(
             }
         }
 
-        AgreementButton(
+        MoaMapLargeButton(
             // 필수를 다 체크하면 「다음으로」, 아니면 「모두 동의하기」(누르면 전부 체크만 한다).
             label = if (uiState.requiredChecked) "다음으로" else "모두 동의하기",
             onClick = onBottomButtonClick,
@@ -248,33 +246,6 @@ private fun AgreementCheck(checked: Boolean) {
         tint = if (checked) MoaMapPrimitiveColors.Blue500 else MoaMapPrimitiveColors.Gray100,
         modifier = Modifier.size(24.dp),
     )
-}
-
-/** 시안 「Button」 Large: 높이 54, 모서리 8, 그림자 0 0 10 10%, 글자 button0. */
-@Composable
-private fun AgreementButton(
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    ShadowedSurface(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(54.dp),
-        shape = RoundedCornerShape(8.dp),
-        color = MoaMapTheme.colors.primary,
-        shadowBlurRadius = ButtonShadowBlurRadius,
-        shadowColor = ButtonShadowColor,
-        onClick = onClick,
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(
-                text = label,
-                style = MoaMapTheme.typography.button0,
-                color = MoaMapTheme.colors.textWhite,
-            )
-        }
-    }
 }
 
 private fun previewTerms() = listOf(
