@@ -38,6 +38,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import com.moamap.app.core.designsystem.component.MoaMapSheetGrabber
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.component.ListCardShadowBlurRadius
 import com.moamap.app.core.designsystem.component.ListCardShadowColor
@@ -46,7 +47,6 @@ import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 
-private val BottomSheetGrabberShape = RoundedCornerShape(100.dp)
 private val CategoryChipShape = RoundedCornerShape(1000.dp)
 
 /** 칩 줄 아래로 조금 남기는 여백. 접었을 때 목록 첫 줄이 살짝 비쳐 더 있다는 걸 알린다. */
@@ -135,14 +135,7 @@ internal fun MapDetailBottomSheet(
                     .height(25.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(width = 35.dp, height = 5.dp)
-                        .background(
-                            color = MoaMapPrimitiveColors.Gray100,
-                            shape = BottomSheetGrabberShape,
-                        ),
-                )
+                MoaMapSheetGrabber()
             }
 
             Text(

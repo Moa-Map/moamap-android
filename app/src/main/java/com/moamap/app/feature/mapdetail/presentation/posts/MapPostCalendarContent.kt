@@ -33,6 +33,9 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.MoaMapCenteredNotice
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
+import com.moamap.app.core.designsystem.component.MoaMapLoadingIndicator
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.component.compatibleShadow
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
@@ -120,10 +123,10 @@ internal fun MapPostCalendarContent(
         }
 
         when {
-            state.loading -> item(key = "loading") { CenteredNotice { Progress() } }
+            state.loading -> item(key = "loading") { MoaMapCenteredNotice { MoaMapLoadingIndicator() } }
 
             state.errorMessage != null -> item(key = "error") {
-                CenteredNotice { ErrorNotice(message = state.errorMessage, onRetryClick = onRetryClick) }
+                MoaMapCenteredNotice { MoaMapErrorNotice(message = state.errorMessage, onRetryClick = onRetryClick) }
             }
 
             else -> {

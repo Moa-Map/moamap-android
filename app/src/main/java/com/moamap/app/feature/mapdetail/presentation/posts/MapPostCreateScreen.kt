@@ -40,9 +40,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.moamap.app.core.designsystem.component.MoaMapBackButton
 import com.moamap.app.core.designsystem.component.MoaMapInputSurface
-import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
+import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.R
 import androidx.activity.compose.BackHandler
@@ -54,7 +53,6 @@ import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
-import com.moamap.app.feature.mapdetail.MapDetailTopBarHeight
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.presentation.addplace.PhotoPicker
 
@@ -112,7 +110,7 @@ internal fun MapPostCreateScreen(
             .imePadding(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            PostCreateTopBar(title = "새 게시물", onBackClick = onBackClick)
+            MoaMapTitleTopBar(title = "새 게시물", onBackClick = onBackClick)
 
             Column(
                 modifier = Modifier
@@ -194,32 +192,6 @@ internal fun MapPostCreateScreen(
 
     BackHandler(enabled = galleryVisible) { galleryVisible = false }
     BackHandler(enabled = placeSheetVisible) { placeSheetVisible = false }
-}
-
-@Composable
-private fun PostCreateTopBar(
-    title: String,
-    onBackClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(MapDetailTopBarHeight),
-    ) {
-        MoaMapBackButton(
-            onClick = onBackClick,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = MoaMapTopBarIconEdgePadding),
-        )
-
-        Text(
-            text = title,
-            style = MoaMapTheme.typography.title3,
-            color = MoaMapTheme.colors.textNormal,
-            modifier = Modifier.align(Alignment.Center),
-        )
-    }
 }
 
 @Composable
@@ -406,7 +378,7 @@ private fun PlacePickerScreen(
             .pointerInput(Unit) { detectTapGestures() }
             .statusBarsPadding(),
     ) {
-        PostCreateTopBar(title = "장소 선택", onBackClick = onBackClick)
+        MoaMapTitleTopBar(title = "장소 선택", onBackClick = onBackClick)
 
         if (places.isEmpty()) {
             Box(

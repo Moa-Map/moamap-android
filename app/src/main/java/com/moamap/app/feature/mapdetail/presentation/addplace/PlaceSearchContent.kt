@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
 import com.moamap.app.core.designsystem.component.MoaMapSearchBar
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -89,22 +90,7 @@ internal fun PlaceSearchContent(
             PlaceSearchState.Loading -> SearchPlaceholder { CircularProgressIndicator() }
 
             is PlaceSearchState.Error -> SearchPlaceholder {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text(
-                        text = search.message,
-                        style = MoaMapTheme.typography.body2,
-                        color = MoaMapTheme.colors.textAssistive,
-                    )
-                    Text(
-                        text = "다시 시도",
-                        style = MoaMapTheme.typography.button2,
-                        color = MoaMapTheme.colors.textNormal,
-                        modifier = Modifier.clickable(onClick = onRetryClick),
-                    )
-                }
+                MoaMapErrorNotice(message = search.message, onRetryClick = onRetryClick)
             }
 
             is PlaceSearchState.Success -> {

@@ -34,8 +34,8 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.component.MapFormInputField
-import com.moamap.app.core.designsystem.component.MapFormSubmitButton
 import com.moamap.app.core.designsystem.component.MapTagChipRow
+import com.moamap.app.core.designsystem.component.MoaMapLargeButton
 import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
@@ -175,7 +175,7 @@ internal fun MapInfoEditScreen(
         ) {
             ErrorSnackbar(message = errorMessage, onShown = onErrorShown)
 
-            MapFormSubmitButton(
+            MoaMapLargeButton(
                 label = "저장하기",
                 enabled = canSave,
                 submitting = saving,

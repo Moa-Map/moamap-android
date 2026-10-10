@@ -1,25 +1,19 @@
 package com.moamap.app.feature.mapdetail.presentation.logs
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.moamap.app.core.designsystem.component.MoaMapCenteredNotice
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
+import com.moamap.app.core.designsystem.component.MoaMapLoadingIndicator
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 
@@ -84,10 +78,10 @@ internal fun MapLogsContent(
         }
 
         when {
-            loading -> item(key = "activity-loading") { LoadingLogs() }
+            loading -> item(key = "activity-loading") { MoaMapCenteredNotice { MoaMapLoadingIndicator() } }
 
             errorMessage != null -> item(key = "activity-error") {
-                LogsError(message = errorMessage, onRetryClick = onRetryClick)
+                MoaMapCenteredNotice { MoaMapErrorNotice(message = errorMessage, onRetryClick = onRetryClick) }
             }
 
             logs.isEmpty() -> item(key = "activity-empty") { EmptyLogs() }
@@ -104,61 +98,13 @@ internal fun MapLogsContent(
 }
 
 @Composable
-private fun LoadingLogs() {
-    CenteredLogsNotice {
-        CircularProgressIndicator(
-            color = MoaMapTheme.colors.textAssistive,
-            strokeWidth = 2.dp,
-            modifier = Modifier.size(24.dp),
-        )
-    }
-}
-
-@Composable
 private fun EmptyLogs() {
-    CenteredLogsNotice {
+    MoaMapCenteredNotice {
         Text(
             text = "아직 활동 내역이 없어요",
             style = MoaMapTheme.typography.body2,
             color = MoaMapTheme.colors.textAssistive,
         )
-    }
-}
-
-@Composable
-private fun LogsError(message: String, onRetryClick: () -> Unit) {
-    CenteredLogsNotice {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            Text(
-                text = message,
-                style = MoaMapTheme.typography.body2,
-                color = MoaMapTheme.colors.textAssistive,
-                textAlign = TextAlign.Center,
-            )
-            TextButton(onClick = onRetryClick) {
-                Text(
-                    text = "다시 시도",
-                    style = MoaMapTheme.typography.body2,
-                    color = MoaMapTheme.colors.textNormal,
-                )
-            }
-        }
-    }
-}
-
-/** 목록 자리를 대신 채우는 안내. 세 상태가 같은 높이를 써야 탭을 오갈 때 덜컹이지 않는다. */
-@Composable
-private fun CenteredLogsNotice(content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 60.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        content()
     }
 }
 

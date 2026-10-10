@@ -20,10 +20,8 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridItemSpan
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,12 +37,14 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.MoaMapCenteredNotice
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
+import com.moamap.app.core.designsystem.component.MoaMapLoadingIndicator
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -133,17 +133,17 @@ internal fun MapPostsContent(
 
         when {
             state.loading -> item(key = "loading", span = StaggeredGridItemSpan.FullLine) {
-                CenteredNotice { Progress() }
+                MoaMapCenteredNotice { MoaMapLoadingIndicator() }
             }
 
             state.errorMessage != null -> item(key = "error", span = StaggeredGridItemSpan.FullLine) {
-                CenteredNotice {
-                    ErrorNotice(message = state.errorMessage, onRetryClick = onRetryClick)
+                MoaMapCenteredNotice {
+                    MoaMapErrorNotice(message = state.errorMessage, onRetryClick = onRetryClick)
                 }
             }
 
             state.posts.isEmpty() -> item(key = "empty", span = StaggeredGridItemSpan.FullLine) {
-                CenteredNotice {
+                MoaMapCenteredNotice {
                     Text(
                         text = "아직 게시물이 없어요",
                         style = MoaMapTheme.typography.body2,
@@ -160,13 +160,13 @@ internal fun MapPostsContent(
                 if (state.loadingMore) {
                     item(key = "loading-more", span = StaggeredGridItemSpan.FullLine) {
                         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            Progress()
+                            MoaMapLoadingIndicator()
                         }
                     }
                 } else if (state.loadMoreFailed) {
                     item(key = "load-more-failed", span = StaggeredGridItemSpan.FullLine) {
                         Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                            ErrorNotice(message = POST_LOAD_FAILED_MESSAGE, onRetryClick = onLoadMore)
+                            MoaMapErrorNotice(message = POST_LOAD_FAILED_MESSAGE, onRetryClick = onLoadMore)
                         }
                     }
                 }
@@ -381,50 +381,6 @@ internal fun PlacePill(
             .background(MoaMapPrimitiveColors.White.copy(alpha = 0.6f))
             .padding(horizontal = 4.dp, vertical = 2.dp),
     )
-}
-
-@Composable
-internal fun Progress() {
-    CircularProgressIndicator(
-        color = MoaMapTheme.colors.textAssistive,
-        strokeWidth = 2.dp,
-        modifier = Modifier.size(24.dp),
-    )
-}
-
-@Composable
-internal fun ErrorNotice(message: String, onRetryClick: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(
-            text = message,
-            style = MoaMapTheme.typography.body2,
-            color = MoaMapTheme.colors.textAssistive,
-            textAlign = TextAlign.Center,
-        )
-        TextButton(onClick = onRetryClick) {
-            Text(
-                text = "다시 시도",
-                style = MoaMapTheme.typography.body2,
-                color = MoaMapTheme.colors.textNormal,
-            )
-        }
-    }
-}
-
-/** 목록 자리를 대신 채우는 안내. 세 상태가 같은 높이를 써야 오갈 때 덜컹이지 않는다. */
-@Composable
-internal fun CenteredNotice(content: @Composable () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 60.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        content()
-    }
 }
 
 internal val SampleMapPosts = listOf(

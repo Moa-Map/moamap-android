@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -20,7 +19,6 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,10 +39,9 @@ import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.component.MapFormInputField
 import com.moamap.app.core.designsystem.component.MapFormSectionTitle
-import com.moamap.app.core.designsystem.component.MapFormSubmitButton
 import com.moamap.app.core.designsystem.component.MapTagChipRow
-import com.moamap.app.core.designsystem.component.MoaMapBackButton
-import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
+import com.moamap.app.core.designsystem.component.MoaMapLargeButton
+import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -147,7 +144,7 @@ private fun CreateMapContent(
             .imePadding(),
     ) {
         Column(modifier = Modifier.fillMaxSize().hazeSource(photoMenuHazeState)) {
-            CreateMapTopBar(onBackClick = onBackClick)
+            MoaMapTitleTopBar(title = "새 지도 만들기", onBackClick = onBackClick)
 
             Column(
                 modifier = Modifier
@@ -239,7 +236,7 @@ private fun CreateMapContent(
         ) {
             ErrorSnackbar(message = uiState.errorMessage, onShown = onErrorShown)
 
-            MapFormSubmitButton(
+            MoaMapLargeButton(
                 label = "지도 만들기",
                 enabled = uiState.canSubmit,
                 submitting = uiState.isSubmitting,
@@ -254,28 +251,6 @@ private fun CreateMapContent(
                     ),
             )
         }
-    }
-}
-
-@Composable
-private fun CreateMapTopBar(onBackClick: () -> Unit) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(58.dp),
-    ) {
-        MoaMapBackButton(
-            onClick = onBackClick,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = MoaMapTopBarIconEdgePadding),
-        )
-        Text(
-            text = "새 지도 만들기",
-            style = MoaMapTheme.typography.title3,
-            color = MoaMapTheme.colors.textNormal,
-            modifier = Modifier.align(Alignment.Center),
-        )
     }
 }
 

@@ -44,6 +44,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
+import com.moamap.app.core.designsystem.component.MoaMapListPlaceholder
 import com.moamap.app.core.designsystem.component.MoaMapTopBarLogo
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
@@ -53,8 +55,6 @@ import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.explore.domain.model.CommunityMap
 import com.moamap.app.feature.explore.presentation.CommunityMapCard
-import com.moamap.app.feature.explore.presentation.CommunityMapsError
-import com.moamap.app.feature.explore.presentation.CommunityMapsPlaceholder
 import com.moamap.app.feature.explore.presentation.CommunityMapsState
 import com.moamap.app.feature.explore.presentation.ExploreUiState
 import com.moamap.app.feature.explore.presentation.ExploreViewModel
@@ -354,17 +354,17 @@ private fun CommunityMapSection(
 
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             when (state) {
-                CommunityMapsState.Loading -> CommunityMapsPlaceholder {
+                CommunityMapsState.Loading -> MoaMapListPlaceholder {
                     CircularProgressIndicator()
                 }
 
-                is CommunityMapsState.Error -> CommunityMapsPlaceholder {
-                    CommunityMapsError(message = state.message, onRetryClick = onRetryClick)
+                is CommunityMapsState.Error -> MoaMapListPlaceholder {
+                    MoaMapErrorNotice(message = state.message, onRetryClick = onRetryClick)
                 }
 
                 is CommunityMapsState.Success -> {
                     if (state.maps.isEmpty()) {
-                        CommunityMapsPlaceholder {
+                        MoaMapListPlaceholder {
                             EmptyMessage(text = "아직 등록된 지도가 없어요")
                         }
                     } else {
@@ -397,17 +397,17 @@ private fun OfficialMapSection(
         SectionHeader(title = "공식 지도", onSeeAllClick = onSeeAllClick, modifier = screenPadding)
 
         when (state) {
-            OfficialMapsState.Loading -> CommunityMapsPlaceholder(screenPadding) {
+            OfficialMapsState.Loading -> MoaMapListPlaceholder(screenPadding) {
                 CircularProgressIndicator()
             }
 
-            is OfficialMapsState.Error -> CommunityMapsPlaceholder(screenPadding) {
-                CommunityMapsError(message = state.message, onRetryClick = onRetryClick)
+            is OfficialMapsState.Error -> MoaMapListPlaceholder(screenPadding) {
+                MoaMapErrorNotice(message = state.message, onRetryClick = onRetryClick)
             }
 
             is OfficialMapsState.Success -> {
                 if (state.maps.isEmpty()) {
-                    CommunityMapsPlaceholder(screenPadding) {
+                    MoaMapListPlaceholder(screenPadding) {
                         EmptyMessage(text = "아직 공식 지도가 없어요")
                     }
                 } else {

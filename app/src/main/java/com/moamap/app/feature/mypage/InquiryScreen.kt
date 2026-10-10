@@ -52,11 +52,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
 import com.moamap.app.R
-import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
-import com.moamap.app.core.designsystem.component.ButtonShadowColor
 import com.moamap.app.core.designsystem.component.MoaMapInputSurface
+import com.moamap.app.core.designsystem.component.MoaMapLargeButton
+import com.moamap.app.core.designsystem.component.MoaMapLargeButtonHeight
 import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
-import com.moamap.app.core.designsystem.component.ShadowedSurface
+import com.moamap.app.core.designsystem.component.modalScrim
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -64,9 +64,6 @@ import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.mypage.presentation.InquiryType
 import com.moamap.app.feature.mypage.presentation.isInquiryComplete
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeStyle
-import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 
@@ -89,32 +86,16 @@ private val FieldShadowColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.08f)
 private val ContentFieldHeight = 200.dp
 
 /** 아래 버튼. 시안 「Button」 Large: 높이 54, 모서리 8, 화면 끝 20. */
-private val SubmitButtonHeight = 54.dp
-private val SubmitButtonShape = RoundedCornerShape(8.dp)
 private val SubmitButtonVerticalPadding = 12.dp
 
 /** 스크롤 영역 아래 여백. 마지막 칸이 버튼(54 + 위아래 12)에 가리지 않게 칸 사이만큼 더 둔다. */
-private val FieldsBottomGap = SubmitButtonHeight + SubmitButtonVerticalPadding * 2 + FieldsGap
+private val FieldsBottomGap = MoaMapLargeButtonHeight + SubmitButtonVerticalPadding * 2 + FieldsGap
 
 private val TypeMenuShape = RoundedCornerShape(12.dp)
 private val TypeMenuRowHeight = 50.dp
 
 /** 시안 유형 목록 「모달창」 바탕: #4A4F52 의 60%. */
 private val TypeMenuScrim = MoaMapPrimitiveColors.Gray500.copy(alpha = 0.6f)
-
-/**
- * 유형 목록 바탕 한 겹: 뒤를 흐리고 회색을 덮는다. 흐림이 아예 안 되는 기기에서만 회색을 깐다.
- *
- * 시안 값은 흐림 5 인데 Haze 에 5 를 주면 시안보다 덜 흐려 밑의 글자가 읽힌다. 시안 그림과 나란히
- * 놓고 맞춰 보니 10 이 같았다(10-05, 에뮬레이터 API 30). 줄에 걸린 흐림 10 은 칠한 색이 없어 시안에
- * 안 보이므로 뺀다(프로필 메뉴와 같다).
- */
-private val TypeMenuBackdropStyle = HazeStyle(
-    tint = HazeTint(TypeMenuScrim),
-    blurRadius = 10.dp,
-    noiseFactor = 0f,
-    fallbackTint = HazeTint(TypeMenuScrim),
-)
 
 /**
  * 설정 「문의하기」. 유형·답변 받을 이메일·내용을 다 채우면 아래 버튼이 켜진다.
@@ -246,7 +227,10 @@ private fun InquiryContent(
             }
         }
 
-        InquirySubmitButton(
+        MoaMapLargeButton(
+            label = "문의하기",
+            // 문의 API 가 없어 눌러도 아직 아무것도 하지 않는다(10-05 사용자 결정).
+            onClick = {},
             enabled = isInquiryComplete(type = type, email = email, content = content),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -409,11 +393,8 @@ private fun InquiryTypeMenu(
             modifier = Modifier
                 .matchParentSize()
                 .clip(TypeMenuShape)
-                .hazeEffect(hazeState, TypeMenuBackdropStyle) {
-                    // Haze 는 안드로이드 12 미만에서 흐림을 끄고 회색만 깐다. 그러면 밑의 칸 제목이 목록
-                    // 글자와 겹쳐 읽히지 않아(10-05 에뮬레이터 API 30 에서 발견), 그 기기에서도 흐린다.
-                    blurEnabled = true
-                },
+                // 흐림 10·노이즈 0·안드로이드 12 미만에서도 흐림 - modalScrim 참고.
+                .modalScrim(hazeState, TypeMenuScrim),
         )
 
         // 첫·마지막 줄을 누른 물결이 둥근 모서리 밖으로 나가지 않게 함께 자른다.
@@ -453,33 +434,6 @@ private fun InquiryTypeMenu(
                     )
                 }
             }
-        }
-    }
-}
-
-/** 시안 「Button」 Large. 비활성 Gray200, 활성 primary, 그림자 0 0 10 10%, 글자 button0. */
-@Composable
-private fun InquirySubmitButton(
-    enabled: Boolean,
-    modifier: Modifier = Modifier,
-) {
-    ShadowedSurface(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(SubmitButtonHeight),
-        shape = SubmitButtonShape,
-        color = if (enabled) MoaMapTheme.colors.primary else MoaMapPrimitiveColors.Gray200,
-        shadowBlurRadius = ButtonShadowBlurRadius,
-        shadowColor = ButtonShadowColor,
-        // 문의 API 가 없어 눌러도 아직 아무것도 하지 않는다(10-05 사용자 결정).
-        onClick = if (enabled) ({}) else null,
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Text(
-                text = "문의하기",
-                style = MoaMapTheme.typography.button0,
-                color = MoaMapTheme.colors.textWhite,
-            )
         }
     }
 }

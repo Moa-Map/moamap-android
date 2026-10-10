@@ -93,6 +93,8 @@ import com.moamap.app.core.designsystem.component.ButtonShadowColor
 import com.moamap.app.core.designsystem.component.ImageSourceMenu
 import com.moamap.app.core.designsystem.component.MoaMapBackButton
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
+import com.moamap.app.core.designsystem.component.MoaMapSheetGrabber
 import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
@@ -646,7 +648,7 @@ private fun androidx.compose.foundation.lazy.LazyListScope.reviewItems(
 
         loadErrorMessage != null -> item {
             ReviewPlaceholder {
-                ReviewLoadError(message = loadErrorMessage, onRetryClick = onRetryReviews)
+                MoaMapErrorNotice(message = loadErrorMessage, onRetryClick = onRetryReviews)
             }
         }
 
@@ -696,32 +698,6 @@ private fun ReviewPlaceholder(content: @Composable () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         content()
-    }
-}
-
-@Composable
-private fun ReviewLoadError(message: String, onRetryClick: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(
-            text = message,
-            style = MoaMapTheme.typography.body2,
-            color = MoaMapTheme.colors.textAssistive,
-        )
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = MoaMapPrimitiveColors.Blue500,
-            onClick = onRetryClick,
-        ) {
-            Text(
-                text = "다시 시도",
-                style = MoaMapTheme.typography.button2,
-                color = MoaMapTheme.colors.textWhite,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            )
-        }
     }
 }
 
@@ -788,13 +764,7 @@ private fun PlaceSheetTopBar(onBackClick: () -> Unit, onCloseClick: () -> Unit) 
                 .height(SheetGrabberAreaHeight),
             contentAlignment = Alignment.TopCenter,
         ) {
-            Box(
-                modifier = Modifier
-                    .padding(top = 5.dp)
-                    .size(width = 36.dp, height = 5.dp)
-                    // 시안 #CCCCCC. 다른 시트 손잡이와 같은 토큰을 쓴다.
-                    .background(color = MoaMapPrimitiveColors.Gray100, shape = PlaceTagShape),
-            )
+            MoaMapSheetGrabber(modifier = Modifier.padding(top = 5.dp), width = 36.dp)
         }
         BackCloseControls(
             onBackClick = onBackClick,

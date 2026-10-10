@@ -23,7 +23,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -38,10 +37,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.MoaMapCenteredNotice
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
+import com.moamap.app.core.designsystem.component.MoaMapLoadingIndicator
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -129,14 +130,14 @@ internal fun MapPostDetailScreen(
             }
 
             when {
-                state.loading -> item(key = "loading") { CenteredNotice { Progress() } }
+                state.loading -> item(key = "loading") { MoaMapCenteredNotice { MoaMapLoadingIndicator() } }
 
                 state.errorMessage != null -> item(key = "error") {
-                    CenteredNotice { CommentsError(message = state.errorMessage, onRetryClick = onRetryClick) }
+                    MoaMapCenteredNotice { MoaMapErrorNotice(onDark = true, message = state.errorMessage, onRetryClick = onRetryClick) }
                 }
 
                 state.comments.isEmpty() -> item(key = "empty") {
-                    CenteredNotice {
+                    MoaMapCenteredNotice {
                         Text(
                             text = "아직 댓글이 없어요",
                             style = MoaMapTheme.typography.body2,
@@ -243,29 +244,6 @@ private fun PostComment(comment: MapPostComment, mine: Boolean) {
                 .background(MoaMapPrimitiveColors.White)
                 .padding(12.dp),
         )
-    }
-}
-
-/** 검은 막 위라 목록의 회색 안내 대신 흰 글자로 둔다. */
-@Composable
-private fun CommentsError(message: String, onRetryClick: () -> Unit) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(
-            text = message,
-            style = MoaMapTheme.typography.body2,
-            color = MoaMapTheme.colors.textWhite,
-            textAlign = TextAlign.Center,
-        )
-        TextButton(onClick = onRetryClick) {
-            Text(
-                text = "다시 시도",
-                style = MoaMapTheme.typography.body2,
-                color = MoaMapTheme.colors.textWhite,
-            )
-        }
     }
 }
 

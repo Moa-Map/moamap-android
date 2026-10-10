@@ -20,13 +20,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,14 +35,13 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
-import com.moamap.app.core.designsystem.component.MoaMapBackButton
-import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
-import com.moamap.app.core.designsystem.component.compatibleShadow
+import com.moamap.app.core.designsystem.component.ErrorSnackbar
+import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
+import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.mypage.presentation.SettingsViewModel
 
-private val SettingsCardShape = RoundedCornerShape(12.dp)
 private val ToggleShape = RoundedCornerShape(18.dp)
 private val SettingsRowHeight = 47.dp
 
@@ -61,17 +57,9 @@ internal fun SettingsScreen(
 ) {
     val loggedOut by viewModel.loggedOut.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(loggedOut) {
         if (loggedOut) onLoggedOut()
-    }
-
-    LaunchedEffect(errorMessage) {
-        errorMessage?.let { message ->
-            snackbarHostState.showSnackbar(message)
-            viewModel.consumeError()
-        }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -82,8 +70,9 @@ internal fun SettingsScreen(
             onInquiryClick = onInquiryClick,
             onLogoutClick = viewModel::logout,
         )
-        SnackbarHost(
-            hostState = snackbarHostState,
+        ErrorSnackbar(
+            message = errorMessage,
+            onShown = viewModel::consumeError,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding(),
@@ -106,7 +95,7 @@ private fun SettingsContent(
             .background(MoaMapTheme.colors.backgroundSecondary)
             .statusBarsPadding(),
     ) {
-        SettingsTopBar(onBackClick = onBackClick)
+        MoaMapTitleTopBar(title = "설정", onBackClick = onBackClick)
         Spacer(Modifier.height(12.dp))
 
         Column(
@@ -180,30 +169,6 @@ private fun SettingsContent(
 }
 
 @Composable
-private fun SettingsTopBar(
-    onBackClick: () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(52.dp),
-    ) {
-        MoaMapBackButton(
-            onClick = onBackClick,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = MoaMapTopBarIconEdgePadding),
-        )
-        Text(
-            text = "설정",
-            style = MoaMapTheme.typography.title3,
-            color = MoaMapPrimitiveColors.Black,
-            modifier = Modifier.align(Alignment.Center),
-        )
-    }
-}
-
-@Composable
 private fun SettingsSection(
     title: String,
     content: @Composable () -> Unit,
@@ -230,23 +195,13 @@ private fun SettingsCard(
     shadowRadius: Dp,
     content: @Composable () -> Unit,
 ) {
-    Box(modifier = Modifier.fillMaxWidth()) {
-        Box(
-            modifier = Modifier
-                .matchParentSize()
-                .compatibleShadow(
-                    shape = SettingsCardShape,
-                    blurRadius = shadowRadius,
-                    color = MoaMapPrimitiveColors.Black.copy(alpha = 0.08f),
-                ),
-        )
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(SettingsCardShape)
-                .background(MoaMapPrimitiveColors.White),
-            content = { content() },
-        )
+    // 모서리 12·흰 바탕은 ShadowedSurface 기본값이다.
+    ShadowedSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shadowBlurRadius = shadowRadius,
+        shadowColor = MoaMapPrimitiveColors.Black.copy(alpha = 0.08f),
+    ) {
+        Column { content() }
     }
 }
 

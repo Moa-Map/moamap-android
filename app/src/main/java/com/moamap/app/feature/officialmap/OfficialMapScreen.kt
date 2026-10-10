@@ -32,7 +32,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
@@ -45,6 +44,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.BelowAnchorPosition
 import com.moamap.app.core.designsystem.component.MoaMapBackButton
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
+import com.moamap.app.core.designsystem.component.MoaMapListPlaceholder
 import com.moamap.app.core.designsystem.component.MoaMapTooltip
 import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
@@ -118,12 +119,12 @@ private fun OfficialMapContent(
             Spacer(Modifier.height(4.dp))
 
             when (state) {
-                OfficialMapsState.Loading -> OfficialMapsPlaceholder {
+                OfficialMapsState.Loading -> MoaMapListPlaceholder {
                     CircularProgressIndicator()
                 }
 
-                is OfficialMapsState.Error -> OfficialMapsPlaceholder {
-                    ErrorContent(message = state.message, onRetryClick = onRetryClick)
+                is OfficialMapsState.Error -> MoaMapListPlaceholder {
+                    MoaMapErrorNotice(message = state.message, onRetryClick = onRetryClick)
                 }
 
                 is OfficialMapsState.Success -> {
@@ -203,45 +204,6 @@ private fun OfficialMapCard(
                 }
             }
         }
-    }
-}
-
-/** 목록 자리에 로딩·오류를 같은 높이로 앉혀 화면이 튀지 않게 한다. */
-@Composable
-private fun OfficialMapsPlaceholder(
-    content: @Composable () -> Unit,
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(200.dp),
-        contentAlignment = Alignment.Center,
-    ) {
-        content()
-    }
-}
-
-@Composable
-private fun ErrorContent(
-    message: String,
-    onRetryClick: () -> Unit,
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text(
-            text = message,
-            style = MoaMapTheme.typography.body2,
-            color = MoaMapTheme.colors.textAssistive,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            text = "다시 시도",
-            style = MoaMapTheme.typography.button2,
-            color = MoaMapTheme.colors.textNormal,
-            modifier = Modifier.clickable(onClick = onRetryClick),
-        )
     }
 }
 

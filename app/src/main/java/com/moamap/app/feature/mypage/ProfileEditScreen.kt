@@ -23,13 +23,10 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -46,11 +43,11 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
 import com.moamap.app.core.common.imagepicker.rememberImagePickerController
 import com.moamap.app.core.common.imagepicker.rememberImagePickerState
-import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
-import com.moamap.app.core.designsystem.component.ButtonShadowColor
+import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.component.ImageSourceMenu
-import com.moamap.app.core.designsystem.component.MoaMapBackButton
-import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
+import com.moamap.app.core.designsystem.component.MoaMapLargeButton
+import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.component.MoaMapInputSurface
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
@@ -70,7 +67,6 @@ private const val ProfileImageCacheDirectory = "profile_images"
 private const val ProfileImageFilePrefix = "profile"
 
 private val ProfileFieldShape = RoundedCornerShape(12.dp)
-private val SaveButtonShape = RoundedCornerShape(8.dp)
 
 @Composable
 internal fun ProfileEditScreen(
@@ -79,17 +75,9 @@ internal fun ProfileEditScreen(
     viewModel: ProfileEditViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
 
     LaunchedEffect(uiState.saved) {
         if (uiState.saved) onBackClick()
-    }
-
-    LaunchedEffect(uiState.errorMessage) {
-        uiState.errorMessage?.let { message ->
-            snackbarHostState.showSnackbar(message)
-            viewModel.consumeError()
-        }
     }
 
     Box(modifier = modifier.fillMaxSize()) {
@@ -102,8 +90,9 @@ internal fun ProfileEditScreen(
             onRetryClick = viewModel::load,
             onSaveClick = viewModel::save,
         )
-        SnackbarHost(
-            hostState = snackbarHostState,
+        ErrorSnackbar(
+            message = uiState.errorMessage,
+            onShown = viewModel::consumeError,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding(),
@@ -117,9 +106,6 @@ private const val IntroductionMaxLines = 6
 /** 스크롤 영역 아래 여백. 마지막 칸이 저장 버튼(54 + 위아래 12)에 가리지 않게 한다. */
 private val FieldsBottomGap = 101.dp
 
-/** 상단 바 높이. 시안 「프로필 편집 화면」 GNB. */
-private val TopBarHeight = 58.dp
-
 /** 입력 칸 묶음 좌우 여백·칸 사이. 시안 값. */
 private val FieldsHorizontalPadding = 20.dp
 private val FieldsGap = 20.dp
@@ -127,9 +113,6 @@ private val FieldsGap = 20.dp
 /** 칸 제목 ↔ 칸, 칸 제목 왼쪽 안쪽. 시안 「InputField」. */
 private val FieldTitleGap = 8.dp
 private val FieldTitleStartPadding = 2.dp
-
-/** 저장 버튼 높이. 시안 「Button」 Large. */
-private val SaveButtonHeight = 54.dp
 
 /** 프로필 사진 원 지름. 시안 「Home/마이페이지」. */
 private val ProfileImageSize = 120.dp
@@ -176,7 +159,7 @@ private fun ProfileEditContent(
                 .statusBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
-            ProfileEditTopBar(onBackClick = onBackClick)
+            MoaMapTitleTopBar(title = "프로필 편집", onBackClick = onBackClick)
 
             // 키보드가 뜨면 이 영역만 줄어든다. 스크롤이 있어야 포커스된 입력칸이 가려지지
             // 않게 스스로 올라온다. 저장 버튼은 화면 아래 자리에 그대로 둔다.
@@ -211,22 +194,7 @@ private fun ProfileEditContent(
                     }
 
                     is ProfileLoadState.Error -> ProfileEditPlaceholder {
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Text(
-                                text = load.message,
-                                style = MoaMapTheme.typography.body2,
-                                color = MoaMapTheme.colors.textAlternative,
-                            )
-                            Text(
-                                text = "다시 시도",
-                                style = MoaMapTheme.typography.subtitle2,
-                                color = MoaMapTheme.colors.primary,
-                                modifier = Modifier.clickable(onClick = onRetryClick),
-                            )
-                        }
+                        MoaMapErrorNotice(message = load.message, onRetryClick = onRetryClick)
                     }
 
                     is ProfileLoadState.Success -> ProfileEditFields(
@@ -239,10 +207,13 @@ private fun ProfileEditContent(
             }
         }
 
-        ProfileSaveButton(
-            enabled = uiState.canSave,
-            saving = uiState.saving,
+        // 업로드까지 포함하면 저장에 수십 초가 걸릴 수 있어, 버튼이 눌렸다는 것을 계속 보여준다.
+        MoaMapLargeButton(
+            label = "저장하기",
             onClick = onSaveClick,
+            enabled = uiState.canSave,
+            submitting = uiState.saving,
+            disabledColor = MoaMapPrimitiveColors.Gray100,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
@@ -261,31 +232,6 @@ private fun ProfileEditPlaceholder(content: @Composable () -> Unit) {
         contentAlignment = Alignment.Center,
         content = { content() },
     )
-}
-
-@Composable
-private fun ProfileEditTopBar(
-    onBackClick: () -> Unit,
-) {
-    // 배경을 깔지 않는다. 시안의 상단 바는 화면 배경 위에 글자와 아이콘만 얹혀 있다.
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(TopBarHeight),
-    ) {
-        MoaMapBackButton(
-            onClick = onBackClick,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = MoaMapTopBarIconEdgePadding),
-        )
-        Text(
-            text = "프로필 편집",
-            style = MoaMapTheme.typography.title3,
-            color = MoaMapTheme.colors.textNormal,
-            modifier = Modifier.align(Alignment.Center),
-        )
-    }
 }
 
 @Composable
@@ -475,43 +421,6 @@ private fun ProfileField(
         ) {
             Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                 content()
-            }
-        }
-    }
-}
-
-/** 시안 「Button」 Large: 높이 54, 모서리 8, 그림자 0 0 10 10%, 글자 button0. */
-@Composable
-private fun ProfileSaveButton(
-    enabled: Boolean,
-    saving: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    ShadowedSurface(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(SaveButtonHeight),
-        shape = SaveButtonShape,
-        color = if (enabled) MoaMapTheme.colors.primary else MoaMapPrimitiveColors.Gray100,
-        shadowBlurRadius = ButtonShadowBlurRadius,
-        shadowColor = ButtonShadowColor,
-        onClick = if (enabled) onClick else null,
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            // 업로드까지 포함하면 저장에 수십 초가 걸릴 수 있어, 버튼이 눌렸다는 것을 계속 보여줘야 한다.
-            if (saving) {
-                CircularProgressIndicator(
-                    color = MoaMapTheme.colors.textWhite,
-                    strokeWidth = 2.dp,
-                    modifier = Modifier.size(20.dp),
-                )
-            } else {
-                Text(
-                    text = "저장하기",
-                    style = MoaMapTheme.typography.button0,
-                    color = MoaMapTheme.colors.textWhite,
-                )
             }
         }
     }
