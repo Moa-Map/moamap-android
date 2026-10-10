@@ -39,18 +39,10 @@ class MapLogUiModelTest {
     }
 
     @Test
-    fun `댓글 로그는 별점을 적지 않는다`() {
+    fun `댓글 로그는 장소 이름을 넣어 적는다`() {
         assertEquals(
             "‘대림창고’ 에 댓글을 남겼어요",
-            messageOf(MapActivityType.ReviewCreated, placeName = "대림창고", rating = 4),
-        )
-    }
-
-    @Test
-    fun `별점이 없어도 같은 문장이다`() {
-        assertEquals(
-            "‘대림창고’ 에 댓글을 남겼어요",
-            messageOf(MapActivityType.ReviewCreated, placeName = "대림창고", rating = null),
+            messageOf(MapActivityType.ReviewCreated, placeName = "대림창고"),
         )
     }
 
@@ -64,7 +56,7 @@ class MapLogUiModelTest {
         )
         assertEquals(
             "댓글을 남겼어요",
-            messageOf(MapActivityType.ReviewCreated, placeName = null, rating = 5),
+            messageOf(MapActivityType.ReviewCreated, placeName = null),
         )
     }
 
@@ -104,8 +96,7 @@ class MapLogUiModelTest {
     private fun messageOf(
         type: MapActivityType,
         placeName: String?,
-        rating: Int? = null,
-    ): String = listOf(activity(type = type, placeName = placeName, rating = rating))
+    ): String = listOf(activity(type = type, placeName = placeName))
         .toMapLogUiModels(NOW)
         .first()
         .message
@@ -116,7 +107,6 @@ class MapLogUiModelTest {
         actorName: String? = "김도현",
         placeId: Long? = 1L,
         placeName: String? = "어니언 성수",
-        rating: Int? = null,
     ) = MapActivity(
         type = type,
         occurredAtMillis = occurredAtMillis,
@@ -124,6 +114,5 @@ class MapLogUiModelTest {
         actorImageUrl = null,
         placeId = placeId,
         placeName = placeName,
-        rating = rating,
     )
 }

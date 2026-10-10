@@ -26,6 +26,4 @@ data class MapActivity(
     val actorImageUrl: String?,
     val placeId: Long?,
     val placeName: String?,
-    /** 후기 작성 로그의 별점. 다른 종류에는 없다. */
-    val rating: Int?,
 )

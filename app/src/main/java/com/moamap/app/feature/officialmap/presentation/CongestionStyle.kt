@@ -43,10 +43,6 @@ internal val CongestionLevel.tagColors: CongestionTagColors
         )
     }
 
-/** RGB → HSL의 명도(0..1) 성분. */
-internal fun Color.lightness(): Float =
-    (maxOf(red, green, blue) + minOf(red, green, blue)) / 2f
-
 /** RGB → HSL의 색상(0..360) 성분. 무채색이면 0을 돌려준다. */
 internal fun Color.hue(): Float {
     val max = maxOf(red, green, blue)

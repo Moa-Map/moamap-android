@@ -98,7 +98,6 @@ android {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
@@ -114,14 +113,15 @@ dependencies {
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.okhttp.mockwebserver)
     androidTestImplementation(libs.androidx.junit)
+    // 코드에서 쓰지 않지만 빼면 androidTest 의존성 해석이 깨진다(concurrent-futures 1.1.0 고정과 충돌).
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
-    // 카카오 SDK 전체 기능
-    implementation(libs.kakao.sdk.all)
+    // 카카오 로그인(사용자 관리). 인증·공통 모듈은 이게 함께 끌고 온다.
+    implementation(libs.kakao.sdk.user)
 
     // Mapbox Maps SDK v11 + Compose 확장
     implementation(libs.mapbox.maps)

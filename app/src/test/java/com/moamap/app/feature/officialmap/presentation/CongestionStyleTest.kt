@@ -84,3 +84,7 @@ class CongestionStyleTest {
         assertEquals("#156B5E", relaxed.content.hex())
     }
 }
+
+/** RGB → HSL의 명도(0..1) 성분. 색 규칙이 명도 구간을 지키는지 볼 때만 쓴다. */
+private fun Color.lightness(): Float =
+    (maxOf(red, green, blue) + minOf(red, green, blue)) / 2f

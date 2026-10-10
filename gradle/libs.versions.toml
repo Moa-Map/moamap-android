@@ -21,7 +21,6 @@ kotlinxSerialization = "1.7.3"
 haze = "1.6.10"
 coroutinesTest = "1.10.2"
 coil = "3.4.0"
-lifecycleViewmodelCompose = "2.11.0"
 datastore = "1.2.1"
 
 [libraries]
@@ -29,7 +28,6 @@ androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = 
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
 androidx-espresso-core = { group = "androidx.test.espresso", name = "espresso-core", version.ref = "espressoCore" }
-androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
 androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
 androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
 androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
@@ -39,8 +37,8 @@ androidx-compose-ui-tooling-preview = { group = "androidx.compose.ui", name = "u
 androidx-compose-ui-test-manifest = { group = "androidx.compose.ui", name = "ui-test-manifest" }
 androidx-compose-ui-test-junit4 = { group = "androidx.compose.ui", name = "ui-test-junit4" }
 androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
-# 카카오 SDK 전체 기능
-kakao-sdk-all = { module = "com.kakao.sdk:v2-all", version.ref = "kakao"}
+# 카카오 로그인(사용자 관리). v2-all 은 공유·톡·내비까지 들어 있어 쓰지 않는다
+kakao-sdk-user = { module = "com.kakao.sdk:v2-user", version.ref = "kakao"}
 # Mapbox Maps SDK v11 + Jetpack Compose 확장
 # -ndk27 아티팩트: NDK 27로 빌드되어 16KB 페이지 정렬 지원 (Android 15+ / Play 필수)
 mapbox-maps = { group = "com.mapbox.maps", name = "android-ndk27", version.ref = "mapbox" }
@@ -62,7 +60,6 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 # Coil 3 는 네트워크 로딩이 별도 아티팩트다. 없으면 http(s) 주소를 아예 못 가져온다.
 coil-network-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
-androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycleViewmodelCompose" }
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleRuntimeKtx" }
 # 토큰 저장 (DataStore Preferences)
 androidx-datastore-preferences = { group = "androidx.datastore", name = "datastore-preferences", version.ref = "datastore" }
@@ -74,4 +71,3 @@ kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", versi
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 google-services = { id = "com.google.gms.google-services", version = "4.4.2" }
-android-library = { id = "com.android.library", version.ref = "agp" }

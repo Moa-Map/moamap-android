@@ -33,7 +33,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -233,9 +232,6 @@ private fun ProfileEditContent(
                     is ProfileLoadState.Success -> ProfileEditFields(
                         nickname = uiState.nickname,
                         introduction = uiState.introduction,
-                        // 카카오 로그인에서 이메일 동의 항목을 못 받고 있어 보여줄 값이 없다.
-                        // 권한이 풀리면 아래 인자와 ProfileEditFields 의 이메일 칸을 되살린다.
-                        // email = load.email,
                         onNicknameChange = onNicknameChange,
                         onIntroductionChange = onIntroductionChange,
                     )
@@ -372,7 +368,6 @@ private fun ProfileImageEditor(
 private fun ProfileEditFields(
     nickname: String,
     introduction: String,
-    // email: String,
     onNicknameChange: (String) -> Unit,
     onIntroductionChange: (String) -> Unit,
 ) {
@@ -403,36 +398,8 @@ private fun ProfileEditFields(
             )
         }
 
-        // 카카오 로그인이 이메일 동의 항목을 못 받아와 서버가 빈 값을 준다. 빈 칸만 덩그러니
-        // 보이느니 칸째로 숨긴다. 동의 항목이 풀리면 이 블록과 위의 email 인자를 되살린다.
-        // 이메일은 소셜 로그인이 정하는 값이라 되살릴 때도 읽기 전용이어야 하고,
-        // "소셜 연동" 배지는 안내일 뿐 누를 수 없다.
-        //
-        // ProfileField(
-        //     label = "이메일",
-        //     backgroundColor = MoaMapPrimitiveColors.Yellow50,
-        // ) {
-        //     Row(
-        //         modifier = Modifier.fillMaxWidth(),
-        //         verticalAlignment = Alignment.CenterVertically,
-        //     ) {
-        //         Text(
-        //             text = email,
-        //             style = MoaMapTheme.typography.body2,
-        //             color = MoaMapTheme.colors.textAlternative,
-        //             modifier = Modifier.weight(1f),
-        //         )
-        //         Text(
-        //             text = "소셜 연동",
-        //             style = MoaMapTheme.typography.caption2,
-        //             color = MoaMapPrimitiveColors.Blue700,
-        //             modifier = Modifier
-        //                 .clip(CircleShape)
-        //                 .background(MoaMapPrimitiveColors.Blue100)
-        //                 .padding(horizontal = 8.dp, vertical = 4.dp),
-        //         )
-        //     }
-        // }
+        // 이메일 칸은 두지 않는다. 카카오 로그인이 이메일 동의 항목을 못 받아와 서버가 빈 값을 준다.
+        // 동의 항목이 풀리면 읽기 전용 칸 + 「소셜 연동」 배지(#239 시안)로 되살린다.
     }
 }
 
@@ -480,7 +447,6 @@ private fun ProfileTextField(
 private fun ProfileField(
     label: String,
     optional: Boolean = false,
-    backgroundColor: Color = MoaMapPrimitiveColors.White,
     content: @Composable () -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(FieldTitleGap)) {
@@ -506,7 +472,6 @@ private fun ProfileField(
         MoaMapInputSurface(
             modifier = Modifier.fillMaxWidth(),
             shape = ProfileFieldShape,
-            color = backgroundColor,
         ) {
             Box(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                 content()

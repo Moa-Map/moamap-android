@@ -32,7 +32,6 @@ private fun testActivity(placeName: String) = MapActivity(
     actorImageUrl = null,
     placeId = 1L,
     placeName = placeName,
-    rating = null,
 )
 
 private class FakeMapActivityRepository(
