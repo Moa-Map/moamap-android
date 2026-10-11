@@ -1,6 +1,7 @@
 package com.moamap.app.feature.mapdetail
 
 import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.saveable.listSaver
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.domain.model.PlaceCategoryGroup
 import com.moamap.app.feature.mapdetail.domain.model.PlaceReview
@@ -49,6 +50,35 @@ internal fun MapDetailUiState.search(query: String): MapDetailUiState =
 
 internal fun MapDetailUiState.selectCategory(filter: PlaceCategoryFilter): MapDetailUiState =
     copy(selectedCategory = filter)
+
+/** 펼친 묶음의 placeId 를 한 칸에 담을 때 쓰는 구분자. */
+private const val ClusterIdSeparator = ","
+
+internal val MapDetailUiStateSaver = listSaver<MapDetailUiState, String>(
+    save = { state ->
+        listOf(
+            state.selectedTab.name,
+            state.selectedPlaceId?.toString().orEmpty(),
+            state.searchQuery,
+            state.selectedCategory.saveKey(),
+            state.expandedClusterPlaceIds.joinToString(ClusterIdSeparator),
+        )
+    },
+    restore = { values ->
+        MapDetailUiState(
+            selectedTab = values.getOrNull(0)?.let { savedTabName ->
+                MapDetailTab.entries.firstOrNull { tab -> tab.name == savedTabName }
+            } ?: MapDetailTab.Places,
+            selectedPlaceId = values.getOrNull(1)?.toLongOrNull(),
+            searchQuery = values.getOrNull(2).orEmpty(),
+            selectedCategory = placeCategoryFilterOf(values.getOrNull(3)),
+            expandedClusterPlaceIds = values.getOrNull(4)
+                ?.split(ClusterIdSeparator)
+                ?.mapNotNull { id -> id.toLongOrNull() }
+                .orEmpty(),
+        )
+    },
+)
 
 @Immutable
 internal data class PlaceUiModel(

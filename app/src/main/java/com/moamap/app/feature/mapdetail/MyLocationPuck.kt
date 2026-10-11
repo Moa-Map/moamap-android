@@ -1,6 +1,10 @@
 package com.moamap.app.feature.mapdetail
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import androidx.compose.runtime.Composable
+import androidx.core.content.ContextCompat
 import com.mapbox.geojson.Point
 import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.MapEffect
@@ -30,6 +34,16 @@ internal fun MyLocationPuck(enabled: Boolean) {
         }
     }
 }
+
+internal val LocationPermissions = arrayOf(
+    Manifest.permission.ACCESS_FINE_LOCATION,
+    Manifest.permission.ACCESS_COARSE_LOCATION,
+)
+
+internal fun hasLocationPermission(context: Context): Boolean =
+    LocationPermissions.any { permission ->
+        ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
+    }
 
 /** 「내 위치」 버튼 안내. 지도 상세와 화장실 지도가 같이 쓴다. */
 internal const val LOCATION_PERMISSION_DENIED_MESSAGE = "위치 권한이 없어 현재 위치를 찾을 수 없어요"
