@@ -1,8 +1,11 @@
 package com.moamap.app.core.common.gallery
 
 import android.content.Intent
+import android.graphics.Color
 import android.net.Uri
 import android.provider.Settings
+import android.view.Window
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -31,6 +34,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -42,6 +46,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -49,6 +54,10 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
 import coil3.compose.AsyncImage
 import com.moamap.app.R
 import com.moamap.app.core.common.upload.ALLOWED_IMAGE_CONTENT_TYPES
@@ -68,19 +77,70 @@ private val CellGap = 2.dp
 private val SelectionMarkSize = 20.dp
 
 /**
- * 앱 안 갤러리. 기기 사진을 격자로 보여주고 여러 장을 고른다 (시안 `2583:15163`).
+ * 앱 안 갤러리를 화면 전체를 덮는 창으로 띄운다. 사진을 고르는 모든 화면이 함께 쓴다
+ * (`rememberImagePickerController`).
+ *
+ * 창이라 장소 시트 안이나 팝업 메뉴에서 열어도 맨 위에 뜨고, 기기 뒤로가기는 창이 먼저 받는다.
+ * 창도 앱 화면처럼 상태 표시줄 뒤까지 그린다.
+ */
+@Composable
+internal fun GalleryPickerDialog(
+    title: String,
+    maxSelectable: Int,
+    onCameraClick: () -> Unit,
+    onConfirm: (List<Uri>) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val activityWindow = LocalActivity.current?.window
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false, decorFitsSystemWindows = false),
+    ) {
+        val dialogWindow = (LocalView.current.parent as? DialogWindowProvider)?.window
+        SideEffect { dialogWindow?.matchSystemBarsOf(activityWindow) }
+
+        GalleryPickerScreen(
+            title = title,
+            maxSelectable = maxSelectable,
+            onCameraClick = onCameraClick,
+            onConfirm = onConfirm,
+            onBackClick = onDismiss,
+        )
+    }
+}
+
+/**
+ * 상태 표시줄·내비게이션 바를 비워 창 바탕이 비치게 하고, 아이콘 색은 앱 화면과 같게 둔다.
+ * 그대로 두면 테마의 막대 색이 갤러리 위를 덮고, 아이콘이 바탕과 같은 색이 될 수 있다.
+ */
+@Suppress("DEPRECATION") // 안드로이드 15 미만은 막대 색을 직접 비워야 한다. 15 부터는 늘 투명이다.
+private fun Window.matchSystemBarsOf(activityWindow: Window?) {
+    statusBarColor = Color.TRANSPARENT
+    navigationBarColor = Color.TRANSPARENT
+    val source = activityWindow ?: return
+    val sourceBars = WindowCompat.getInsetsController(source, source.decorView)
+    WindowCompat.getInsetsController(this, decorView).apply {
+        isAppearanceLightStatusBars = sourceBars.isAppearanceLightStatusBars
+        isAppearanceLightNavigationBars = sourceBars.isAppearanceLightNavigationBars
+    }
+}
+
+/**
+ * 앱 안 갤러리. 기기 사진을 격자로 보여주고 여러 장을 고른다 (시안 `2583:15163`·`4323:26964`).
  *
  * 첫 칸은 카메라다. 시스템 사진 선택기와 달리 사진 접근 권한이 필요해, 권한이 없으면 목록 대신
  * 안내를 띄운다.
+ *
+ * @param title 맨 위 제목. 고르는 사진 이름이다(「새 게시물」·「지도 사진」 등, 10-11 사용자 결정).
  */
 @Composable
 internal fun GalleryPickerScreen(
+    title: String,
     maxSelectable: Int,
     onCameraClick: () -> Unit,
     onConfirm: (List<Uri>) -> Unit,
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
-    title: String = "새 게시물",
 ) {
     val context = LocalContext.current
     var granted by remember { mutableStateOf(hasGalleryAccess(context)) }
@@ -387,6 +447,7 @@ private fun android.content.Context.openAppSettings() {
 private fun GalleryPickerScreenPreview() {
     MoaMapTheme {
         GalleryPickerScreen(
+            title = "새 게시물",
             maxSelectable = 5,
             onCameraClick = {},
             onConfirm = {},

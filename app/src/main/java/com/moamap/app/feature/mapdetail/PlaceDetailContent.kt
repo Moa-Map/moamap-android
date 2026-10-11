@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.dp
 import com.moamap.app.R
 import com.moamap.app.core.common.imagepicker.rememberImagePickerController
 import com.moamap.app.core.common.imagepicker.rememberImagePickerState
-import com.moamap.app.core.common.upload.ALLOWED_IMAGE_CONTENT_TYPES
 import com.moamap.app.core.designsystem.component.ImageSourceMenu
 import com.moamap.app.core.designsystem.component.MoaMapBackButton
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
@@ -114,8 +113,7 @@ internal fun PlaceDetailContent(
         state = pickerState,
         cacheDirectoryName = PLACE_PHOTO_CACHE_DIRECTORY,
         fileNamePrefix = "review",
-        // 서버가 받지 않는 형식은 갤러리에서부터 보이지 않게 한다.
-        mimeTypes = ALLOWED_IMAGE_CONTENT_TYPES.toTypedArray(),
+        galleryTitle = "댓글 사진",
         onImageSelected = { uri -> reviewPhoto = uri },
     )
     // 사진 고르기 메뉴는 이 화면을 흐려 바탕으로 깔고, 댓글 입력칸 바로 위에 붙는다(시안).

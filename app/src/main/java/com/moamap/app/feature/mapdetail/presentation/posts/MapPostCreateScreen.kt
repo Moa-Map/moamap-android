@@ -45,10 +45,8 @@ import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.R
 import androidx.activity.compose.BackHandler
-import com.moamap.app.core.common.gallery.GalleryPickerScreen
 import com.moamap.app.core.common.imagepicker.rememberImagePickerController
 import com.moamap.app.core.common.imagepicker.rememberImagePickerState
-import com.moamap.app.core.common.upload.ALLOWED_IMAGE_CONTENT_TYPES
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -71,8 +69,8 @@ private val ContentTextMinHeight = 56.dp
  * 지도 상세 위에 겹쳐 그린다. 태그할 장소는 지도 상세가 이미 불러온 목록([places])에서 고르고,
  * 올리고 나면 뒤의 로그 탭이 목록을 다시 읽어야 해서 같은 화면 안에 있는 편이 간단하다.
  *
- * 사진은 시안대로 앱 안 갤러리([GalleryPickerScreen])에서 고른다. 이 화면 위에 한 장 더 덮고,
- * 고른 사진을 받아 돌아온다. 촬영은 갤러리 첫 칸에서 이어 간다.
+ * 사진은 시안대로 카메라·갤러리 메뉴 없이 바로 앱 안 갤러리에서 고른다(다른 화면과 같은
+ * `rememberImagePickerController` 의 갤러리). 촬영은 갤러리 첫 칸에서 이어 간다.
  */
 @Composable
 internal fun MapPostCreateScreen(
@@ -93,12 +91,12 @@ internal fun MapPostCreateScreen(
         state = pickerState,
         cacheDirectoryName = POST_PHOTO_CACHE_DIRECTORY,
         fileNamePrefix = "post",
-        // 서버가 받지 않는 형식은 갤러리에서부터 보이지 않게 한다.
-        mimeTypes = ALLOWED_IMAGE_CONTENT_TYPES.toTypedArray(),
+        galleryTitle = "새 게시물",
+        // 남은 자리만큼만 고르게 한다. 한 장을 채우면 더 고를 수 없다.
+        maxSelectable = MAX_POST_PHOTOS - state.photos.size,
         onImageSelected = onAddPhoto,
     )
     var placeSheetVisible by rememberSaveable { mutableStateOf(false) }
-    var galleryVisible by rememberSaveable { mutableStateOf(false) }
 
     Box(
         modifier = modifier
@@ -124,7 +122,7 @@ internal fun MapPostCreateScreen(
                     photos = state.photos,
                     // 올리는 중에는 목록을 바꾸지 못하게 한다. 올린 주소와 목록이 어긋난다.
                     canAddPhoto = state.canAddPhoto && !state.submitting,
-                    onAddPhotoClick = { if (!state.submitting) galleryVisible = true },
+                    onAddPhotoClick = { if (!state.submitting) pickerController.requestGallery() },
                     onRemovePhoto = { uri -> if (!state.submitting) onRemovePhoto(uri) },
                 )
 
@@ -161,22 +159,6 @@ internal fun MapPostCreateScreen(
             }
         }
 
-        if (galleryVisible) {
-            GalleryPickerScreen(
-                // 남은 자리만큼만 고르게 한다. 한 장을 채우면 더 고를 수 없다.
-                maxSelectable = MAX_POST_PHOTOS - state.photos.size,
-                onCameraClick = {
-                    galleryVisible = false
-                    pickerController.requestCamera()
-                },
-                onConfirm = { photos ->
-                    galleryVisible = false
-                    photos.forEach(onAddPhoto)
-                },
-                onBackClick = { galleryVisible = false },
-            )
-        }
-
         if (placeSheetVisible) {
             PlacePickerScreen(
                 // 이미 고른 장소는 목록에서 뺀다. 같은 장소를 두 번 태그하면 서버가 거절한다.
@@ -190,7 +172,6 @@ internal fun MapPostCreateScreen(
         }
     }
 
-    BackHandler(enabled = galleryVisible) { galleryVisible = false }
     BackHandler(enabled = placeSheetVisible) { placeSheetVisible = false }
 }
 

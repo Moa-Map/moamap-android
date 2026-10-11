@@ -82,6 +82,9 @@ internal fun AddPlaceScreen(
         state = pickerState,
         cacheDirectoryName = PLACE_PHOTO_CACHE_DIRECTORY,
         fileNamePrefix = "place",
+        galleryTitle = "장소 사진",
+        // 남은 장수만큼 한 번에 고른다(10-11 사용자 결정).
+        maxSelectable = MAX_PLACE_PHOTOS - uiState.photos.size,
         onImageSelected = viewModel::addPhoto,
     )
     // 사진 고르기 메뉴가 떠 있으면 기기 뒤로가기는 메뉴부터 닫는다. 그냥 두면 검색으로
