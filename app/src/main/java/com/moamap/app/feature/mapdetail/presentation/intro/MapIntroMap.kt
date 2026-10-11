@@ -14,6 +14,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import com.moamap.app.feature.mapdetail.InitialCamera
 import com.moamap.app.feature.mapdetail.MapDetailCenter
+import com.moamap.app.feature.mapdetail.KoreaCameraBounds
 import com.moamap.app.feature.mapdetail.MyLocationPuck
 import com.moamap.app.feature.mapdetail.PlaceMarkerAnnotations
 import com.moamap.app.feature.mapdetail.hasLocationPermission
@@ -124,6 +125,7 @@ internal fun MapIntroMap(
             scaleBar = {},
             style = { MapboxStandardStyle(standardStyleState = standardStyleState) },
         ) {
+            KoreaCameraBounds()
             // 이 화면은 권한을 묻지 않는다. 이미 허용돼 있을 때만 내 위치가 보인다.
             MyLocationPuck(enabled = hasLocationPermission(LocalContext.current))
             PlaceMarkerAnnotations(

@@ -109,6 +109,7 @@ internal fun MapDetailMap(
                 MapboxStandardStyle(standardStyleState = standardStyleState)
             },
         ) {
+            KoreaCameraBounds()
             MyLocationPuck(enabled = showsMyLocation)
             PlaceMarkerAnnotations(
                 clusters = clusters,

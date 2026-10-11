@@ -33,6 +33,7 @@ import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.mapdetail.LocationPermissions
 import com.moamap.app.feature.mapdetail.MyLocationButton
+import com.moamap.app.feature.mapdetail.KoreaCameraBounds
 import com.moamap.app.feature.mapdetail.MyLocationPuck
 import com.moamap.app.feature.mapdetail.ViewportBounds
 import com.moamap.app.feature.mapdetail.currentLocation
@@ -307,6 +308,7 @@ private fun RestroomMarkersMap(
         scaleBar = {},
         style = { MapboxStandardStyle(standardStyleState = standardStyleState) },
     ) {
+        KoreaCameraBounds()
         MyLocationPuck(enabled = showsMyLocation)
         MapEffect(Unit) { mapView ->
             val map = mapView.mapboxMap

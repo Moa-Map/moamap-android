@@ -42,6 +42,7 @@ import com.mapbox.maps.viewannotation.viewAnnotationOptions
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.MoaMapSheetGrabber
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.feature.mapdetail.KoreaCameraBounds
 import com.moamap.app.feature.mapdetail.PlaceFocusZoom
 import com.moamap.app.feature.mapdetail.PlaceMarker
 import com.moamap.app.feature.mapdetail.PlacePhotoMarker
@@ -122,6 +123,7 @@ internal fun PlaceLocationContent(
             scaleBar = {},
             style = { MapboxStandardStyle(standardStyleState = styleState) },
         ) {
+            KoreaCameraBounds()
             ViewAnnotation(
                 options = viewAnnotationOptions {
                     geometry(point)
