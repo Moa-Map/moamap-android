@@ -140,6 +140,7 @@ private fun ProfileEditContent(
         state = pickerState,
         cacheDirectoryName = ProfileImageCacheDirectory,
         fileNamePrefix = ProfileImageFilePrefix,
+        galleryTitle = "프로필 사진",
         onImageSelected = { uri -> onImageSelected(uri.toString()) },
     )
     val serverImageUrl = (uiState.load as? ProfileLoadState.Success)?.profileImageUrl

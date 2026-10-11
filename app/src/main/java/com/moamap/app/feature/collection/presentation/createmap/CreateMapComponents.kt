@@ -28,7 +28,6 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import com.moamap.app.core.common.imagepicker.rememberImagePickerController
 import com.moamap.app.core.common.imagepicker.rememberImagePickerState
-import com.moamap.app.core.common.upload.ALLOWED_IMAGE_CONTENT_TYPES
 import com.moamap.app.core.designsystem.component.ImageSourceMenu
 import com.moamap.app.core.designsystem.component.MapFormSectionTitle
 import com.moamap.app.core.designsystem.component.MapPhotoField
@@ -45,14 +44,6 @@ private val VisibilityCardHeight = 113.dp
 /** 촬영본이 쌓이는 캐시 위치. `res/xml/profile_image_paths.xml` 의 `cache-path` 와 맞춰야 한다. */
 private const val MapImageCacheDirectory = "map_images"
 private const val MapImageFilePrefix = "map"
-
-/**
- * 갤러리에 보일 형식.
- *
- * 발급 전에 거르는 형식과 같은 값을 써야 한다. 고르고 나서 거절당하지 않도록 선택기에서
- * 미리 좁히는 것뿐이라, 목록을 따로 두면 서버 계약이 바뀔 때 조용히 어긋난다.
- */
-private val CoverImageMimeTypes = ALLOWED_IMAGE_CONTENT_TYPES.toTypedArray()
 
 /**
  * 지도 사진 칸 + 누르면 뜨는 카메라·갤러리 메뉴. 새 지도 만들기와 지도 정보 수정이 함께 쓴다.
@@ -75,7 +66,7 @@ internal fun MapCoverPickerField(
         state = pickerState,
         cacheDirectoryName = MapImageCacheDirectory,
         fileNamePrefix = MapImageFilePrefix,
-        mimeTypes = CoverImageMimeTypes,
+        galleryTitle = "지도 사진",
         onImageSelected = { uri -> onPhotoSelected(uri.toString()) },
     )
 
