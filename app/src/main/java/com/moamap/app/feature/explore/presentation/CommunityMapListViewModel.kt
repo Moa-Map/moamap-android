@@ -279,14 +279,11 @@ class CommunityMapListViewModel @Inject constructor(
 }
 
 /** 지도들에 달린 태그를 많이 쓰인 순으로. 같은 수면 먼저 나온 태그가 앞이다. */
-internal fun tagsByFrequency(
-    maps: List<CommunityMap>,
-    limit: Int = MAX_TAG_CHIPS,
-): List<String> = maps
+internal fun tagsByFrequency(maps: List<CommunityMap>): List<String> = maps
     .flatMap { map -> map.hashtags }
     .groupingBy { tag -> tag }
     .eachCount()
     .entries
     .sortedByDescending { entry -> entry.value }
-    .take(limit)
+    .take(MAX_TAG_CHIPS)
     .map { entry -> entry.key }

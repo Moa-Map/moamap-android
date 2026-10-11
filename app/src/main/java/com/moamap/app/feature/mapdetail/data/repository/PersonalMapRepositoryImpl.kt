@@ -1,6 +1,7 @@
 package com.moamap.app.feature.mapdetail.data.repository
 
 import com.moamap.app.feature.collection.data.remote.MapService
+import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.explore.data.remote.PlaceCreateRequestDto
 import com.moamap.app.feature.explore.data.remote.PlaceDto
 import com.moamap.app.feature.explore.data.remote.PlaceService
@@ -8,9 +9,6 @@ import com.moamap.app.feature.mapdetail.domain.repository.PersonalMapNotFoundExc
 import com.moamap.app.feature.mapdetail.domain.repository.PersonalMapRepository
 import javax.inject.Inject
 import javax.inject.Singleton
-
-/** 나만의 지도는 프라이빗 목록에 섞여 내려온다. `personal` 로만 가릴 수 있다. */
-private const val PRIVATE_MAP_TYPE = "PRIVATE"
 
 private const val MY_MAP_PAGE_SIZE = 50
 
@@ -41,7 +39,8 @@ class PersonalMapRepositoryImpl @Inject constructor(
     private suspend fun findPersonalMapId(): Long? {
         for (page in 0 until MAX_MY_MAP_PAGES) {
             val response = mapService.getMyMaps(
-                type = PRIVATE_MAP_TYPE,
+                // 나만의 지도는 프라이빗 목록에 섞여 내려온다. `personal` 로만 가릴 수 있다.
+                type = MapType.Private.requestValue,
                 page = page,
                 size = MY_MAP_PAGE_SIZE,
             )

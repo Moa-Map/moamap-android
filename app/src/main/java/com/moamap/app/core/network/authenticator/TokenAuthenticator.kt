@@ -86,15 +86,8 @@ class TokenAuthenticator @Inject constructor(
     }
 
     /** 이 응답이 몇 번째 시도인지. priorResponse 체인을 거슬러 센다. */
-    private fun responseCount(response: Response): Int {
-        var count = 1
-        var prior = response.priorResponse
-        while (prior != null) {
-            count++
-            prior = prior.priorResponse
-        }
-        return count
-    }
+    private fun responseCount(response: Response): Int =
+        generateSequence(response) { it.priorResponse }.count()
 
     private companion object {
         /** 최초 요청 1회 + 갱신 후 재시도 1회. */

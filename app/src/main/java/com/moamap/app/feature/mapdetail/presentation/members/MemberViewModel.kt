@@ -6,9 +6,9 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.auth.CurrentUserStore
-import com.moamap.app.core.navigation.MoaMapRoute
+import com.moamap.app.core.navigation.requireMapId
 import com.moamap.app.feature.mapdetail.domain.repository.MapMemberRepository
-import com.moamap.app.feature.mapdetail.presentation.toUserMessage
+import com.moamap.app.core.common.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -58,9 +58,7 @@ internal class MemberViewModel @Inject constructor(
     private val currentUserStore: CurrentUserStore,
 ) : ViewModel() {
 
-    private val mapId: Long = checkNotNull(savedStateHandle[MoaMapRoute.MapDetail.ARG_MAP_ID]) {
-        "지도 상세는 ${MoaMapRoute.MapDetail.ARG_MAP_ID} 없이 열 수 없다"
-    }
+    private val mapId: Long = savedStateHandle.requireMapId()
 
     private val _uiState = MutableStateFlow(MemberUiState())
     val uiState: StateFlow<MemberUiState> = _uiState.asStateFlow()

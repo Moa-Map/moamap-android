@@ -1,5 +1,6 @@
 package com.moamap.app.feature.collection.data.remote
 
+import com.moamap.app.core.common.upload.IssuedUploadUrl
 import kotlinx.serialization.Serializable
 
 /** POST api/v1/maps 요청 */
@@ -42,11 +43,11 @@ data class CoverUploadUrlRequestDto(
 data class CoverUploadUrlDto(
     // 기본값을 두지 않는다. 빈 주소가 흘러들어가면 업로드 직전에 알 수 없는 예외로 터진다.
     // 없는 채로 오면 역직렬화 단계에서 바로 걸리는 편이 낫다.
-    val uploadUrl: String,
-    val fileUrl: String,
+    override val uploadUrl: String,
+    override val fileUrl: String,
     val objectKey: String? = null,
     val expiresInSeconds: Long = 0,
-)
+) : IssuedUploadUrl
 
 /** POST api/v1/maps/join 요청 */
 @Serializable

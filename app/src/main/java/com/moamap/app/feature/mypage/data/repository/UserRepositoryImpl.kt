@@ -1,8 +1,8 @@
 package com.moamap.app.feature.mypage.data.repository
 
-import android.net.Uri
+import androidx.core.net.toUri
 import com.moamap.app.core.common.upload.PhotoUploader
-import com.moamap.app.core.common.upload.validateImageUpload
+import com.moamap.app.core.common.upload.uploadOne
 import com.moamap.app.feature.mypage.data.remote.ProfileUploadUrlRequestDto
 import com.moamap.app.feature.mypage.data.remote.UpdateMyPageRequestDto
 import com.moamap.app.feature.mypage.data.remote.UserService
@@ -20,25 +20,10 @@ internal class UserRepositoryImpl @Inject constructor(
 
     override suspend fun getMyProfile(): MyProfile = userService.getMyPage().toMyProfile()
 
-    /**
-     * 살펴보기 → 검증 → 발급 → 업로드 순으로 간다.
-     *
-     * 내용은 살펴볼 때 읽지 않는다. 올리는 순간 URI 에서 곧바로 흘려보낸다.
-     */
-    override suspend fun uploadProfileImage(imageUri: String): String {
-        val photo = uploader.inspect(Uri.parse(imageUri))
-        validateImageUpload(contentType = photo.contentType, fileSize = photo.size)
-
-        val issued = userService.createProfileUploadUrl(
-            ProfileUploadUrlRequestDto(contentType = photo.contentType, fileSize = photo.size),
-        )
-        require(issued.uploadUrl.isNotBlank() && issued.fileUrl.isNotBlank()) {
-            "프로필 이미지 업로드 주소가 비어 있습니다"
+    override suspend fun uploadProfileImage(imageUri: String): String =
+        uploader.uploadOne(imageUri.toUri()) { contentType, fileSize ->
+            userService.createProfileUploadUrl(ProfileUploadUrlRequestDto(contentType = contentType, fileSize = fileSize))
         }
-
-        uploader.upload(uploadUrl = issued.uploadUrl, photo = photo)
-        return issued.fileUrl
-    }
 
     // 나머지 필드는 기본값 null 이라 직렬화에서 빠진다. 부분 수정이므로 서버가 건드리지 않는다.
     override suspend fun updateMyProfile(

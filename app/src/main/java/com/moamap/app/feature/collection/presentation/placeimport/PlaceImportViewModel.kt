@@ -5,6 +5,8 @@ import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moamap.app.core.common.NETWORK_ERROR_MESSAGE
+import com.moamap.app.core.common.toggle
 import com.moamap.app.core.common.upload.ImageUploadException
 import com.moamap.app.core.navigation.MoaMapRoute
 import com.moamap.app.core.network.ApiException
@@ -33,7 +35,6 @@ private const val TAG = "PlaceImportViewModel"
 private const val DEFAULT_EXTRACTION_ERROR = "장소를 가져오지 못했어요"
 private const val MAPS_LOAD_FAILED_MESSAGE = "지도 목록을 불러오지 못했어요"
 private const val DEFAULT_SAVE_ERROR = "장소를 저장하지 못했어요"
-private const val NETWORK_ERROR_MESSAGE = "네트워크에 연결할 수 없어요"
 
 /**
  * 장소 가져오기 4단계가 공유하는 ViewModel.
@@ -191,12 +192,7 @@ internal class PlaceImportViewModel @Inject constructor(
                 return@update state
             }
 
-            val selected = if (placeId in state.selectedPlaceIds) {
-                state.selectedPlaceIds - placeId
-            } else {
-                state.selectedPlaceIds + placeId
-            }
-            state.copy(selectedPlaceIds = selected)
+            state.copy(selectedPlaceIds = state.selectedPlaceIds.toggle(placeId))
         }
     }
 
@@ -324,12 +320,7 @@ internal class PlaceImportViewModel @Inject constructor(
     /** 한 장소를 여러 지도에 넣을 수 있으므로 지도는 토글이다. */
     fun toggleMap(mapId: Long) {
         _uiState.update { state ->
-            val selected = if (mapId in state.selectedMapIds) {
-                state.selectedMapIds - mapId
-            } else {
-                state.selectedMapIds + mapId
-            }
-            state.copy(selectedMapIds = selected)
+            state.copy(selectedMapIds = state.selectedMapIds.toggle(mapId))
         }
     }
 }

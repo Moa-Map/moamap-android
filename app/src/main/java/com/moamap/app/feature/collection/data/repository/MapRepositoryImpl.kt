@@ -1,8 +1,8 @@
 package com.moamap.app.feature.collection.data.repository
 
-import android.net.Uri
+import androidx.core.net.toUri
 import com.moamap.app.core.common.upload.PhotoUploader
-import com.moamap.app.core.common.upload.validateImageUpload
+import com.moamap.app.core.common.upload.uploadOne
 import com.moamap.app.feature.collection.data.remote.CoverUploadUrlRequestDto
 import com.moamap.app.feature.collection.data.remote.JoinByInviteCodeRequestDto
 import com.moamap.app.feature.collection.data.remote.MapOrderUpdateRequestDto
@@ -33,25 +33,10 @@ internal class MapRepositoryImpl @Inject constructor(
     override suspend fun updateMyMapOrder(type: MapType, mapIds: List<Long>) =
         mapService.updateMyMapOrder(MapOrderUpdateRequestDto(type = type.requestValue, mapIds = mapIds))
 
-    /**
-     * 살펴보기 → 검증 → 발급 → 업로드 순으로 간다.
-     *
-     * 내용은 살펴볼 때 읽지 않는다. 올리는 순간 URI 에서 곧바로 흘려보낸다.
-     */
-    override suspend fun uploadCoverImage(imageUri: String): String {
-        val photo = uploader.inspect(Uri.parse(imageUri))
-        validateImageUpload(contentType = photo.contentType, fileSize = photo.size)
-
-        val issued = mapService.createCoverUploadUrl(
-            CoverUploadUrlRequestDto(contentType = photo.contentType, fileSize = photo.size),
-        )
-        require(issued.uploadUrl.isNotBlank() && issued.fileUrl.isNotBlank()) {
-            "커버 이미지 업로드 주소가 비어 있습니다"
+    override suspend fun uploadCoverImage(imageUri: String): String =
+        uploader.uploadOne(imageUri.toUri()) { contentType, fileSize ->
+            mapService.createCoverUploadUrl(CoverUploadUrlRequestDto(contentType = contentType, fileSize = fileSize))
         }
-
-        uploader.upload(uploadUrl = issued.uploadUrl, photo = photo)
-        return issued.fileUrl
-    }
 
     override suspend fun createMap(newMap: NewMap): CreatedMap =
         mapService.createMap(newMap.toCreateRequest()).toCreatedMap()

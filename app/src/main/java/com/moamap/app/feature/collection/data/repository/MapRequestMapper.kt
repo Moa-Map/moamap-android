@@ -1,5 +1,6 @@
 package com.moamap.app.feature.collection.data.repository
 
+import com.moamap.app.core.common.trimToNull
 import com.moamap.app.feature.collection.data.remote.MapCreateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapDetailDto
 import com.moamap.app.feature.collection.data.remote.MapUpdateRequestDto
@@ -14,8 +15,8 @@ import com.moamap.app.feature.collection.domain.model.NewMap
  */
 fun NewMap.toCreateRequest() = MapCreateRequestDto(
     name = name.trim(),
-    description = description.normalized(),
-    imageUrl = imageUrl.normalized(),
+    description = description.trimToNull(),
+    imageUrl = imageUrl.trimToNull(),
     visibility = visibility.toRequestValue(),
     tags = tags.normalized(),
 )
@@ -33,8 +34,8 @@ fun mapUpdateRequest(
     tags: List<String>,
 ) = MapUpdateRequestDto(
     name = name.trim(),
-    description = description.normalized(),
-    imageUrl = imageUrl.normalized(),
+    description = description.trimToNull(),
+    imageUrl = imageUrl.trimToNull(),
     tags = tags,
 )
 
@@ -54,7 +55,6 @@ private fun MapVisibility.toRequestValue(): String = when (this) {
 }
 
 /** 공백뿐인 값은 안 쓴 것과 같다. 빈 문자열이 그대로 저장되지 않게 접는다. */
-private fun String?.normalized(): String? = this?.trim()?.takeIf { it.isNotEmpty() }
 
 /** 빈 목록과 "태그 없음" 을 서버가 다르게 저장하지 않도록 아예 보내지 않는다. */
 private fun List<String>.normalized(): List<String>? = takeIf { it.isNotEmpty() }

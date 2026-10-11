@@ -12,10 +12,6 @@ private const val UNTITLED_MAP = "이름 없는 지도"
 
 private const val UNTITLED_PLACE = "이름 없는 장소"
 
-private const val PRIVATE_TYPE = "PRIVATE"
-
-private const val OFFICIAL_TYPE = "OFFICIAL"
-
 /**
  * 지도 상세 응답을 도메인으로 옮긴다.
  *
@@ -28,11 +24,7 @@ fun MapDetailDto.toMapDetail(ownerName: String?): MapDetail = MapDetail(
     description = description?.takeIf { it.isNotBlank() },
     imageUrl = imageUrl?.takeIf { it.isNotBlank() },
     ownerName = ownerName?.takeIf { it.isNotBlank() },
-    type = when (type) {
-        PRIVATE_TYPE -> MapType.Private
-        OFFICIAL_TYPE -> MapType.Official
-        else -> MapType.Community
-    },
+    type = MapType.entries.firstOrNull { mapType -> mapType.requestValue == type } ?: MapType.Community,
     role = MapRole.from(myRole),
     tags = tags.filter { tag -> tag.isNotBlank() },
     memberCount = memberCount,

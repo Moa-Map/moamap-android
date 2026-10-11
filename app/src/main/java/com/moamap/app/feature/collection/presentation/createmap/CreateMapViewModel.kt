@@ -4,11 +4,12 @@ import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.moamap.app.core.common.upload.ImageUploadException
-import com.moamap.app.core.network.ConnectionException
+import com.moamap.app.core.common.toUploadMessage
+import com.moamap.app.core.common.toUserMessage
 import com.moamap.app.feature.collection.domain.model.MapVisibility
 import com.moamap.app.feature.collection.domain.model.NewMap
 import com.moamap.app.feature.collection.domain.repository.MapRepository
+import com.moamap.app.feature.mapdetail.presentation.addplace.applyTagInput
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,11 +20,6 @@ import javax.inject.Inject
 
 private const val TAG = "CreateMapViewModel"
 private const val CREATE_FAILED_MESSAGE = "지도를 만들지 못했어요"
-private const val COVER_UPLOAD_FAILED_MESSAGE = "사진을 올리지 못했어요"
-private const val NETWORK_ERROR_MESSAGE = "네트워크에 연결할 수 없어요"
-
-/** 태그를 확정하는 구분자. 플레이스홀더가 안내하는 "스페이스 또는 엔터" 와 같다. */
-private val TAG_SEPARATORS = charArrayOf(' ', '\n')
 
 /**
  * 새 지도 만들기 화면 ViewModel.
@@ -66,26 +62,13 @@ internal class CreateMapViewModel @Inject constructor(
     }
 
     /**
-     * 태그 입력값 변경.
-     *
-     * 구분자가 섞여 들어오면 그 앞까지는 태그로 확정하고 나머지만 입력값으로 남긴다.
-     * 붙여넣기로 여러 개가 한 번에 들어오는 경우도 같은 규칙으로 처리된다.
+     * 태그 입력값 변경. 플레이스홀더가 안내하는 대로 스페이스나 엔터가 들어오면 그 앞까지를 태그로
+     * 확정한다(장소 추가와 같은 [applyTagInput]). 붙여넣기로 여러 개가 한 번에 들어와도 같다.
      */
     fun updateTagInput(input: String) {
-        if (input.none { char -> char in TAG_SEPARATORS }) {
-            updateState { state -> state.copy(tagInput = input.take(TAG_MAX_LENGTH)) }
-            return
-        }
-
-        val tokens = input.split(*TAG_SEPARATORS)
-        // 마지막 토큰은 구분자 뒤에 남은 값이라 아직 확정된 것이 아니다.
-        val pending = tokens.last()
-
         updateState { state ->
-            state.copy(
-                tags = state.tags.plusTags(tokens.dropLast(1)),
-                tagInput = pending.take(TAG_MAX_LENGTH),
-            )
+            val result = applyTagInput(state.tags, input)
+            state.copy(tags = result.tags, tagInput = result.input.take(TAG_MAX_LENGTH))
         }
     }
 
@@ -143,7 +126,7 @@ internal class CreateMapViewModel @Inject constructor(
                 updateState { state ->
                     state.copy(
                         submit = SubmitState.Idle,
-                        errorMessage = throwable.toCoverMessage(),
+                        errorMessage = throwable.toUploadMessage(),
                     )
                 }
                 return@launch
@@ -164,7 +147,7 @@ internal class CreateMapViewModel @Inject constructor(
                 updateState { state ->
                     state.copy(
                         submit = SubmitState.Idle,
-                        errorMessage = throwable.toUserMessage(),
+                        errorMessage = throwable.toUserMessage(CREATE_FAILED_MESSAGE),
                     )
                 }
             }
@@ -276,21 +259,3 @@ internal fun List<String>.plusTags(candidates: List<String>): List<String> {
     return (this + added).distinct()
 }
 
-private fun Throwable.toUserMessage(): String = when (this) {
-    // 서버 메시지는 "[500] COMMON_005: ..." 처럼 사용자에게 보여줄 형태가 아니다.
-    is ConnectionException -> NETWORK_ERROR_MESSAGE
-    else -> CREATE_FAILED_MESSAGE
-}
-
-/**
- * 업로드 실패는 생성 실패와 다르게 안내한다.
- *
- * 둘 다 "지도를 만들지 못했어요" 로 뭉개면 사용자가 할 조치를 알 수 없다 - 사진을 바꿔야 하는
- * 경우와 그냥 다시 눌러야 하는 경우가 다르다.
- */
-internal fun Throwable.toCoverMessage(): String = when (this) {
-    // 무엇이 문제인지는 예외가 이미 문구로 들고 있다.
-    is ImageUploadException -> message ?: COVER_UPLOAD_FAILED_MESSAGE
-    is ConnectionException -> NETWORK_ERROR_MESSAGE
-    else -> COVER_UPLOAD_FAILED_MESSAGE
-}

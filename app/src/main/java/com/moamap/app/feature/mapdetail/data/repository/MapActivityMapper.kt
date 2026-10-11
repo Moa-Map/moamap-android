@@ -1,5 +1,6 @@
 package com.moamap.app.feature.mapdetail.data.repository
 
+import com.moamap.app.core.common.trimToNull
 import com.moamap.app.feature.explore.data.remote.PlaceActivityDto
 import com.moamap.app.feature.mapdetail.domain.model.MapActivity
 import com.moamap.app.feature.mapdetail.domain.model.MapActivityType
@@ -28,9 +29,9 @@ fun PlaceActivityDto.toMapActivity(): MapActivity? {
         occurredAtMillis = parseServerDateTime(occurredAt),
         // 서버는 이름을 못 찾으면 "알 수 없음" 을 넣어 보낸다. 그 문구까지 여기서 정하지
         // 않고 비워 둔 것과 같이 취급한다 - 표시 문구는 화면이 정한다.
-        actorName = actorNickname?.trim()?.takeIf { name -> name.isNotBlank() },
-        actorImageUrl = actorProfileImageUrl?.trim()?.takeIf { url -> url.isNotBlank() },
+        actorName = actorNickname.trimToNull(),
+        actorImageUrl = actorProfileImageUrl.trimToNull(),
         placeId = placeId,
-        placeName = placeName?.trim()?.takeIf { name -> name.isNotBlank() },
+        placeName = placeName.trimToNull(),
     )
 }

@@ -4,7 +4,7 @@ import com.moamap.app.core.network.ApiException
 import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.mapdetail.domain.repository.PersonalMapNotFoundException
 import com.moamap.app.feature.mapdetail.domain.repository.PersonalMapRepository
-import com.moamap.app.feature.mapdetail.presentation.NETWORK_ERROR_MESSAGE
+import com.moamap.app.core.common.NETWORK_ERROR_MESSAGE
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay

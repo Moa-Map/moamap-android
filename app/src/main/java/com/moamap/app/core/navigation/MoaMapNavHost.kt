@@ -17,6 +17,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavBackStackEntry
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -273,36 +274,20 @@ internal fun MoaMapNavHost(
             }
             composable(
                 route = MoaMapRoute.DensityMapDetail.route,
-                arguments = listOf(
-                    navArgument(MoaMapRoute.MapDetail.ARG_MAP_ID) { type = NavType.LongType },
-                    navArgument(MoaMapRoute.MapDetail.ARG_MAP_TITLE) {
-                        type = NavType.StringType
-                        defaultValue = ""
-                    },
-                ),
+                arguments = MapScreenArguments,
             ) { backStackEntry ->
                 DensityMapDetailScreen(
                     onBackClick = navController::popBackStack,
-                    initialTitle = backStackEntry.arguments
-                        ?.getString(MoaMapRoute.MapDetail.ARG_MAP_TITLE)
-                        .orEmpty(),
+                    initialTitle = backStackEntry.mapTitleArgument(),
                 )
             }
             composable(
                 route = MoaMapRoute.RestroomMapDetail.route,
-                arguments = listOf(
-                    navArgument(MoaMapRoute.MapDetail.ARG_MAP_ID) { type = NavType.LongType },
-                    navArgument(MoaMapRoute.MapDetail.ARG_MAP_TITLE) {
-                        type = NavType.StringType
-                        defaultValue = ""
-                    },
-                ),
+                arguments = MapScreenArguments,
             ) { backStackEntry ->
                 RestroomMapScreen(
                     onBackClick = navController::popBackStack,
-                    initialTitle = backStackEntry.arguments
-                        ?.getString(MoaMapRoute.MapDetail.ARG_MAP_TITLE)
-                        .orEmpty(),
+                    initialTitle = backStackEntry.mapTitleArgument(),
                 )
             }
             composable(
@@ -330,13 +315,7 @@ internal fun MoaMapNavHost(
             }
             composable(
                 route = MoaMapRoute.MapDetail.route,
-                arguments = listOf(
-                    navArgument(MoaMapRoute.MapDetail.ARG_MAP_ID) { type = NavType.LongType },
-                    navArgument(MoaMapRoute.MapDetail.ARG_MAP_TITLE) {
-                        type = NavType.StringType
-                        defaultValue = ""
-                    },
-                ),
+                arguments = MapScreenArguments,
             ) { backStackEntry ->
                 MapDetailScreen(
                     // 미리보기를 거쳐 들어와 참여했으면 소개 화면은 볼 일이 없다. 함께 지워
@@ -347,9 +326,7 @@ internal fun MoaMapNavHost(
                             navController.popBackStack(MoaMapRoute.MapIntro.route, inclusive = true)
                         if (!skippedIntro) navController.popBackStack()
                     },
-                    initialTitle = backStackEntry.arguments
-                        ?.getString(MoaMapRoute.MapDetail.ARG_MAP_TITLE)
-                        .orEmpty(),
+                    initialTitle = backStackEntry.mapTitleArgument(),
                 )
             }
             composable(MoaMapRoute.ProfileEdit.route) {
@@ -400,6 +377,21 @@ internal fun MoaMapNavHost(
         }
     }
 }
+
+/**
+ * 지도 화면 경로(지도 상세·유동인구·화장실)의 인자. 셋 다 [MoaMapRoute.MapDetail] 의 이름을 쓴다.
+ */
+private val MapScreenArguments = listOf(
+    navArgument(MoaMapRoute.MapDetail.ARG_MAP_ID) { type = NavType.LongType },
+    navArgument(MoaMapRoute.MapDetail.ARG_MAP_TITLE) {
+        type = NavType.StringType
+        defaultValue = ""
+    },
+)
+
+/** 서버 응답이 오기 전까지 상단 바를 채울 지도 이름. 없으면 빈 문자열. */
+private fun NavBackStackEntry.mapTitleArgument(): String =
+    arguments?.getString(MoaMapRoute.MapDetail.ARG_MAP_TITLE).orEmpty()
 
 /**
  * 아직 로그인을 마치지 않은 화면. 세션 만료로 로그인 화면에 보내지 않고, 공유 링크도 처리하지 않는다 -

@@ -234,7 +234,7 @@ fun MapDetailScreen(
         // 허용됐을 때 이어 가는 일은 아래 LaunchedEffect 가 맡는다 - 카메라를 옮기려면
         // 코루틴이 필요한데 이 콜백은 코루틴이 아니다. 여기서는 거부만 알린다.
         if (!locationGranted && awaitingLocationPermission) {
-            mapNotice = "위치 권한이 없어 현재 위치를 찾을 수 없어요"
+            mapNotice = LOCATION_PERMISSION_DENIED_MESSAGE
         }
         awaitingLocationPermission = false
     }
@@ -469,18 +469,10 @@ fun MapDetailScreen(
         }
 
         if (point == null) {
-            mapNotice = "현재 위치를 찾지 못했어요"
+            mapNotice = MY_LOCATION_NOT_FOUND_MESSAGE
             return@LaunchedEffect
         }
-
-        // pitch 는 건드리지 않는다. 2D 로 보던 사람의 지도가 버튼 하나에 기울어지면 안 된다.
-        mapViewportState.easeTo(
-            cameraOptions {
-                center(point)
-                zoom(myLocationZoom(mapViewportState.cameraState?.zoom))
-            },
-            MapAnimationOptions.mapAnimationOptions { duration(600L) },
-        )
+        mapViewportState.easeToMyLocation(point)
     }
 
     val onMyLocationClick: () -> Unit = {

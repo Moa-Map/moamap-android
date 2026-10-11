@@ -4,14 +4,14 @@ import android.util.Log
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.moamap.app.core.network.ConnectionException
+import com.moamap.app.core.common.toUploadMessage
+import com.moamap.app.core.common.toUserMessage
 import com.moamap.app.feature.collection.domain.repository.MapRepository
 import com.moamap.app.feature.collection.presentation.createmap.DESCRIPTION_MAX_LENGTH
 import com.moamap.app.feature.collection.presentation.createmap.NAME_MAX_LENGTH
 import com.moamap.app.feature.collection.presentation.createmap.TAG_MAX_LENGTH
 import com.moamap.app.feature.collection.presentation.createmap.UploadedCover
 import com.moamap.app.feature.collection.presentation.createmap.plusTags
-import com.moamap.app.feature.collection.presentation.createmap.toCoverMessage
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -24,7 +24,6 @@ import javax.inject.Inject
 
 private const val TAG = "MapInfoEditViewModel"
 private const val SAVE_FAILED_MESSAGE = "지도 정보를 저장하지 못했어요"
-private const val NETWORK_ERROR_MESSAGE = "네트워크에 연결할 수 없어요"
 
 /**
  * 고치는 중인 지도 정보. [original] 에서 시작하고, 하나라도 달라져야 저장할 수 있다.
@@ -157,7 +156,7 @@ internal class MapInfoEditViewModel @Inject constructor(
                 Log.w(TAG, "지도 사진 업로드 실패", throwable)
                 // 정보도 저장하지 않는다. 사진만 빠진 채 저장되면 성공한 줄 알고 나간다.
                 _uiState.update { state ->
-                    state.copy(saving = false, errorMessage = throwable.toCoverMessage())
+                    state.copy(saving = false, errorMessage = throwable.toUploadMessage())
                 }
                 return@launch
             }
@@ -177,7 +176,7 @@ internal class MapInfoEditViewModel @Inject constructor(
                 Log.e(TAG, "지도 정보 저장 실패", throwable)
                 // 입력값은 그대로 둔다. 다시 누르면 된다.
                 _uiState.update { state ->
-                    state.copy(saving = false, errorMessage = throwable.toSaveMessage())
+                    state.copy(saving = false, errorMessage = throwable.toUserMessage(SAVE_FAILED_MESSAGE))
                 }
             }
         }
@@ -193,9 +192,4 @@ internal class MapInfoEditViewModel @Inject constructor(
     private fun updateForm(transform: (MapInfoForm) -> MapInfoForm) {
         _uiState.update { state -> state.form?.let { form -> state.copy(form = transform(form)) } ?: state }
     }
-}
-
-private fun Throwable.toSaveMessage(): String = when (this) {
-    is ConnectionException -> NETWORK_ERROR_MESSAGE
-    else -> SAVE_FAILED_MESSAGE
 }

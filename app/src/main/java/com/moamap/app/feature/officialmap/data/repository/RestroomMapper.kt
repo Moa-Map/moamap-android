@@ -1,5 +1,6 @@
 package com.moamap.app.feature.officialmap.data.repository
 
+import com.moamap.app.core.common.trimToNull
 import com.moamap.app.feature.officialmap.data.remote.RestroomDetailDto
 import com.moamap.app.feature.officialmap.data.remote.RestroomListDto
 import com.moamap.app.feature.officialmap.data.remote.RestroomMarkerDto
@@ -15,19 +16,19 @@ internal fun RestroomListDto.toDomain(): RestroomMarkers =
 
 internal fun RestroomMarkerDto.toDomain(): RestroomMarker = RestroomMarker(
     id = id,
-    name = name.orBlankNull() ?: UNNAMED_RESTROOM,
+    name = name.trimToNull() ?: UNNAMED_RESTROOM,
     latitude = lat,
     longitude = lng,
-    category = category.orBlankNull(),
+    category = category.trimToNull(),
 )
 
 internal fun RestroomDetailDto.toDomain(): RestroomDetail = RestroomDetail(
     id = id,
-    name = name.orBlankNull() ?: UNNAMED_RESTROOM,
-    category = category.orBlankNull(),
-    address = roadAddress.orBlankNull() ?: lotAddress.orBlankNull(),
-    openHours = openHours.orBlankNull(),
-    openHoursDetail = openHoursDetail.orBlankNull(),
+    name = name.trimToNull() ?: UNNAMED_RESTROOM,
+    category = category.trimToNull(),
+    address = roadAddress.trimToNull() ?: lotAddress.trimToNull(),
+    openHours = openHours.trimToNull(),
+    openHoursDetail = openHoursDetail.trimToNull(),
     maleToilet = maleToilet ?: 0,
     maleUrinal = maleUrinal ?: 0,
     maleDisabledToilet = maleDisabledToilet ?: 0,
@@ -40,9 +41,8 @@ internal fun RestroomDetailDto.toDomain(): RestroomDetail = RestroomDetail(
     diaperTable = diaperTable == true,
     emergencyBell = emergencyBell == true,
     entranceCctv = entranceCctv == true,
-    managerOrg = managerOrg.orBlankNull(),
-    phone = phone.orBlankNull(),
-    dataRefDate = dataRefDate.orBlankNull(),
+    managerOrg = managerOrg.trimToNull(),
+    phone = phone.trimToNull(),
+    dataRefDate = dataRefDate.trimToNull(),
 )
 
-private fun String?.orBlankNull(): String? = this?.trim()?.takeIf { it.isNotEmpty() }

@@ -4,7 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -15,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -114,9 +112,8 @@ private fun CategoryIconPlaceholder(categoryGroup: PlaceCategoryGroup) {
  * 네모 영역에 회색이 번져 마커 모양과 어긋나 보인다. 누르면 곧바로 시트가 열리거나
  * 카메라가 움직여서, 눌렸다는 사실은 그쪽으로 이미 드러난다.
  */
-@Composable
 private fun Modifier.markerClickable(onClick: () -> Unit): Modifier = clickable(
-    interactionSource = remember { MutableInteractionSource() },
+    interactionSource = null,
     indication = null,
     onClick = onClick,
 )
@@ -197,9 +194,9 @@ internal fun PlaceFacepileMarker(
     cluster: MarkerCluster,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    maxVisible: Int = FacepileMaxVisible,
 ) {
-    val visible = cluster.members.take(maxVisible)
+    // 값을 바꾸면 FacepileMarkerMaxWidth 와 어긋난다. 그래서 매개변수로 두지 않는다.
+    val visible = cluster.members.take(FacepileMaxVisible)
     val overflow = cluster.members.size - visible.size
 
     Row(

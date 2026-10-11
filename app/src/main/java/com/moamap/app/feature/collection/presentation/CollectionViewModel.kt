@@ -3,6 +3,8 @@ package com.moamap.app.feature.collection.presentation
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moamap.app.core.common.NETWORK_ERROR_MESSAGE
+import com.moamap.app.core.common.toggle
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.collection.domain.model.MapType
@@ -25,7 +27,6 @@ private const val LOAD_FAILED_MESSAGE = "지도 목록을 불러오지 못했어
 private const val INVALID_CODE_MESSAGE = "코드를 다시 확인해주세요"
 private const val ALREADY_JOINED_MESSAGE = "이미 참여 중인 지도예요"
 private const val JOIN_FAILED_MESSAGE = "지도에 참여하지 못했어요"
-private const val NETWORK_ERROR_MESSAGE = "네트워크에 연결할 수 없어요"
 internal const val OWNER_CANNOT_LEAVE_MESSAGE = "방장인 지도는 나갈 수 없어요"
 internal const val PERSONAL_CANNOT_LEAVE_MESSAGE = "나만의 지도는 나갈 수 없어요"
 internal const val LEAVE_CHECK_FAILED_MESSAGE = "지도 정보를 불러오지 못했어요"
@@ -203,7 +204,7 @@ class CollectionViewModel @Inject constructor(
             return
         }
 
-        val selected = if (mapId in edit.selected) edit.selected - mapId else edit.selected + mapId
+        val selected = edit.selected.toggle(mapId)
         _uiState.update { state -> state.copy(edit = edit.copy(selected = selected)) }
     }
 

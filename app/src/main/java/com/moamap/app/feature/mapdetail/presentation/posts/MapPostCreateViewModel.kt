@@ -6,13 +6,13 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.moamap.app.core.common.upload.ImageUploadException
-import com.moamap.app.core.navigation.MoaMapRoute
+import com.moamap.app.core.common.toUploadMessage
+import com.moamap.app.core.navigation.requireMapId
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.domain.model.MapPostPlaceTag
 import com.moamap.app.feature.mapdetail.domain.model.NewMapPost
 import com.moamap.app.feature.mapdetail.domain.repository.MapPostRepository
-import com.moamap.app.feature.mapdetail.presentation.toUserMessage
+import com.moamap.app.core.common.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -86,9 +86,7 @@ class MapPostCreateViewModel @Inject constructor(
     private val repository: MapPostRepository,
 ) : ViewModel() {
 
-    private val mapId: Long = checkNotNull(savedStateHandle[MoaMapRoute.MapDetail.ARG_MAP_ID]) {
-        "게시물 작성은 ${MoaMapRoute.MapDetail.ARG_MAP_ID} 없이 열 수 없다"
-    }
+    private val mapId: Long = savedStateHandle.requireMapId()
 
     private val _uiState = MutableStateFlow(MapPostCreateUiState())
     val uiState: StateFlow<MapPostCreateUiState> = _uiState.asStateFlow()
@@ -165,7 +163,7 @@ class MapPostCreateViewModel @Inject constructor(
                     throw e
                 } catch (e: Exception) {
                     Log.w(TAG, "게시물 사진 업로드 실패 (mapId=$mapId)", e)
-                    fail(e.toPhotoMessage())
+                    fail(e.toUploadMessage(POST_PHOTO_UPLOAD_FAILED_MESSAGE))
                     return@launch
                 }
             }
@@ -198,11 +196,3 @@ class MapPostCreateViewModel @Inject constructor(
         _uiState.update { state -> state.copy(submitting = false, errorMessage = message) }
     }
 }
-
-/**
- * 형식이나 크기 때문에 걸린 것은 사용자가 사진을 바꿔야 하는 일이라, 예외가 들고 있는 이유를
- * 그대로 보여준다. "사진을 올리지 못했어요" 로 뭉개면 무엇을 고쳐야 하는지 알 수 없다.
- */
-private fun Throwable.toPhotoMessage(): String =
-    if (this is ImageUploadException) message ?: POST_PHOTO_UPLOAD_FAILED_MESSAGE
-    else toUserMessage(POST_PHOTO_UPLOAD_FAILED_MESSAGE)

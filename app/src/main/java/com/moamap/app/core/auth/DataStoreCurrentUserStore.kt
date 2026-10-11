@@ -3,14 +3,10 @@ package com.moamap.app.core.auth
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.longPreferencesKey
 import com.moamap.app.core.auth.di.AuthPreferences
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -39,12 +35,8 @@ class DataStoreCurrentUserStore @Inject constructor(
     override suspend fun load(): Long? = mutex.withLock {
         if (hydrated) return@withLock cached
 
-        val preferences = dataStore.data
-            // 파일이 깨졌을 때 앱이 죽는 대신 모르는 것으로 취급한다.
-            .catch { throwable ->
-                if (throwable is IOException) emit(emptyPreferences()) else throw throwable
-            }
-            .first()
+        // 파일이 깨졌으면 모르는 것으로 취급한다.
+        val preferences = dataStore.readOrEmpty()
 
         cached = preferences[USER_ID]?.takeIf { id -> id > 0 }
         hydrated = true

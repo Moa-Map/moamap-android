@@ -6,11 +6,12 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.auth.CurrentUserStore
-import com.moamap.app.core.common.upload.ImageUploadException
+import com.moamap.app.core.common.toUploadMessage
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.mapdetail.domain.model.PlaceReview
 import com.moamap.app.feature.mapdetail.domain.repository.PlaceReviewRepository
-import com.moamap.app.feature.mapdetail.presentation.toUserMessage
+import com.moamap.app.core.common.toUserMessage
+import com.moamap.app.feature.mapdetail.presentation.NOT_MAP_MEMBER_CODE
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -38,9 +39,6 @@ internal const val REVIEW_DELETE_FAILED_MESSAGE = "댓글을 삭제하지 못했
  */
 internal fun PlaceReview.isMine(myUserId: Long?): Boolean = myUserId != null && authorId == myUserId
 
-/** `[403] PLACE_002: 해당 지도의 멤버가 아닙니다.` */
-private const val NOT_MAP_MEMBER_CODE = "PLACE_002"
-
 /**
  * 후기 작성 실패 안내.
  *
@@ -51,8 +49,7 @@ private const val NOT_MAP_MEMBER_CODE = "PLACE_002"
 private fun Throwable.toSubmitMessage(): String = when {
     this is ApiException && code == NOT_MAP_MEMBER_CODE -> NOT_MAP_MEMBER_MESSAGE
     // 형식·크기 안내는 그대로 보여준다. "남기지 못했어요" 로는 사진을 바꿔야 한다는 걸 알 수 없다.
-    this is ImageUploadException -> message ?: REVIEW_SUBMIT_FAILED_MESSAGE
-    else -> toUserMessage(REVIEW_SUBMIT_FAILED_MESSAGE)
+    else -> toUploadMessage(REVIEW_SUBMIT_FAILED_MESSAGE)
 }
 
 /**

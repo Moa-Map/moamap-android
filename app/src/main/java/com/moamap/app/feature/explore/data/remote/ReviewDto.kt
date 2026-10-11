@@ -1,5 +1,6 @@
 package com.moamap.app.feature.explore.data.remote
 
+import com.moamap.app.core.common.upload.IssuedUploadUrl
 import kotlinx.serialization.Serializable
 
 /** POST api/v1/places/{placeId}/comments 요청 */
@@ -29,11 +30,11 @@ data class PlaceReviewPhotoUploadUrlRequestDto(
 @Serializable
 data class PlaceReviewPhotoUploadUrlDto(
     // 기본값을 두지 않는다. 빈 주소로 업로드를 시도하기 전에 역직렬화에서 걸리게 한다.
-    val uploadUrl: String,
-    val fileUrl: String,
+    override val uploadUrl: String,
+    override val fileUrl: String,
     val objectKey: String? = null,
     val expiresInSeconds: Long = 0,
-)
+) : IssuedUploadUrl
 
 /** 리뷰 조회/작성/수정 응답 */
 @Serializable
