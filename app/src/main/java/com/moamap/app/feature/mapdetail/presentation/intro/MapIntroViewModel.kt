@@ -6,6 +6,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.navigation.MoaMapRoute
+import com.moamap.app.core.navigation.requireMapId
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.domain.model.MapPlacePreview
 import com.moamap.app.feature.mapdetail.domain.repository.MapDetailRepository
@@ -13,7 +14,7 @@ import com.moamap.app.feature.mapdetail.presentation.JOIN_FAILED_MESSAGE
 import com.moamap.app.feature.mapdetail.presentation.MAP_LOAD_FAILED_MESSAGE
 import com.moamap.app.feature.mapdetail.presentation.MapLoadState
 import com.moamap.app.feature.mapdetail.presentation.mapOrNull
-import com.moamap.app.feature.mapdetail.presentation.toUserMessage
+import com.moamap.app.core.common.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -69,9 +70,7 @@ class MapIntroViewModel @Inject constructor(
     private val repository: MapDetailRepository,
 ) : ViewModel() {
 
-    private val mapId: Long = checkNotNull(savedStateHandle[MoaMapRoute.MapIntro.ARG_MAP_ID]) {
-        "지도 설명은 ${MoaMapRoute.MapIntro.ARG_MAP_ID} 없이 열 수 없다"
-    }
+    private val mapId: Long = savedStateHandle.requireMapId(MoaMapRoute.MapIntro.ARG_MAP_ID)
 
     private val _uiState = MutableStateFlow(MapIntroUiState())
     val uiState: StateFlow<MapIntroUiState> = _uiState.asStateFlow()

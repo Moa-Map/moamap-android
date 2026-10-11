@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.auth.AgreedTermsVersionStore
+import com.moamap.app.core.common.toggle
 import com.moamap.app.feature.onboarding.domain.repository.AuthRepository
 import com.moamap.app.feature.terms.domain.model.Terms
 import com.moamap.app.feature.terms.domain.model.TermsConsentType
@@ -82,7 +83,7 @@ class TermsAgreementViewModel @Inject constructor(
 
     fun toggle(code: String) {
         _uiState.update { state ->
-            state.copy(checked = if (code in state.checked) state.checked - code else state.checked + code)
+            state.copy(checked = state.checked.toggle(code))
         }
     }
 

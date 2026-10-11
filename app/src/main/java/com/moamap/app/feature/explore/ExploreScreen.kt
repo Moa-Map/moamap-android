@@ -30,7 +30,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -61,7 +64,6 @@ import com.moamap.app.feature.explore.presentation.ExploreViewModel
 import com.moamap.app.feature.explore.presentation.FeaturedMapCarousel
 import com.moamap.app.feature.explore.presentation.FeaturedMapMocks
 import com.moamap.app.feature.mypage.ProfileMenu
-import com.moamap.app.feature.mypage.rememberProfileMenuState
 import com.moamap.app.feature.officialmap.domain.model.OfficialMap
 import com.moamap.app.feature.officialmap.presentation.OfficialMapsState
 import dev.chrisbanes.haze.hazeSource
@@ -161,15 +163,15 @@ private fun ExploreContent(
     scrollToTop: Boolean = false,
     onScrolledToTop: () -> Unit = {},
 ) {
-    val profileMenuState = rememberProfileMenuState()
+    var profileMenuVisible by remember { mutableStateOf(false) }
     // 프로필 메뉴가 홈 화면을 흐려 바탕으로 쓴다. 메뉴는 이 원본 밖(위)에 그린다.
     val hazeState = rememberHazeState()
     // 로고는 홈으로 돌아가는 버튼이다. 여기가 이미 홈이라 갈 곳이 없어 맨 위로 올린다.
     val scrollState = rememberScrollState()
     val scope = rememberCoroutineScope()
 
-    BackHandler(enabled = profileMenuState.isVisible) {
-        profileMenuState.dismiss()
+    BackHandler(enabled = profileMenuVisible) {
+        profileMenuVisible = false
     }
 
     // 로고로 들어온 경우. 신호를 받으면 맨 위로 올리고 바로 신호를 끈다.
@@ -189,7 +191,7 @@ private fun ExploreContent(
         ) {
             ExploreTopBar(
                 onLogoClick = { scope.launch { scrollState.animateScrollTo(0) } },
-                onProfileClick = profileMenuState::show,
+                onProfileClick = { profileMenuVisible = true },
             )
 
             Column(
@@ -225,23 +227,23 @@ private fun ExploreContent(
             }
         }
 
-        if (profileMenuState.isVisible) {
+        if (profileMenuVisible) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .pointerInput(profileMenuState.isVisible) {
-                        detectTapGestures(onTap = { profileMenuState.dismiss() })
+                    .pointerInput(profileMenuVisible) {
+                        detectTapGestures(onTap = { profileMenuVisible = false })
                     },
             )
 
             ProfileMenu(
                 hazeState = hazeState,
                 onProfileEditClick = {
-                    profileMenuState.dismiss()
+                    profileMenuVisible = false
                     onProfileEditClick()
                 },
                 onSettingsClick = {
-                    profileMenuState.dismiss()
+                    profileMenuVisible = false
                     onSettingsClick()
                 },
                 modifier = Modifier

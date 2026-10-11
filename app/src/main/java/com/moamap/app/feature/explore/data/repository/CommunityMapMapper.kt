@@ -1,5 +1,6 @@
 package com.moamap.app.feature.explore.data.repository
 
+import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.explore.data.remote.CommunityMapDto
 import com.moamap.app.feature.explore.domain.model.CommunityMap
 
@@ -14,5 +15,5 @@ fun CommunityMapDto.toDomain(): CommunityMap = CommunityMap(
     memberCount = memberCount,
     placeCount = placeCount,
     joined = joined,
-    official = type == "OFFICIAL",
+    official = type == MapType.Official.requestValue,
 )

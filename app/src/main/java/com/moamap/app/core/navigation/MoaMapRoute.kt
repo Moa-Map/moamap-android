@@ -1,6 +1,7 @@
 package com.moamap.app.core.navigation
 
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 
 /**
  * 앱 전역 내비게이션 경로 정의.
@@ -162,3 +163,11 @@ sealed interface MoaMapRoute {
         override val route = "inquiry"
     }
 }
+
+/**
+ * 지도 화면 경로가 넘긴 지도 id. 지도 상세 위의 화면(장소 추가·게시물·멤버 등)이 함께 쓴다.
+ *
+ * 없으면 화면을 잘못 연 것이라 바로 멈춘다. 0 같은 기본값으로 이어 가면 엉뚱한 지도를 부른다.
+ */
+internal fun SavedStateHandle.requireMapId(key: String = MoaMapRoute.MapDetail.ARG_MAP_ID): Long =
+    checkNotNull(get<Long>(key)) { "지도 화면은 $key 없이 열 수 없다" }

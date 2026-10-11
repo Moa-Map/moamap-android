@@ -5,11 +5,12 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.moamap.app.core.navigation.MoaMapRoute
+import com.moamap.app.core.navigation.requireMapId
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.mapdetail.domain.model.MapActivity
 import com.moamap.app.feature.mapdetail.domain.repository.MapActivityRepository
-import com.moamap.app.feature.mapdetail.presentation.toUserMessage
+import com.moamap.app.core.common.toUserMessage
+import com.moamap.app.feature.mapdetail.presentation.NOT_MAP_MEMBER_CODE
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -23,9 +24,6 @@ import javax.inject.Inject
 private const val TAG = "MapActivityViewModel"
 
 internal const val ACTIVITY_LOAD_FAILED_MESSAGE = "활동 내역을 불러오지 못했어요"
-
-/** `[403] PLACE_002: 해당 지도의 멤버가 아닙니다.` */
-private const val NOT_MAP_MEMBER_CODE = "PLACE_002"
 
 internal const val ACTIVITY_NOT_MEMBER_MESSAGE = "지도에 참여해야 활동 내역을 볼 수 있어요"
 
@@ -58,9 +56,7 @@ class MapActivityViewModel @Inject constructor(
     private val repository: MapActivityRepository,
 ) : ViewModel() {
 
-    private val mapId: Long = checkNotNull(savedStateHandle[MoaMapRoute.MapDetail.ARG_MAP_ID]) {
-        "지도 상세는 ${MoaMapRoute.MapDetail.ARG_MAP_ID} 없이 열 수 없다"
-    }
+    private val mapId: Long = savedStateHandle.requireMapId()
 
     private val _uiState = MutableStateFlow(MapActivityUiState())
     val uiState: StateFlow<MapActivityUiState> = _uiState.asStateFlow()

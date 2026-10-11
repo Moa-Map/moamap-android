@@ -31,21 +31,22 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.feature.mapdetail.LOCATION_PERMISSION_DENIED_MESSAGE
 import com.moamap.app.feature.mapdetail.LocationPermissions
+import com.moamap.app.feature.mapdetail.MY_LOCATION_NOT_FOUND_MESSAGE
 import com.moamap.app.feature.mapdetail.MyLocationButton
 import com.moamap.app.feature.mapdetail.KoreaCameraBounds
 import com.moamap.app.feature.mapdetail.MyLocationPuck
 import com.moamap.app.feature.mapdetail.ViewportBounds
 import com.moamap.app.feature.mapdetail.currentLocation
+import com.moamap.app.feature.mapdetail.easeToMyLocation
 import com.moamap.app.feature.mapdetail.hasLocationPermission
-import com.moamap.app.feature.mapdetail.myLocationZoom
 import com.moamap.app.feature.mapdetail.presentation.MapDetailViewModel
 import com.moamap.app.feature.officialmap.domain.model.RestroomMarker
 import com.mapbox.geojson.Feature
 import com.mapbox.geojson.Point
 import com.mapbox.maps.MapboxDelicateApi
 import com.mapbox.maps.coroutine.mapIdleEvents
-import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.MapEffect
 import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.MapViewportState
@@ -60,7 +61,6 @@ import com.mapbox.maps.extension.compose.style.sources.generated.rememberGeoJson
 import com.mapbox.maps.extension.compose.style.standard.LightPresetValue
 import com.mapbox.maps.extension.compose.style.standard.MapboxStandardStyle
 import com.mapbox.maps.extension.compose.style.standard.rememberStandardStyleState
-import com.mapbox.maps.plugin.animation.MapAnimationOptions
 import com.mapbox.maps.plugin.gestures.generated.GesturesSettings
 
 private const val RESTROOM_LAYER_ID = "restroom-circle"
@@ -151,7 +151,7 @@ private fun RestroomMapBody(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
         locationGranted = result.values.any { isGranted -> isGranted }
-        if (!locationGranted) notice = "위치 권한이 없어 현재 위치를 찾을 수 없어요"
+        if (!locationGranted) notice = LOCATION_PERMISSION_DENIED_MESSAGE
     }
 
     // 버튼은 요청만 올리고 옮기는 일은 여기서 한다. 권한을 묻느라 미뤄진 요청도 허용되면 이어진다.
@@ -165,16 +165,10 @@ private fun RestroomMapBody(
             myLocationInProgress = false
         }
         if (point == null) {
-            notice = "현재 위치를 찾지 못했어요"
+            notice = MY_LOCATION_NOT_FOUND_MESSAGE
             return@LaunchedEffect
         }
-        mapViewportState.easeTo(
-            cameraOptions {
-                center(point)
-                zoom(myLocationZoom(mapViewportState.cameraState?.zoom))
-            },
-            MapAnimationOptions.mapAnimationOptions { duration(600L) },
-        )
+        mapViewportState.easeToMyLocation(point)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {

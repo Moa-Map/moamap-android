@@ -3,15 +3,11 @@ package com.moamap.app.core.auth
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.stringPreferencesKey
 import com.moamap.app.core.auth.di.AuthPreferences
-import kotlinx.coroutines.flow.catch
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -53,12 +49,8 @@ class DataStoreAuthTokenStore @Inject constructor(
     }
 
     override suspend fun load(): AuthToken? = mutex.withLock {
-        val preferences = dataStore.data
-            // 파일이 깨졌을 때 앱이 죽는 대신 세션이 없는 것으로 취급한다.
-            .catch { throwable ->
-                if (throwable is IOException) emit(emptyPreferences()) else throw throwable
-            }
-            .first()
+        // 파일이 깨졌으면 세션이 없는 것으로 취급한다.
+        val preferences = dataStore.readOrEmpty()
 
         val accessToken = preferences[ACCESS_TOKEN].orEmpty()
         val refreshToken = preferences[REFRESH_TOKEN].orEmpty()

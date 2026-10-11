@@ -1,9 +1,13 @@
 package com.moamap.app.feature.mapdetail
 
 import androidx.compose.runtime.Composable
+import com.mapbox.geojson.Point
+import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.MapEffect
 import com.mapbox.maps.extension.compose.MapboxMapComposable
+import com.mapbox.maps.extension.compose.animation.viewport.MapViewportState
 import com.mapbox.maps.plugin.PuckBearing
+import com.mapbox.maps.plugin.animation.MapAnimationOptions
 import com.mapbox.maps.plugin.locationcomponent.createDefault2DPuck
 import com.mapbox.maps.plugin.locationcomponent.location
 
@@ -25,4 +29,23 @@ internal fun MyLocationPuck(enabled: Boolean) {
             puckBearing = PuckBearing.HEADING
         }
     }
+}
+
+/** 「내 위치」 버튼 안내. 지도 상세와 화장실 지도가 같이 쓴다. */
+internal const val LOCATION_PERMISSION_DENIED_MESSAGE = "위치 권한이 없어 현재 위치를 찾을 수 없어요"
+internal const val MY_LOCATION_NOT_FOUND_MESSAGE = "현재 위치를 찾지 못했어요"
+
+/**
+ * 「내 위치」 버튼으로 찾은 [point] 로 카메라를 옮긴다. 지도 상세와 화장실 지도가 같이 쓴다.
+ *
+ * pitch 는 건드리지 않는다. 2D 로 보던 사람의 지도가 버튼 하나에 기울어지면 안 된다.
+ */
+internal fun MapViewportState.easeToMyLocation(point: Point) {
+    easeTo(
+        cameraOptions {
+            center(point)
+            zoom(myLocationZoom(cameraState?.zoom))
+        },
+        MapAnimationOptions.mapAnimationOptions { duration(600L) },
+    )
 }

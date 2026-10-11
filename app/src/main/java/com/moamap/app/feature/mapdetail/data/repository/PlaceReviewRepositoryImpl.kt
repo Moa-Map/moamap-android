@@ -3,7 +3,7 @@ package com.moamap.app.feature.mapdetail.data.repository
 import android.net.Uri
 import com.moamap.app.core.common.upload.MAX_REVIEW_PHOTO_FILE_SIZE
 import com.moamap.app.core.common.upload.PhotoUploader
-import com.moamap.app.core.common.upload.validateImageUpload
+import com.moamap.app.core.common.upload.uploadOne
 import com.moamap.app.feature.explore.data.remote.PlaceReviewCreateRequestDto
 import com.moamap.app.feature.explore.data.remote.PlaceReviewPhotoUploadUrlRequestDto
 import com.moamap.app.feature.explore.data.remote.PlaceReviewUpdateRequestDto
@@ -78,26 +78,11 @@ internal class PlaceReviewRepositoryImpl @Inject constructor(
         reviewService.deleteReview(placeId = placeId, reviewId = reviewId)
     }
 
-    /** 형식·크기를 먼저 거른 뒤 발급받아 올린다. 서버 400 을 받고 나서는 이유를 알려줄 수 없다. */
-    private suspend fun uploadPhoto(placeId: Long, uri: Uri): String {
-        val photo = uploader.inspect(uri)
-        validateImageUpload(
-            contentType = photo.contentType,
-            fileSize = photo.size,
-            maxFileSize = MAX_REVIEW_PHOTO_FILE_SIZE,
-        )
-
-        val issued = reviewService.createPhotoUploadUrl(
-            placeId = placeId,
-            request = PlaceReviewPhotoUploadUrlRequestDto(
-                contentType = photo.contentType,
-                fileSize = photo.size,
-            ),
-        )
-        require(issued.uploadUrl.isNotBlank() && issued.fileUrl.isNotBlank()) {
-            "사진 업로드 주소가 비어 있습니다"
+    private suspend fun uploadPhoto(placeId: Long, uri: Uri): String =
+        uploader.uploadOne(uri, maxFileSize = MAX_REVIEW_PHOTO_FILE_SIZE) { contentType, fileSize ->
+            reviewService.createPhotoUploadUrl(
+                placeId = placeId,
+                request = PlaceReviewPhotoUploadUrlRequestDto(contentType = contentType, fileSize = fileSize),
+            )
         }
-        uploader.upload(uploadUrl = issued.uploadUrl, photo = photo)
-        return issued.fileUrl
-    }
 }

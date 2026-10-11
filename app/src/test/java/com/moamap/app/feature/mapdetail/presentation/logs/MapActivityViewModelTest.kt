@@ -7,7 +7,7 @@ import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.mapdetail.domain.model.MapActivity
 import com.moamap.app.feature.mapdetail.domain.model.MapActivityType
 import com.moamap.app.feature.mapdetail.domain.repository.MapActivityRepository
-import com.moamap.app.feature.mapdetail.presentation.NETWORK_ERROR_MESSAGE
+import com.moamap.app.core.common.NETWORK_ERROR_MESSAGE
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher

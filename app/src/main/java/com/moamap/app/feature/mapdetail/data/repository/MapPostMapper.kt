@@ -1,5 +1,6 @@
 package com.moamap.app.feature.mapdetail.data.repository
 
+import com.moamap.app.core.common.trimToNull
 import com.moamap.app.feature.mapdetail.data.remote.MapPostCommentDto
 import com.moamap.app.feature.mapdetail.data.remote.MapPostDto
 import com.moamap.app.feature.mapdetail.domain.model.MapPost
@@ -16,7 +17,7 @@ fun MapPostDto.toMapPost(): MapPost = MapPost(
     authorId = userId,
     content = content.orEmpty(),
     imageUrls = imageUrls.map { url -> url.trim() }.filter { url -> url.isNotEmpty() },
-    placeNames = placeTags.mapNotNull { tag -> tag.name?.trim()?.takeIf { name -> name.isNotEmpty() } },
+    placeNames = placeTags.mapNotNull { tag -> tag.name.trimToNull() },
     createdAtMillis = parseServerDateTime(createdAt),
 )
 
@@ -24,8 +25,8 @@ fun MapPostDto.toMapPost(): MapPost = MapPost(
 fun MapPostCommentDto.toMapPostComment(authorName: String?, authorImageUrl: String?): MapPostComment = MapPostComment(
     id = id,
     authorId = userId,
-    authorName = authorName?.trim()?.takeIf { name -> name.isNotEmpty() },
-    authorImageUrl = authorImageUrl?.trim()?.takeIf { url -> url.isNotEmpty() },
+    authorName = authorName.trimToNull(),
+    authorImageUrl = authorImageUrl.trimToNull(),
     content = content?.trim().orEmpty(),
     createdAtMillis = parseServerDateTime(createdAt),
 )

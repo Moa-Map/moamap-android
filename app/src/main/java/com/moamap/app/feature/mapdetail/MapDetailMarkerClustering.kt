@@ -124,13 +124,12 @@ internal fun MarkerCluster.anchorPoint(): Point = members.first().let { seed ->
 internal fun clusterMarkers(
     markers: List<PlaceMarker>,
     zoom: Double,
-    thresholdDp: Double = ClusterThresholdDp,
 ): List<MarkerCluster> {
     val xs = DoubleArray(markers.size) { index -> worldPixelX(markers[index].longitude, zoom) }
     val ys = DoubleArray(markers.size) { index -> worldPixelY(markers[index].latitude, zoom) }
     // 묶인 마커를 리스트에서 지우는 대신 표시만 한다. 지우면 뒤쪽이 통째로 밀린다.
     val taken = BooleanArray(markers.size)
-    val thresholdSquared = thresholdDp * thresholdDp
+    val thresholdSquared = ClusterThresholdDp * ClusterThresholdDp
     val clusters = mutableListOf<MarkerCluster>()
 
     for (seed in markers.indices) {

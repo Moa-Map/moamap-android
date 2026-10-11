@@ -11,9 +11,9 @@ private const val TAG = "AuthorProfiles"
 private const val PROFILE_CHUNK_SIZE = 100
 
 /**
- * 댓글 작성자 닉네임·프로필 사진을 식별자로 찾아 둔다. 장소 댓글과 게시물 댓글이 같이 쓴다. 빈 값은 매퍼가 거른다.
+ * 작성자 닉네임·프로필 사진을 식별자로 찾아 둔다. 장소 댓글·게시물 댓글·지도 제작자가 같이 쓴다. 빈 값은 매퍼가 거른다.
  *
- * 곁들이는 정보라 실패를 삼킨다. 이름 한 줄 때문에 댓글 목록을 통째로 못 여는 게 더 나쁘다.
+ * 곁들이는 정보라 실패를 삼킨다. 이름 한 줄 때문에 목록이나 지도를 통째로 못 여는 게 더 나쁘다.
  * 같은 사람이 여러 건을 남길 수 있어 중복을 지우고 묻는다.
  */
 internal suspend fun UserService.fetchAuthorProfiles(authorIds: List<Long>): Map<Long, UserProfileDto> {
@@ -28,7 +28,7 @@ internal suspend fun UserService.fetchAuthorProfiles(authorIds: List<Long>): Map
         throw e
     } catch (e: Exception) {
         // 사용자 식별자는 남기지 않는다. 로그가 수집·보관되는 경로를 타기 때문이다.
-        Log.w(TAG, "댓글 작성자 프로필 조회 실패", e)
+        Log.w(TAG, "작성자 프로필 조회 실패", e)
         emptyMap()
     }
 }

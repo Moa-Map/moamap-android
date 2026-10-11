@@ -1,5 +1,6 @@
 package com.moamap.app.feature.mapdetail.data.repository
 
+import com.moamap.app.core.common.trimToNull
 import com.moamap.app.feature.explore.data.remote.PendingPlaceDto
 import com.moamap.app.feature.mapdetail.domain.model.PendingPlace
 
@@ -11,8 +12,8 @@ import com.moamap.app.feature.mapdetail.domain.model.PendingPlace
  */
 fun PendingPlaceDto.toPendingPlace(): PendingPlace = PendingPlace(
     id = id,
-    placeName = name?.trim()?.takeIf { it.isNotBlank() },
-    requesterName = createdByNickname?.trim()?.takeIf { it.isNotBlank() },
-    requesterImageUrl = createdByProfileImageUrl?.trim()?.takeIf { it.isNotBlank() },
+    placeName = name.trimToNull(),
+    requesterName = createdByNickname.trimToNull(),
+    requesterImageUrl = createdByProfileImageUrl.trimToNull(),
     requestedAtMillis = parseServerDateTime(createdAt),
 )

@@ -31,19 +31,12 @@ data class AreaCongestion(
             .maxByOrNull { (_, rate) -> rate }
             ?.let { (group, rate) -> PopulationShare(group.label, rate) }
 
-    /** 비율이 더 높은 성별. 동률이면 여성. */
+    /** 비율이 더 높은 성별. 동률이면 여성(먼저 놓인 쪽을 고른다). */
     val dominantGender: PopulationShare?
-        get() {
-            val male = maleRate
-            val female = femaleRate
-            return when {
-                male != null && (female == null || male > female) ->
-                    PopulationShare(Gender.MALE.label, male)
-
-                female != null -> PopulationShare(Gender.FEMALE.label, female)
-                else -> null
-            }
-        }
+        get() = listOfNotNull(
+            femaleRate?.let { rate -> PopulationShare(Gender.FEMALE.label, rate) },
+            maleRate?.let { rate -> PopulationShare(Gender.MALE.label, rate) },
+        ).maxByOrNull { share -> share.rate }
 }
 
 /** 유동인구 지역 한 곳. boundary는 GeoJSON Polygon 문자열 그대로 유지한다. */

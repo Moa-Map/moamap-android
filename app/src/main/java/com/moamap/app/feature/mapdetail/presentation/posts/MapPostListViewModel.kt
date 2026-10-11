@@ -5,11 +5,11 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.moamap.app.core.navigation.MoaMapRoute
+import com.moamap.app.core.navigation.requireMapId
 import com.moamap.app.feature.mapdetail.domain.model.MapPost
 import com.moamap.app.feature.mapdetail.domain.model.MapPostSort
 import com.moamap.app.feature.mapdetail.domain.repository.MapPostRepository
-import com.moamap.app.feature.mapdetail.presentation.toUserMessage
+import com.moamap.app.core.common.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -57,9 +57,7 @@ class MapPostListViewModel @Inject constructor(
     private val repository: MapPostRepository,
 ) : ViewModel() {
 
-    private val mapId: Long = checkNotNull(savedStateHandle[MoaMapRoute.MapDetail.ARG_MAP_ID]) {
-        "지도 상세는 ${MoaMapRoute.MapDetail.ARG_MAP_ID} 없이 열 수 없다"
-    }
+    private val mapId: Long = savedStateHandle.requireMapId()
 
     private val _uiState = MutableStateFlow(MapPostListUiState())
     val uiState: StateFlow<MapPostListUiState> = _uiState.asStateFlow()
@@ -121,9 +119,8 @@ class MapPostListViewModel @Inject constructor(
                 nextPage = page + 1
                 _uiState.update { current ->
                     // 받는 사이 새 글이 올라오면 페이지 경계가 밀려 앞 페이지의 글이 한 번 더 온다.
-                    val known = current.posts.mapTo(HashSet()) { post -> post.id }
                     current.copy(
-                        posts = current.posts + result.posts.filterNot { post -> post.id in known },
+                        posts = (current.posts + result.posts).distinctBy { post -> post.id },
                         loadingMore = false,
                         endReached = result.isLast,
                     )

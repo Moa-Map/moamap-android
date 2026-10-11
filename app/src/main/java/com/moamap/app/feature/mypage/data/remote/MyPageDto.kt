@@ -1,5 +1,6 @@
 package com.moamap.app.feature.mypage.data.remote
 
+import com.moamap.app.core.common.upload.IssuedUploadUrl
 import kotlinx.serialization.Serializable
 
 /** PATCH api/v1/users/me 요청. 변경할 필드만 채운다. */
@@ -54,8 +55,8 @@ data class ProfileUploadUrlRequestDto(
 data class ProfileUploadUrlDto(
     // 기본값을 두지 않는다. 빈 주소가 흘러들어가면 업로드 직전에 알 수 없는 예외로 터진다.
     // 없는 채로 오면 역직렬화 단계에서 바로 걸리는 편이 낫다.
-    val uploadUrl: String,
-    val fileUrl: String,
+    override val uploadUrl: String,
+    override val fileUrl: String,
     val objectKey: String? = null,
     val expiresInSeconds: Long = 0,
-)
+) : IssuedUploadUrl

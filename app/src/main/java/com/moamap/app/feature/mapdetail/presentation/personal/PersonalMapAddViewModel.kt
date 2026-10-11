@@ -7,7 +7,8 @@ import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.mapdetail.domain.repository.PersonalMapNotFoundException
 import com.moamap.app.feature.mapdetail.domain.repository.PersonalMapRepository
-import com.moamap.app.feature.mapdetail.presentation.toUserMessage
+import com.moamap.app.core.common.toUserMessage
+import com.moamap.app.feature.mapdetail.presentation.DUPLICATE_PLACE_CODE
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -24,9 +25,6 @@ internal const val PERSONAL_MAP_ADDED_MESSAGE = "나만의 지도에 추가했�
 internal const val PERSONAL_MAP_DUPLICATE_MESSAGE = "이미 나만의 지도에 있는 장소예요"
 internal const val PERSONAL_MAP_NOT_FOUND_MESSAGE = "나만의 지도를 찾지 못했어요"
 internal const val PERSONAL_MAP_ADD_FAILED_MESSAGE = "나만의 지도에 추가하지 못했어요"
-
-/** `[409] PLACE_010: 해당 지도에 이미 등록된 장소입니다.` */
-private const val DUPLICATE_PLACE_CODE = "PLACE_010"
 
 private fun Throwable.toAddMessage(): String = when {
     this is ApiException && code == DUPLICATE_PLACE_CODE -> PERSONAL_MAP_DUPLICATE_MESSAGE
