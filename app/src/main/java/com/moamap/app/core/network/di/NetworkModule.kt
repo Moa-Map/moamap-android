@@ -65,7 +65,8 @@ object NetworkModule {
         tokenAuthenticator: TokenAuthenticator,
     ): OkHttpClient = baseClientBuilder(json)
         // ErrorInterceptor 다음에 둬야 한다. ErrorInterceptor 가 가장 바깥에서 실패를 정규화한다.
-        .addInterceptor(AuthInterceptor(tokenStore))
+        // 보내기 전에 만료가 보이면 401 때와 같은 갱신으로 먼저 새로 받는다.
+        .addInterceptor(AuthInterceptor(tokenStore, tokenAuthenticator::refresh))
         .addInterceptor(LongRunningTimeoutInterceptor())
         // 401 을 받으면 여기서 토큰을 갱신하고 원요청을 재시도한다.
         .authenticator(tokenAuthenticator)

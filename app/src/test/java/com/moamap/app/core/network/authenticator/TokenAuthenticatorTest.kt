@@ -14,6 +14,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import okio.ByteString.Companion.encodeUtf8
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -240,5 +241,56 @@ class TokenAuthenticatorTest {
 
         assertEquals(0, refresher.callCount)
         assertEquals(1, server.requestCount)
+    }
+
+    // ---- 보내기 전에 미리 새로 받기 (이슈 #302): 401 때와 같은 갱신을 쓴다 ----
+
+    private val now = 1_800_000_000L
+
+    private fun jwt(exp: Long) = "e30." + "{\"exp\":$exp}".encodeUtf8().base64Url().trimEnd('=') + ".sig"
+
+    private fun refreshAheadClientFor(
+        store: FakeAuthTokenStore,
+        refresher: FakeTokenRefresher,
+        sessionEvents: SessionEvents = SessionEvents(),
+    ): OkHttpClient {
+        val authenticator = TokenAuthenticator(store, FakeCurrentUserStore(), sessionEvents) { refresher }
+        return OkHttpClient.Builder()
+            .addInterceptor(AuthInterceptor(store, authenticator::refresh, nowSeconds = { now }))
+            .authenticator(authenticator)
+            .build()
+    }
+
+    /** 공개 경로는 만료 토큰에 401 을 주지 않는다. 보내기 전에 받아 두면 401 왕복 없이 한 번에 간다. */
+    @Test
+    fun `만료된 토큰은 보내기 전에 한 번 새로 받아 401 없이 보낸다`() {
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val fresh = AuthToken(jwt(now + 1800), "new-refresh")
+        val store = FakeAuthTokenStore(AuthToken(jwt(now - 10), "old-refresh"))
+        val refresher = FakeTokenRefresher(TokenRefreshResult.Success(fresh))
+
+        refreshAheadClientFor(store, refresher).get().close()
+
+        assertEquals(1, refresher.callCount)
+        assertEquals(1, server.requestCount)
+        assertEquals("Bearer ${fresh.accessToken}", server.takeRequest().getHeader("Authorization"))
+        assertEquals(fresh, store.token)
+    }
+
+    /** 리프레시 토큰까지 만료된 세션이다. 공개 화면만 보고 있어도 로그인 화면으로 보낸다(10-11 사용자 결정). */
+    @Test
+    fun `보내기 전에 새로 받기를 서버가 거부하면 세션을 지우고 만료를 알린다`() = runTest {
+        server.enqueue(MockResponse().setResponseCode(200))
+
+        val store = FakeAuthTokenStore(AuthToken(jwt(now - 10), "old-refresh"))
+        val sessionEvents = SessionEvents()
+
+        refreshAheadClientFor(store, FakeTokenRefresher(TokenRefreshResult.Rejected), sessionEvents)
+            .get()
+            .close()
+
+        assertNull(store.token)
+        assertNotNull(withTimeoutOrNull(1_000) { sessionEvents.sessionExpired.first() })
     }
 }

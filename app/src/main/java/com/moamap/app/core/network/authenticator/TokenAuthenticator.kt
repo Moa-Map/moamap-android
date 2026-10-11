@@ -48,41 +48,49 @@ class TokenAuthenticator @Inject constructor(
         // 갱신한 토큰으로도 401 이면 더 시도하지 않는다. 없으면 무한 루프가 된다.
         if (responseCount(response) >= MAX_ATTEMPTS) return null
 
-        val newAccessToken = runBlocking {
-            refreshMutex.withLock {
-                val current = tokenStore.load() ?: return@withLock null
-
-                // 락을 기다리는 사이 다른 요청이 이미 갱신했다면 다시 갱신하지 않고 새 토큰으로 재시도만 한다.
-                if (current.accessToken != failedToken) return@withLock current.accessToken
-
-                when (val result = tokenRefresher.get().refresh(current.refreshToken)) {
-                    is TokenRefreshResult.Success -> {
-                        tokenStore.save(result.token)
-                        // 신원은 건드리지 않는다. 갱신으로 사람이 바뀌지는 않는다.
-                        result.token.accessToken
-                    }
-
-                    // 서버가 거부했다. 남겨두면 매 요청마다 갱신을 재시도하게 된다.
-                    TokenRefreshResult.Rejected -> {
-                        tokenStore.clear()
-                        // 세션이 끝났으니 신원도 함께 버린다. 남겨두면 다음 사람이 이 기기에
-                        // 로그인했을 때 남의 글이 자기 것으로 보인다.
-                        currentUserStore.clear()
-                        // 지우기만 하면 보던 화면에 남아 이후 요청이 전부 401 로 실패한다.
-                        sessionEvents.notifySessionExpired()
-                        null
-                    }
-
-                    // 네트워크 장애 같은 일시적 실패. 세션을 지우면 통신이 잠깐 끊겼다는 이유로
-                    // 재로그인을 강요하게 되므로, 이번 요청만 실패시키고 토큰은 남겨둔다.
-                    TokenRefreshResult.Failed -> null
-                }
-            }
-        } ?: return null
+        val newAccessToken = refresh(failedToken) ?: return null
 
         return response.request.newBuilder()
             .header(AUTHORIZATION_HEADER, BEARER_PREFIX + newAccessToken)
             .build()
+    }
+
+    /**
+     * [staleAccessToken] 대신 실을 액세스 토큰을 받아 온다. 받지 못하면 null 이다.
+     *
+     * 401 을 받았을 때와, 보내기 전에 만료가 보일 때(`AuthInterceptor`) 함께 쓴다. 한 곳에 둬야 같은
+     * 락으로 갱신이 한 번만 나간다 - 서버가 리프레시 토큰을 회전시켜, 두 번 나가면 먼저 받은 토큰이 버려진다.
+     */
+    fun refresh(staleAccessToken: String): String? = runBlocking {
+        refreshMutex.withLock {
+            val current = tokenStore.load() ?: return@withLock null
+
+            // 락을 기다리는 사이 다른 요청이 이미 갱신했다면 다시 갱신하지 않고 새 토큰을 쓴다.
+            if (current.accessToken != staleAccessToken) return@withLock current.accessToken
+
+            when (val result = tokenRefresher.get().refresh(current.refreshToken)) {
+                is TokenRefreshResult.Success -> {
+                    tokenStore.save(result.token)
+                    // 신원은 건드리지 않는다. 갱신으로 사람이 바뀌지는 않는다.
+                    result.token.accessToken
+                }
+
+                // 서버가 거부했다. 남겨두면 매 요청마다 갱신을 재시도하게 된다.
+                TokenRefreshResult.Rejected -> {
+                    tokenStore.clear()
+                    // 세션이 끝났으니 신원도 함께 버린다. 남겨두면 다음 사람이 이 기기에
+                    // 로그인했을 때 남의 글이 자기 것으로 보인다.
+                    currentUserStore.clear()
+                    // 지우기만 하면 보던 화면에 남아 이후 요청이 전부 401 로 실패한다.
+                    sessionEvents.notifySessionExpired()
+                    null
+                }
+
+                // 네트워크 장애 같은 일시적 실패. 세션을 지우면 통신이 잠깐 끊겼다는 이유로
+                // 재로그인을 강요하게 되므로, 이번 요청만 실패시키고 토큰은 남겨둔다.
+                TokenRefreshResult.Failed -> null
+            }
+        }
     }
 
     /** 이 응답이 몇 번째 시도인지. priorResponse 체인을 거슬러 센다. */
