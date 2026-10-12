@@ -207,12 +207,21 @@ internal fun categoryFilters(places: List<PlaceUiModel>): List<PlaceCategoryFilt
     }
 }
 
-/** 카테고리와 검색어를 함께 적용한다. 지도 마커와 목록이 같은 결과를 본다. */
+/**
+ * 목록에 보일 장소. 지도 마커와 목록이 같은 결과를 본다.
+ *
+ * 검색어가 있으면 고른 칩과 상관없이 전체에서 찾는다. 검색하는 동안 칩 줄을 숨겨서, 보이지 않는 칩이
+ * 결과를 거르면 왜 안 나오는지 알 수 없다(10-12 사용자 결정). 검색어를 지우면 고르던 칩으로 돌아간다.
+ */
 internal fun filterPlaces(
     places: List<PlaceUiModel>,
     category: PlaceCategoryFilter,
     query: String,
-): List<PlaceUiModel> = searchPlaces(places.filter { place -> category.matches(place) }, query)
+): List<PlaceUiModel> = if (query.isBlank()) {
+    places.filter { place -> category.matches(place) }
+} else {
+    searchPlaces(places, query)
+}
 
 @Immutable
 internal data class PlaceReviewUiModel(

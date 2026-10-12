@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
@@ -25,7 +26,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
@@ -113,6 +117,22 @@ internal fun MapDetailBottomSheet(
         if (!imeVisible) focusManager.clearFocus()
     }
 
+    // 검색하는 동안은 칩 줄을 숨긴다. 결과는 칩과 상관없이 전체에서 찾는다([filterPlaces], 10-12 사용자 결정).
+    val searching = searchQuery.isNotBlank()
+    val currentSearching by rememberUpdatedState(searching)
+
+    // 검색어·칩이 바뀌면 목록을 맨 위부터 보인다. 두면 목록이 앞 결과의 맨 위 장소를 붙든 채 남아, 검색어를
+    // 지웠을 때 원래 첫 장소가 칩 줄 아래에 잘려 보인다. 화면을 돌려 다시 그릴 때는 보던 자리를 지킨다.
+    val listState = rememberLazyListState()
+    var listedFilter by remember { mutableStateOf(searchQuery to selectedCategory) }
+    LaunchedEffect(searchQuery, selectedCategory) {
+        val filter = searchQuery to selectedCategory
+        if (filter != listedFilter) {
+            listedFilter = filter
+            listState.scrollToItem(0)
+        }
+    }
+
     Column(
         modifier = modifier
             .dismissKeyboardOnBackgroundTap()
@@ -122,9 +142,11 @@ internal fun MapDetailBottomSheet(
             // 키보드가 올라오면 목록 아래쪽이 그만큼 밀려 마지막 카드까지 닿는다.
             .imePadding(),
     ) {
-        // 접었을 때 여기까지 보인다. 높이를 재서 화면에 알려 준다.
+        // 접었을 때 여기까지 보인다. 높이를 재서 화면에 알려 준다. 검색하느라 칩 줄이 빠진 높이는 알리지
+        // 않는다 - 알리면 접은 시트와 그 위 지도 버튼이 칩 줄만큼 내려앉았다 올라온다.
         Column(
             modifier = Modifier.onSizeChanged { size ->
+                if (currentSearching) return@onSizeChanged
                 val belowHeader = if (official) OfficialSheetPeekBelowHeader else SheetHeaderBottomGap
                 currentOnHeaderHeightChange(with(density) { size.height.toDp() } + belowHeader)
             },
@@ -150,6 +172,7 @@ internal fun MapDetailBottomSheet(
                     searchQuery = searchQuery,
                     onSearchQueryChange = onSearchQueryChange,
                     onSearchFocused = onSearchFocused,
+                    showsCategories = !searching,
                     categoryFilters = categoryFilters,
                     selectedCategory = selectedCategory,
                     onCategorySelect = onCategorySelect,
@@ -183,6 +206,7 @@ internal fun MapDetailBottomSheet(
             }
         } else {
             LazyColumn(
+                state = listState,
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f),
@@ -211,12 +235,17 @@ internal fun MapDetailBottomSheet(
     }
 }
 
-/** 검색창과 카테고리 칩 줄. 접힌 시트 높이에 들어가는 머리의 아래쪽이다. */
+/**
+ * 검색창과 카테고리 칩 줄. 접힌 시트 높이에 들어가는 머리의 아래쪽이다.
+ *
+ * @param showsCategories false 면 칩 줄과 그 위 간격을 빼서 목록이 검색창 바로 아래(목록 위 여백 16)로 올라온다.
+ */
 @Composable
 private fun SearchAndCategoryControls(
     searchQuery: String,
     onSearchQueryChange: (String) -> Unit,
     onSearchFocused: () -> Unit,
+    showsCategories: Boolean,
     categoryFilters: List<PlaceCategoryFilter>,
     selectedCategory: PlaceCategoryFilter,
     onCategorySelect: (PlaceCategoryFilter) -> Unit,
@@ -252,13 +281,15 @@ private fun SearchAndCategoryControls(
             }
         }
 
-        Spacer(modifier = Modifier.height(12.dp))
+        if (showsCategories) {
+            Spacer(modifier = Modifier.height(12.dp))
 
-        CategoryChipRow(
-            filters = categoryFilters,
-            selected = selectedCategory,
-            onSelect = onCategorySelect,
-        )
+            CategoryChipRow(
+                filters = categoryFilters,
+                selected = selectedCategory,
+                onSelect = onCategorySelect,
+            )
+        }
     }
 }
 
