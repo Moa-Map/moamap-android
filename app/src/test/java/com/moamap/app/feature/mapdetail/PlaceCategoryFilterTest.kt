@@ -52,7 +52,7 @@ class PlaceCategoryFilterTest {
     }
 
     @Test
-    fun `카테고리와 검색어를 함께 적용한다`() {
+    fun `검색어가 없으면 고른 칩으로 거른다`() {
         val places = listOf(cafe, restaurant, pharmacy, unknown)
 
         assertEquals(places, filterPlaces(places, PlaceCategoryFilter.All, ""))
@@ -61,13 +61,27 @@ class PlaceCategoryFilterTest {
             filterPlaces(places, PlaceCategoryFilter.Group(PlaceCategoryGroup.Cafe), ""),
         )
         assertEquals(listOf(unknown), filterPlaces(places, PlaceCategoryFilter.Other, ""))
+        // 띄어쓰기만 넣은 건 검색이 아니다. 칩 줄도 그대로 보인다.
+        assertEquals(
+            listOf(cafe),
+            filterPlaces(places, PlaceCategoryFilter.Group(PlaceCategoryGroup.Cafe), "  "),
+        )
+    }
+
+    /** 검색하는 동안 칩 줄을 숨긴다. 보이지 않는 칩이 결과를 거르면 안 된다(10-12 사용자 결정). */
+    @Test
+    fun `검색어가 있으면 고른 칩과 상관없이 전체에서 찾는다`() {
+        val places = listOf(cafe, restaurant, pharmacy, unknown)
+
         assertEquals(
             listOf(restaurant),
             filterPlaces(places, PlaceCategoryFilter.Group(PlaceCategoryGroup.Restaurant), "달빛"),
         )
-        assertTrue(
-            filterPlaces(places, PlaceCategoryFilter.Group(PlaceCategoryGroup.Cafe), "달빛").isEmpty(),
+        assertEquals(
+            listOf(restaurant),
+            filterPlaces(places, PlaceCategoryFilter.Group(PlaceCategoryGroup.Cafe), "달빛"),
         )
+        assertTrue(filterPlaces(places, PlaceCategoryFilter.Other, "없는 이름").isEmpty())
     }
 
     @Test
