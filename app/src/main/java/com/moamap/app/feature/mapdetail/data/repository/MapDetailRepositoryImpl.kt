@@ -1,5 +1,6 @@
 package com.moamap.app.feature.mapdetail.data.repository
 
+import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.collection.data.remote.MapService
 import com.moamap.app.feature.explore.data.remote.PlaceService
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
@@ -34,8 +35,16 @@ class MapDetailRepositoryImpl @Inject constructor(
         placeService.getPlaces(mapId = mapId, page = page, size = PLACE_PAGE_SIZE, sort = "id,desc")
     }.map { dto -> dto.toMapPlace() }
 
+    /**
+     * 이미 멤버라는 답(409)은 성공으로 본다. 참여하려던 결과와 같다 - 다른 기기나 다른 화면에서 먼저 참여했는데
+     * 이 화면은 그걸 모를 때 온다. 실패로 알리면 지도로 넘어가지 못하고 막힌다.
+     */
     override suspend fun joinMap(mapId: Long) {
-        mapService.joinMap(mapId)
+        try {
+            mapService.joinMap(mapId)
+        } catch (e: ApiException) {
+            if (e.code != ALREADY_JOINED_CODE) throw e
+        }
     }
 
     override suspend fun leaveMap(mapId: Long) {
@@ -51,3 +60,6 @@ class MapDetailRepositoryImpl @Inject constructor(
         return PlaceLike(liked = dto.liked, likeCount = dto.likeCount)
     }
 }
+
+/** `[409] MAP_005: 이미 참여한 지도입니다.` */
+private const val ALREADY_JOINED_CODE = "MAP_005"
