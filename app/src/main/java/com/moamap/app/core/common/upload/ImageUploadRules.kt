@@ -55,6 +55,9 @@ sealed class ImageUploadException(message: String) : Exception(message) {
      */
     class TooLarge(maxFileSize: Long = MAX_IMAGE_FILE_SIZE) :
         ImageUploadException("사진 크기는 ${maxFileSize / BYTES_IN_MEGABYTE}MB 이하여야 해요")
+
+    /** 크기를 끝내 알아내지 못했다(읽을 수 없거나 빈 파일). 서버는 크기 0 을 「크기 초과」로 거절한다. */
+    class Unreadable : ImageUploadException("사진을 읽지 못했어요. 다른 사진을 골라 주세요")
 }
 
 /**
@@ -63,8 +66,8 @@ sealed class ImageUploadException(message: String) : Exception(message) {
  * `android.net.Uri` 를 받지 않는다. 유닛 테스트에서 `Uri` 를 만들 수 없어서, 판단이 들어간
  * 부분만이라도 밖으로 빼둬야 테스트로 고정된다.
  *
- * 크기를 알아내지 못한 경우(0)는 통과시킨다. `ContentResolver` 가 값을 주지 않는 URI 가 있는데,
- * 모른다는 이유로 막으면 멀쩡한 사진을 못 올린다. 그때는 서버 판단에 맡긴다.
+ * 크기가 0 이면 막는다. 크기를 알려 주지 않는 사진은 읽기 단계(`PresignedPhotoUploader`)가 직접 세어 오므로, 그래도
+ * 0 이면 읽을 수 없는 사진이다. 서버는 크기 0 을 「크기 초과」로 거절하고, 크기 없이 나눠 보내는 업로드도 스토리지가 받지 않는다.
  *
  * @param maxFileSize 용도별 한도. 생략하면 커버·프로필 기준이다.
  */
@@ -75,6 +78,9 @@ internal fun validateImageUpload(
 ) {
     if (contentType.lowercase() !in ALLOWED_IMAGE_CONTENT_TYPES) {
         throw ImageUploadException.UnsupportedType()
+    }
+    if (fileSize <= 0) {
+        throw ImageUploadException.Unreadable()
     }
     if (fileSize > maxFileSize) {
         throw ImageUploadException.TooLarge(maxFileSize)
