@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.common.NETWORK_ERROR_MESSAGE
+import com.moamap.app.core.common.actionableMessage
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.onboarding.domain.model.KakaoLoginCancelledException
@@ -66,7 +67,7 @@ private const val TAG = "LoginViewModel"
 private const val DEFAULT_LOGIN_ERROR = "카카오 로그인에 실패했어요"
 
 private fun Throwable.toUserMessage(): String = when (this) {
-    is ApiException -> serverMessage.ifBlank { DEFAULT_LOGIN_ERROR }
+    is ApiException -> actionableMessage() ?: DEFAULT_LOGIN_ERROR
     is ConnectionException -> NETWORK_ERROR_MESSAGE
     else -> DEFAULT_LOGIN_ERROR
 }
