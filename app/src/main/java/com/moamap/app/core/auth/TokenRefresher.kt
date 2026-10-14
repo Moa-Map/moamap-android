@@ -13,7 +13,7 @@ sealed interface TokenRefreshResult {
     /** 서버가 리프레시 토큰을 거부했다. 재로그인 외에는 방법이 없다. */
     data object Rejected : TokenRefreshResult
 
-    /** 서버에 닿지 못했거나 응답이 온전하지 않다. 세션은 그대로 두고 다음 기회에 다시 시도한다. */
+    /** 서버에 닿지 못했거나, 서버가 잠깐 오류를 냈거나(5xx 등), 응답이 온전하지 않다. 세션은 그대로 두고 다음 기회에 다시 시도한다. */
     data object Failed : TokenRefreshResult
 }
 
