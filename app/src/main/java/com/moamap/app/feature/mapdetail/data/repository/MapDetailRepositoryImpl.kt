@@ -24,8 +24,14 @@ class MapDetailRepositoryImpl @Inject constructor(
         return dto.toMapDetail(ownerName = ownerName)
     }
 
+    /**
+     * 최신순(새로 등록한 장소가 맨 위)이다. 화면이 이 순서 그대로 보여 준다.
+     *
+     * 정렬을 안 보내면 서버가 순서를 정하지 않아, 같은 지도도 열 때마다 순서가 바뀔 수 있고 여러 페이지로 나눠 받을 때
+     * 장소가 겹치거나 빠질 수 있다. 장소 번호는 등록할 때 차례로 매겨지고 겹치지 않아 등록 시각보다 순서가 단단하다.
+     */
     override suspend fun getPlaces(mapId: Long): List<MapPlace> = collectAllPages { page ->
-        placeService.getPlaces(mapId = mapId, page = page, size = PLACE_PAGE_SIZE)
+        placeService.getPlaces(mapId = mapId, page = page, size = PLACE_PAGE_SIZE, sort = "id,desc")
     }.map { dto -> dto.toMapPlace() }
 
     override suspend fun joinMap(mapId: Long) {
