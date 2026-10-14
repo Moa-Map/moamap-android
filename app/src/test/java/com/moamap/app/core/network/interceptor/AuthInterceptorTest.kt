@@ -186,4 +186,20 @@ class AuthInterceptorTest {
         assertEquals(0, asked)
         assertNull(server.takeRequest().getHeader("Authorization"))
     }
+
+    /** 새로 받으면 서버가 리프레시 토큰을 바꿔, 로그아웃이 옛 토큰만 지우고 새 토큰은 서버에 남는다(이슈 #309). */
+    @Test
+    fun `로그아웃 요청은 토큰이 곧 만료돼도 새로 받지 않고 헤더 없이 보낸다`() {
+        var asked = 0
+        val interceptor = AuthInterceptor(
+            FakeAuthTokenStore(AuthToken(jwt(now + 10), "refresh-1")),
+            refreshToken = { asked++; jwt(now + 1800) },
+            nowSeconds = { now },
+        )
+
+        send(interceptor, path = "/api/v1/auth/logout")
+
+        assertEquals(0, asked)
+        assertNull(server.takeRequest().getHeader("Authorization"))
+    }
 }

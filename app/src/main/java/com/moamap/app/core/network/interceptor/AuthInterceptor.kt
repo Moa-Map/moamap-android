@@ -16,11 +16,14 @@ internal const val BEARER_PREFIX = "Bearer "
 /**
  * 토큰이 필요 없는 경로.
  *
- * 특히 갱신 요청에 만료된 액세스 토큰을 실으면 갱신 자체가 401 로 막힌다.
+ * 특히 갱신 요청에 만료된 액세스 토큰을 실으면 갱신 자체가 401 로 막힌다. 로그아웃도 토큰을 싣지 않는다 - 실으면
+ * 보내기 직전 미리 새로 받기가 리프레시 토큰을 회전시켜, 로그아웃이 이미 지워진 옛 토큰만 지우고 새 토큰은
+ * 서버에 남는다. 서버는 `/api/v1/auth` 아래를 로그인 없이 받는다.
  */
 private val NO_AUTH_PATHS = setOf(
     "/api/v1/auth/kakao/login",
     "/api/v1/auth/token/refresh",
+    "/api/v1/auth/logout",
 )
 
 /**
