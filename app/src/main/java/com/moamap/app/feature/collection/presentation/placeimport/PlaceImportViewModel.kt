@@ -6,6 +6,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.common.NETWORK_ERROR_MESSAGE
+import com.moamap.app.core.common.actionableMessage
 import com.moamap.app.core.common.toggle
 import com.moamap.app.core.common.upload.ImageUploadException
 import com.moamap.app.core.navigation.MoaMapRoute
@@ -332,8 +333,8 @@ private fun PlaceSaveResult.toEmptyMessage(): String =
 private fun Throwable.toSaveMessage(): String = when (this) {
     // 사진 형식·크기는 사용자가 사진을 바꿔야 하는 일이라 이유를 그대로 보여준다.
     is ImageUploadException -> message ?: DEFAULT_SAVE_ERROR
-    // 권한이나 정원 같은 등록 거절 사유는 사용자가 조치할 수 있어 그대로 노출한다.
-    is ApiException -> serverMessage.ifBlank { DEFAULT_SAVE_ERROR }
+    // 권한이나 정원 같은 등록 거절 사유는 사용자가 조치할 수 있어 그대로 노출한다. 서버 내부 오류 문구는 숨긴다.
+    is ApiException -> actionableMessage() ?: DEFAULT_SAVE_ERROR
     is ConnectionException -> NETWORK_ERROR_MESSAGE
     else -> DEFAULT_SAVE_ERROR
 }
@@ -341,7 +342,7 @@ private fun Throwable.toSaveMessage(): String = when (this) {
 private fun Throwable.toUserMessage(): String = when (this) {
     // 캡션을 못 읽은 이유는 사용자가 조치할 수 있는 내용이라 그대로 노출한다.
     is PlaceExtractionException -> message ?: DEFAULT_EXTRACTION_ERROR
-    is ApiException -> serverMessage.ifBlank { DEFAULT_EXTRACTION_ERROR }
+    is ApiException -> actionableMessage() ?: DEFAULT_EXTRACTION_ERROR
     is ConnectionException -> NETWORK_ERROR_MESSAGE
     else -> DEFAULT_EXTRACTION_ERROR
 }

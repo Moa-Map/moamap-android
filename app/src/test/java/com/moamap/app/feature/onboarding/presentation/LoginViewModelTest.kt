@@ -109,6 +109,20 @@ class LoginViewModelTest {
     }
 
     @Test
+    fun `서버 내부 오류는 서버 문구 대신 기본 안내를 노출한다`() = runTest(dispatcher) {
+        repository.failure = ApiException(
+            code = "COMMON_006",
+            status = 500,
+            serverMessage = "서버 내부 오류가 발생했습니다.",
+        )
+
+        viewModel.loginWithKakao(context)
+        advanceUntilIdle()
+
+        assertEquals(LoginUiState.Error("카카오 로그인에 실패했어요"), viewModel.uiState.value)
+    }
+
+    @Test
     fun `서버에 닿지 못하면 네트워크 메시지를 노출한다`() = runTest(dispatcher) {
         repository.failure = ConnectionException(IOException("boom"))
 
