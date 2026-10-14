@@ -15,6 +15,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody
 import okio.BufferedSink
+import okio.blackholeSink
+import okio.buffer
 import okio.source
 import java.io.IOException
 import javax.inject.Inject
@@ -107,18 +109,28 @@ private fun ContentResolver.resolveContentType(uri: Uri): String {
         ?: DEFAULT_CONTENT_TYPE
 }
 
-/** 크기를 모르면 0 을 준다. 발급 요청에는 그대로 싣고, 전송은 청크로 넘어간다. */
+/**
+ * 크기를 세 단계로 알아낸다. 끝내 모르면 0 이고, 올리기 전 검사(`validateImageUpload`)가 막는다.
+ *
+ * 크기를 알려 주지 않는 URI(클라우드 사진 등)가 있어 마지막엔 직접 읽어 센다. 크기를 모르면 서버가 발급을 거절하고(0 은
+ * 「크기 초과」로 봄) 크기 없이 나눠 보내는 업로드도 스토리지가 받지 않아, 그런 사진은 절대 올라가지 않는다.
+ */
 private fun ContentResolver.resolveSize(uri: Uri): Long {
     runCatching {
         query(uri, arrayOf(OpenableColumns.SIZE), null, null, null)?.use { cursor ->
             val index = cursor.getColumnIndex(OpenableColumns.SIZE)
             if (index >= 0 && cursor.moveToFirst() && !cursor.isNull(index)) {
-                return cursor.getLong(index)
+                // 모른다는 뜻으로 0 을 주는 곳도 있어, 0 이하면 다음 방법으로 넘어간다.
+                cursor.getLong(index).takeIf { it > 0 }?.let { return it }
             }
         }
     }
 
-    return runCatching {
+    runCatching {
         openAssetFileDescriptor(uri, "r")?.use { descriptor -> descriptor.length }
-    }.getOrNull()?.takeIf { it >= 0 } ?: 0L
+    }.getOrNull()?.takeIf { it > 0 }?.let { return it }
+
+    return runCatching {
+        openInputStream(uri)?.source()?.buffer()?.use { source -> source.readAll(blackholeSink()) }
+    }.getOrNull() ?: 0L
 }

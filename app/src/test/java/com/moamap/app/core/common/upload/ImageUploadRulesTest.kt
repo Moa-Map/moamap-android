@@ -57,10 +57,12 @@ class ImageUploadRulesTest {
         }
     }
 
-    /** 크기를 알아내지 못하면 0 이 온다. 막으면 멀쩡한 사진을 못 올리므로 서버 판단에 맡긴다. */
+    /** 직접 세어도 0 이면 읽을 수 없는 사진이다. 보내면 서버가 「크기 초과」로 거절해 엉뚱한 안내가 된다(이슈 #318). */
     @Test
-    fun `크기를 모르면 통과시킨다`() {
-        validateImageUpload("image/jpeg", fileSize = 0)
+    fun `크기를 읽지 못하면 막는다`() {
+        assertThrows(ImageUploadException.Unreadable::class.java) {
+            validateImageUpload("image/jpeg", fileSize = 0)
+        }
     }
 
     /** 형식을 먼저 본다. 둘 다 틀렸을 때 크기 안내를 하면 고쳐도 또 막힌다. */
