@@ -34,7 +34,7 @@ internal abstract class OnboardingModule {
 
     companion object {
 
-        /** 로그인·로그아웃용. 로그아웃은 인증이 필요하므로 기본(인증) 클라이언트를 쓴다. */
+        /** 로그인·로그아웃용. 기본 클라이언트지만 두 경로 모두 `AuthInterceptor` 가 토큰을 싣지 않는다(서버도 로그인 없이 받음). */
         @Provides
         @Singleton
         fun provideAuthService(retrofit: Retrofit): AuthService =
