@@ -55,4 +55,6 @@ private class FakeRefreshAuthService(private val onRefresh: () -> TokenDto) : Au
     override suspend fun refresh(request: RefreshRequestDto): TokenDto = onRefresh()
 
     override suspend fun logout(request: LogoutRequestDto) = error("쓰지 않음")
+
+    override suspend fun withdraw() = error("쓰지 않음")
 }

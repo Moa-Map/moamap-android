@@ -1,6 +1,7 @@
 package com.moamap.app.feature.mypage.presentation
 
 import android.content.Context
+import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.onboarding.domain.repository.AuthRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -31,6 +32,16 @@ private class FakeAuthRepository : AuthRepository {
     override suspend fun logout() {
         logoutCount++
         logoutFailure?.let { throw it }
+    }
+
+    var withdrawFailure: Throwable? = null
+
+    var withdrawCount: Int = 0
+        private set
+
+    override suspend fun withdraw() {
+        withdrawCount++
+        withdrawFailure?.let { throw it }
     }
 
     override suspend fun hasSession(): Boolean = false
@@ -96,5 +107,51 @@ class SettingsViewModelTest {
         advanceUntilIdle()
 
         assertEquals(1, repository.logoutCount)
+    }
+
+    // ---- 회원 탈퇴 (이슈 #320) ----
+
+    @Test
+    fun `탈퇴에 성공하면 로그아웃과 같이 이동 신호를 낸다`() = runTest(dispatcher) {
+        viewModel.withdraw()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.loggedOut.value)
+        assertNull(viewModel.errorMessage.value)
+    }
+
+    @Test
+    fun `탈퇴에 실패하면 남아서 안내한다`() = runTest(dispatcher) {
+        repository.withdrawFailure = ApiException(code = "COMMON_006", status = 500, serverMessage = "서버 내부 오류가 발생했습니다.")
+
+        viewModel.withdraw()
+        advanceUntilIdle()
+
+        assertFalse(viewModel.loggedOut.value)
+        assertEquals("탈퇴하지 못했어요. 잠시 후 다시 시도해 주세요.", viewModel.errorMessage.value)
+    }
+
+    /** 다른 요청과 겹친 409 는 서버가 다시 시도하라고 안내한다. 그 문구를 그대로 보여 준다. */
+    @Test
+    fun `겹친 요청이면 서버의 다시 시도 안내를 보여 준다`() = runTest(dispatcher) {
+        repository.withdrawFailure = ApiException(
+            code = "USER_010",
+            status = 409,
+            serverMessage = "다른 요청과 동시에 처리되어 반영하지 못했습니다. 다시 시도해 주세요.",
+        )
+
+        viewModel.withdraw()
+        advanceUntilIdle()
+
+        assertEquals("다른 요청과 동시에 처리되어 반영하지 못했습니다. 다시 시도해 주세요.", viewModel.errorMessage.value)
+    }
+
+    @Test
+    fun `탈퇴 중에 다시 눌러도 한 번만 요청한다`() = runTest(dispatcher) {
+        viewModel.withdraw()
+        viewModel.withdraw()
+        advanceUntilIdle()
+
+        assertEquals(1, repository.withdrawCount)
     }
 }

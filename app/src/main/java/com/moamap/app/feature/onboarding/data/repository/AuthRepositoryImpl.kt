@@ -5,6 +5,7 @@ import com.moamap.app.core.auth.AgreedTermsVersionStore
 import com.moamap.app.core.auth.AuthToken
 import com.moamap.app.core.auth.AuthTokenStore
 import com.moamap.app.core.auth.CurrentUserStore
+import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.onboarding.data.remote.AuthService
 import com.moamap.app.feature.onboarding.data.remote.KakaoAuthClient
 import com.moamap.app.feature.onboarding.data.remote.KakaoLoginRequestDto
@@ -76,6 +77,25 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    /**
+     * 순서는 서버가 정했다: 카카오 연결 끊기 → 서버 탈퇴 → 로컬 정리.
+     *
+     * 중간에 실패하면 로컬 세션을 남겨 다시 시도하게 한다. 카카오를 끊은 뒤 탈퇴가 실패했다면, 다시 시도할 때 카카오는
+     * 「이미 끊김」으로 지나간다. 서버가 「없는 회원」(404)이라고 하면 앞선 시도에서 탈퇴는 됐는데 응답만 못 받은 것이라
+     * 성공으로 본다 - 아니면 탈퇴한 세션에 갇힌다.
+     */
+    override suspend fun withdraw() {
+        kakaoAuthClient.unlink()
+        try {
+            authService.withdraw()
+        } catch (e: ApiException) {
+            if (e.code != USER_NOT_FOUND_CODE) throw e
+        }
+        // 지우는 순서는 로그아웃과 같다(토큰 먼저).
+        tokenStore.clear()
+        currentUserStore.clear()
+    }
+
     override suspend fun hasSession(): Boolean = tokenStore.load() != null
 
     private suspend inline fun runIgnoringFailure(block: () -> Unit) {
@@ -88,3 +108,6 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 }
+
+/** `[404] USER_003: 사용자를 찾을 수 없습니다.` 탈퇴한 회원도 이 코드다. */
+private const val USER_NOT_FOUND_CODE = "USER_003"

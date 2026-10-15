@@ -38,6 +38,8 @@ private class FakeAuthRepository : AuthRepository {
 
     override suspend fun logout() = Unit
 
+    override suspend fun withdraw() = TODO("사용하지 않음")
+
     override suspend fun hasSession(): Boolean = false
 }
 

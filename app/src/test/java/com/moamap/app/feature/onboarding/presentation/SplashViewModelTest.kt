@@ -51,6 +51,8 @@ class SplashViewModelTest {
             logoutError?.let { throw it }
         }
 
+        override suspend fun withdraw() = TODO("사용하지 않음")
+
         override suspend fun hasSession(): Boolean = hasSession
     }
 
