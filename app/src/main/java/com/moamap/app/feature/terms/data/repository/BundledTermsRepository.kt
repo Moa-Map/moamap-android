@@ -18,7 +18,7 @@ import javax.inject.Inject
  *
  * 백엔드 약관 API 가 생기기 전까지 쓰는 값이라 약관마다 따로 두지 않고 하나로 둔다.
  */
-internal const val BUNDLED_TERMS_VERSION = "2026-10-09"
+internal const val BUNDLED_TERMS_VERSION = "2026-10-15"
 
 /** 앱에 넣어 둔 약관 하나. 본문은 `res/raw` 의 마크다운 파일이다. */
 private data class BundledTerms(

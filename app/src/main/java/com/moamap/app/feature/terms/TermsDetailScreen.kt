@@ -23,6 +23,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.terms.presentation.TermsDetailUiState
 import com.moamap.app.feature.terms.presentation.TermsDetailViewModel
 import com.moamap.app.feature.terms.presentation.TermsLine
@@ -77,7 +78,7 @@ private fun TermsSectionBlock(section: TermsSection) {
         section.heading?.let { heading ->
             Text(
                 text = heading,
-                style = MoaMapTheme.typography.subtitle2,
+                style = MoaMapTheme.typography.subtitle2.withDesignLineHeight(),
                 color = MoaMapTheme.colors.textNormal,
             )
         }
@@ -89,10 +90,15 @@ private fun TermsSectionBlock(section: TermsSection) {
     }
 }
 
-/** 기호가 있는 줄은 기호와 글을 나눠, 글이 다음 줄로 넘어가도 글 시작 위치에 맞춰 잇는다. */
+/**
+ * 기호가 있는 줄은 기호와 글을 나눠, 글이 다음 줄로 넘어가도 글 시작 위치에 맞춰 잇는다.
+ *
+ * 줄마다 따로 쌓으므로 줄 높이 여백을 자르지 않는다. 자르면 항목 사이가 한 항목 안의 줄 사이보다 좁아져 간격이
+ * 들쭉날쭉해진다. 시안은 본문 전체가 한 덩어리 글(줄 높이 21)이라 어디서나 같은 간격이다.
+ */
 @Composable
 private fun TermsLineText(line: TermsLine) {
-    val style = MoaMapTheme.typography.body2
+    val style = MoaMapTheme.typography.body2.withDesignLineHeight()
     val color = MoaMapTheme.colors.textNormal
     if (line.marker == null) {
         Text(text = line.text, style = style, color = color)
