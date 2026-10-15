@@ -24,6 +24,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -36,6 +39,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
+import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
 import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -58,6 +62,8 @@ internal fun SettingsScreen(
     val loggedOut by viewModel.loggedOut.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
+    var withdrawConfirmVisible by rememberSaveable { mutableStateOf(false) }
+
     LaunchedEffect(loggedOut) {
         if (loggedOut) onLoggedOut()
     }
@@ -69,6 +75,7 @@ internal fun SettingsScreen(
             onPrivacyPolicyClick = onPrivacyPolicyClick,
             onInquiryClick = onInquiryClick,
             onLogoutClick = viewModel::logout,
+            onWithdrawClick = { withdrawConfirmVisible = true },
         )
         ErrorSnackbar(
             message = errorMessage,
@@ -76,6 +83,23 @@ internal fun SettingsScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding(),
+        )
+    }
+
+    if (withdrawConfirmVisible) {
+        // 문구는 시안 그대로다(사용자 결정). 서버 처리와 맞추는 일은 약관 문구와 함께 따로 한다.
+        // 줄은 시안처럼 쉼표 뒤에서 바꾼다. 맡겨 두면 글자 단위로 끊어 「삭 / 제된」이 된다.
+        MoaMapConfirmDialog(
+            title = "정말 탈퇴하시겠어요?",
+            message = "만든 지도와 저장한 장소가 모두 삭제되며,\n삭제된 정보는 복구할 수 없어요.",
+            confirmText = "확인",
+            onConfirm = {
+                withdrawConfirmVisible = false
+                viewModel.withdraw()
+            },
+            onDismissRequest = { withdrawConfirmVisible = false },
+            dismissText = "닫기",
+            dismissColor = MoaMapPrimitiveColors.Gray200,
         )
     }
 }
@@ -87,6 +111,7 @@ private fun SettingsContent(
     onPrivacyPolicyClick: () -> Unit,
     onInquiryClick: () -> Unit,
     onLogoutClick: () -> Unit,
+    onWithdrawClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -157,10 +182,10 @@ private fun SettingsContent(
                         showDivider = true,
                         onClick = onLogoutClick,
                     )
-                    // 회원탈퇴는 서버 API 가 없어 아직 연결하지 않는다.
                     SettingsNavigationRow(
                         label = "회원탈퇴",
                         labelColor = MoaMapTheme.colors.statusAlert,
+                        onClick = onWithdrawClick,
                     )
                 }
             }
@@ -296,6 +321,7 @@ private fun SettingsScreenPreview() {
             onPrivacyPolicyClick = {},
             onInquiryClick = {},
             onLogoutClick = {},
+            onWithdrawClick = {},
         )
     }
 }

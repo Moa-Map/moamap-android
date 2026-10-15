@@ -3,6 +3,9 @@ package com.moamap.app.feature.mypage.presentation
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moamap.app.core.common.actionableMessage
+import com.moamap.app.core.common.toUserMessage
+import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.onboarding.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -14,6 +17,7 @@ import javax.inject.Inject
 
 private const val TAG = "SettingsViewModel"
 private const val LOGOUT_ERROR = "로그아웃하지 못했어요. 잠시 후 다시 시도해주세요."
+private const val WITHDRAW_ERROR = "탈퇴하지 못했어요. 잠시 후 다시 시도해 주세요."
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
@@ -45,6 +49,28 @@ class SettingsViewModel @Inject constructor(
                 // 스플래시가 남은 세션을 읽어 메인으로 보내므로 사용자를 속이게 된다.
                 Log.e(TAG, "로그아웃 실패", throwable)
                 _errorMessage.value = LOGOUT_ERROR
+            } finally {
+                inProgress = false
+            }
+        }
+    }
+
+    /** 회원 탈퇴. 성공하면 로그아웃과 같이 로그인 화면으로 간다. 실패하면 세션이 남아 있어 다시 누를 수 있다. */
+    fun withdraw() {
+        if (_loggedOut.value || inProgress) return
+        inProgress = true
+
+        viewModelScope.launch {
+            try {
+                authRepository.withdraw()
+                _loggedOut.value = true
+            } catch (e: CancellationException) {
+                throw e
+            } catch (throwable: Throwable) {
+                Log.e(TAG, "회원 탈퇴 실패", throwable)
+                // 다른 요청과 겹친 409 는 서버가 「다시 시도해 주세요」를 준다.
+                _errorMessage.value = (throwable as? ApiException)?.actionableMessage()
+                    ?: throwable.toUserMessage(WITHDRAW_ERROR)
             } finally {
                 inProgress = false
             }

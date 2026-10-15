@@ -3,6 +3,8 @@ package com.moamap.app.feature.onboarding.data.remote
 import android.content.Context
 import com.moamap.app.feature.onboarding.domain.model.KakaoLoginCancelledException
 import com.kakao.sdk.auth.model.OAuthToken
+import com.kakao.sdk.common.model.ApiError
+import com.kakao.sdk.common.model.ApiErrorCause
 import com.kakao.sdk.common.model.ClientError
 import com.kakao.sdk.common.model.ClientErrorCause
 import com.kakao.sdk.user.UserApiClient
@@ -31,6 +33,14 @@ interface KakaoAuthClient {
     suspend fun login(context: Context): String
 
     suspend fun logout()
+
+    /**
+     * 이 앱과 카카오 계정의 연결을 끊는다. 회원 탈퇴 전에 부른다(서버가 끊지 못한다 - 전 사용자 권한의 키가 필요해서).
+     *
+     * 이미 끊겼거나 카카오 로그인 정보가 없으면 끊긴 것으로 보고 그냥 끝낸다. 그때 실패로 알리면 탈퇴를 영영 못 한다.
+     * 네트워크 같은 일시 오류는 던진다 - 끊지 못한 채 탈퇴하면 카카오 쪽 연결이 남는다.
+     */
+    suspend fun unlink()
 }
 
 @Singleton
@@ -85,6 +95,29 @@ class KakaoAuthClientImpl @Inject constructor() : KakaoAuthClient {
             }
         }
     }
+
+    override suspend fun unlink() {
+        suspendCancellableCoroutine<Unit> { continuation ->
+            UserApiClient.instance.unlink { error ->
+                if (!continuation.isActive) return@unlink
+                if (error == null || error.meansKakaoAlreadyUnlinked()) {
+                    continuation.resume(Unit)
+                } else {
+                    continuation.resumeWithException(error)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 끊을 연결이 이미 없다는 카카오 오류인지. 기기에 카카오 로그인 정보가 없거나(토큰 없음), 정보가 더는 통하지
+ * 않거나(토큰 무효 - 카카오 설정에서 직접 끊은 경우 등), 이 앱에 연결된 사용자가 아닌 경우다.
+ */
+internal fun Throwable.meansKakaoAlreadyUnlinked(): Boolean = when (this) {
+    is ClientError -> reason == ClientErrorCause.TokenNotFound
+    is ApiError -> reason == ApiErrorCause.InvalidToken || reason == ApiErrorCause.NotRegisteredUser
+    else -> false
 }
 
 /** 카카오 SDK 의 (token, error) 콜백을 코루틴 결과로 옮긴다. */

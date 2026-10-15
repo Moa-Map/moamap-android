@@ -6,6 +6,7 @@ import com.moamap.app.core.auth.AuthToken
 import com.moamap.app.core.auth.FakeAgreedTermsVersionStore
 import com.moamap.app.core.auth.FakeAuthTokenStore
 import com.moamap.app.core.auth.FakeCurrentUserStore
+import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.onboarding.data.remote.AuthService
 import com.moamap.app.feature.onboarding.data.remote.KakaoAuthClient
 import com.moamap.app.feature.onboarding.data.remote.KakaoLoginRequestDto
@@ -19,7 +20,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.IOException
 
-private class FakeKakaoAuthClient : KakaoAuthClient {
+private class FakeKakaoAuthClient(
+    private val calls: MutableList<String> = mutableListOf(),
+    private val unlinkError: Throwable? = null,
+) : KakaoAuthClient {
     var logoutCount: Int = 0
         private set
 
@@ -27,6 +31,11 @@ private class FakeKakaoAuthClient : KakaoAuthClient {
 
     override suspend fun logout() {
         logoutCount++
+    }
+
+    override suspend fun unlink() {
+        calls += "kakao-unlink"
+        unlinkError?.let { throw it }
     }
 }
 
@@ -36,6 +45,8 @@ private class FakeAuthService(
         accessToken = "a",
         refreshToken = "r",
     ),
+    private val calls: MutableList<String> = mutableListOf(),
+    private val withdrawError: Throwable? = null,
 ) : AuthService {
 
     var logoutCount: Int = 0
@@ -48,6 +59,11 @@ private class FakeAuthService(
     override suspend fun logout(request: LogoutRequestDto) {
         logoutCount++
     }
+
+    override suspend fun withdraw() {
+        calls += "withdraw"
+        withdrawError?.let { throw it }
+    }
 }
 
 class AuthRepositoryImplTest {
@@ -59,8 +75,9 @@ class AuthRepositoryImplTest {
         tokenStore: FakeAuthTokenStore = FakeAuthTokenStore(),
         userStore: FakeCurrentUserStore = FakeCurrentUserStore(),
         termsVersionStore: FakeAgreedTermsVersionStore = FakeAgreedTermsVersionStore(),
+        kakaoAuthClient: KakaoAuthClient = FakeKakaoAuthClient(),
     ) = AuthRepositoryImpl(
-        kakaoAuthClient = FakeKakaoAuthClient(),
+        kakaoAuthClient = kakaoAuthClient,
         authService = authService,
         tokenStore = tokenStore,
         currentUserStore = userStore,
@@ -152,10 +169,75 @@ class AuthRepositoryImplTest {
             override suspend fun refresh(request: RefreshRequestDto) = TODO("사용하지 않음")
             override suspend fun logout(request: LogoutRequestDto): Unit =
                 throw RuntimeException("boom")
+            override suspend fun withdraw() = TODO("사용하지 않음")
         }
 
         repository(authService = failing, tokenStore = tokenStore, userStore = userStore).logout()
 
         assertNull(userStore.userId)
+    }
+
+    // ---- 회원 탈퇴 (이슈 #320) ----
+
+    /** 서버가 정한 순서다. 카카오 연결은 서버가 끊을 수 없어 앱이 탈퇴 전에 끊는다. */
+    @Test
+    fun `탈퇴는 카카오 연결을 끊고 서버에서 탈퇴한 뒤 세션을 지운다`() = runTest {
+        val calls = mutableListOf<String>()
+        val tokenStore = FakeAuthTokenStore(AuthToken("a", "r"))
+        val userStore = FakeCurrentUserStore(42L)
+
+        repository(
+            authService = FakeAuthService(calls = calls),
+            tokenStore = tokenStore,
+            userStore = userStore,
+            kakaoAuthClient = FakeKakaoAuthClient(calls = calls),
+        ).withdraw()
+
+        assertEquals(listOf("kakao-unlink", "withdraw"), calls)
+        assertNull(tokenStore.token)
+        assertNull(userStore.userId)
+    }
+
+    /** 끊지 못한 채 탈퇴하면 카카오 쪽 연결이 남는다. 세션을 남겨 다시 시도하게 한다. */
+    @Test
+    fun `카카오 연결을 끊지 못하면 탈퇴하지 않고 세션을 남긴다`() = runTest {
+        val calls = mutableListOf<String>()
+        val tokenStore = FakeAuthTokenStore(AuthToken("a", "r"))
+
+        val error = runCatching {
+            repository(
+                authService = FakeAuthService(calls = calls),
+                tokenStore = tokenStore,
+                kakaoAuthClient = FakeKakaoAuthClient(calls = calls, unlinkError = IOException("offline")),
+            ).withdraw()
+        }.exceptionOrNull()
+
+        assertTrue(error is IOException)
+        assertEquals(listOf("kakao-unlink"), calls)
+        assertEquals("a", tokenStore.token?.accessToken)
+    }
+
+    @Test
+    fun `서버 탈퇴가 실패하면 세션을 남긴다`() = runTest {
+        val tokenStore = FakeAuthTokenStore(AuthToken("a", "r"))
+        val failure = ApiException(code = "COMMON_006", status = 500, serverMessage = "서버 내부 오류가 발생했습니다.")
+
+        val error = runCatching {
+            repository(authService = FakeAuthService(withdrawError = failure), tokenStore = tokenStore).withdraw()
+        }.exceptionOrNull()
+
+        assertEquals(failure, error)
+        assertEquals("a", tokenStore.token?.accessToken)
+    }
+
+    /** 앞선 시도에서 탈퇴는 됐는데 응답만 못 받은 경우다. 실패로 두면 탈퇴한 세션에 갇힌다. */
+    @Test
+    fun `이미 없는 회원이라는 답은 탈퇴 성공으로 본다`() = runTest {
+        val tokenStore = FakeAuthTokenStore(AuthToken("a", "r"))
+        val gone = ApiException(code = "USER_003", status = 404, serverMessage = "사용자를 찾을 수 없습니다.")
+
+        repository(authService = FakeAuthService(withdrawError = gone), tokenStore = tokenStore).withdraw()
+
+        assertNull(tokenStore.token)
     }
 }

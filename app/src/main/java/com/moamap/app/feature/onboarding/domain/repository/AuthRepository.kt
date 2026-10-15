@@ -17,5 +17,12 @@ interface AuthRepository {
     /** 서버·카카오 로그아웃을 시도하고, 성공 여부와 무관하게 로컬 세션을 지운다. */
     suspend fun logout()
 
+    /**
+     * 카카오 연결을 끊고 서버에서 탈퇴한 뒤 로컬 세션을 지운다. 되돌릴 수 없다.
+     *
+     * 실패하면 던지고 로컬 세션은 그대로 둔다 - 다시 시도할 수 있어야 한다.
+     */
+    suspend fun withdraw()
+
     suspend fun hasSession(): Boolean
 }
