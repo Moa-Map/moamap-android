@@ -16,20 +16,20 @@ import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import dev.chrisbanes.haze.HazeState
 
-/** 시안 「모달창」 바탕색: #4A4F52 의 60%. */
-private val MapDetailMenuScrim = MoaMapPrimitiveColors.Gray500.copy(alpha = 0.6f)
+/** 시안 「모달창」 바탕색: #4A4F52 의 70%. */
+private val MapDetailMenuScrim = MoaMapPrimitiveColors.Gray500.copy(alpha = 0.7f)
 
 /** 메뉴 위 끝. 상단 바 가운데에 놓인 메뉴 아이콘(32)의 아래 끝에 붙는다(시안). */
 internal val MapDetailMenuTop = (MapDetailTopBarHeight + 32.dp) / 2
 
-/** 메뉴 오른쪽 끝에서 화면 끝까지. 시안은 아이콘(오른쪽 20)보다 조금 안쪽이다. */
-internal val MapDetailMenuEnd = 25.dp
+/** 메뉴 오른쪽 끝에서 화면 끝까지. 시안은 메뉴 아이콘의 오른쪽 끝(20)에 맞춘다. */
+internal val MapDetailMenuEnd = 20.dp
 
 /**
  * 상단바 메뉴. 참여한 지도에서 우측 위 아이콘을 누르면 뜬다.
  *
- * 뒤를 흐리지 않고 회색만 깐다. 메뉴 뒤 대부분이 지도인데 지도는 Compose 흐림이 잡지 못한다 -
- * [ModalActionMenu] 참고.
+ * 뒤에 깔린 지도까지 흐린다. 지도가 TextureView 라 Compose 흐림이 잡는다 - `MapDetailMap` 참고.
+ * 메뉴 밖 화면은 어둡게 덮지 않는다(시안).
  *
  * @param canEditInfo 지도 정보 줄을 넣을지. 지도를 만든 방장만이다 - `MapDetail.canEditInfo` 참고.
  * @param canShareInviteCode 초대코드 줄을 넣을지. 초대코드를 쥔 프라이빗 지도 참여자다 -
