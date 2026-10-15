@@ -18,7 +18,7 @@ import com.moamap.app.feature.mapdetail.presentation.logs.SampleMapLogs
 import com.moamap.app.feature.mapdetail.presentation.logs.SamplePendingRequests
 
 /**
- * 지도 관리. 상단바 메뉴에서 들어온다.
+ * 장소 관리. 상단바 메뉴에서 들어온다.
  *
  * 장소 등록 요청 알림과 멤버의 장소 추가·삭제 기록을 모아 본다. 알림은 수락·거절할 수 있는
  * 사람에게만 넘어온다 - 프라이빗 지도는 누구나 장소를 바로 추가해 기록만 남는다.
@@ -47,7 +47,7 @@ internal fun MapManageScreen(
             .pointerInput(Unit) { detectTapGestures() }
             .statusBarsPadding(),
     ) {
-        MoaMapTitleTopBar(title = "지도 관리", onBackClick = onBackClick)
+        MoaMapTitleTopBar(title = "장소 관리", onBackClick = onBackClick)
         MapLogsContent(
             pendingRequests = pendingRequests,
             logs = logs,

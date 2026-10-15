@@ -175,7 +175,7 @@ fun MapDetailScreen(
     var memberPageVisible by rememberSaveable { mutableStateOf(false) }
     var mapInfoVisible by rememberSaveable { mutableStateOf(false) }
 
-    // 메뉴는 화면을 돌리면 닫혀도 된다. 지도 관리는 들어가 있던 화면이라 되살린다.
+    // 메뉴는 화면을 돌리면 닫혀도 된다. 장소 관리는 들어가 있던 화면이라 되살린다.
     var menuVisible by remember { mutableStateOf(false) }
     var mapManageVisible by rememberSaveable { mutableStateOf(false) }
     var postCreateVisible by rememberSaveable { mutableStateOf(false) }
@@ -249,7 +249,7 @@ fun MapDetailScreen(
         }
     }
 
-    // 지도 관리를 처음 열 때 활동 내역을 읽는다. 들어가 보지 않으면 조회가 아예 안 나간다.
+    // 장소 관리를 처음 열 때 활동 내역을 읽는다. 들어가 보지 않으면 조회가 아예 안 나간다.
     //
     // 등록 요청은 수락·거절할 수 있을 때만 읽는다. 일반 멤버가 불러도 서버가 막지만, 볼 수
     // 없는 목록을 받아 오는 통신이 남는다. 권한은 지도 응답이 온 뒤에야 정해져 열쇠에 함께 건다.
@@ -605,7 +605,7 @@ fun MapDetailScreen(
 
         if (mapManageVisible) {
             MapManageScreen(
-                // 알림을 띄울지는 여기서 정한다. 지도 관리 화면은 받은 것만 그린다.
+                // 알림을 띄울지는 여기서 정한다. 장소 관리 화면은 받은 것만 그린다.
                 pendingRequests = if (screenState.canReviewRequests) pendingRequests else emptyList(),
                 // 지도 타입별로 거르지 않는다. 서버가 이미 프라이빗 지도에만 후기 로그를 넣어 보낸다.
                 logs = logs,
