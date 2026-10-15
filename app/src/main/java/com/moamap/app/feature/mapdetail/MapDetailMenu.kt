@@ -54,7 +54,7 @@ internal fun MapDetailMenu(
     ModalActionMenu(
         items = buildList {
             add(ActionMenuItem(R.drawable.ic_person, "멤버 관리", onMembersClick))
-            add(ActionMenuItem(R.drawable.ic_map, "지도 관리", onManageClick))
+            add(ActionMenuItem(R.drawable.ic_map, "장소 관리", onManageClick))
             if (canEditInfo) add(ActionMenuItem(R.drawable.ic_info, "지도 정보", onInfoClick))
             if (canShareInviteCode) add(ActionMenuItem(R.drawable.ic_key, "초대코드", onInviteCodeClick))
             if (canLeave) add(ActionMenuItem(R.drawable.ic_exit, "나가기", onLeaveClick))

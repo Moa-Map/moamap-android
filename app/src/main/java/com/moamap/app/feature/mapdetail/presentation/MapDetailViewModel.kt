@@ -117,7 +117,7 @@ data class MapDetailScreenState(
     val placeCount: Int? get() = map.mapOrNull?.placeCount
 
     /**
-     * 지도 관리에 장소 등록 요청 알림을 띄울 수 있는가.
+     * 장소 관리에 장소 등록 요청 알림을 띄울 수 있는가.
      *
      * 프라이빗 지도에는 권한이 없어 수락·거절할 사람 자체가 없다.
      */

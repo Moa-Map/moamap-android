@@ -80,7 +80,7 @@ class MapDetailRuleTest {
         val joined = map(MapType.Official, MapRole.Member, joined = true)
 
         assertEquals(MapDetailAction.Leave, joined.topBarAction)
-        // 멤버·지도 관리가 없는 지도라 그 자리에 나가기 글자를 둔다.
+        // 멤버·장소 관리가 없는 지도라 그 자리에 나가기 글자를 둔다.
         assertFalse(joined.showsMenu)
     }
 

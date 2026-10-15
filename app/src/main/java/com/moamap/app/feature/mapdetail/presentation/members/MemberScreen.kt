@@ -70,7 +70,7 @@ private val RoleGuideScrim = MoaMapPrimitiveColors.Gray500.copy(alpha = 0.7f)
 /**
  * 멤버 관리. 상단바 메뉴에서 들어온다.
  *
- * 지도 관리처럼 지도 상세 위에 겹쳐 그린다. 목록과 권한 부여가 지도 상세 백스택에 묶인
+ * 장소 관리처럼 지도 상세 위에 겹쳐 그린다. 목록과 권한 부여가 지도 상세 백스택에 묶인
  * [MemberViewModel] 을 그대로 쓰기 때문이다.
  *
  * [roleDisplay] 와 [canGrantRole] 을 밖에서 받는다. 화면이 지도 종류를 직접 알 필요는 없고,

@@ -24,7 +24,7 @@ private val ContentTopPadding = 20.dp
 private val SectionGap = 20.dp
 
 /**
- * 지도 관리 내용. 장소 등록 요청 알림과 활동 내역이다.
+ * 장소 관리 내용. 장소 등록 요청 알림과 활동 내역이다.
  *
  * **지도 타입·역할 분기를 여기서 하지 않는다.** 알림을 보여줄지는 [pendingRequests] 를 넘기는
  * 쪽이 정한다. 그래야 프리뷰로 공개·프라이빗 두 경우를 모두 만들 수 있다.
