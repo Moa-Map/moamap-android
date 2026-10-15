@@ -55,7 +55,7 @@ class TermsSectionsTest {
         // 제1조~제12조 + 문의 + 부칙
         assertEquals(14, sections.size)
         assertEquals("제1조 (목적)", sections.first().heading)
-        assertEquals(TermsLine(null, "이 약관은 2026년 10월 9일부터 시행합니다."), sections.last().lines.single())
+        assertEquals(TermsLine(null, "이 약관은 2026년 10월 15일부터 시행합니다."), sections.last().lines.single())
         assertTrue(sections.flatMap { it.lines }.none { line -> "•" in line.text || line.marker == "•" })
     }
 }
