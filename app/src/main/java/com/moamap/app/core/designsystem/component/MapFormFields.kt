@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
@@ -97,6 +98,7 @@ private fun MapFormLabel(
  *
  * @param photo 고른 사진의 `content://` 또는 이미 올라가 있는 사진 주소.
  * @param showsEditOverlay 사진 위에 어두운 막과 「사진 수정하기」를 띄울지. 지도 정보 수정 시안이다.
+ * @param onRemoveClick 있으면 사진 오른쪽 위에 X 를 띄운다. 장소 추가 사진 줄과 같은 X 다.
  */
 @Composable
 internal fun MapPhotoField(
@@ -104,6 +106,7 @@ internal fun MapPhotoField(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     showsEditOverlay: Boolean = false,
+    onRemoveClick: (() -> Unit)? = null,
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
@@ -148,8 +151,36 @@ internal fun MapPhotoField(
                         )
                     }
                 }
+                if (onRemoveClick != null) {
+                    // ShadowedSurface 는 내용을 카드 크기까지 늘린다. 그대로 두면 X 원이 사진을 다 덮는다.
+                    PhotoRemoveButton(
+                        onClick = onRemoveClick,
+                        modifier = Modifier.wrapContentSize(Alignment.TopEnd),
+                    )
+                }
             }
         }
+    }
+}
+
+/** 고른 사진 오른쪽 위의 X. 장소 추가·게시물 작성 사진 줄과 지도 사진 칸이 함께 쓴다. */
+@Composable
+internal fun PhotoRemoveButton(onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .padding(4.dp)
+            .size(24.dp)
+            .clip(ChipShape)
+            .background(MoaMapPrimitiveColors.TransparentBlack)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            painter = painterResource(R.drawable.ic_close),
+            contentDescription = "사진 빼기",
+            tint = MoaMapPrimitiveColors.White,
+            modifier = Modifier.size(16.dp),
+        )
     }
 }
 

@@ -86,6 +86,7 @@ internal fun CreateMapScreen(
         uiState = uiState,
         onBackClick = onBackClick,
         onImageSelected = viewModel::selectImage,
+        onImageRemove = viewModel::removeImage,
         onNameChange = viewModel::updateName,
         onDescriptionChange = viewModel::updateDescription,
         onVisibilitySelect = viewModel::selectVisibility,
@@ -104,6 +105,7 @@ private fun CreateMapContent(
     uiState: CreateMapUiState,
     onBackClick: () -> Unit,
     onImageSelected: (String) -> Unit,
+    onImageRemove: () -> Unit,
     onNameChange: (String) -> Unit,
     onDescriptionChange: (String) -> Unit,
     onVisibilitySelect: (MapVisibility) -> Unit,
@@ -163,6 +165,7 @@ private fun CreateMapContent(
                     onPhotoSelected = onImageSelected,
                     enabled = !uiState.isSubmitting,
                     hazeState = photoMenuHazeState,
+                    onPhotoRemove = onImageRemove,
                 )
 
                 MapFormInputField(
@@ -298,6 +301,7 @@ private fun CreateMapScreenPreview() {
             ),
             onBackClick = {},
             onImageSelected = {},
+            onImageRemove = {},
             onNameChange = {},
             onDescriptionChange = {},
             onVisibilitySelect = {},

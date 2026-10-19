@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.MoaMapInputSurface
+import com.moamap.app.core.designsystem.component.PhotoRemoveButton
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -267,23 +268,10 @@ internal fun PhotoPicker(
                         .clip(PhotoShape)
                         .background(MoaMapPrimitiveColors.Gray50),
                 )
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(4.dp)
-                        .size(24.dp)
-                        .clip(TagChipShape)
-                        .background(MoaMapPrimitiveColors.TransparentBlack)
-                        .clickable { onRemovePhoto(uri) },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Icon(
-                        painter = painterResource(R.drawable.ic_close),
-                        contentDescription = "사진 빼기",
-                        tint = MoaMapPrimitiveColors.White,
-                        modifier = Modifier.size(16.dp),
-                    )
-                }
+                PhotoRemoveButton(
+                    onClick = { onRemovePhoto(uri) },
+                    modifier = Modifier.align(Alignment.TopEnd),
+                )
             }
         }
 
