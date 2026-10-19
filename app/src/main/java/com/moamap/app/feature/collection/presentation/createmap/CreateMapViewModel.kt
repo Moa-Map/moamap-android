@@ -47,6 +47,12 @@ internal class CreateMapViewModel @Inject constructor(
         updateState { state -> state.copy(imageUri = uri) }
     }
 
+    /** 고른 커버 사진을 뺀다. 올리는 중에는 받지 않는다 - [selectImage] 와 같은 이유다. */
+    fun removeImage() {
+        if (_uiState.value.isSubmitting) return
+        updateState { state -> state.copy(imageUri = null) }
+    }
+
     fun updateName(name: String) {
         updateState { state -> state.copy(name = name.take(NAME_MAX_LENGTH)) }
     }

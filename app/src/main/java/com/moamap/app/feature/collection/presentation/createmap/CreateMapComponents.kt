@@ -51,6 +51,7 @@ private const val MapImageFilePrefix = "map"
  * @param enabled false 면 눌러도 메뉴를 띄우지 않는다. 올리는 중에 고른 값을 버리면 왜 안
  * 바뀌는지 알 수 없어서 아예 잠근다.
  * @param hazeState 메뉴가 바탕으로 흐릴 화면.
+ * @param onPhotoRemove 있으면 사진에 X 를 띄워 뺄 수 있게 한다. 새 지도 만들기만 넘긴다.
  */
 @Composable
 internal fun MapCoverPickerField(
@@ -60,6 +61,7 @@ internal fun MapCoverPickerField(
     hazeState: HazeState,
     modifier: Modifier = Modifier,
     showsEditOverlay: Boolean = false,
+    onPhotoRemove: (() -> Unit)? = null,
 ) {
     val pickerState = rememberImagePickerState()
     val pickerController = rememberImagePickerController(
@@ -75,6 +77,7 @@ internal fun MapCoverPickerField(
             photo = photo,
             onClick = { if (enabled) pickerState.showSourceMenu() },
             showsEditOverlay = showsEditOverlay,
+            onRemoveClick = onPhotoRemove?.let { remove -> { if (enabled) remove() } },
         )
 
         if (pickerState.isSourceMenuVisible) {

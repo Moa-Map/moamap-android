@@ -536,6 +536,24 @@ class CreateMapViewModelTest {
         assertEquals(listOf(PICKED_IMAGE_URI, changed), repository.uploadedUris)
     }
 
+    /** 앞선 시도에서 올려 둔 주소가 남아 있어도, 사진을 뺐으면 사진 없이 만든다. */
+    @Test
+    fun `사진을 빼면 사진 없이 만든다`() = runTest(dispatcher) {
+        repository.createResult = { throw IOException("서버 오류") }
+        fillRequiredInput()
+        viewModel.selectImage(PICKED_IMAGE_URI)
+        viewModel.submit()
+        advanceUntilIdle()
+
+        repository.createResult = { CreatedMap(CREATED_MAP_ID, inviteCode = null) }
+        viewModel.removeImage()
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertNull(state.imageUri)
+        assertNull(repository.createdMaps.last().imageUrl)
+    }
+
     /**
      * 이미 시작한 업로드는 그대로 끝난다. 바꾸게 두면 미리보기에는 새 사진이 뜨는데 지도에는
      * 앞의 사진이 저장된다.
