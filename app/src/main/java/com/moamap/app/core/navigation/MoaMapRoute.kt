@@ -162,6 +162,19 @@ sealed interface MoaMapRoute {
     data object Inquiry : MoaMapRoute {
         override val route = "inquiry"
     }
+
+    /** 설정 「공지사항」 목록. */
+    data object Notices : MoaMapRoute {
+        override val route = "notices"
+    }
+
+    data object NoticeDetail : MoaMapRoute {
+        const val ARG_NOTICE_ID = "noticeId"
+
+        override val route = "notices/{$ARG_NOTICE_ID}"
+
+        fun createRoute(noticeId: Long): String = "notices/$noticeId"
+    }
 }
 
 /**
