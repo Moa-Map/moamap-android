@@ -56,6 +56,7 @@ internal fun SettingsScreen(
     onTermsClick: () -> Unit,
     onPrivacyPolicyClick: () -> Unit,
     onInquiryClick: () -> Unit,
+    onNoticeClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -74,6 +75,7 @@ internal fun SettingsScreen(
             onTermsClick = onTermsClick,
             onPrivacyPolicyClick = onPrivacyPolicyClick,
             onInquiryClick = onInquiryClick,
+            onNoticeClick = onNoticeClick,
             onLogoutClick = viewModel::logout,
             onWithdrawClick = { withdrawConfirmVisible = true },
         )
@@ -110,6 +112,7 @@ private fun SettingsContent(
     onTermsClick: () -> Unit,
     onPrivacyPolicyClick: () -> Unit,
     onInquiryClick: () -> Unit,
+    onNoticeClick: () -> Unit,
     onLogoutClick: () -> Unit,
     onWithdrawClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -145,7 +148,7 @@ private fun SettingsContent(
 
             SettingsSection(title = "정보") {
                 SettingsCard(shadowRadius = 2.5.dp) {
-                    SettingsNavigationRow(label = "공지사항", showDivider = true)
+                    SettingsNavigationRow(label = "공지사항", showDivider = true, onClick = onNoticeClick)
                     SettingsNavigationRow(label = "이용약관", showDivider = true, onClick = onTermsClick)
                     SettingsNavigationRow(
                         label = "개인정보처리방침",
@@ -320,6 +323,7 @@ private fun SettingsScreenPreview() {
             onTermsClick = {},
             onPrivacyPolicyClick = {},
             onInquiryClick = {},
+            onNoticeClick = {},
             onLogoutClick = {},
             onWithdrawClick = {},
         )

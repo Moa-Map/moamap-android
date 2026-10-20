@@ -35,6 +35,8 @@ import com.moamap.app.feature.explore.ExploreScreen
 import com.moamap.app.feature.mapdetail.MapDetailScreen
 import com.moamap.app.feature.mapdetail.presentation.intro.MapIntroScreen
 import com.moamap.app.feature.mypage.InquiryScreen
+import com.moamap.app.feature.mypage.NoticeDetailScreen
+import com.moamap.app.feature.mypage.NoticeListScreen
 import com.moamap.app.feature.mypage.ProfileEditScreen
 import com.moamap.app.feature.mypage.SettingsScreen
 import com.moamap.app.feature.officialmap.OfficialMapScreen
@@ -343,10 +345,27 @@ internal fun MoaMapNavHost(
                         navController.navigate(MoaMapRoute.TermsDetail.createRoute(TermsCode.PRIVACY_POLICY))
                     },
                     onInquiryClick = { navController.navigate(MoaMapRoute.Inquiry.route) },
+                    onNoticeClick = { navController.navigate(MoaMapRoute.Notices.route) },
                 )
             }
             composable(MoaMapRoute.Inquiry.route) {
                 InquiryScreen(onBackClick = navController::popBackStack)
+            }
+            composable(MoaMapRoute.Notices.route) {
+                NoticeListScreen(
+                    onBackClick = navController::popBackStack,
+                    onNoticeClick = { noticeId ->
+                        navController.navigate(MoaMapRoute.NoticeDetail.createRoute(noticeId))
+                    },
+                )
+            }
+            composable(
+                route = MoaMapRoute.NoticeDetail.route,
+                arguments = listOf(
+                    navArgument(MoaMapRoute.NoticeDetail.ARG_NOTICE_ID) { type = NavType.LongType },
+                ),
+            ) {
+                NoticeDetailScreen(onBackClick = navController::popBackStack)
             }
         }
 
