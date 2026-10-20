@@ -1,5 +1,6 @@
 package com.moamap.app.feature.mypage.presentation
 
+import com.moamap.app.feature.mypage.domain.model.InquiryType
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test

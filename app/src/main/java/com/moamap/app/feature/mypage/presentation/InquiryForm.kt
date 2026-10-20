@@ -1,16 +1,12 @@
 package com.moamap.app.feature.mypage.presentation
 
-/** 문의 유형. 시안 「문의하기」 유형 목록 순서대로. */
-enum class InquiryType(val label: String) {
-    SERVICE("서비스 이용 문제"),
-    TECHNICAL("기술적 문제"),
-    ACCOUNT("계정 관련"),
-    REPORT("신고 및 제재"),
-    PARTNERSHIP("제휴 문의"),
-    OTHER("기타"),
-}
+import com.moamap.app.feature.mypage.domain.model.InquiryType
 
-/** 이메일 모양. 공백 없이 `@` 앞뒤에 글자가 있고, `@` 뒤에 `.` 이 있다. */
+/** 서버가 받는 길이. 넘으면 400 이라 입력에서 자른다. */
+internal const val INQUIRY_EMAIL_MAX_LENGTH = 254
+internal const val INQUIRY_CONTENT_MAX_LENGTH = 2000
+
+/** 이메일 모양. 공백 없이 `@` 앞뒤에 글자가 있고, `@` 뒤에 `.` 이 있다. 서버 정규식과 같다. */
 private val EmailShape = Regex("""^[^\s@]+@[^\s@]+\.[^\s@]+$""")
 
 /**

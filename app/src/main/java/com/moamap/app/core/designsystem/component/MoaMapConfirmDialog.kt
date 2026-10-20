@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -67,14 +68,7 @@ fun MoaMapConfirmDialog(
     dismissText: String = "취소하기",
     dismissColor: Color = MoaMapPrimitiveColors.Gray100,
 ) {
-    MoaMapDialog(
-        onDismissRequest = onDismissRequest,
-        width = ConfirmDialogWidth,
-        contentPadding = ConfirmDialogContentPadding,
-        verticalSpacing = 20.dp,
-        backgroundColor = MoaMapTheme.colors.backgroundSecondary,
-        shape = ConfirmDialogShape,
-    ) {
+    PopupCard(onDismissRequest = onDismissRequest) {
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -105,6 +99,43 @@ fun MoaMapConfirmDialog(
             )
         }
     }
+}
+
+/**
+ * 알리기만 하는 팝업. [MoaMapConfirmDialog] 와 같은 「팝업창」 모양에 제목과 버튼 하나다(문의 접수, 10-20 사용자 결정).
+ *
+ * 버튼·바깥·뒤로가기 모두 [onDismissRequest] 를 부른다.
+ */
+@Composable
+fun MoaMapAlertDialog(
+    title: String,
+    buttonText: String,
+    onDismissRequest: () -> Unit,
+) {
+    PopupCard(onDismissRequest = onDismissRequest) {
+        SingleLineTitle(title = title, suffix = "")
+        Row(modifier = Modifier.fillMaxWidth()) {
+            ConfirmDialogButton(
+                text = buttonText,
+                color = MoaMapPrimitiveColors.Blue500,
+                onClick = onDismissRequest,
+            )
+        }
+    }
+}
+
+/** 「팝업창」 카드: 폭 300, 안쪽 위 32·옆 24·아래 20, 모서리 12, 회색 바탕, 묶음 사이 20. 뒤는 검정 75%. */
+@Composable
+private fun PopupCard(onDismissRequest: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
+    MoaMapDialog(
+        onDismissRequest = onDismissRequest,
+        width = ConfirmDialogWidth,
+        contentPadding = ConfirmDialogContentPadding,
+        verticalSpacing = 20.dp,
+        backgroundColor = MoaMapTheme.colors.backgroundSecondary,
+        shape = ConfirmDialogShape,
+        content = content,
+    )
 }
 
 @Composable
@@ -236,6 +267,14 @@ private fun MoaMapConfirmDialogPreview() {
             onConfirm = {},
             onDismissRequest = {},
         )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Composable
+private fun MoaMapAlertDialogPreview() {
+    MoaMapTheme {
+        MoaMapAlertDialog(title = "문의가 접수됐어요", buttonText = "닫기", onDismissRequest = {})
     }
 }
 
