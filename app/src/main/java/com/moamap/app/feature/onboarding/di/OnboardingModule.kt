@@ -4,6 +4,8 @@ import com.moamap.app.core.auth.TokenRefresher
 import com.moamap.app.core.network.di.TokenRefreshClient
 import com.moamap.app.feature.onboarding.data.remote.AuthService
 import com.moamap.app.feature.onboarding.data.remote.AuthTokenRefresher
+import com.moamap.app.feature.onboarding.data.remote.GoogleAuthClient
+import com.moamap.app.feature.onboarding.data.remote.GoogleAuthClientImpl
 import com.moamap.app.feature.onboarding.data.remote.KakaoAuthClient
 import com.moamap.app.feature.onboarding.data.remote.KakaoAuthClientImpl
 import com.moamap.app.feature.onboarding.data.repository.AuthRepositoryImpl
@@ -27,6 +29,10 @@ internal abstract class OnboardingModule {
     @Binds
     @Singleton
     abstract fun bindKakaoAuthClient(impl: KakaoAuthClientImpl): KakaoAuthClient
+
+    @Binds
+    @Singleton
+    abstract fun bindGoogleAuthClient(impl: GoogleAuthClientImpl): GoogleAuthClient
 
     @Binds
     @Singleton

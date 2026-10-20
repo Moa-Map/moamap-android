@@ -9,6 +9,9 @@ interface AuthService {
     @POST("api/v1/auth/kakao/login")
     suspend fun kakaoLogin(@Body request: KakaoLoginRequestDto): TokenDto
 
+    @POST("api/v1/auth/google/login")
+    suspend fun googleLogin(@Body request: GoogleLoginRequestDto): TokenDto
+
     @POST("api/v1/auth/token/refresh")
     suspend fun refresh(@Body request: RefreshRequestDto): TokenDto
 

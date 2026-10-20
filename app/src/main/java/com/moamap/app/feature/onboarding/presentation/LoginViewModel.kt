@@ -8,6 +8,7 @@ import com.moamap.app.core.common.NETWORK_ERROR_MESSAGE
 import com.moamap.app.core.common.actionableMessage
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.core.network.ConnectionException
+import com.moamap.app.feature.onboarding.domain.model.GoogleLoginCancelledException
 import com.moamap.app.feature.onboarding.domain.model.KakaoLoginCancelledException
 import com.moamap.app.feature.onboarding.domain.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -32,23 +33,34 @@ class LoginViewModel @Inject constructor(
      * 보관하지 않고 이 호출 동안에만 넘긴다.
      */
     fun loginWithKakao(context: Context) {
-        // 버튼 연타로 로그인 창이 여러 번 뜨지 않게 한다.
+        login(defaultError = DEFAULT_KAKAO_LOGIN_ERROR) { authRepository.loginWithKakao(context) }
+    }
+
+    /** [context] 는 Credential Manager 가 계정 선택 화면을 띄우는 데 필요한 Activity 컨텍스트다. */
+    fun loginWithGoogle(context: Context) {
+        login(defaultError = DEFAULT_GOOGLE_LOGIN_ERROR) { authRepository.loginWithGoogle(context) }
+    }
+
+    private fun login(defaultError: String, block: suspend () -> Unit) {
+        // 버튼 연타로 로그인 창이 여러 번 뜨지 않게 한다. 다른 소셜 로그인이 진행 중일 때도 막는다.
         if (_uiState.value == LoginUiState.Loading) return
 
         _uiState.value = LoginUiState.Loading
         viewModelScope.launch {
             try {
-                authRepository.loginWithKakao(context)
+                block()
                 _uiState.value = LoginUiState.Success
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: KakaoLoginCancelledException) {
-                // 실패가 아니라 사용자의 선택이므로 조용히 원래 상태로 돌아간다.
-                _uiState.value = LoginUiState.Idle
             } catch (throwable: Throwable) {
+                if (throwable is KakaoLoginCancelledException || throwable is GoogleLoginCancelledException) {
+                    // 실패가 아니라 사용자의 선택이므로 조용히 원래 상태로 돌아간다.
+                    _uiState.value = LoginUiState.Idle
+                    return@launch
+                }
                 // 사용자에게는 짧은 메시지만 보여주므로 원인은 로그에 남긴다.
-                Log.e(TAG, "카카오 로그인 실패", throwable)
-                _uiState.value = LoginUiState.Error(throwable.toUserMessage())
+                Log.e(TAG, defaultError, throwable)
+                _uiState.value = LoginUiState.Error(throwable.toUserMessage(defaultError))
             }
         }
     }
@@ -64,10 +76,11 @@ class LoginViewModel @Inject constructor(
 }
 
 private const val TAG = "LoginViewModel"
-private const val DEFAULT_LOGIN_ERROR = "카카오 로그인에 실패했어요"
+private const val DEFAULT_KAKAO_LOGIN_ERROR = "카카오 로그인에 실패했어요"
+private const val DEFAULT_GOOGLE_LOGIN_ERROR = "구글 로그인에 실패했어요"
 
-private fun Throwable.toUserMessage(): String = when (this) {
-    is ApiException -> actionableMessage() ?: DEFAULT_LOGIN_ERROR
+private fun Throwable.toUserMessage(defaultError: String): String = when (this) {
+    is ApiException -> actionableMessage() ?: defaultError
     is ConnectionException -> NETWORK_ERROR_MESSAGE
-    else -> DEFAULT_LOGIN_ERROR
+    else -> defaultError
 }

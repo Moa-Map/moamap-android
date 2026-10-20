@@ -7,9 +7,12 @@ import com.moamap.app.core.auth.AuthTokenStore
 import com.moamap.app.core.auth.CurrentUserStore
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.onboarding.data.remote.AuthService
+import com.moamap.app.feature.onboarding.data.remote.GoogleAuthClient
+import com.moamap.app.feature.onboarding.data.remote.GoogleLoginRequestDto
 import com.moamap.app.feature.onboarding.data.remote.KakaoAuthClient
 import com.moamap.app.feature.onboarding.data.remote.KakaoLoginRequestDto
 import com.moamap.app.feature.onboarding.data.remote.LogoutRequestDto
+import com.moamap.app.feature.onboarding.data.remote.TokenDto
 import com.moamap.app.feature.onboarding.domain.repository.AuthRepository
 import kotlinx.coroutines.CancellationException
 import javax.inject.Inject
@@ -18,11 +21,22 @@ import javax.inject.Singleton
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
     private val kakaoAuthClient: KakaoAuthClient,
+    private val googleAuthClient: GoogleAuthClient,
     private val authService: AuthService,
     private val tokenStore: AuthTokenStore,
     private val currentUserStore: CurrentUserStore,
     private val agreedTermsVersionStore: AgreedTermsVersionStore,
 ) : AuthRepository {
+
+    override suspend fun loginWithKakao(context: Context) {
+        val kakaoAccessToken = kakaoAuthClient.login(context)
+        openSession(authService.kakaoLogin(KakaoLoginRequestDto(kakaoAccessToken)))
+    }
+
+    override suspend fun loginWithGoogle(context: Context) {
+        val idToken = googleAuthClient.login(context)
+        openSession(authService.googleLogin(GoogleLoginRequestDto(idToken)))
+    }
 
     /**
      * 토큰과 식별자 중 하나라도 빠지면 세션을 열지 않는다.
@@ -30,10 +44,7 @@ class AuthRepositoryImpl @Inject constructor(
      * 신원을 모른 채 들어가면 후기 목록에서 내 것과 남의 것을 가릴 수 없다. 수정·삭제가 붙어야
      * 할 자리에 신고가 붙거나 그 반대가 되는데, 화면이 조용히 어긋나느니 여기서 멈추는 편이 낫다.
      */
-    override suspend fun loginWithKakao(context: Context) {
-        val kakaoAccessToken = kakaoAuthClient.login(context)
-        val response = authService.kakaoLogin(KakaoLoginRequestDto(kakaoAccessToken))
-
+    private suspend fun openSession(response: TokenDto) {
         val accessToken = response.accessToken
         val refreshToken = response.refreshToken
         check(!accessToken.isNullOrEmpty() && !refreshToken.isNullOrEmpty()) {
