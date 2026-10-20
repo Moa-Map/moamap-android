@@ -51,7 +51,11 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.round
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.ErrorSnackbar
+import com.moamap.app.core.designsystem.component.MoaMapAlertDialog
 import com.moamap.app.core.designsystem.component.MoaMapInputSurface
 import com.moamap.app.core.designsystem.component.MoaMapLargeButton
 import com.moamap.app.core.designsystem.component.MoaMapLargeButtonHeight
@@ -61,8 +65,9 @@ import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.designsystem.theme.withDesignLineHeight
-import com.moamap.app.feature.mypage.presentation.InquiryType
-import com.moamap.app.feature.mypage.presentation.isInquiryComplete
+import com.moamap.app.feature.mypage.domain.model.InquiryType
+import com.moamap.app.feature.mypage.presentation.INQUIRY_CONTENT_MAX_LENGTH
+import com.moamap.app.feature.mypage.presentation.InquiryViewModel
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
@@ -98,37 +103,51 @@ private val TypeMenuRowHeight = 50.dp
 private val TypeMenuScrim = MoaMapPrimitiveColors.Gray500.copy(alpha = 0.6f)
 
 /**
- * 설정 「문의하기」. 유형·답변 받을 이메일·내용을 다 채우면 아래 버튼이 켜진다.
+ * 설정 「문의하기」. 유형·답변 받을 이메일·내용을 다 채우면 아래 버튼이 켜지고, 누르면 문의를 보낸다.
  *
- * 문의 API 가 없어 버튼을 눌러도 아직 아무것도 하지 않는다(10-05 사용자 결정). 보낼 곳이 없으니
- * 입력값도 ViewModel 없이 화면에 둔다 - API 가 생기면 ViewModel 로 옮겨 보낸다.
+ * 접수되면 화면 가운데에 「문의가 접수됐어요」 팝업을 띄우고, 닫으면 설정으로 돌아간다(10-20 사용자 결정).
  */
 @Composable
 internal fun InquiryScreen(
     onBackClick: () -> Unit,
     modifier: Modifier = Modifier,
+    viewModel: InquiryViewModel = hiltViewModel(),
 ) {
-    var type by rememberSaveable { mutableStateOf<InquiryType?>(null) }
-    var email by rememberSaveable { mutableStateOf("") }
-    var content by rememberSaveable { mutableStateOf("") }
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     var typeMenuVisible by rememberSaveable { mutableStateOf(false) }
 
-    InquiryContent(
-        type = type,
-        email = email,
-        content = content,
-        typeMenuVisible = typeMenuVisible,
-        onBackClick = onBackClick,
-        onTypeFieldClick = { typeMenuVisible = !typeMenuVisible },
-        onTypeSelected = { selected ->
-            type = selected
-            typeMenuVisible = false
-        },
-        onTypeMenuDismiss = { typeMenuVisible = false },
-        onEmailChange = { email = it },
-        onContentChange = { content = it },
-        modifier = modifier,
-    )
+    Box(modifier = modifier.fillMaxSize()) {
+        InquiryContent(
+            type = uiState.type,
+            email = uiState.email,
+            content = uiState.content,
+            typeMenuVisible = typeMenuVisible,
+            submitEnabled = uiState.canSubmit,
+            onBackClick = onBackClick,
+            onTypeFieldClick = { typeMenuVisible = !typeMenuVisible },
+            onTypeSelected = { selected ->
+                viewModel.selectType(selected)
+                typeMenuVisible = false
+            },
+            onTypeMenuDismiss = { typeMenuVisible = false },
+            onEmailChange = viewModel::updateEmail,
+            onContentChange = viewModel::updateContent,
+            onSubmitClick = viewModel::submit,
+        )
+        // 아래 버튼을 가리지 않게 버튼 위에 띄운다.
+        ErrorSnackbar(
+            message = uiState.errorMessage,
+            onShown = viewModel::consumeError,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = MoaMapLargeButtonHeight + SubmitButtonVerticalPadding * 2),
+        )
+    }
+
+    if (uiState.submitted) {
+        MoaMapAlertDialog(title = "문의가 접수됐어요", buttonText = "닫기", onDismissRequest = onBackClick)
+    }
 }
 
 @Composable
@@ -137,12 +156,14 @@ private fun InquiryContent(
     email: String,
     content: String,
     typeMenuVisible: Boolean,
+    submitEnabled: Boolean,
     onBackClick: () -> Unit,
     onTypeFieldClick: () -> Unit,
     onTypeSelected: (InquiryType) -> Unit,
     onTypeMenuDismiss: () -> Unit,
     onEmailChange: (String) -> Unit,
     onContentChange: (String) -> Unit,
+    onSubmitClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val hazeState = rememberHazeState()
@@ -215,23 +236,35 @@ private fun InquiryContent(
                     label = "문의 내용",
                     modifier = Modifier.height(ContentFieldHeight),
                 ) {
-                    InquiryTextField(
-                        value = content,
-                        onValueChange = onContentChange,
-                        placeholder = "궁금한 점이나 불편한 점을 자세히 적어주세요",
-                        singleLine = false,
-                        keyboardOptions = KeyboardOptions.Default,
-                        modifier = Modifier.padding(16.dp),
-                    )
+                    // 칸 바탕은 내용을 칸 크기로 늘린다. 글자 수가 오른쪽 아래 제자리에 있도록 한 겹 감싼다.
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        InquiryTextField(
+                            value = content,
+                            onValueChange = onContentChange,
+                            placeholder = "궁금한 점이나 불편한 점을 자세히 적어주세요",
+                            singleLine = false,
+                            keyboardOptions = KeyboardOptions.Default,
+                            // 아래는 글자 수 한 줄만큼 더 비워 글이 그 밑으로 들어가지 않게 한다.
+                            modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 40.dp),
+                        )
+                        Text(
+                            text = "${content.length}/$INQUIRY_CONTENT_MAX_LENGTH",
+                            style = MoaMapTheme.typography.caption0,
+                            color = MoaMapTheme.colors.textAssistive,
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(16.dp),
+                        )
+                    }
                 }
             }
         }
 
         MoaMapLargeButton(
             label = "문의하기",
-            // 문의 API 가 없어 눌러도 아직 아무것도 하지 않는다(10-05 사용자 결정).
-            onClick = {},
-            enabled = isInquiryComplete(type = type, email = email, content = content),
+            onClick = onSubmitClick,
+            // 보내는 동안에도 잠근다.
+            enabled = submitEnabled,
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding()
@@ -447,12 +480,14 @@ private fun InquiryScreenPreview() {
             email = "moamap@example.com",
             content = "지도를 열면 앱이 멈춥니다.",
             typeMenuVisible = false,
+            submitEnabled = true,
             onBackClick = {},
             onTypeFieldClick = {},
             onTypeSelected = {},
             onTypeMenuDismiss = {},
             onEmailChange = {},
             onContentChange = {},
+            onSubmitClick = {},
         )
     }
 }
