@@ -8,11 +8,14 @@ import com.moamap.app.core.auth.FakeAuthTokenStore
 import com.moamap.app.core.auth.FakeCurrentUserStore
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.onboarding.data.remote.AuthService
+import com.moamap.app.feature.onboarding.data.remote.GoogleAuthClient
+import com.moamap.app.feature.onboarding.data.remote.GoogleLoginRequestDto
 import com.moamap.app.feature.onboarding.data.remote.KakaoAuthClient
 import com.moamap.app.feature.onboarding.data.remote.KakaoLoginRequestDto
 import com.moamap.app.feature.onboarding.data.remote.LogoutRequestDto
 import com.moamap.app.feature.onboarding.data.remote.RefreshRequestDto
 import com.moamap.app.feature.onboarding.data.remote.TokenDto
+import com.moamap.app.feature.onboarding.domain.model.GoogleLoginCancelledException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -39,6 +42,13 @@ private class FakeKakaoAuthClient(
     }
 }
 
+private class FakeGoogleAuthClient(private val loginError: Throwable? = null) : GoogleAuthClient {
+    override suspend fun login(context: Context): String {
+        loginError?.let { throw it }
+        return "google-id-token"
+    }
+}
+
 private class FakeAuthService(
     private val loginResponse: TokenDto = TokenDto(
         userId = 42,
@@ -52,7 +62,15 @@ private class FakeAuthService(
     var logoutCount: Int = 0
         private set
 
+    var googleLoginRequest: GoogleLoginRequestDto? = null
+        private set
+
     override suspend fun kakaoLogin(request: KakaoLoginRequestDto): TokenDto = loginResponse
+
+    override suspend fun googleLogin(request: GoogleLoginRequestDto): TokenDto {
+        googleLoginRequest = request
+        return loginResponse
+    }
 
     override suspend fun refresh(request: RefreshRequestDto): TokenDto = TODO("사용하지 않음")
 
@@ -76,8 +94,10 @@ class AuthRepositoryImplTest {
         userStore: FakeCurrentUserStore = FakeCurrentUserStore(),
         termsVersionStore: FakeAgreedTermsVersionStore = FakeAgreedTermsVersionStore(),
         kakaoAuthClient: KakaoAuthClient = FakeKakaoAuthClient(),
+        googleAuthClient: GoogleAuthClient = FakeGoogleAuthClient(),
     ) = AuthRepositoryImpl(
         kakaoAuthClient = kakaoAuthClient,
+        googleAuthClient = googleAuthClient,
         authService = authService,
         tokenStore = tokenStore,
         currentUserStore = userStore,
@@ -144,6 +164,62 @@ class AuthRepositoryImplTest {
         assertNull(userStore.userId)
     }
 
+    // ---- 구글 로그인 (이슈 #332) ----
+
+    @Test
+    fun `구글 로그인은 ID 토큰을 서버에 보내고 토큰과 식별자를 저장한다`() = runTest {
+        val service = FakeAuthService()
+        val tokenStore = FakeAuthTokenStore()
+        val userStore = FakeCurrentUserStore()
+
+        repository(authService = service, tokenStore = tokenStore, userStore = userStore)
+            .loginWithGoogle(context)
+
+        assertEquals(GoogleLoginRequestDto("google-id-token"), service.googleLoginRequest)
+        assertEquals("a", tokenStore.token?.accessToken)
+        assertEquals(42L, userStore.userId)
+    }
+
+    @Test
+    fun `구글로 로그인해도 지난 세션의 약관 동의 버전을 지운다`() = runTest {
+        val termsVersionStore = FakeAgreedTermsVersionStore("2026-10-09")
+
+        repository(termsVersionStore = termsVersionStore).loginWithGoogle(context)
+
+        assertNull(termsVersionStore.version)
+    }
+
+    @Test
+    fun `구글 로그인 응답에 식별자가 없으면 세션을 열지 않는다`() = runTest {
+        val tokenStore = FakeAuthTokenStore()
+        val service = FakeAuthService(TokenDto(accessToken = "a", refreshToken = "r"))
+
+        val error = runCatching {
+            repository(authService = service, tokenStore = tokenStore).loginWithGoogle(context)
+        }.exceptionOrNull()
+
+        assertTrue(error is IllegalStateException)
+        assertNull(tokenStore.token)
+    }
+
+    @Test
+    fun `구글 계정 선택을 취소하면 서버에 보내지 않고 취소를 그대로 올린다`() = runTest {
+        val service = FakeAuthService()
+        val tokenStore = FakeAuthTokenStore()
+
+        val error = runCatching {
+            repository(
+                authService = service,
+                tokenStore = tokenStore,
+                googleAuthClient = FakeGoogleAuthClient(loginError = GoogleLoginCancelledException()),
+            ).loginWithGoogle(context)
+        }.exceptionOrNull()
+
+        assertTrue(error is GoogleLoginCancelledException)
+        assertNull(service.googleLoginRequest)
+        assertNull(tokenStore.token)
+    }
+
     /**
      * 남겨두면 다른 계정으로 로그인했을 때 남의 글이 내 것으로 보인다.
      * 토큰 저장소가 저장소 전체를 비우는 데 기대지 않고 여기서 함께 지운다.
@@ -166,6 +242,7 @@ class AuthRepositoryImplTest {
         val userStore = FakeCurrentUserStore(42L)
         val failing = object : AuthService {
             override suspend fun kakaoLogin(request: KakaoLoginRequestDto) = TODO("사용하지 않음")
+            override suspend fun googleLogin(request: GoogleLoginRequestDto) = TODO("사용하지 않음")
             override suspend fun refresh(request: RefreshRequestDto) = TODO("사용하지 않음")
             override suspend fun logout(request: LogoutRequestDto): Unit =
                 throw RuntimeException("boom")

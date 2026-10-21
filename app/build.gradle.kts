@@ -56,6 +56,10 @@ android {
         buildConfigField("String", "KAKAO_NATIVE_APP_KEY", "\"${localProperty("KAKAO_NATIVE_APP_KEY")}\"")
         manifestPlaceholders["KAKAO_NATIVE_APP_KEY"] = localProperty("KAKAO_NATIVE_APP_KEY")
 
+        // 구글 로그인의 서버(웹) 클라이언트 ID. ID 토큰의 aud 가 되고 서버가 이 값으로 검증한다.
+        // 비어 있어도 빌드는 된다 - 그때는 구글 로그인을 누르면 실패로 안내한다.
+        buildConfigField("String", "GOOGLE_WEB_CLIENT_ID", "\"${localProperty("GOOGLE_WEB_CLIENT_ID")}\"")
+
         // Kakao REST API 키. 장소 검색(로컬 API)에 쓴다.
         //
         // 이 키는 APK 에서 뽑아낼 수 있고 플랫폼 제한으로 막히지 않는다. 네이티브 앱 키와 달리
@@ -70,7 +74,8 @@ android {
         }
         release {
             buildConfigField("String", "BASE_URL", "\"${baseUrlOf("RELEASE_BASE_URL", DefaultReleaseBaseUrl)}\"")
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -92,6 +97,23 @@ android {
             // 유닛 테스트에서 형식적인 Context 인스턴스를 만들 수 있도록,
             // android.jar 스텁이 예외 대신 기본값을 돌려주게 한다.
             isReturnDefaultValues = true
+        }
+    }
+}
+
+// 키가 비어도 빌드는 되지만 지도·로그인·장소 검색이 실행 중에야 실패한다. 릴리즈에서만 막는다 -
+// 구성 단계에서 막으면 키가 없는 CI·로컬의 Sync 와 debug 빌드까지 깨진다.
+val releaseRequiredKeys = listOf(
+    "MAPBOX_PUBLIC_TOKEN",
+    "KAKAO_NATIVE_APP_KEY",
+    "KAKAO_REST_API_KEY",
+    "GOOGLE_WEB_CLIENT_ID",
+)
+val missingReleaseKeys = releaseRequiredKeys.filter { localProperty(it).isBlank() }
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    doFirst {
+        require(missingReleaseKeys.isEmpty()) {
+            "릴리즈 빌드에는 local.properties 의 키가 필요하다. 빠진 키=${missingReleaseKeys.joinToString()}"
         }
     }
 }
@@ -122,6 +144,11 @@ dependencies {
 
     // 카카오 로그인(사용자 관리). 인증·공통 모듈은 이게 함께 끌고 온다.
     implementation(libs.kakao.sdk.user)
+
+    // 구글 로그인 (Credential Manager)
+    implementation(libs.androidx.credentials)
+    implementation(libs.androidx.credentials.play.services.auth)
+    implementation(libs.googleid)
 
     // Mapbox Maps SDK v11 + Compose 확장
     implementation(libs.mapbox.maps)

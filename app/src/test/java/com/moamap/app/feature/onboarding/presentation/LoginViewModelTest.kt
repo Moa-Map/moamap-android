@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.ContextWrapper
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.core.network.ConnectionException
+import com.moamap.app.feature.onboarding.domain.model.GoogleLoginCancelledException
 import com.moamap.app.feature.onboarding.domain.model.KakaoLoginCancelledException
 import com.moamap.app.feature.onboarding.domain.repository.AuthRepository
 import kotlinx.coroutines.CompletableDeferred
@@ -30,8 +31,17 @@ private class FakeAuthRepository : AuthRepository {
     var loginCount: Int = 0
         private set
 
+    var googleLoginCount: Int = 0
+        private set
+
     override suspend fun loginWithKakao(context: Context) {
         loginCount++
+        pending?.await()
+        failure?.let { throw it }
+    }
+
+    override suspend fun loginWithGoogle(context: Context) {
+        googleLoginCount++
         pending?.await()
         failure?.let { throw it }
     }
@@ -150,6 +160,54 @@ class LoginViewModelTest {
         advanceUntilIdle()
 
         assertEquals(1, repository.loginCount)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+    }
+
+    // ---- 구글 로그인 (이슈 #332) ----
+
+    @Test
+    fun `구글 로그인에 성공하면 카카오와 같은 이동 신호를 낸다`() = runTest(dispatcher) {
+        viewModel.loginWithGoogle(context)
+        advanceUntilIdle()
+
+        assertEquals(1, repository.googleLoginCount)
+        assertEquals(LoginUiState.Success, viewModel.uiState.value)
+    }
+
+    @Test
+    fun `구글 계정 선택을 취소하면 에러 없이 초기 상태로 돌아간다`() = runTest(dispatcher) {
+        repository.failure = GoogleLoginCancelledException()
+
+        viewModel.loginWithGoogle(context)
+        advanceUntilIdle()
+
+        assertEquals(LoginUiState.Idle, viewModel.uiState.value)
+    }
+
+    @Test
+    fun `구글 로그인 실패는 구글 기본 안내를 노출한다`() = runTest(dispatcher) {
+        repository.failure = IllegalStateException("GOOGLE_WEB_CLIENT_ID 가 비어 있습니다.")
+
+        viewModel.loginWithGoogle(context)
+        advanceUntilIdle()
+
+        assertEquals(LoginUiState.Error("구글 로그인에 실패했어요"), viewModel.uiState.value)
+    }
+
+    /** 두 계정 창이 겹쳐 뜨지 않게 한다. 화면도 로딩 중에는 두 버튼을 모두 막는다. */
+    @Test
+    fun `카카오 로그인이 진행 중이면 구글 로그인을 시작하지 않는다`() = runTest(dispatcher) {
+        val gate = CompletableDeferred<Unit>()
+        repository.pending = gate
+
+        viewModel.loginWithKakao(context)
+        advanceUntilIdle()
+        viewModel.loginWithGoogle(context)
+        advanceUntilIdle()
+
+        assertEquals(0, repository.googleLoginCount)
 
         gate.complete(Unit)
         advanceUntilIdle()

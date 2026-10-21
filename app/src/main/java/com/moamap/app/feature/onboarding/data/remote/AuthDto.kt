@@ -8,6 +8,12 @@ data class KakaoLoginRequestDto(
     val kakaoAccessToken: String,
 )
 
+/** POST api/v1/auth/google/login 요청 */
+@Serializable
+data class GoogleLoginRequestDto(
+    val idToken: String,
+)
+
 /** POST api/v1/auth/token/refresh 요청 */
 @Serializable
 data class RefreshRequestDto(

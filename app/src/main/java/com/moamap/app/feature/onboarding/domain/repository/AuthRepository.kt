@@ -14,6 +14,15 @@ interface AuthRepository {
      */
     suspend fun loginWithKakao(context: Context)
 
+    /**
+     * 구글 계정 선택부터 서버 토큰 교환·저장까지 한 번에 처리한다. 세션 저장은 [loginWithKakao] 와 같다.
+     *
+     * [context] 는 Credential Manager 가 계정 선택 화면을 띄우는 데 쓰는 **Activity 컨텍스트**여야 한다.
+     *
+     * @throws com.moamap.app.feature.onboarding.domain.model.GoogleLoginCancelledException 사용자가 취소한 경우
+     */
+    suspend fun loginWithGoogle(context: Context)
+
     /** 서버·카카오 로그아웃을 시도하고, 성공 여부와 무관하게 로컬 세션을 지운다. */
     suspend fun logout()
 

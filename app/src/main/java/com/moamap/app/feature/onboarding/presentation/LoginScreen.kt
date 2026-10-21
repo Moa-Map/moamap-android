@@ -68,7 +68,7 @@ fun LoginScreen(
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
-    // 카카오 SDK 가 로그인 화면을 띄우려면 Activity 컨텍스트가 필요하다.
+    // 카카오 SDK·Credential Manager 가 로그인 화면을 띄우려면 Activity 컨텍스트가 필요하다.
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
@@ -82,6 +82,7 @@ fun LoginScreen(
     LoginContent(
         isLoading = uiState == LoginUiState.Loading,
         errorMessage = (uiState as? LoginUiState.Error)?.message,
+        onGoogleClick = { viewModel.loginWithGoogle(context) },
         onKakaoClick = { viewModel.loginWithKakao(context) },
         onErrorShown = viewModel::consumeError,
         modifier = modifier,
@@ -92,6 +93,7 @@ fun LoginScreen(
 internal fun LoginContent(
     isLoading: Boolean,
     errorMessage: String?,
+    onGoogleClick: () -> Unit,
     onKakaoClick: () -> Unit,
     onErrorShown: () -> Unit,
     modifier: Modifier = Modifier,
@@ -132,13 +134,12 @@ internal fun LoginContent(
                     .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                // 서버에 구글 로그인 API 가 없어 이번 이슈에서는 렌더링만 한다.
                 SocialLoginButton(
                     iconRes = R.drawable.ic_google_logo,
                     label = "구글로 계속하기",
                     backgroundColor = MoaMapPrimitiveColors.White,
-                    enabled = false,
-                    onClick = {},
+                    enabled = !isLoading,
+                    onClick = onGoogleClick,
                 )
                 SocialLoginButton(
                     iconRes = R.drawable.ic_kakao_logo,
@@ -201,6 +202,7 @@ private fun LoginScreenPreview() {
         LoginContent(
             isLoading = false,
             errorMessage = null,
+            onGoogleClick = {},
             onKakaoClick = {},
             onErrorShown = {},
         )

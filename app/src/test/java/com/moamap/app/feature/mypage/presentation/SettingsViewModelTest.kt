@@ -29,6 +29,8 @@ private class FakeAuthRepository : AuthRepository {
 
     override suspend fun loginWithKakao(context: Context) = Unit
 
+    override suspend fun loginWithGoogle(context: Context) = Unit
+
     override suspend fun logout() {
         logoutCount++
         logoutFailure?.let { throw it }

@@ -50,6 +50,9 @@ class TermsAgreementViewModelTest {
         override suspend fun loginWithKakao(context: Context) =
             throw UnsupportedOperationException("약관 화면은 로그인하지 않는다")
 
+        override suspend fun loginWithGoogle(context: Context) =
+            throw UnsupportedOperationException("약관 화면은 로그인하지 않는다")
+
         override suspend fun logout() {
             logoutCount++
             logoutError?.let { throw it }

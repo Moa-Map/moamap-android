@@ -46,6 +46,8 @@ class SplashViewModelTest {
 
         override suspend fun loginWithKakao(context: Context) = TODO("사용하지 않음")
 
+        override suspend fun loginWithGoogle(context: Context) = TODO("사용하지 않음")
+
         override suspend fun logout() {
             logoutCount++
             logoutError?.let { throw it }

@@ -52,6 +52,8 @@ private class FakeRefreshAuthService(private val onRefresh: () -> TokenDto) : Au
 
     override suspend fun kakaoLogin(request: KakaoLoginRequestDto): TokenDto = error("쓰지 않음")
 
+    override suspend fun googleLogin(request: GoogleLoginRequestDto): TokenDto = error("쓰지 않음")
+
     override suspend fun refresh(request: RefreshRequestDto): TokenDto = onRefresh()
 
     override suspend fun logout(request: LogoutRequestDto) = error("쓰지 않음")
