@@ -47,6 +47,7 @@ import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.collection.ImportActionCard
+import com.moamap.app.feature.collection.domain.model.EditedPlace
 import com.moamap.app.feature.collection.domain.model.MapVisibility
 import com.moamap.app.feature.mapdetail.MapInviteCodeDialog
 import dev.chrisbanes.haze.hazeSource
@@ -59,18 +60,34 @@ private val SubmitButtonBottomPadding = 13.dp
 /** 고정된 버튼에 마지막 입력이 가리지 않도록 확보하는 높이. */
 private val SubmitButtonAreaHeight = 80.dp
 
+/**
+ * @param onCreated 만든 뒤 화면을 뺄 때. 불러온 장소를 다 넣지 못했으면 [importNotice] 로 안내를 넘긴다.
+ * @param onExternalImportClick 외부 지도 카드. 장소 가져오기 흐름을 새 지도용으로 연다.
+ * @param importedPlaces 그 흐름이 돌려준 결과. 받았으면 [onImportedPlacesConsumed] 로 비운다.
+ */
 @Composable
 internal fun CreateMapScreen(
     onBackClick: () -> Unit,
-    onCreated: (mapId: Long) -> Unit,
+    onCreated: (mapId: Long, importNotice: String?) -> Unit,
+    onExternalImportClick: () -> Unit,
+    importedPlaces: List<EditedPlace>?,
+    onImportedPlacesConsumed: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: CreateMapViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // 받은 결과는 ViewModel 이 저장해 들고 있으므로 넘겨준 쪽에서는 바로 비운다. 남겨두면
+    // 화면이 다시 그려질 때 같은 결과를 또 받는다.
+    LaunchedEffect(importedPlaces) {
+        importedPlaces ?: return@LaunchedEffect
+        viewModel.applyImportedPlaces(importedPlaces)
+        onImportedPlacesConsumed()
+    }
+
     val submit = uiState.submit
     LaunchedEffect(submit) {
-        if (submit is SubmitState.Done) onCreated(submit.mapId)
+        if (submit is SubmitState.Done) onCreated(submit.mapId, submit.importNotice)
     }
 
     if (submit is SubmitState.ShowingInviteCode) {
@@ -93,6 +110,7 @@ internal fun CreateMapScreen(
         onTagInputChange = viewModel::updateTagInput,
         onTagCommit = viewModel::commitTag,
         onTagRemove = viewModel::removeTag,
+        onExternalImportClick = onExternalImportClick,
         onSubmitClick = viewModel::submit,
         onErrorShown = viewModel::consumeError,
         modifier = modifier,
@@ -112,6 +130,7 @@ private fun CreateMapContent(
     onTagInputChange: (String) -> Unit,
     onTagCommit: () -> Unit,
     onTagRemove: (String) -> Unit,
+    onExternalImportClick: () -> Unit,
     onSubmitClick: () -> Unit,
     onErrorShown: () -> Unit,
     modifier: Modifier = Modifier,
@@ -218,12 +237,15 @@ private fun CreateMapContent(
                 ImportActionCard(
                     iconRes = R.drawable.ic_map,
                     title = "외부 지도",
-                    subtitle = "불러오기",
+                    subtitle = uiState.importedPlaces.size
+                        .takeIf { count -> count > 0 }
+                        ?.let { count -> "${count}곳 불러옴" }
+                        ?: "불러오기",
                     backgroundColor = MoaMapPrimitiveColors.Yellow50,
                     titleColor = MoaMapPrimitiveColors.Yellow800,
                     iconTint = MoaMapPrimitiveColors.Yellow500,
-                    // UI 우선 구현: 가져오기 흐름은 후속 단계에서 연결한다.
-                    onClick = null,
+                    // 만드는 중에 불러오면 이미 나간 요청에 실리지 않는다.
+                    onClick = { if (!uiState.isSubmitting) onExternalImportClick() },
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
@@ -308,6 +330,7 @@ private fun CreateMapScreenPreview() {
             onTagInputChange = {},
             onTagCommit = {},
             onTagRemove = {},
+            onExternalImportClick = {},
             onSubmitClick = {},
             onErrorShown = {},
         )

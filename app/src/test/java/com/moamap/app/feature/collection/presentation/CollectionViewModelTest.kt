@@ -164,6 +164,21 @@ class CollectionViewModelTest {
     }
 
     @Test
+    fun `새 지도 만들기가 돌려준 안내는 돌아와 목록을 다시 읽어도 남는다`() = runTest(dispatcher) {
+        val viewModel = startedViewModel()
+
+        viewModel.showNotice("일부 장소를 못 넣었어요")
+        viewModel.refresh()
+        advanceUntilIdle()
+
+        assertEquals("일부 장소를 못 넣었어요", viewModel.uiState.value.notice)
+
+        viewModel.consumeNotice()
+
+        assertNull(viewModel.uiState.value.notice)
+    }
+
+    @Test
     fun `화면이 보이면 선택된 탭만 읽는다`() = runTest(dispatcher) {
         val viewModel = startedViewModel()
 

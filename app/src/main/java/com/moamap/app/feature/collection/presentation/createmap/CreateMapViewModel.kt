@@ -6,9 +6,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.common.toUploadMessage
 import com.moamap.app.core.common.toUserMessage
+import com.moamap.app.feature.collection.domain.model.EditedPlace
 import com.moamap.app.feature.collection.domain.model.MapVisibility
 import com.moamap.app.feature.collection.domain.model.NewMap
 import com.moamap.app.feature.collection.domain.repository.MapRepository
+import com.moamap.app.feature.collection.domain.repository.PlaceImportRepository
 import com.moamap.app.feature.mapdetail.presentation.addplace.applyTagInput
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -20,6 +22,8 @@ import javax.inject.Inject
 
 private const val TAG = "CreateMapViewModel"
 private const val CREATE_FAILED_MESSAGE = "지도를 만들지 못했어요"
+internal const val IMPORT_PARTIAL_MESSAGE = "일부 장소를 못 넣었어요"
+internal const val IMPORT_FAILED_MESSAGE = "불러온 장소를 넣지 못했어요"
 
 /**
  * 새 지도 만들기 화면 ViewModel.
@@ -31,6 +35,7 @@ private const val CREATE_FAILED_MESSAGE = "지도를 만들지 못했어요"
 internal class CreateMapViewModel @Inject constructor(
     private val savedStateHandle: SavedStateHandle,
     private val mapRepository: MapRepository,
+    private val placeImportRepository: PlaceImportRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(savedStateHandle.toCreateMapUiState())
@@ -93,11 +98,26 @@ internal class CreateMapViewModel @Inject constructor(
     }
 
     /**
+     * 외부 지도에서 불러온 장소를 받는다. 앞서 불러온 것이 있으면 **바꾼다** - 덧붙이면 같은
+     * 리스트를 다시 불러왔을 때 장소가 두 번 들어간다.
+     *
+     * 만드는 중에는 받지 않는다. 이미 나간 요청에는 실리지 않으므로 받아도 버려진다.
+     */
+    fun applyImportedPlaces(places: List<EditedPlace>) {
+        if (_uiState.value.submit != SubmitState.Idle) return
+        updateState { state -> state.copy(importedPlaces = places) }
+    }
+
+    /**
      * 커버를 올리고 지도를 만든다.
      *
      * 사진은 **여기서** 올린다. 고를 때마다 올리면 만들기를 그만둔 사용자의 사진이 스토리지에
      * 남는데 지울 방법이 없다. 업로드가 실패하면 지도도 만들지 않는다 - 커버 없이 만들어지면
      * 사용자는 성공한 줄 알고 나가고, 지도 수정 화면이 없어 나중에 붙일 방법도 없다.
+     *
+     * 불러온 장소는 지도가 생긴 **뒤에** 넣는다. 사진 발급이 `mapId` 를 요구한다. 장소를 다 넣지
+     * 못해도 지도는 그대로 두고 끝까지 간다 - 지도는 이미 만들어졌다. 안내는 결과에 실어
+     * 돌아간 모음 탭이 띄운다.
      */
     fun submit() {
         if (!_uiState.value.canSubmit) return
@@ -138,13 +158,8 @@ internal class CreateMapViewModel @Inject constructor(
                 return@launch
             }
 
-            try {
-                val created = mapRepository.createMap(newMap.copy(imageUrl = imageUrl))
-                // 프라이빗 지도는 초대 코드를 먼저 보여주고, 닫을 때 화면을 뺀다.
-                val next = created.inviteCode
-                    ?.let { code -> SubmitState.ShowingInviteCode(created.id, code) }
-                    ?: SubmitState.Done(created.id)
-                updateState { state -> state.copy(submit = next) }
+            val created = try {
+                mapRepository.createMap(newMap.copy(imageUrl = imageUrl))
             } catch (e: CancellationException) {
                 throw e
             } catch (throwable: Throwable) {
@@ -156,7 +171,40 @@ internal class CreateMapViewModel @Inject constructor(
                         errorMessage = throwable.toUserMessage(CREATE_FAILED_MESSAGE),
                     )
                 }
+                return@launch
             }
+
+            val notice = current.importedPlaces
+                .takeIf { places -> places.isNotEmpty() }
+                ?.let { places -> importPlaces(created.id, places) }
+            // 프라이빗 지도는 초대 코드를 먼저 보여주고, 닫을 때 화면을 뺀다.
+            val next = created.inviteCode
+                ?.let { code -> SubmitState.ShowingInviteCode(created.id, code, notice) }
+                ?: SubmitState.Done(created.id, notice)
+            updateState { state -> state.copy(submit = next) }
+        }
+    }
+
+    /**
+     * 만든 지도에 불러온 장소를 넣고, 다 넣지 못했으면 안내 문구를 돌려준다.
+     *
+     * 사진이 없는 장소는 저장소가 알아서 건너뛴다. 추출이 100곳까지라 일괄 등록도 한 번에 끝난다.
+     */
+    private suspend fun importPlaces(mapId: Long, places: List<EditedPlace>): String? {
+        val result = try {
+            val photoUrls = placeImportRepository.uploadPhotos(mapId, places)
+            placeImportRepository.savePlaces(setOf(mapId), places, photoUrls)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (throwable: Throwable) {
+            Log.w(TAG, "불러온 장소 등록 실패", throwable)
+            return IMPORT_FAILED_MESSAGE
+        }
+
+        return when {
+            result.failed == 0 -> null
+            result.created == 0 && result.duplicate == 0 -> IMPORT_FAILED_MESSAGE
+            else -> IMPORT_PARTIAL_MESSAGE
         }
     }
 
@@ -174,7 +222,9 @@ internal class CreateMapViewModel @Inject constructor(
     /** 초대 코드를 다 본 뒤. 지도는 이미 만들어졌으므로 그대로 화면을 뺀다. */
     fun dismissInviteCode() {
         val showing = _uiState.value.submit as? SubmitState.ShowingInviteCode ?: return
-        updateState { state -> state.copy(submit = SubmitState.Done(showing.mapId)) }
+        updateState { state ->
+            state.copy(submit = SubmitState.Done(showing.mapId, showing.importNotice))
+        }
     }
 
     /** 안내를 보여준 뒤 호출한다. 같은 메시지가 다시 뜨지 않게 한다. */
@@ -200,6 +250,8 @@ private const val KEY_TAGS = "createMap.tags"
 private const val KEY_TAG_INPUT = "createMap.tagInput"
 private const val KEY_CREATED_MAP_ID = "createMap.createdMapId"
 private const val KEY_INVITE_CODE = "createMap.inviteCode"
+private const val KEY_IMPORTED_PLACES = "createMap.importedPlaces"
+private const val KEY_IMPORT_NOTICE = "createMap.importNotice"
 
 /**
  * 저장된 값에서 상태를 되살린다.
@@ -220,12 +272,14 @@ private fun SavedStateHandle.toCreateMapUiState() = CreateMapUiState(
     },
     tags = get<ArrayList<String>>(KEY_TAGS).orEmpty(),
     tagInput = get<String>(KEY_TAG_INPUT).orEmpty(),
+    importedPlaces = get<String>(KEY_IMPORTED_PLACES)?.let(::decodeImportedPlaces).orEmpty(),
     // 진행 중 상태는 복원하지 않는다. 요청은 프로세스와 함께 사라졌는데 "만드는 중" 으로
     // 되살아나면 버튼이 영영 잠긴다.
     //
     // 초대 코드는 되살린다. 지도는 이미 만들어졌고, 이 화면을 벗어나면 코드를 다시 볼
-    // 방법이 없다.
-    submit = restoreInviteCode() ?: SubmitState.Idle,
+    // 방법이 없다. 화면이 빠지기 전에 죽었어도 만든 지도로 되살려 다시 만들 수 없게 하고,
+    // 모음 탭에 넘길 장소 안내도 함께 되살린다.
+    submit = restoreCreatedMap() ?: SubmitState.Idle,
 )
 
 private fun SavedStateHandle.restoreUploadedCover(): UploadedCover? {
@@ -234,10 +288,12 @@ private fun SavedStateHandle.restoreUploadedCover(): UploadedCover? {
     return UploadedCover(sourceUri, fileUrl)
 }
 
-private fun SavedStateHandle.restoreInviteCode(): SubmitState.ShowingInviteCode? {
+private fun SavedStateHandle.restoreCreatedMap(): SubmitState? {
     val mapId = get<Long>(KEY_CREATED_MAP_ID) ?: return null
-    val code = get<String>(KEY_INVITE_CODE)?.takeIf { it.isNotBlank() } ?: return null
-    return SubmitState.ShowingInviteCode(mapId, code)
+    val notice = get<String>(KEY_IMPORT_NOTICE)
+    val code = get<String>(KEY_INVITE_CODE)?.takeIf { it.isNotBlank() }
+        ?: return SubmitState.Done(mapId, notice)
+    return SubmitState.ShowingInviteCode(mapId, code, notice)
 }
 
 private fun SavedStateHandle.save(state: CreateMapUiState) {
@@ -250,10 +306,29 @@ private fun SavedStateHandle.save(state: CreateMapUiState) {
     // Bundle 이 담을 수 있는 형태여야 해서 ArrayList 로 넘긴다.
     this[KEY_TAGS] = ArrayList(state.tags)
     this[KEY_TAG_INPUT] = state.tagInput
+    this[KEY_IMPORTED_PLACES] = state.importedPlaces
+        .takeIf { places -> places.isNotEmpty() }
+        ?.let(::encodeImportedPlaces)
 
-    val showing = state.submit as? SubmitState.ShowingInviteCode
-    this[KEY_CREATED_MAP_ID] = showing?.mapId
-    this[KEY_INVITE_CODE] = showing?.inviteCode
+    when (val submit = state.submit) {
+        is SubmitState.ShowingInviteCode -> {
+            this[KEY_CREATED_MAP_ID] = submit.mapId
+            this[KEY_INVITE_CODE] = submit.inviteCode
+            this[KEY_IMPORT_NOTICE] = submit.importNotice
+        }
+
+        is SubmitState.Done -> {
+            this[KEY_CREATED_MAP_ID] = submit.mapId
+            this[KEY_INVITE_CODE] = null
+            this[KEY_IMPORT_NOTICE] = submit.importNotice
+        }
+
+        else -> {
+            this[KEY_CREATED_MAP_ID] = null
+            this[KEY_INVITE_CODE] = null
+            this[KEY_IMPORT_NOTICE] = null
+        }
+    }
 }
 
 /** 빈 값과 이미 담긴 태그는 걸러낸다. 한 번에 들어온 값들 사이의 중복도 마찬가지다. */

@@ -15,6 +15,7 @@ import androidx.navigation.NavType
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.navigation
 import androidx.navigation.navArgument
+import com.moamap.app.feature.collection.domain.model.EditedPlace
 import com.moamap.app.feature.collection.presentation.placeimport.ExtractionState
 import com.moamap.app.feature.collection.presentation.placeimport.PlaceImportEditDetailScreen
 import com.moamap.app.feature.collection.presentation.placeimport.PlaceImportEditScreen
@@ -32,8 +33,14 @@ import com.moamap.app.feature.collection.presentation.placeimport.PlaceImportVie
  *
  * 모든 화면이 그래프 back stack entry 에 스코프한 [PlaceImportViewModel] 하나를 공유한다.
  * 흐름을 벗어나면 ViewModel 이 함께 정리되므로 다음에 다시 들어와도 이전 입력이 남지 않는다.
+ *
+ * 새 지도 만들기에서 들어오면 지도 선택 단계가 없다. 넣을 지도가 아직 없어서, 편집이 끝나면
+ * 그 결과를 [onImportedForNewMap] 으로 넘기고 흐름을 닫는다. 서버에는 아무것도 저장하지 않는다.
  */
-internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) {
+internal fun NavGraphBuilder.placeImportGraph(
+    navController: NavHostController,
+    onImportedForNewMap: (List<EditedPlace>) -> Unit,
+) {
     navigation(
         route = MoaMapRoute.PlaceImport.route,
         startDestination = PlaceImportRoute.URL,
@@ -42,6 +49,10 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
             navArgument(MoaMapRoute.PlaceImport.ARG_URL) {
                 type = NavType.StringType
                 defaultValue = ""
+            },
+            navArgument(MoaMapRoute.PlaceImport.ARG_FOR_NEW_MAP) {
+                type = NavType.BoolType
+                defaultValue = false
             },
         ),
     ) {
@@ -119,9 +130,13 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
         composable(PlaceImportRoute.EDIT) { entry ->
             val viewModel = sharedPlaceImportViewModel(navController, entry)
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+            val forNewMap = remember(entry) { navController.isPlaceImportForNewMap() }
+
+            // 새 지도로 넘기고 흐름을 닫는 중인지. 지도 선택 화면의 같은 이름 값과 같은 이유로 둔다.
+            var leaving by remember { mutableStateOf(false) }
 
             val places = uiState.selectedPlaces
-            if (places.isEmpty()) {
+            if (places.isEmpty() && !leaving) {
                 LaunchedEffect(Unit) {
                     navController.popBackStack(PlaceImportRoute.URL, inclusive = false)
                 }
@@ -133,7 +148,14 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
                     onEditClick = { placeId ->
                         navController.navigate(PlaceImportRoute.editDetail(placeId))
                     },
-                    onNextClick = { navController.navigate(PlaceImportRoute.MAP) },
+                    onNextClick = {
+                        if (forNewMap) {
+                            leaving = true
+                            onImportedForNewMap(uiState.selectedEntries)
+                        } else {
+                            navController.navigate(PlaceImportRoute.MAP)
+                        }
+                    },
                 )
             }
         }
@@ -218,6 +240,13 @@ internal fun NavGraphBuilder.placeImportGraph(navController: NavHostController) 
         }
     }
 }
+
+/** 새 지도 만들기 화면에서 들어온 흐름인지. 그래프 entry 의 인자로 받는다. */
+private fun NavHostController.isPlaceImportForNewMap(): Boolean =
+    getBackStackEntry(MoaMapRoute.PlaceImport.route)
+        .arguments
+        ?.getBoolean(MoaMapRoute.PlaceImport.ARG_FOR_NEW_MAP)
+        ?: false
 
 /** 그래프 entry 에 스코프해 네 화면이 같은 ViewModel 인스턴스를 보게 한다. */
 @Composable
