@@ -13,13 +13,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -49,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
 import com.moamap.app.core.designsystem.component.MoaMapListPlaceholder
+import com.moamap.app.core.designsystem.component.MoaMapTabTopBarHeight
 import com.moamap.app.core.designsystem.component.MoaMapTopBarLogo
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
@@ -83,32 +82,39 @@ private val HorizontalListPadding =
 /**
  * 맨 아래 내용이 하단 탭에 가리지 않게 남기는 높이. 하단 탭은 늘 떠 있다.
  *
- * 하단 탭 아래 띄움 12 + 하단 탭 58 + 시안의 마지막 카드 ↔ 하단 탭 32. 시스템 내비게이션 바는 따로 더한다.
+ * 하단 탭 아래 띄움 12 + 하단 탭 58. 시안의 마지막 카드 ↔ 하단 탭 32 는 섹션 사이 간격([SectionGap])이
+ * 이 칸 앞에도 들어가 채운다. 시스템 내비게이션 바는 따로 더한다.
  */
-private val BottomBarClearance = 102.dp
-
-/** 상단 바 높이. 시안 「메인 화면」. */
-private val TopBarHeight = 52.dp
+private val BottomBarClearance = 70.dp
 
 /**
  * 상단 바 오른쪽 끝 여백. 프로필 아이콘(24)을 누르기 쉽게 40 칸에 담아서, 그림이 화면 끝에서
- * 시안대로 20 에 오도록 칸 여백(8)을 뺀다.
+ * 시안대로 24 에 오도록 칸 여백(8)을 뺀다.
  */
-private val TopBarEndPadding = 12.dp
+private val TopBarEndPadding = 16.dp
 private val TopBarIconSize = 24.dp
 private val ProfileIconTouchSize = 40.dp
 
-/** 프로필 메뉴 위치. 시안: 상태 표시줄 아래 42(상단 바 아래쪽과 10 겹침), 화면 끝에서 20. */
-private val ProfileMenuTop = 42.dp
+/** 알림 ↔ 프로필 아이콘. 시안 12 에서 프로필 칸 여백(8)을 뺀다. */
+private val TopBarIconGap = 4.dp
 
-/** 히어로 ↔ 커뮤니티 지도 제목. 시안 좌표로 21(다른 섹션 사이는 20). */
-private val HeroBottomGap = 21.dp
+/**
+ * 프로필 메뉴 위치. 이번 시안에 메뉴가 없어 예전처럼 프로필 아이콘 바로 아래(4)·오른쪽 끝을 맞춘다.
+ * 아이콘은 58 상단 바 가운데라 위 17 에서 41 까지다.
+ */
+private val ProfileMenuTop = 45.dp
+private val ProfileMenuEnd = 24.dp
 
-/** 공식 지도 카드 사진. 글 폭도 이 폭에 맞춘다. */
-private val OfficialCardImageSize = 140.dp
+/** 시안 「메인 화면」: 상단 바 아래 12 에 히어로, 히어로·커뮤니티·공식 지도 사이 32. */
+private val ContentTopGap = 12.dp
+private val SectionGap = 32.dp
 
-/** 이름 줄 높이. 글자보다 커서 이름은 줄 가운데에 선다. 커뮤니티 카드와 같다. */
-private val CardTitleRowHeight = 24.dp
+/** 홈 커뮤니티 카드. 시안 「탐색탭_지도」는 전체보기 카드보다 사진이 작고 글과 가깝다. */
+private val CommunityCardImageSize = 80.dp
+private val CommunityCardImageGap = 12.dp
+
+/** 공식 지도 카드 사진. 이름 폭도 이 폭에 맞춘다. */
+private val OfficialCardImageSize = 110.dp
 
 @Composable
 fun ExploreScreen(
@@ -198,26 +204,23 @@ private fun ExploreContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(scrollState)
-                    .padding(top = 20.dp),
+                    .padding(top = ContentTopGap),
+                verticalArrangement = Arrangement.spacedBy(SectionGap),
             ) {
-                // 시안 「메인 화면」: 상단 바 아래 20, 히어로 아래 21, 섹션 사이 20.
                 // 히어로는 운영자 추천 API 가 없어 임시 데이터다(10-03 사용자 결정).
                 FeaturedMapCarousel(maps = FeaturedMapMocks)
-                Spacer(Modifier.height(HeroBottomGap))
-                Column(verticalArrangement = Arrangement.spacedBy(20.dp)) {
-                    CommunityMapSection(
-                        state = uiState.communityMaps,
-                        onSeeAllClick = onSeeAllCommunityMapsClick,
-                        onMapClick = onCommunityMapClick,
-                        onRetryClick = onCommunityRetryClick,
-                    )
-                    OfficialMapSection(
-                        state = uiState.officialMaps,
-                        onSeeAllClick = onSeeAllOfficialMapsClick,
-                        onMapClick = onOfficialMapClick,
-                        onRetryClick = onOfficialRetryClick,
-                    )
-                }
+                CommunityMapSection(
+                    state = uiState.communityMaps,
+                    onSeeAllClick = onSeeAllCommunityMapsClick,
+                    onMapClick = onCommunityMapClick,
+                    onRetryClick = onCommunityRetryClick,
+                )
+                OfficialMapSection(
+                    state = uiState.officialMaps,
+                    onSeeAllClick = onSeeAllOfficialMapsClick,
+                    onMapClick = onOfficialMapClick,
+                    onRetryClick = onOfficialRetryClick,
+                )
 
                 Spacer(
                     Modifier
@@ -249,15 +252,15 @@ private fun ExploreContent(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .statusBarsPadding()
-                    .padding(top = ProfileMenuTop, end = MoaMapDimens.ScreenHorizontalPadding),
+                    .padding(top = ProfileMenuTop, end = ProfileMenuEnd),
             )
         }
     }
 }
 
 /**
- * 홈 상단 바. 시안 「메인 화면」: 높이 52, 로고(왼쪽 24·위 9), 오른쪽 끝 20 에 알림·프로필 아이콘
- * 24 가 사이 8 로 놓인다.
+ * 홈 상단 바. 시안 「탐색탭_앱바」: 높이 58, 바탕 `Background/Primary`(홈 바탕과 조금 다름), 왼쪽 로고,
+ * 오른쪽 끝 24 에 채운 알림·프로필 아이콘 24 가 사이 12 로 놓인다.
  */
 @Composable
 private fun ExploreTopBar(
@@ -267,7 +270,8 @@ private fun ExploreTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(TopBarHeight)
+            .background(MoaMapTheme.colors.backgroundPrimary)
+            .height(MoaMapTabTopBarHeight)
             .padding(start = MoaMapDimens.ScreenHorizontalPadding, end = TopBarEndPadding),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -275,12 +279,12 @@ private fun ExploreTopBar(
         Spacer(Modifier.weight(1f))
         // 알림 기능이 생길 때까지 보이기만 한다(백엔드 알림 API 없음, 10-03 사용자 결정).
         Icon(
-            painter = painterResource(R.drawable.ic_bell_outline),
+            painter = painterResource(R.drawable.ic_bell_filled),
             contentDescription = "알림",
-            tint = MoaMapPrimitiveColors.Black,
+            tint = MoaMapPrimitiveColors.Gray800,
             modifier = Modifier.size(TopBarIconSize),
         )
-        // 누르는 칸의 왼쪽 여백(8)이 시안의 아이콘 사이 간격 8 이 된다.
+        Spacer(Modifier.width(TopBarIconGap))
         Box(
             modifier = Modifier
                 .size(ProfileIconTouchSize)
@@ -288,16 +292,16 @@ private fun ExploreTopBar(
             contentAlignment = Alignment.Center,
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_person_outline),
+                painter = painterResource(R.drawable.ic_user_filled),
                 contentDescription = "프로필 메뉴",
-                tint = MoaMapPrimitiveColors.Black,
+                tint = MoaMapPrimitiveColors.Gray800,
                 modifier = Modifier.size(TopBarIconSize),
             )
         }
     }
 }
 
-/** 섹션 제목 줄: 제목 + 「전체보기 >」. 글자와 화살표 모두 시안 #4A4F52(보조 글자색). */
+/** 섹션 제목 줄: 제목(왼쪽 2 안쪽) + 「전체보기 >」. 글자와 화살표 모두 시안 #4A4F52(보조 글자색). */
 @Composable
 private fun SectionHeader(
     title: String,
@@ -305,7 +309,9 @@ private fun SectionHeader(
     modifier: Modifier = Modifier,
 ) {
     Row(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(start = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -371,7 +377,12 @@ private fun CommunityMapSection(
                         }
                     } else {
                         state.maps.forEach { map ->
-                            CommunityMapCard(map = map, onClick = { onMapClick(map) })
+                            CommunityMapCard(
+                                map = map,
+                                onClick = { onMapClick(map) },
+                                imageSize = CommunityCardImageSize,
+                                imageGap = CommunityCardImageGap,
+                            )
                         }
                     }
                 }
@@ -381,7 +392,7 @@ private fun CommunityMapSection(
 }
 
 /**
- * 공식 지도 섹션. 시안: 제목 줄 ↔ 카드 16, 카드는 가로로 넘기고 사이 12.
+ * 공식 지도 섹션. 시안: 제목 줄 ↔ 카드 16, 카드는 가로로 넘기고 사이 8.
  *
  * 앞 5개만 보여 준다. 나머지는 「전체보기」(공식지도 목록)에서 본다. 로딩·오류·빈 상태는
  * 시안이 없어 커뮤니티 섹션과 같은 모양을 쓴다.
@@ -415,7 +426,7 @@ private fun OfficialMapSection(
                 } else {
                     LazyRow(
                         contentPadding = HorizontalListPadding,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         items(state.maps, key = { it.id }) { map ->
                             OfficialMapCard(map = map, onClick = { onMapClick(map) })
@@ -428,9 +439,10 @@ private fun OfficialMapSection(
 }
 
 /**
- * 홈의 공식 지도 카드. 시안: 여백 12, 사진 140(모서리 8) ↔ 글 16, 이름 줄 24 ↔ 설명 4.
+ * 홈의 공식 지도 카드. 시안 「탐색탭_지도」: 여백 12, 사진 110(모서리 8) ↔ 이름 8, 이름은 위아래 2 안쪽.
  *
- * 이름과 설명은 사진 폭 안에서 한 줄로, 넘치면 「…」.
+ * 설명은 없고 이름만 사진 폭 안에서 두 줄까지, 넘치면 「…」. 한 줄 이름도 두 줄 자리를 잡아
+ * 카드 높이가 같다 - 가로 목록이 들쭉날쭉하지 않다.
  */
 @Composable
 private fun OfficialMapCard(
@@ -440,33 +452,20 @@ private fun OfficialMapCard(
     ShadowedSurface(onClick = onClick) {
         Column(
             modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             PhotoThumbnail(imageUrl = map.imageUrl, size = OfficialCardImageSize)
-            Column(
-                modifier = Modifier.width(OfficialCardImageSize),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = map.title,
-                    style = MoaMapTheme.typography.subtitle2,
-                    color = MoaMapTheme.colors.textNormal,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = CardTitleRowHeight)
-                        .wrapContentHeight(Alignment.CenterVertically),
-                )
-                // 설명이 비어도 줄은 남긴다. 카드 높이가 달라지면 가로 목록이 들쭉날쭉해진다.
-                Text(
-                    text = map.description,
-                    style = MoaMapTheme.typography.caption0.withDesignLineHeight(),
-                    color = MoaMapPrimitiveColors.Blue800,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
+            Text(
+                text = map.title,
+                style = MoaMapTheme.typography.body3.withDesignLineHeight(),
+                color = MoaMapTheme.colors.textNormal,
+                minLines = 2,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .width(OfficialCardImageSize)
+                    .padding(vertical = 2.dp),
+            )
         }
     }
 }
