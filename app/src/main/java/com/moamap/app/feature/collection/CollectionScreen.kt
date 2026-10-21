@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
+import com.moamap.app.core.designsystem.component.MoaMapTabTopBarHeight
 import com.moamap.app.core.designsystem.component.MoaMapTopBarLogo
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
@@ -196,11 +197,11 @@ private fun CollectionContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .verticalScroll(scrollState)
-                    .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding),
+                    // 시안 「모음/커뮤니티」: 상단 바 아래 12 에 탭.
+                    .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding)
+                    .padding(top = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(20.dp),
             ) {
-                Spacer(Modifier.height(8.dp))
-
                 CollectionTabRow(
                     selectedTab = selectedTab,
                     onTabClick = onTabClick,
@@ -291,6 +292,11 @@ private fun SelectionBar(count: Int, leaving: Boolean, onLeaveClick: () -> Unit)
     }
 }
 
+/**
+ * 모음 상단 바. 시안 「모음탭_앱바」: 높이 58, 「초대 코드」(안쪽 8·열쇠↔글 4) ↔ 「새 지도」 12.
+ *
+ * 시안은 로고를 홈보다 2 왼쪽(x18)에 두었지만, 탭을 오갈 때 로고가 움찔하지 않게 홈과 같은 자리에 둔다.
+ */
 @Composable
 private fun CollectionTopBar(
     onHomeClick: () -> Unit,
@@ -300,7 +306,7 @@ private fun CollectionTopBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .height(52.dp)
+            .height(MoaMapTabTopBarHeight)
             .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
@@ -311,8 +317,10 @@ private fun CollectionTopBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(
-                modifier = Modifier.clickable(onClick = onInviteCodeClick),
-                horizontalArrangement = Arrangement.spacedBy(2.dp),
+                modifier = Modifier
+                    .clickable(onClick = onInviteCodeClick)
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(

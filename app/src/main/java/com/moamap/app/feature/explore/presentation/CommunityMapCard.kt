@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.moamap.app.R
 import com.moamap.app.core.common.format.formatMemberCount
@@ -30,8 +31,11 @@ import com.moamap.app.feature.explore.domain.model.CommunityMap
 
 private const val MAX_VISIBLE_HASHTAGS = 3
 
-/** 사진 오른쪽 글 영역 높이. 사진(90)보다 6 작고 가운데에 선다. */
-private val TextAreaHeight = 84.dp
+/**
+ * 사진 오른쪽 글 영역 높이. 사진 높이 가운데에 선다. 시안 두 카드 모두 같은 값이다 -
+ * 전체보기(사진 90)는 84 칸에 위아래 4, 홈(사진 80)은 80 칸에 위아래 2.
+ */
+private val TextAreaHeight = 76.dp
 
 /** 이름 줄 높이. 글자보다 커서 이름은 줄 가운데에 선다. */
 private val TitleRowHeight = 24.dp
@@ -43,32 +47,36 @@ private val MetaIconSize = 14.dp
 
 /**
  * 탐색 탭의 커뮤니티 지도 목록 카드.
+ *
+ * 기본값은 전체보기 시안 「지도」 State=커뮤니티 지도(사진 90, 사진↔글 16). 홈은 시안 「탐색탭_지도」대로
+ * 사진 80·간격 12 를 넘긴다.
  */
 @Composable
 fun CommunityMapCard(
     map: CommunityMap,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    imageSize: Dp = 90.dp,
+    imageGap: Dp = 16.dp,
 ) {
-    // 시안 「지도」 State=커뮤니티 지도: 모서리 12, 그림자 0 0 8 4%, 여백 12, 사진↔글 16.
+    // 모서리 12, 그림자 0 0 8 4%, 여백 12.
     ShadowedSurface(
         modifier = modifier.fillMaxWidth(),
         onClick = onClick,
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(imageGap),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PhotoThumbnail(imageUrl = map.imageUrl, size = 90.dp)
+            PhotoThumbnail(imageUrl = map.imageUrl, size = imageSize)
 
-            // 글 영역은 높이 84(위아래 4)에 이름·태그는 위, 인원·장소 수는 아래 오른쪽.
+            // 이름·태그는 위, 인원·장소 수는 아래 오른쪽.
             // 태그가 없으면 이름 아래가 비어 보여 이름을 가운데(= 사진 높이 가운데)에 둔다.
             Box(
                 modifier = Modifier
                     .weight(1f)
-                    .height(TextAreaHeight)
-                    .padding(vertical = 4.dp),
+                    .height(TextAreaHeight),
             ) {
                 Column(
                     modifier = Modifier

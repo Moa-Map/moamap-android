@@ -1,6 +1,7 @@
 package com.moamap.app.feature.explore.presentation
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -62,18 +63,23 @@ internal val FeaturedMapMocks: List<FeaturedMap> = List(3) {
     )
 }
 
-private val CardHeight = 150.dp
+/** 시안 「탐색탭_배너」: 높이 170, 모서리 16, 테두리 1 `Line/Alternative`. */
+private val CardHeight = 170.dp
 private val CardShape = RoundedCornerShape(16.dp)
 private val CardGap = 8.dp
 
-/** 글 묶음 위치·폭. 제목이 한 줄이어도 이 자리에서 시작한다(10-03 사용자 결정). */
+/**
+ * 글 묶음 위치·폭. 제목이 한 줄이어도 이 자리에서 시작한다(10-03 사용자 결정).
+ *
+ * 높이가 150 에서 170 이 될 때 새 시안에는 글이 없어, 아래 여백이 그대로 남도록 20 내렸다.
+ */
 private val TextStart = 12.dp
-private val TextTop = 52.dp
+private val TextTop = 72.dp
 private val TextWidth = 242.dp
 
-/** 태그 칩 줄 위치. 태그가 없어도 다른 글은 그대로다. */
+/** 태그 칩 줄 위치. 태그가 없어도 다른 글은 그대로다. 글 묶음과 함께 20 내렸다. */
 private val TagStart = 10.dp
-private val TagTop = 116.dp
+private val TagTop = 136.dp
 private val TagGap = 4.dp
 
 /** 사진 위 덮개: 아래로 갈수록 어두워지는 그라데이션 + 전체 검정 8%. 시안 값. */
@@ -87,7 +93,7 @@ private val CardGradient = Brush.verticalGradient(
 private val CardDim = Color.Black.copy(alpha = 0.08f)
 
 /**
- * 운영자 추천 지도 카드 줄. 시안: 높이 150, 왼쪽 20 부터 카드 사이 8, 다음 카드가 오른쪽에 살짝 보인다.
+ * 운영자 추천 지도 카드 줄. 시안: 높이 170, 왼쪽 20 부터 카드 사이 8, 다음 카드가 오른쪽에 살짝 보인다.
  *
  * 한 장씩 맞춰 넘기고, 마지막 카드 오른쪽도 20 을 띄운다(10-03 사용자 결정). 카드 폭은 화면에서
  * 좌우 20 을 뺀 값이라 393 화면에서 시안의 353 이 된다.
@@ -163,6 +169,13 @@ private fun FeaturedMapCard(map: FeaturedMap) {
         ) {
             map.tags.forEach { tag -> FeaturedTagChip(text = tag) }
         }
+
+        // 테두리는 사진 위에 그린다. 바깥 상자에 걸면 사진이 덮는다.
+        Box(
+            modifier = Modifier
+                .matchParentSize()
+                .border(1.dp, MoaMapTheme.colors.lineAlternative, CardShape),
+        )
     }
 }
 
