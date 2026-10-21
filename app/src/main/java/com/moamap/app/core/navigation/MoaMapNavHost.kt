@@ -30,6 +30,8 @@ import com.moamap.app.feature.collection.CollectionScreen
 import com.moamap.app.feature.collection.domain.model.PlaceImportSource
 import com.moamap.app.feature.collection.share.SharedLink
 import com.moamap.app.feature.collection.presentation.createmap.CreateMapScreen
+import com.moamap.app.feature.collection.presentation.createmap.decodeImportedPlaces
+import com.moamap.app.feature.collection.presentation.createmap.encodeImportedPlaces
 import com.moamap.app.feature.explore.CommunityMapListScreen
 import com.moamap.app.feature.explore.ExploreScreen
 import com.moamap.app.feature.mapdetail.MapDetailScreen
@@ -218,8 +220,14 @@ internal fun MoaMapNavHost(
                     },
                 )
             }
-            composable(MoaMapRoute.Collection.route) {
+            composable(MoaMapRoute.Collection.route) { entry ->
+                val createMapNotice by entry.savedStateHandle
+                    .getStateFlow<String?>(CreateMapNoticeKey, null)
+                    .collectAsStateWithLifecycle()
+
                 CollectionScreen(
+                    pendingNotice = createMapNotice,
+                    onPendingNoticeConsumed = { entry.savedStateHandle[CreateMapNoticeKey] = null },
                     onSelectionBarVisibleChange = { visible -> collectionSelectionBarVisible = visible },
                     // 로고는 홈(탐색)으로 가는 버튼이다. 하단 탭으로 옮기는 것과 같게 옮기되,
                     // 홈은 보던 자리 대신 맨 위에서 시작한다.
@@ -252,15 +260,51 @@ internal fun MoaMapNavHost(
                     },
                 )
             }
-            composable(MoaMapRoute.CreateMap.route) {
+            composable(MoaMapRoute.CreateMap.route) { entry ->
+                val importedPlaces by entry.savedStateHandle
+                    .getStateFlow<String?>(ImportedPlacesForNewMapKey, null)
+                    .collectAsStateWithLifecycle()
+                val decodedPlaces = remember(importedPlaces) {
+                    importedPlaces?.let(::decodeImportedPlaces)
+                }
+
                 CreateMapScreen(
                     onBackClick = navController::popBackStack,
                     // 만들기 화면을 백스택에 남기면 뒤로가기로 돌아와 같은 지도를 또 만들 수 있다.
                     // 만든 지도로 이동하는 건 지도 상세가 실제 데이터를 받은 뒤에 정한다.
-                    onCreated = { navController.popBackStack() },
+                    // 장소를 다 넣지 못했으면 돌아간 모음 탭이 안내하도록 넘긴다.
+                    onCreated = { _, importNotice ->
+                        if (importNotice != null) {
+                            navController.previousBackStackEntry
+                                ?.savedStateHandle
+                                ?.set(CreateMapNoticeKey, importNotice)
+                        }
+                        navController.popBackStack()
+                    },
+                    onExternalImportClick = {
+                        navController.navigate(
+                            MoaMapRoute.PlaceImport.createRoute(
+                                source = PlaceImportSource.MapShare.name,
+                                forNewMap = true,
+                            ),
+                        )
+                    },
+                    importedPlaces = decodedPlaces,
+                    onImportedPlacesConsumed = {
+                        entry.savedStateHandle[ImportedPlacesForNewMapKey] = null
+                    },
                 )
             }
-            placeImportGraph(navController)
+            // 새 지도용으로 열린 흐름은 고른 장소를 만들기 화면에 넘기고 통째로 닫는다.
+            // Bundle 에 담겨 프로세스가 죽어도 남도록 문자열로 넘긴다.
+            placeImportGraph(
+                navController = navController,
+                onImportedForNewMap = { places ->
+                    navController.getBackStackEntry(MoaMapRoute.CreateMap.route)
+                        .savedStateHandle[ImportedPlacesForNewMapKey] = encodeImportedPlaces(places)
+                    navController.popBackStack(MoaMapRoute.PlaceImport.route, inclusive = true)
+                },
+            )
             composable(MoaMapRoute.OfficialMap.route) {
                 OfficialMapScreen(
                     onBackClick = navController::popBackStack,
@@ -431,6 +475,12 @@ private const val UNSUPPORTED_SHARE_MESSAGE = "인스타그램과 네이버·카
  * 보여줘야 해서 한 번짜리 신호를 남긴다.
  */
 private const val ScrollToTopKey = "explore_scroll_to_top"
+
+/** 새 지도 만들기가 모음 탭에 돌려주는 안내. 불러온 장소를 다 넣지 못했을 때만 온다. */
+private const val CreateMapNoticeKey = "collection_create_map_notice"
+
+/** 장소 가져오기 흐름이 새 지도 만들기 화면에 돌려주는 결과. */
+private const val ImportedPlacesForNewMapKey = "create_map_imported_places"
 
 /** 스플래시는 뒤로가기로 돌아올 곳이 아니므로 백스택에서 지우고 이동한다. */
 private fun NavHostController.replaceSplashWith(destination: MoaMapRoute) {

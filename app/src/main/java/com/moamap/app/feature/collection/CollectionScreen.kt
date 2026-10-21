@@ -77,10 +77,19 @@ fun CollectionScreen(
     onMapClick: (MyMap) -> Unit = {},
     /** 아래 선택 막대가 떴는지. 뜬 동안 하단 탭을 숨겨야 한다 - 탭은 NavHost 가 그린다. */
     onSelectionBarVisibleChange: (Boolean) -> Unit = {},
+    /** 다른 화면이 돌려준 안내. 받았으면 [onPendingNoticeConsumed] 로 비운다. */
+    pendingNotice: String? = null,
+    onPendingNoticeConsumed: () -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: CollectionViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(pendingNotice) {
+        pendingNotice ?: return@LaunchedEffect
+        viewModel.showNotice(pendingNotice)
+        onPendingNoticeConsumed()
+    }
     val edit = uiState.edit
 
     val selectionBarVisible = edit?.selectionBarVisible == true

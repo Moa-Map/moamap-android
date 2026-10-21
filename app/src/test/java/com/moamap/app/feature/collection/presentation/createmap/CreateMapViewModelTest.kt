@@ -4,10 +4,15 @@ import androidx.lifecycle.SavedStateHandle
 import com.moamap.app.core.common.upload.ImageUploadException
 import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.collection.domain.model.CreatedMap
+import com.moamap.app.feature.collection.domain.model.EditedPlace
+import com.moamap.app.feature.collection.domain.model.ImportedPlace
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.collection.domain.model.MapVisibility
 import com.moamap.app.feature.collection.domain.model.NewMap
+import com.moamap.app.feature.collection.domain.model.PlaceEdit
+import com.moamap.app.feature.collection.domain.model.PlaceSaveResult
 import com.moamap.app.feature.collection.domain.repository.MapRepository
+import com.moamap.app.feature.collection.domain.repository.PlaceImportRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -31,9 +36,14 @@ class CreateMapViewModelTest {
 
     private val savedStateHandle = SavedStateHandle()
 
-    private val repository = FakeMapRepository()
+    /** 두 저장소에 걸친 호출 순서. 지도 생성 → 사진 → 일괄 등록 순서를 확인하는 데 쓴다. */
+    private val calls = mutableListOf<String>()
 
-    private val viewModel = CreateMapViewModel(savedStateHandle, repository)
+    private val repository = FakeMapRepository(calls)
+
+    private val placeImportRepository = FakePlaceImportRepository(calls)
+
+    private val viewModel = CreateMapViewModel(savedStateHandle, repository, placeImportRepository)
 
     private val state get() = viewModel.uiState.value
 
@@ -48,7 +58,8 @@ class CreateMapViewModelTest {
     }
 
     /** 프로세스가 죽었다 살아나는 상황. 저장된 값만 들고 ViewModel 을 새로 만든다. */
-    private fun recreateViewModel() = CreateMapViewModel(savedStateHandle, repository)
+    private fun recreateViewModel() =
+        CreateMapViewModel(savedStateHandle, repository, placeImportRepository)
 
     /** 만들 수 있는 최소 입력을 채운다. */
     private fun fillRequiredInput() {
@@ -57,6 +68,7 @@ class CreateMapViewModelTest {
     }
 
     private class FakeMapRepository(
+        private val calls: MutableList<String>,
         var createResult: () -> CreatedMap = { CreatedMap(CREATED_MAP_ID, inviteCode = null) },
         var uploadResult: () -> String = { UPLOADED_COVER_URL },
     ) : MapRepository {
@@ -72,6 +84,7 @@ class CreateMapViewModelTest {
         }
 
         override suspend fun createMap(newMap: NewMap): CreatedMap {
+            calls += "createMap"
             createdMaps += newMap
             return createResult()
         }
@@ -88,6 +101,49 @@ class CreateMapViewModelTest {
         override suspend fun joinByInviteCode(inviteCode: String) = TODO("사용하지 않음")
         override suspend fun getLeaveOutcome(mapId: Long) = TODO("사용하지 않음")
         override suspend fun leaveMap(mapId: Long) = TODO("사용하지 않음")
+    }
+
+    private class FakePlaceImportRepository(
+        private val calls: MutableList<String>,
+    ) : PlaceImportRepository {
+
+        var uploadFailure: Throwable? = null
+        var saveResult: (List<EditedPlace>) -> PlaceSaveResult = { places ->
+            PlaceSaveResult(created = places.size, duplicate = 0, failed = 0)
+        }
+
+        var uploadedMapId: Long? = null
+            private set
+
+        var savedMapIds: Set<Long>? = null
+            private set
+
+        var savedPlaces: List<EditedPlace>? = null
+            private set
+
+        override suspend fun uploadPhotos(
+            mapId: Long,
+            places: List<EditedPlace>,
+        ): Map<String, List<String>> {
+            calls += "uploadPhotos"
+            uploadedMapId = mapId
+            uploadFailure?.let { throw it }
+            return emptyMap()
+        }
+
+        override suspend fun savePlaces(
+            mapIds: Set<Long>,
+            places: List<EditedPlace>,
+            photoUrls: Map<String, List<String>>,
+        ): PlaceSaveResult {
+            calls += "savePlaces"
+            savedMapIds = mapIds
+            savedPlaces = places
+            return saveResult(places)
+        }
+
+        override suspend fun extractPlaces(url: String) = TODO("사용하지 않음")
+        override suspend fun extractMapSharePlaces(url: String) = TODO("사용하지 않음")
     }
 
     private companion object {
@@ -589,5 +645,188 @@ class CreateMapViewModelTest {
 
         assertEquals(listOf(PICKED_IMAGE_URI), repository.uploadedUris)
         assertEquals(UPLOADED_COVER_URL, repository.createdMaps.last().imageUrl)
+    }
+
+    // ---------- 외부 지도 불러오기 ----------
+
+    private fun importedPlace(id: String, memo: String = "") = EditedPlace(
+        place = ImportedPlace(id = id, name = "장소 $id", kakaoPlaceId = id, sourceType = "NAVER_MAP"),
+        edit = PlaceEdit(tags = listOf("카페"), memo = memo),
+    )
+
+    @Test
+    fun `불러온 장소가 없으면 지도만 만든다`() = runTest(dispatcher) {
+        fillRequiredInput()
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertEquals(listOf("createMap"), calls)
+        assertEquals(SubmitState.Done(CREATED_MAP_ID), state.submit)
+    }
+
+    @Test
+    fun `불러온 장소는 지도를 만든 뒤 사진을 올리고 그 지도에 일괄 등록한다`() = runTest(dispatcher) {
+        val places = listOf(importedPlace("1"), importedPlace("2", memo = "웨이팅 있음"))
+        fillRequiredInput()
+        viewModel.applyImportedPlaces(places)
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertEquals(listOf("createMap", "uploadPhotos", "savePlaces"), calls)
+        assertEquals(CREATED_MAP_ID, placeImportRepository.uploadedMapId)
+        assertEquals(setOf(CREATED_MAP_ID), placeImportRepository.savedMapIds)
+        assertEquals(places, placeImportRepository.savedPlaces)
+        assertEquals(SubmitState.Done(CREATED_MAP_ID), state.submit)
+    }
+
+    @Test
+    fun `지도 이름은 불러온 리스트로 채우지 않는다`() {
+        viewModel.applyImportedPlaces(listOf(importedPlace("1")))
+
+        assertEquals("", state.name)
+        assertFalse(state.canSubmit)
+    }
+
+    @Test
+    fun `지도 생성이 실패하면 장소를 넣지 않고 불러온 것도 그대로 둔다`() = runTest(dispatcher) {
+        repository.createResult = { throw IOException("서버 오류") }
+        val places = listOf(importedPlace("1"))
+        fillRequiredInput()
+        viewModel.applyImportedPlaces(places)
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertEquals(listOf("createMap"), calls)
+        assertEquals(SubmitState.Idle, state.submit)
+        assertEquals(places, state.importedPlaces)
+    }
+
+    @Test
+    fun `일부만 들어가면 기다리지 않고 끝내며 안내를 결과에 싣는다`() = runTest(dispatcher) {
+        placeImportRepository.saveResult = { PlaceSaveResult(created = 1, duplicate = 0, failed = 1) }
+        fillRequiredInput()
+        viewModel.applyImportedPlaces(listOf(importedPlace("1"), importedPlace("2")))
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertEquals(SubmitState.Done(CREATED_MAP_ID, IMPORT_PARTIAL_MESSAGE), state.submit)
+        // 지도는 하나만 만들어졌고, 화면이 빠지기 전에 다시 누를 수 없다.
+        assertEquals(1, repository.createdMaps.size)
+        assertFalse(state.canSubmit)
+    }
+
+    @Test
+    fun `중복은 실패로 치지 않아 안내하지 않는다`() = runTest(dispatcher) {
+        placeImportRepository.saveResult = { PlaceSaveResult(created = 1, duplicate = 1, failed = 0) }
+        fillRequiredInput()
+        viewModel.applyImportedPlaces(listOf(importedPlace("1"), importedPlace("2")))
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertEquals(SubmitState.Done(CREATED_MAP_ID), state.submit)
+    }
+
+    @Test
+    fun `프라이빗 지도는 초대 코드를 닫은 뒤에 안내를 넘긴다`() = runTest(dispatcher) {
+        repository.createResult = { CreatedMap(CREATED_MAP_ID, inviteCode = "A1B2C3") }
+        placeImportRepository.uploadFailure = IOException("업로드 실패")
+        viewModel.updateName("우리끼리")
+        viewModel.selectVisibility(MapVisibility.Private)
+        viewModel.applyImportedPlaces(listOf(importedPlace("1")))
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        // 사진이 실패하면 등록까지 가지 않는다. 지도는 그대로 두고 초대 코드부터 보여준다.
+        assertEquals(listOf("createMap", "uploadPhotos"), calls)
+        assertEquals(
+            SubmitState.ShowingInviteCode(CREATED_MAP_ID, "A1B2C3", IMPORT_FAILED_MESSAGE),
+            state.submit,
+        )
+
+        viewModel.dismissInviteCode()
+
+        assertEquals(SubmitState.Done(CREATED_MAP_ID, IMPORT_FAILED_MESSAGE), state.submit)
+    }
+
+    @Test
+    fun `하나도 넣지 못하면 못 넣었다고 안내한다`() = runTest(dispatcher) {
+        placeImportRepository.saveResult = { places ->
+            PlaceSaveResult(created = 0, duplicate = 0, failed = places.size)
+        }
+        fillRequiredInput()
+        viewModel.applyImportedPlaces(listOf(importedPlace("1")))
+
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertEquals(SubmitState.Done(CREATED_MAP_ID, IMPORT_FAILED_MESSAGE), state.submit)
+    }
+
+    @Test
+    fun `다시 불러오면 앞의 결과를 새 결과로 바꾼다`() {
+        viewModel.applyImportedPlaces(listOf(importedPlace("1"), importedPlace("2")))
+
+        val again = listOf(importedPlace("3"))
+        viewModel.applyImportedPlaces(again)
+
+        assertEquals(again, state.importedPlaces)
+    }
+
+    @Test
+    fun `불러온 장소는 프로세스가 죽었다 살아나도 남는다`() {
+        val places = listOf(importedPlace("1", memo = "웨이팅 있음"), importedPlace("2"))
+        viewModel.applyImportedPlaces(places)
+
+        val restored = recreateViewModel().uiState.value
+
+        assertEquals(places, restored.importedPlaces)
+    }
+
+    @Test
+    fun `만드는 중에는 불러온 결과를 받지 않는다`() = runTest(dispatcher) {
+        fillRequiredInput()
+        viewModel.submit()
+
+        viewModel.applyImportedPlaces(listOf(importedPlace("1")))
+
+        assertTrue(state.importedPlaces.isEmpty())
+    }
+
+    @Test
+    fun `화면이 빠지기 전에 프로세스가 죽어도 만든 지도와 안내를 되살린다`() = runTest(dispatcher) {
+        placeImportRepository.saveResult = { PlaceSaveResult(created = 0, duplicate = 0, failed = 1) }
+        fillRequiredInput()
+        viewModel.applyImportedPlaces(listOf(importedPlace("1")))
+        viewModel.submit()
+        advanceUntilIdle()
+
+        val restored = recreateViewModel().uiState.value
+
+        assertEquals(SubmitState.Done(CREATED_MAP_ID, IMPORT_FAILED_MESSAGE), restored.submit)
+        assertFalse(restored.canSubmit)
+    }
+
+    @Test
+    fun `초대 코드를 보던 중 프로세스가 죽어도 넘길 안내가 남는다`() = runTest(dispatcher) {
+        repository.createResult = { CreatedMap(CREATED_MAP_ID, inviteCode = "A1B2C3") }
+        placeImportRepository.saveResult = { PlaceSaveResult(created = 1, duplicate = 0, failed = 1) }
+        viewModel.updateName("우리끼리")
+        viewModel.selectVisibility(MapVisibility.Private)
+        viewModel.applyImportedPlaces(listOf(importedPlace("1"), importedPlace("2")))
+        viewModel.submit()
+        advanceUntilIdle()
+
+        val restored = recreateViewModel()
+        restored.dismissInviteCode()
+
+        assertEquals(
+            SubmitState.Done(CREATED_MAP_ID, IMPORT_PARTIAL_MESSAGE),
+            restored.uiState.value.submit,
+        )
     }
 }

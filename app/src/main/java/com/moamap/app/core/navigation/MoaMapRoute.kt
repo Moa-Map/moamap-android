@@ -53,12 +53,17 @@ sealed interface MoaMapRoute {
      *
      * [ARG_URL] 은 다른 앱에서 공유로 들어왔을 때 URL 입력 화면을 미리 채우는 값이다.
      * 모음 탭에서 들어오면 비어 있다.
+     *
+     * [ARG_FOR_NEW_MAP] 은 새 지도 만들기 화면에서 들어왔는지다. 그때는 지도 선택 단계 없이
+     * 편집 결과를 들고 만들기 화면으로 돌아간다.
      */
     data object PlaceImport : MoaMapRoute {
         const val ARG_SOURCE = "source"
         const val ARG_URL = "url"
+        const val ARG_FOR_NEW_MAP = "forNewMap"
 
-        override val route = "place_import/{$ARG_SOURCE}?$ARG_URL={$ARG_URL}"
+        override val route =
+            "place_import/{$ARG_SOURCE}?$ARG_URL={$ARG_URL}&$ARG_FOR_NEW_MAP={$ARG_FOR_NEW_MAP}"
 
         /**
          * URL 은 선택값이라 경로 조각이 아니라 질의 문자열에 싣는다. 모음 탭처럼 넘길
@@ -70,7 +75,8 @@ sealed interface MoaMapRoute {
         fun createRoute(
             source: String,
             url: String = "",
-        ): String = "place_import/$source?$ARG_URL=${Uri.encode(url)}"
+            forNewMap: Boolean = false,
+        ): String = "place_import/$source?$ARG_URL=${Uri.encode(url)}&$ARG_FOR_NEW_MAP=$forNewMap"
     }
 
     /** 모음 탭의 `새 지도` 로 들어가는 지도 생성 화면. */

@@ -110,6 +110,11 @@ class CollectionViewModel @Inject constructor(
         load(current, keepCurrent = true)
     }
 
+    /** 다른 화면이 돌려준 안내를 띄운다. 새 지도 만들기가 장소를 다 넣지 못했을 때 쓴다. */
+    fun showNotice(message: String) {
+        _uiState.update { state -> state.copy(notice = message) }
+    }
+
     fun consumeNotice() {
         _uiState.update { state -> state.copy(notice = null) }
     }
