@@ -20,31 +20,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
-import com.moamap.app.R
-import com.moamap.app.core.designsystem.component.BelowAnchorPosition
 import com.moamap.app.core.designsystem.component.MoaMapCenteredNotice
 import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
+import com.moamap.app.core.designsystem.component.MoaMapGuideRow
 import com.moamap.app.core.designsystem.component.MoaMapLoadingIndicator
 import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.component.MoaMapTooltip
@@ -62,9 +51,6 @@ private val MemberCardShape = RoundedCornerShape(12.dp)
 private val AvatarSize = 50.dp
 private val RoleTagShape = RoundedCornerShape(1000.dp)
 
-/** 꼬리가 ⓘ 가운데를 가리키도록 말풍선을 안내 줄 왼쪽 끝에서 당기는 거리와, 안내 줄과의 틈. */
-private val TooltipOffsetX = (-12).dp
-private val TooltipGap = 3.dp
 private val RoleGuideScrim = MoaMapPrimitiveColors.Gray500.copy(alpha = 0.7f)
 
 /**
@@ -194,65 +180,28 @@ private fun MemberHeader(
     }
 }
 
-/** 「ⓘ 어떤 역할이 있는지 궁금하신가요?」. 누르면 바로 아래에 역할 안내 말풍선이 뜬다. */
-@Composable
-private fun RoleGuideRow(hazeState: HazeState) {
-    var guideVisible by remember { mutableStateOf(false) }
-    val density = LocalDensity.current
-    val position = remember(density) {
-        with(density) {
-            BelowAnchorPosition(IntOffset(TooltipOffsetX.roundToPx(), TooltipGap.roundToPx()))
-        }
-    }
-
-    // 말풍선은 이 Box 를 기준으로 자리를 잡는다.
-    Box {
-        Row(
-            modifier = Modifier.clickable { guideVisible = !guideVisible },
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Icon(
-                painter = painterResource(R.drawable.ic_info),
-                contentDescription = null,
-                tint = MoaMapTheme.colors.textAssistive,
-                modifier = Modifier.size(20.dp),
-            )
-            Text(
-                text = "어떤 역할이 있는지 궁금하신가요?",
-                style = MoaMapTheme.typography.body2,
-                color = MoaMapTheme.colors.textAssistive,
-            )
-        }
-        if (guideVisible) {
-            Popup(
-                popupPositionProvider = position,
-                onDismissRequest = { guideVisible = false },
-                properties = PopupProperties(focusable = true),
-            ) {
-                RoleGuideTooltip(hazeState)
-            }
-        }
-    }
-}
-
 /**
- * 역할별로 무엇을 할 수 있는지. 커뮤니티 지도에만 뜬다. 꼬리는 ⓘ 가운데 아래에 온다.
+ * 「ⓘ 어떤 역할이 있는지 궁금하신가요?」. 누르면 바로 아래에 역할별로 무엇을 할 수 있는지 말풍선이 뜬다.
+ * 커뮤니티 지도에만 뜬다.
  *
  * 시안 `4243:29277`: 진회색 70% 에 뒤 흐림. 멤버 설명의 「별점·댓글」은 앱에 별점이 없어 「댓글」로 둔다.
  */
 @Composable
-private fun RoleGuideTooltip(hazeState: HazeState? = null) {
-    MoaMapTooltip(
-        tailAlignment = Alignment.Start,
-        tailInset = 14.dp,
-        color = RoleGuideScrim,
-        hazeState = hazeState,
+private fun RoleGuideRow(hazeState: HazeState) {
+    MoaMapGuideRow(
+        text = "어떤 역할이 있는지 궁금하신가요?",
+        tooltipColor = RoleGuideScrim,
+        tooltipHazeState = hazeState,
     ) {
-        RoleGuideColumn("방장", "장소 신청 수락·거절,\n권한 위임, 강퇴")
-        RoleGuideColumn("관리자", "장소 신청 수락·거절")
-        RoleGuideColumn("멤버", "장소 신청,\n댓글")
+        RoleGuideTooltipContent()
     }
+}
+
+@Composable
+private fun RoleGuideTooltipContent() {
+    RoleGuideColumn("방장", "장소 신청 수락·거절,\n권한 위임, 강퇴")
+    RoleGuideColumn("관리자", "장소 신청 수락·거절")
+    RoleGuideColumn("멤버", "장소 신청,\n댓글")
 }
 
 @Composable
@@ -449,6 +398,8 @@ private fun MemberScreenPrivatePreview() {
 @Composable
 private fun RoleGuideTooltipPreview() {
     MoaMapTheme {
-        RoleGuideTooltip()
+        MoaMapTooltip(tailAlignment = Alignment.Start, tailInset = 14.dp, color = RoleGuideScrim) {
+            RoleGuideTooltipContent()
+        }
     }
 }
