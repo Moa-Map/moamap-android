@@ -63,6 +63,7 @@ internal fun SettingsScreen(
     val loggedOut by viewModel.loggedOut.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
+    var logoutConfirmVisible by rememberSaveable { mutableStateOf(false) }
     var withdrawConfirmVisible by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(loggedOut) {
@@ -76,7 +77,7 @@ internal fun SettingsScreen(
             onPrivacyPolicyClick = onPrivacyPolicyClick,
             onInquiryClick = onInquiryClick,
             onNoticeClick = onNoticeClick,
-            onLogoutClick = viewModel::logout,
+            onLogoutClick = { logoutConfirmVisible = true },
             onWithdrawClick = { withdrawConfirmVisible = true },
         )
         ErrorSnackbar(
@@ -85,6 +86,22 @@ internal fun SettingsScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .navigationBarsPadding(),
+        )
+    }
+
+    if (logoutConfirmVisible) {
+        // 시안 「로그아웃 팝업」 문구 그대로다.
+        MoaMapConfirmDialog(
+            title = "로그아웃하시겠어요?",
+            message = "다음에 또 지도를 함께 채워요!",
+            confirmText = "확인",
+            onConfirm = {
+                logoutConfirmVisible = false
+                viewModel.logout()
+            },
+            onDismissRequest = { logoutConfirmVisible = false },
+            dismissText = "닫기",
+            dismissColor = MoaMapPrimitiveColors.Gray200,
         )
     }
 

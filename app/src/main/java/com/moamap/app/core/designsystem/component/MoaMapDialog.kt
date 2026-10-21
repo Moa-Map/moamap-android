@@ -28,6 +28,9 @@ import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 private val DialogShape = RoundedCornerShape(16.dp)
 private val DialogBorderWidth = 2.dp
 
+/** 팝업 뒤 어둡기. 시안 로그아웃·탈퇴 팝업의 검정 80% 를 모든 팝업에 쓴다(10-21 사용자 결정). */
+private const val DialogDimAmount = 0.8f
+
 /**
  * 파란 테두리를 두른 중앙 카드 모달.
  *
@@ -58,9 +61,9 @@ fun MoaMapDialog(
             usePlatformDefaultWidth = false,
         ),
     ) {
-        // 플랫폼 기본 어둡기(Material 테마 60%)가 아니라 시안 스크림(검정 75%)으로 맞춘다.
+        // 플랫폼 기본 어둡기(Material 테마 60%)가 아니라 시안 스크림으로 맞춘다.
         val window = (LocalView.current.parent as? DialogWindowProvider)?.window
-        SideEffect { window?.setDimAmount(MoaMapPrimitiveColors.TransparentBlack.alpha) }
+        SideEffect { window?.setDimAmount(DialogDimAmount) }
 
         Surface(
             modifier = modifier
