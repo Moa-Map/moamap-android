@@ -101,6 +101,23 @@ android {
     }
 }
 
+// 키가 비어도 빌드는 되지만 지도·로그인·장소 검색이 실행 중에야 실패한다. 릴리즈에서만 막는다 -
+// 구성 단계에서 막으면 키가 없는 CI·로컬의 Sync 와 debug 빌드까지 깨진다.
+val releaseRequiredKeys = listOf(
+    "MAPBOX_PUBLIC_TOKEN",
+    "KAKAO_NATIVE_APP_KEY",
+    "KAKAO_REST_API_KEY",
+    "GOOGLE_WEB_CLIENT_ID",
+)
+val missingReleaseKeys = releaseRequiredKeys.filter { localProperty(it).isBlank() }
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    doFirst {
+        require(missingReleaseKeys.isEmpty()) {
+            "릴리즈 빌드에는 local.properties 의 키가 필요하다. 빠진 키=${missingReleaseKeys.joinToString()}"
+        }
+    }
+}
+
 dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.compose)
