@@ -26,8 +26,8 @@ import com.moamap.app.core.designsystem.theme.MoaMapTheme
 private val BottomBarShape = RoundedCornerShape(100.dp)
 
 /**
- * 콘텐츠 위에 떠 있는 알약형 바텀 네비게이션. 시안 「NavigationBar」(새 홈 시안 기준):
- * 그림자 0 0 10 10%, 고른 칸은 노랑 바탕에 진한 노랑 글자.
+ * 콘텐츠 위에 떠 있는 알약형 바텀 네비게이션. 시안 「NavigationBar」(`4322:23610`):
+ * 그림자 0 0 10 10%, 고른 칸은 연한 회색 바탕에 검정 글자.
  */
 enum class MoaMapBottomBarItem(
     val label: String,
@@ -75,7 +75,7 @@ private fun BottomBarTab(
             .width(100.dp)
             .height(50.dp)
             .clip(BottomBarShape)
-            .background(if (selected) MoaMapPrimitiveColors.Yellow200 else Color.Transparent)
+            .background(if (selected) MoaMapPrimitiveColors.Gray50 else Color.Transparent)
             .clickable(
                 interactionSource = null,
                 indication = null,
@@ -86,7 +86,7 @@ private fun BottomBarTab(
         Text(
             text = item.label,
             style = if (selected) MoaMapTheme.typography.button0 else MoaMapTheme.typography.button1,
-            color = if (selected) MoaMapPrimitiveColors.Yellow800 else MoaMapTheme.colors.textAssistive,
+            color = if (selected) MoaMapTheme.colors.textNormal else MoaMapTheme.colors.textAssistive,
         )
     }
 }
