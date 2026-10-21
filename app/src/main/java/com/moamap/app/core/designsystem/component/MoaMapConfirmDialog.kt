@@ -124,7 +124,7 @@ fun MoaMapAlertDialog(
     }
 }
 
-/** 「팝업창」 카드: 폭 300, 안쪽 위 32·옆 24·아래 20, 모서리 12, 회색 바탕, 묶음 사이 20. 뒤는 검정 75%. */
+/** 「팝업창」 카드: 폭 300, 안쪽 위 32·옆 24·아래 20, 모서리 12, 회색 바탕, 묶음 사이 20. 뒤는 검정 80%. */
 @Composable
 private fun PopupCard(onDismissRequest: () -> Unit, content: @Composable ColumnScope.() -> Unit) {
     MoaMapDialog(
