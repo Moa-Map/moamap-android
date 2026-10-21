@@ -55,6 +55,7 @@ import com.moamap.app.feature.collection.presentation.JoinMapDialog
 import com.moamap.app.feature.collection.presentation.JoinState
 import com.moamap.app.feature.collection.presentation.LeaveEligibility
 import com.moamap.app.feature.collection.presentation.MyMapsState
+import com.moamap.app.feature.mapdetail.domain.model.MapRole
 
 /** 편집에서 지도를 고르면 하단 탭 대신 뜨는 막대. 시안 `1974:8444`. */
 private val SelectionBarHeight = 75.dp
@@ -208,6 +209,7 @@ private fun CollectionContent(
                 when (selectedTab) {
                     MapType.Community -> CommunityTabContent(
                         state = uiState.community,
+                        roles = uiState.roles,
                         edit = edit,
                         onRetryClick = onRetryClick,
                         onMapClick = onMapClick,
@@ -423,6 +425,7 @@ private fun CollectionScreenPreview() {
                         MyMap(2L, "성수 카페 투어", null, 24, 0, official = false, personal = false),
                     ),
                 ),
+                roles = mapOf(1L to MapRole.Admin, 2L to MapRole.Owner),
             ),
             onTabClick = {},
             onRetryClick = {},
@@ -449,6 +452,7 @@ private fun CollectionScreenEditPreview() {
                         MyMap(2L, "성수 카페 투어", null, 24, 0, official = false, personal = false),
                     ),
                 ),
+                roles = mapOf(2L to MapRole.Owner),
                 edit = CollectionEditState(
                     eligibility = mapOf(1L to LeaveEligibility.Allowed, 2L to LeaveEligibility.Owner),
                     selected = setOf(1L),

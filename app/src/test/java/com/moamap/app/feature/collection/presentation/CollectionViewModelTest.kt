@@ -6,6 +6,7 @@ import com.moamap.app.feature.collection.domain.model.MyMap
 import com.moamap.app.feature.collection.domain.model.NewMap
 import com.moamap.app.feature.collection.domain.repository.MapRepository
 import com.moamap.app.feature.mapdetail.domain.model.LeaveOutcome
+import com.moamap.app.feature.mapdetail.domain.model.MapRole
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -142,6 +143,15 @@ class CollectionViewModelTest {
             return leaveOutcome(mapId)
         }
 
+        /** 지도별 내 역할. */
+        var role: (Long) -> MapRole = { MapRole.Member }
+        val roleChecks = mutableListOf<Long>()
+
+        override suspend fun getMyRole(mapId: Long): MapRole {
+            roleChecks += mapId
+            return role(mapId)
+        }
+
         override suspend fun leaveMap(mapId: Long) {
             delay(delayMillis)
             if (mapId in leaveFailures) throw IOException("boom")
@@ -218,6 +228,51 @@ class CollectionViewModelTest {
 
         val state = viewModel.uiState.value.community as MyMapsState.Success
         assertEquals(listOf(1L), state.maps.map { it.id })
+    }
+
+    @Test
+    fun `커뮤니티 지도마다 내 역할을 받아 둔다`() = runTest(dispatcher) {
+        repository.officialResult = { listOf(myMap(9, official = true)) }
+        repository.result = { listOf(myMap(1), myMap(2), myMap(3)) }
+        repository.role = { mapId ->
+            when (mapId) {
+                1L -> MapRole.Owner
+                2L -> MapRole.Admin
+                else -> MapRole.Member
+            }
+        }
+
+        val viewModel = startedViewModel()
+
+        assertEquals(
+            mapOf(1L to MapRole.Owner, 2L to MapRole.Admin, 3L to MapRole.Member),
+            viewModel.uiState.value.roles,
+        )
+        // 공식지도는 뱃지를 달지 않아 묻지 않는다.
+        assertEquals(listOf(1L, 2L, 3L), repository.roleChecks.sorted())
+    }
+
+    @Test
+    fun `역할을 못 받은 지도는 뱃지 없이 두고 목록은 그대로 보여준다`() = runTest(dispatcher) {
+        repository.result = { listOf(myMap(1), myMap(2)) }
+        repository.role = { mapId -> if (mapId == 2L) throw IOException("boom") else MapRole.Owner }
+
+        val viewModel = startedViewModel()
+
+        assertEquals(mapOf(1L to MapRole.Owner), viewModel.uiState.value.roles)
+        val state = viewModel.uiState.value.community as MyMapsState.Success
+        assertEquals(listOf(1L, 2L), state.maps.map { it.id })
+    }
+
+    @Test
+    fun `프라이빗 탭은 역할을 묻지 않는다`() = runTest(dispatcher) {
+        repository.result = { type -> if (type == MapType.Private) listOf(myMap(5)) else listOf(myMap(1)) }
+        val viewModel = startedViewModel()
+
+        viewModel.selectTab(MapType.Private)
+        advanceUntilIdle()
+
+        assertEquals(listOf(1L), repository.roleChecks)
     }
 
     @Test

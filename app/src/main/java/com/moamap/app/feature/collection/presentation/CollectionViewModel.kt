@@ -10,10 +10,12 @@ import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.collection.domain.model.MyMap
 import com.moamap.app.feature.collection.domain.repository.MapRepository
+import com.moamap.app.feature.mapdetail.domain.model.MapRole
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -382,6 +384,11 @@ class CollectionViewModel @Inject constructor(
                 _uiState.update { state ->
                     state.withState(type, MyMapsState.Success(maps))
                 }
+                // 목록부터 보여 주고 뱃지는 역할이 오면 단다.
+                if (type == MapType.Community) {
+                    val roles = getRoles(maps)
+                    _uiState.update { state -> state.copy(roles = roles) }
+                }
             } catch (e: CancellationException) {
                 // 같은 탭의 다음 요청이 이미 시작됐다. 이 요청의 결과로 상태를 건드리면 안 된다.
                 throw e
@@ -413,6 +420,30 @@ class CollectionViewModel @Inject constructor(
         }
         val community = repository.getMyMaps(MapType.Community)
         official.await() + community
+    }
+
+    /**
+     * 커뮤니티 탭 지도마다 내 역할을 받는다. 카드의 방장·관리자 뱃지에 쓴다.
+     *
+     * 공식지도는 뱃지를 달지 않아 묻지 않는다. 역할을 못 받은 지도는 뱃지 없이 둔다 - 뱃지 하나
+     * 때문에 목록을 실패로 보이면 안 된다.
+     */
+    // ponytail: 지도 수만큼 상세를 부른다. 서버가 내 지도 목록에 myRole 을 넣어 주면 그 값으로 바꾼다.
+    private suspend fun getRoles(maps: List<MyMap>): Map<Long, MapRole> = coroutineScope {
+        maps.filterNot { map -> map.official }
+            .map { map -> async { getRoleOrNull(map.id)?.let { role -> map.id to role } } }
+            .awaitAll()
+            .filterNotNull()
+            .toMap()
+    }
+
+    private suspend fun getRoleOrNull(mapId: Long): MapRole? = try {
+        repository.getMyRole(mapId)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Log.w(TAG, "내 역할 조회 실패 (mapId=$mapId)", e)
+        null
     }
 
     /** 새로고침이 실패했는데 이미 보여줄 목록이 있으면 지우지 않는다. */
