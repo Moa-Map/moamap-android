@@ -1,5 +1,6 @@
 package com.moamap.app.core.designsystem.component
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,19 +10,33 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntRect
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
+import com.moamap.app.R
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
+import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import dev.chrisbanes.haze.HazeState
 
 private val TooltipShape = RoundedCornerShape(12.dp)
@@ -79,6 +94,70 @@ fun MoaMapTooltip(
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             content = content,
         )
+    }
+}
+
+/** 안내 말풍선 꼬리가 ⓘ(20) 가운데를 가리키도록 말풍선을 안내 줄 왼쪽 끝에서 당기는 거리와 꼬리 자리, 안내 줄과의 틈. */
+private val GuideTooltipOffsetX = (-12).dp
+private val GuideTooltipTailInset = 14.dp
+private val GuideTooltipGap = 3.dp
+
+/**
+ * 「ⓘ ○○이 궁금하신가요?」 안내 줄. 누르면 바로 아래에 꼬리가 ⓘ 를 가리키는 말풍선이 뜨고,
+ * 다시 누르거나 바깥·뒤로가기로 닫힌다. 멤버 관리 역할 안내와 공식지도 안내가 쓴다.
+ *
+ * 말풍선 바탕은 [tooltipColor]·[tooltipHazeState] 로 [MoaMapTooltip] 에 넘긴다.
+ */
+@Composable
+fun MoaMapGuideRow(
+    text: String,
+    modifier: Modifier = Modifier,
+    tooltipColor: Color = MoaMapPrimitiveColors.Blue800,
+    tooltipHazeState: HazeState? = null,
+    tooltipContent: @Composable RowScope.() -> Unit,
+) {
+    var guideVisible by remember { mutableStateOf(false) }
+    val density = LocalDensity.current
+    val position = remember(density) {
+        with(density) {
+            BelowAnchorPosition(IntOffset(GuideTooltipOffsetX.roundToPx(), GuideTooltipGap.roundToPx()))
+        }
+    }
+
+    // 말풍선은 이 Box 를 기준으로 자리를 잡는다.
+    Box(modifier = modifier) {
+        Row(
+            modifier = Modifier.clickable(role = Role.Button) { guideVisible = !guideVisible },
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_info),
+                contentDescription = null,
+                tint = MoaMapTheme.colors.textAssistive,
+                modifier = Modifier.size(20.dp),
+            )
+            Text(
+                text = text,
+                style = MoaMapTheme.typography.body2.withDesignLineHeight(),
+                color = MoaMapTheme.colors.textAssistive,
+            )
+        }
+        if (guideVisible) {
+            Popup(
+                popupPositionProvider = position,
+                onDismissRequest = { guideVisible = false },
+                properties = PopupProperties(focusable = true),
+            ) {
+                MoaMapTooltip(
+                    tailAlignment = Alignment.Start,
+                    tailInset = GuideTooltipTailInset,
+                    color = tooltipColor,
+                    hazeState = tooltipHazeState,
+                    content = tooltipContent,
+                )
+            }
+        }
     }
 }
 

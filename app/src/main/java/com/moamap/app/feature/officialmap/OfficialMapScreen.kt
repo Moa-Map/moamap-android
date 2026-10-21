@@ -1,8 +1,6 @@
 package com.moamap.app.feature.officialmap
 
-import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -11,7 +9,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,49 +20,38 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Popup
-import androidx.compose.ui.window.PopupProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
-import com.moamap.app.core.designsystem.component.BelowAnchorPosition
-import com.moamap.app.core.designsystem.component.MoaMapBackButton
+import com.moamap.app.core.common.format.formatPlaceCount
 import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
+import com.moamap.app.core.designsystem.component.MoaMapGuideRow
 import com.moamap.app.core.designsystem.component.MoaMapListPlaceholder
-import com.moamap.app.core.designsystem.component.MoaMapTooltip
-import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
+import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.officialmap.domain.model.OfficialMap
 import com.moamap.app.feature.officialmap.presentation.OfficialMapViewModel
 import com.moamap.app.feature.officialmap.presentation.OfficialMapsState
 
-/** 시안 GNB 높이. */
-private val TopBarHeight = 58.dp
-
-/** ⓘ 말풍선 꼬리 끝이 ⓘ 아랫부분에 살짝 걸치도록 누르는 자리(48) 아래 끝에서 끌어올리는 거리. */
-private val GuideTooltipOffsetY = (-10).dp
-
-/** 꼬리가 ⓘ 가운데를 가리키도록 말풍선 오른쪽 끝에서 들이는 거리. */
-private val GuideTooltipTailInset = 16.dp
-
 private const val OFFICIAL_MAP_GUIDE = "모아맵이 공공데이터로 만든 지도예요.\n참여하면 모음 탭에서 바로 볼 수 있어요."
+
+/** 카드 사진. 시안 「탐색탭_지도 · 공식지도 세부」(홈 커뮤니티 카드와 같은 틀). */
+private val CardImageSize = 80.dp
+
+/** 사진 오른쪽 글 칸. 사진(80) 높이에서 위아래 2 를 뺀 칸에 이름·설명은 위, 장소 수는 아래 오른쪽. */
+private val CardTextAreaHeight = 76.dp
 
 @Composable
 fun OfficialMapScreen(
@@ -106,17 +92,24 @@ private fun OfficialMapContent(
             .statusBarsPadding()
             .navigationBarsPadding(),
     ) {
-        OfficialMapTopBar(onBackClick = onBackClick)
+        MoaMapTitleTopBar(title = "공식지도", onBackClick = onBackClick)
 
+        // 시안 「공식지도」: 상단 바 아래 12 에 안내 줄, 안내 줄 ↔ 첫 카드·카드 사이 8.
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding),
+                .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding)
+                .padding(top = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            // 카드 간격 8 과 합쳐 상단 바와 첫 카드 사이가 시안대로 12 가 된다.
-            Spacer(Modifier.height(4.dp))
+            MoaMapGuideRow(text = "공식지도가 궁금하신가요?") {
+                Text(
+                    text = OFFICIAL_MAP_GUIDE,
+                    style = MoaMapTheme.typography.caption0,
+                    color = MoaMapTheme.colors.textWhite,
+                )
+            }
 
             when (state) {
                 OfficialMapsState.Loading -> MoaMapListPlaceholder {
@@ -130,9 +123,7 @@ private fun OfficialMapContent(
                 is OfficialMapsState.Success -> {
                     state.maps.forEach { officialMap ->
                         OfficialMapCard(
-                            title = officialMap.title,
-                            description = officialMap.description,
-                            imageUrl = officialMap.imageUrl,
+                            map = officialMap,
                             onClick = { onMapClick(officialMap) },
                         )
                     }
@@ -145,151 +136,86 @@ private fun OfficialMapContent(
 }
 
 /**
- * 공식지도 카드. 시안 「지도」 State=공공 지도.
+ * 공식지도 카드. 시안 「탐색탭_지도」 지도 종류=공식지도 세부.
  *
- * 참여는 카드가 아니라 지도 소개·지도 화면에서 한다. 인원·장소 수도 시안에 없다.
+ * 모서리 12, 그림자 0 0 8 4%, 여백 12, 사진 80 ↔ 글 12. 이름 + 인증 표시, 설명은 두 줄까지,
+ * 오른쪽 아래에 장소 수. 장소 수는 서버 값 그대로 0 이어도 보인다(10-21 사용자 결정).
+ * 참여는 카드가 아니라 지도 소개·지도 화면에서 한다.
  */
 @Composable
 private fun OfficialMapCard(
-    title: String,
-    description: String,
-    imageUrl: String?,
+    map: OfficialMap,
     onClick: () -> Unit,
 ) {
-    // 모서리 12, 그림자 0 0 8 4%, 여백 12, 사진↔글 16. 글은 위에서부터 쌓는다.
     ShadowedSurface(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            PhotoThumbnail(imageUrl = imageUrl, size = 90.dp)
+            PhotoThumbnail(imageUrl = map.imageUrl, size = CardImageSize)
 
-            Column(
+            Box(
                 modifier = Modifier
                     .weight(1f)
-                    .padding(vertical = 4.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                    .height(CardTextAreaHeight),
             ) {
-                Row(
-                    modifier = Modifier.heightIn(min = 24.dp),
-                    horizontalArrangement = Arrangement.spacedBy(2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Text(
-                        text = title,
-                        style = MoaMapTheme.typography.subtitle2,
-                        color = MoaMapTheme.colors.textNormal,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f, fill = false),
-                    )
-                    Icon(
-                        painter = painterResource(R.drawable.ic_verify_filled),
-                        contentDescription = "공식 인증",
-                        tint = Color.Unspecified,
-                        modifier = Modifier.size(24.dp),
-                    )
-                }
-                if (description.isNotEmpty()) {
-                    Text(
-                        text = description,
-                        style = MoaMapTheme.typography.body2,
-                        color = MoaMapTheme.colors.textAlternative,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-            }
-        }
-    }
-}
-
-/** 시안 GNB: 높이 58, 왼쪽 20 에 뒤로가기 32, 가운데 제목, 오른쪽 20 에 ⓘ 32. */
-@Composable
-private fun OfficialMapTopBar(
-    onBackClick: () -> Unit,
-) {
-    var guideVisible by remember { mutableStateOf(false) }
-    val density = LocalDensity.current
-    val guidePosition = remember(density) {
-        with(density) {
-            BelowAnchorPosition(IntOffset(0, GuideTooltipOffsetY.roundToPx()), alignEnd = true)
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(TopBarHeight),
-    ) {
-        // 누르는 자리는 48 로 넓히고 아이콘이 양 끝에서 20 에 서도록 12 만 띄운다.
-        MoaMapBackButton(
-            onClick = onBackClick,
-            modifier = Modifier
-                .align(Alignment.CenterStart)
-                .padding(start = MoaMapTopBarIconEdgePadding),
-        )
-        Text(
-            text = "공식지도",
-            style = MoaMapTheme.typography.title3,
-            color = MoaMapTheme.colors.textNormal,
-            modifier = Modifier.align(Alignment.Center),
-        )
-        // 말풍선은 ⓘ 누르는 자리를 기준으로 오른쪽 끝을 맞춰 뜬다.
-        TopBarIconButton(
-            iconRes = R.drawable.ic_info,
-            contentDescription = "공식지도 안내",
-            onClick = { guideVisible = !guideVisible },
-            modifier = Modifier
-                .align(Alignment.CenterEnd)
-                .padding(end = 12.dp),
-        ) {
-            if (guideVisible) {
-                Popup(
-                    popupPositionProvider = guidePosition,
-                    onDismissRequest = { guideVisible = false },
-                    properties = PopupProperties(focusable = true),
-                ) {
-                    MoaMapTooltip(
-                        tailAlignment = Alignment.End,
-                        tailInset = GuideTooltipTailInset,
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = OFFICIAL_MAP_GUIDE,
-                            style = MoaMapTheme.typography.caption0,
-                            color = MoaMapTheme.colors.textWhite,
+                            text = map.title,
+                            style = MoaMapTheme.typography.subtitle2.withDesignLineHeight(),
+                            color = MoaMapTheme.colors.textNormal,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        Icon(
+                            painter = painterResource(R.drawable.ic_verify_filled),
+                            contentDescription = "공식 인증",
+                            tint = Color.Unspecified,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    if (map.description.isNotEmpty()) {
+                        Text(
+                            text = map.description,
+                            style = MoaMapTheme.typography.caption0.withDesignLineHeight(),
+                            color = MoaMapTheme.colors.textNormal,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
+                Row(
+                    modifier = Modifier.align(Alignment.BottomEnd),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        painter = painterResource(R.drawable.ic_location),
+                        contentDescription = "등록 장소",
+                        tint = MoaMapTheme.colors.textAssistive,
+                        modifier = Modifier.size(14.dp),
+                    )
+                    Text(
+                        text = formatPlaceCount(map.placeCount),
+                        style = MoaMapTheme.typography.caption0,
+                        color = MoaMapTheme.colors.textAssistive,
+                        maxLines = 1,
+                    )
+                }
             }
         }
-    }
-}
-
-@Composable
-private fun TopBarIconButton(
-    @DrawableRes iconRes: Int,
-    contentDescription: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    popup: @Composable () -> Unit = {},
-) {
-    Box(
-        modifier = modifier
-            .size(48.dp)
-            .clickable(role = Role.Button, onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            painter = painterResource(iconRes),
-            contentDescription = contentDescription,
-            tint = MoaMapTheme.colors.textNormal,
-            modifier = Modifier.size(32.dp),
-        )
-        popup()
     }
 }
 
@@ -301,12 +227,12 @@ private fun OfficialMapScreenPreview() {
             state = OfficialMapsState.Success(
                 listOf(
                     OfficialMap(
-                        id = 6L,
-                        title = "화장실 위치",
-                        description = "공공데이터 기반 공중화장실 위치를 한곳에 모은 지도",
+                        id = 17L,
+                        title = "공중화장실 지도",
+                        description = "행정안전부 공공데이터를 기반으로 전국 공중화장실의 위치와 개방 시간, 편의시설 정보를 보여주는 공식 지도입니다.",
                         imageUrl = null,
-                        memberCount = 1,
-                        placeCount = 5416,
+                        memberCount = 3,
+                        placeCount = 0,
                         joined = false,
                     ),
                 ),
