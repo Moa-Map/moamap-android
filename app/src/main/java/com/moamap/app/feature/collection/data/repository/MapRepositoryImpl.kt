@@ -14,6 +14,7 @@ import com.moamap.app.feature.collection.domain.model.NewMap
 import com.moamap.app.feature.collection.domain.repository.MapRepository
 import com.moamap.app.feature.mapdetail.data.repository.toMapDetail
 import com.moamap.app.feature.mapdetail.domain.model.LeaveOutcome
+import com.moamap.app.feature.mapdetail.domain.model.MapRole
 import com.moamap.app.feature.mapdetail.domain.model.leaveOutcome
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -57,6 +58,8 @@ internal class MapRepositoryImpl @Inject constructor(
     // 지도 상세와 같은 규칙을 쓴다. 제작자 이름은 판단에 필요 없어 조회하지 않는다.
     override suspend fun getLeaveOutcome(mapId: Long): LeaveOutcome? =
         mapService.getMap(mapId).toMapDetail(ownerName = null).leaveOutcome
+
+    override suspend fun getMyRole(mapId: Long): MapRole = MapRole.from(mapService.getMap(mapId).myRole)
 
     override suspend fun leaveMap(mapId: Long) {
         // 고른 뒤에 다른 사람이 들어왔을 수 있다. 되돌릴 수 없는 삭제라 나가는 순간의 상태로

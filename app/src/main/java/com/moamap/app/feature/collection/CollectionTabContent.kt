@@ -36,6 +36,7 @@ import com.moamap.app.feature.collection.presentation.MyMapsState
 import com.moamap.app.feature.collection.presentation.placeimport.PlaceImportCheckBox
 import com.moamap.app.feature.collection.presentation.placeimport.selectedCardBorder
 import com.moamap.app.feature.collection.presentation.splitPersonal
+import com.moamap.app.feature.mapdetail.domain.model.MapRole
 
 /** 모음 카드끼리의 간격. 순서를 바꿀 때 이웃을 넘었는지 재는 데도 쓴다. */
 private val CardSpacing = 8.dp
@@ -50,6 +51,7 @@ private val ActionCardHeight = 72.dp
 @Composable
 internal fun CommunityTabContent(
     state: MyMapsState,
+    roles: Map<Long, MapRole>,
     edit: CollectionEditState?,
     onRetryClick: () -> Unit,
     onMapClick: (MyMap) -> Unit,
@@ -86,7 +88,7 @@ internal fun CommunityTabContent(
                         key(map.id) {
                             MyMapCard(
                                 map = map,
-                                uiModel = map.toCommunityUiModel(),
+                                uiModel = map.toCommunityUiModel(role = roles[map.id] ?: MapRole.None),
                                 edit = edit,
                                 reorder = reorder,
                                 onClick = { onMapClick(map) },
