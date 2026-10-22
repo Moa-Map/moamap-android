@@ -170,4 +170,7 @@ dependencies {
 
     // 토큰 저장 (DataStore Preferences)
     implementation(libs.androidx.datastore.preferences)
+
+    // 약관 전문 마크다운
+    implementation(libs.markdown.renderer.m3)
 }

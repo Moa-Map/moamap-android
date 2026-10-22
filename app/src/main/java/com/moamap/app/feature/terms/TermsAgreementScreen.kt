@@ -35,13 +35,16 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.ErrorSnackbar
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
 import com.moamap.app.core.designsystem.component.MoaMapLargeButton
+import com.moamap.app.core.designsystem.component.MoaMapLoadingIndicator
 import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.terms.domain.model.Terms
-import com.moamap.app.feature.terms.domain.model.TermsConsentType
+import com.moamap.app.feature.terms.domain.model.TermsKind
 import com.moamap.app.feature.terms.presentation.TermsAgreementResult
 import com.moamap.app.feature.terms.presentation.TermsAgreementUiState
 import com.moamap.app.feature.terms.presentation.TermsAgreementViewModel
@@ -52,15 +55,17 @@ private val BottomButtonReservedHeight = 78.dp
 /**
  * 소셜 로그인 다음의 이용약관 동의. 시안 「이용약관 동의 기본」(`3738:24422`)·「이용약관 동의」(`3738:31152`).
  *
- * - 왼쪽 체크 표시를 누르면 체크/해제, 약관 이름이나 「>」 를 누르면 [onTermsClick] 로 전문을 연다.
- * - 뒤로 가면(← 또는 기기 뒤로가기) 로그인을 취소하고 [onCancelled] 로 로그인 화면에 돌아간다.
- * - 필수에 모두 동의하고 「다음으로」 를 누르면 [onAgreed] 로 로그인을 마친다.
+ * - 체크박스 줄은 서버가 아직 동의하지 않았다고 준 약관(`pendingTerms`)만 그리고, 보기만 하는 약관은 그 아래
+ *   「‹제목› 보기」 줄로 붙인다.
+ * - 왼쪽 체크 표시를 누르면 체크/해제, 약관 이름이나 「>」, 「보기」 줄을 누르면 [onTermsClick] 로 전문을 연다.
+ * - 뒤로 가면(← 또는 기기 뒤로가기) 로그인을 취소하고 [onCancelled] 로 로그인 화면에 간다.
+ * - 필수에 모두 동의하고 「다음으로」 를 누르면 서버에 동의를 보내고 [onAgreed] 로 홈에 간다.
  */
 @Composable
 fun TermsAgreementScreen(
     onAgreed: () -> Unit,
     onCancelled: () -> Unit,
-    onTermsClick: (code: String) -> Unit,
+    onTermsClick: (termId: Long) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: TermsAgreementViewModel = hiltViewModel(),
 ) {
@@ -91,6 +96,8 @@ fun TermsAgreementScreen(
         onToggle = viewModel::toggle,
         onTermsClick = onTermsClick,
         onBottomButtonClick = viewModel::onBottomButtonClick,
+        onRetryClick = viewModel::retry,
+        onMessageShown = viewModel::consumeMessage,
         modifier = modifier,
     )
 }
@@ -100,9 +107,11 @@ private fun TermsAgreementContent(
     uiState: TermsAgreementUiState,
     onBackClick: () -> Unit,
     onToggleAll: () -> Unit,
-    onToggle: (String) -> Unit,
-    onTermsClick: (String) -> Unit,
+    onToggle: (Long) -> Unit,
+    onTermsClick: (Long) -> Unit,
     onBottomButtonClick: () -> Unit,
+    onRetryClick: () -> Unit,
+    onMessageShown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Box(
@@ -116,6 +125,23 @@ private fun TermsAgreementContent(
                 .statusBarsPadding(),
         ) {
             MoaMapTitleTopBar(title = "이용약관 동의", onBackClick = onBackClick)
+
+            if (uiState.loading || uiState.loadErrorMessage != null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .navigationBarsPadding(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val loadErrorMessage = uiState.loadErrorMessage
+                    if (loadErrorMessage != null) {
+                        MoaMapErrorNotice(message = loadErrorMessage, onRetryClick = onRetryClick)
+                    } else {
+                        MoaMapLoadingIndicator()
+                    }
+                }
+                return@Column
+            }
 
             // 시안: 상단 바 아래 20, 좌우 20, 제목(왼쪽 안쪽 4) ↔ 「모두 동의하기」 20, 그 아래 32 간격.
             Column(
@@ -135,27 +161,39 @@ private fun TermsAgreementContent(
                 Spacer(Modifier.height(20.dp))
                 Column(verticalArrangement = Arrangement.spacedBy(32.dp)) {
                     AgreeAllRow(checked = uiState.allChecked, onClick = onToggleAll)
-                    uiState.terms.forEach { terms ->
+                    uiState.pendingTerms.forEach { terms ->
                         TermsRow(
                             terms = terms,
-                            checked = terms.code in uiState.checked,
-                            onToggle = { onToggle(terms.code) },
-                            onOpen = { onTermsClick(terms.code) },
+                            checked = terms.termId in uiState.checked,
+                            onToggle = { onToggle(terms.termId) },
+                            onOpen = { onTermsClick(terms.termId) },
                         )
+                    }
+                    uiState.viewOnlyTerms.forEach { terms ->
+                        ViewOnlyTermsRow(terms = terms, onOpen = { onTermsClick(terms.termId) })
                     }
                 }
             }
         }
 
-        MoaMapLargeButton(
-            // 필수를 다 체크하면 「다음으로」, 아니면 「모두 동의하기」(누르면 전부 체크만 한다).
-            label = if (uiState.requiredChecked) "다음으로" else "모두 동의하기",
-            onClick = onBottomButtonClick,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .padding(horizontal = 20.dp, vertical = 12.dp),
-        )
+        if (!uiState.loading && uiState.loadErrorMessage == null) {
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 12.dp),
+            ) {
+                ErrorSnackbar(message = uiState.message, onShown = onMessageShown)
+                MoaMapLargeButton(
+                    // 필수를 다 체크하면 「다음으로」, 아니면 「모두 동의하기」(누르면 전부 체크만 한다).
+                    label = if (uiState.requiredChecked) "다음으로" else "모두 동의하기",
+                    onClick = onBottomButtonClick,
+                    // 보내는 동안 막는다.
+                    enabled = !uiState.submitting,
+                    submitting = uiState.submitting,
+                )
+            }
+        }
     }
 }
 
@@ -222,7 +260,7 @@ private fun TermsRow(
             )
             Spacer(Modifier.width(4.dp))
             Text(
-                text = if (terms.consentType == TermsConsentType.REQUIRED) "(필수)" else "(선택)",
+                text = if (terms.kind == TermsKind.REQUIRED) "(필수)" else "",
                 style = MoaMapTheme.typography.subtitle4,
                 color = MoaMapTheme.colors.textAlternative,
                 modifier = Modifier.weight(1f),
@@ -237,6 +275,38 @@ private fun TermsRow(
     }
 }
 
+/**
+ * 보기만 하는 약관 줄: 「‹제목› 보기」 · 「>」. 체크 표시가 없어 체크 표시 자리(24 + 8)만큼 비우고 글을 약관 줄과 맞춘다.
+ * 시안이 없어 약관 줄과 같은 글자·색을 쓴다.
+ */
+@Composable
+private fun ViewOnlyTermsRow(
+    terms: Terms,
+    onOpen: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .clickable(role = Role.Button, onClickLabel = "전문 보기", onClick = onOpen),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Spacer(Modifier.width(32.dp))
+        Text(
+            text = "${terms.title} 보기",
+            style = MoaMapTheme.typography.subtitle4,
+            color = MoaMapTheme.colors.textAlternative,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            painter = painterResource(R.drawable.ic_arrow_right),
+            contentDescription = null,
+            tint = MoaMapTheme.colors.textAlternative,
+            modifier = Modifier.size(24.dp),
+        )
+    }
+}
+
 /** 체크 표시. 시안: 안 고르면 회색 `#C5C7C7`, 고르면 파랑 `#09A8FA`. */
 @Composable
 private fun AgreementCheck(checked: Boolean) {
@@ -248,10 +318,13 @@ private fun AgreementCheck(checked: Boolean) {
     )
 }
 
-private fun previewTerms() = listOf(
-    Terms("SERVICE", "서비스 이용약관", TermsConsentType.REQUIRED, "1", ""),
-    Terms("PRIVACY_COLLECTION", "개인정보수집 및 이용동의", TermsConsentType.REQUIRED, "1", ""),
-    Terms("MARKETING", "마케팅활용 동의", TermsConsentType.OPTIONAL, "1", ""),
+private fun previewPendingTerms() = listOf(
+    Terms(1, "SERVICE", "서비스 이용약관", "1", TermsKind.REQUIRED),
+    Terms(2, "AGE", "만 14세 이상 확인", "1", TermsKind.REQUIRED),
+)
+
+private fun previewViewOnlyTerms() = listOf(
+    Terms(3, "POLICY", "개인정보 처리방침", "1", TermsKind.VIEW_ONLY),
 )
 
 @Preview(showBackground = true, widthDp = 393, heightDp = 852)
@@ -259,12 +332,19 @@ private fun previewTerms() = listOf(
 private fun TermsAgreementScreenPreview() {
     MoaMapTheme {
         TermsAgreementContent(
-            uiState = TermsAgreementUiState(terms = previewTerms(), checked = setOf("SERVICE")),
+            uiState = TermsAgreementUiState(
+                loading = false,
+                pendingTerms = previewPendingTerms(),
+                viewOnlyTerms = previewViewOnlyTerms(),
+                checked = setOf(1L),
+            ),
             onBackClick = {},
             onToggleAll = {},
             onToggle = {},
             onTermsClick = {},
             onBottomButtonClick = {},
+            onRetryClick = {},
+            onMessageShown = {},
         )
     }
 }

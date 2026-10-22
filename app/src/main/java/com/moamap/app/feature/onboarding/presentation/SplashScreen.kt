@@ -2,11 +2,14 @@ package com.moamap.app.feature.onboarding.presentation
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,8 +26,10 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.feature.terms.domain.TERMS_CHECK_FAILED_MESSAGE
 
 /**
  * 로고 그림 크기. 피그마 3552:18809 (393 x 852)의 로고 본체는 108.5 x 93 인데, 그림자가 그림 밖으로
@@ -58,25 +63,40 @@ private val SplashBackground = Brush.verticalGradient(
 @Composable
 fun SplashScreen(
     onNavigateToLogin: () -> Unit,
+    onNavigateToTermsAgreement: () -> Unit,
     onNavigateToMain: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SplashViewModel = hiltViewModel(),
 ) {
     val destination by viewModel.destination.collectAsStateWithLifecycle()
+    val termsCheckFailed by viewModel.termsCheckFailed.collectAsStateWithLifecycle()
 
     LaunchedEffect(destination) {
         when (destination) {
             SplashDestination.Undecided -> Unit
             SplashDestination.Login -> onNavigateToLogin()
+            SplashDestination.TermsAgreement -> onNavigateToTermsAgreement()
             SplashDestination.Main -> onNavigateToMain()
         }
     }
 
-    SplashContent(modifier = modifier)
+    SplashContent(
+        termsCheckFailed = termsCheckFailed,
+        onRetryClick = viewModel::retry,
+        modifier = modifier,
+    )
 }
 
+/**
+ * @param termsCheckFailed 약관 동의 여부를 확인하지 못했다. 문구 아래에 안내와 「다시 시도」를 띄운다. 아래 여백 안에
+ * 그려 로고와 문구 자리는 움직이지 않는다.
+ */
 @Composable
-internal fun SplashContent(modifier: Modifier = Modifier) {
+internal fun SplashContent(
+    termsCheckFailed: Boolean,
+    onRetryClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -102,7 +122,20 @@ internal fun SplashContent(modifier: Modifier = Modifier) {
             textAlign = TextAlign.Center,
         )
 
-        Spacer(Modifier.weight(BottomSpacerWeight))
+        Box(
+            modifier = Modifier
+                .weight(BottomSpacerWeight)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            if (termsCheckFailed) {
+                MoaMapErrorNotice(
+                    message = TERMS_CHECK_FAILED_MESSAGE,
+                    onRetryClick = onRetryClick,
+                    modifier = Modifier.padding(top = 40.dp),
+                )
+            }
+        }
     }
 }
 
@@ -110,6 +143,14 @@ internal fun SplashContent(modifier: Modifier = Modifier) {
 @Composable
 private fun SplashScreenPreview() {
     MoaMapTheme {
-        SplashContent()
+        SplashContent(termsCheckFailed = false, onRetryClick = {})
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Composable
+private fun SplashScreenTermsCheckFailedPreview() {
+    MoaMapTheme {
+        SplashContent(termsCheckFailed = true, onRetryClick = {})
     }
 }

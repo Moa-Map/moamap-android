@@ -11,6 +11,9 @@ import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.onboarding.domain.model.GoogleLoginCancelledException
 import com.moamap.app.feature.onboarding.domain.model.KakaoLoginCancelledException
 import com.moamap.app.feature.onboarding.domain.repository.AuthRepository
+import com.moamap.app.feature.terms.domain.TermsAgreementCheck
+import com.moamap.app.feature.terms.domain.checkAgreement
+import com.moamap.app.feature.terms.domain.repository.TermsRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -23,6 +26,7 @@ import javax.inject.Inject
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val authRepository: AuthRepository,
+    private val termsRepository: TermsRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<LoginUiState>(LoginUiState.Idle)
@@ -49,7 +53,6 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 block()
-                _uiState.value = LoginUiState.Success
             } catch (e: CancellationException) {
                 throw e
             } catch (throwable: Throwable) {
@@ -61,13 +64,42 @@ class LoginViewModel @Inject constructor(
                 // 사용자에게는 짧은 메시지만 보여주므로 원인은 로그에 남긴다.
                 Log.e(TAG, defaultError, throwable)
                 _uiState.value = LoginUiState.Error(throwable.toUserMessage(defaultError))
+                return@launch
+            }
+            checkTermsAgreement(defaultError)
+        }
+    }
+
+    /** 「다시 시도」. 로그인은 이미 됐으니 약관 동의 상태만 다시 묻는다. */
+    fun retryTermsCheck() {
+        if (_uiState.value != LoginUiState.TermsCheckFailed) return
+        _uiState.value = LoginUiState.Loading
+        viewModelScope.launch { checkTermsAgreement(DEFAULT_LOGIN_ERROR) }
+    }
+
+    /** 로그인 버튼의 로딩을 이어 가며 동의 상태를 묻고, 결과대로 동의 화면이나 홈으로 보낸다. */
+    private suspend fun checkTermsAgreement(defaultError: String) {
+        _uiState.value = when (termsRepository.checkAgreement()) {
+            TermsAgreementCheck.NeedsAgreement -> LoginUiState.Success(needsTermsAgreement = true)
+            TermsAgreementCheck.Agreed -> LoginUiState.Success(needsTermsAgreement = false)
+            TermsAgreementCheck.Failed -> LoginUiState.TermsCheckFailed
+            // 방금 받은 세션이 거부됐다. 남은 것을 지우고 로그인 화면에 머문다.
+            TermsAgreementCheck.SessionExpired -> {
+                try {
+                    authRepository.logout()
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "약관 확인 중 세션 만료 뒤 로그아웃 실패", e)
+                }
+                LoginUiState.Error(defaultError)
             }
         }
     }
 
     /** 이동 신호를 소비한다. 화면 회전 후 같은 상태로 다시 이동하는 것을 막는다. */
     fun consumeSuccess() {
-        _uiState.update { state -> if (state == LoginUiState.Success) LoginUiState.Idle else state }
+        _uiState.update { state -> if (state is LoginUiState.Success) LoginUiState.Idle else state }
     }
 
     fun consumeError() {
@@ -78,6 +110,7 @@ class LoginViewModel @Inject constructor(
 private const val TAG = "LoginViewModel"
 private const val DEFAULT_KAKAO_LOGIN_ERROR = "카카오 로그인에 실패했어요"
 private const val DEFAULT_GOOGLE_LOGIN_ERROR = "구글 로그인에 실패했어요"
+private const val DEFAULT_LOGIN_ERROR = "로그인에 실패했어요"
 
 private fun Throwable.toUserMessage(defaultError: String): String = when (this) {
     is ApiException -> actionableMessage() ?: defaultError

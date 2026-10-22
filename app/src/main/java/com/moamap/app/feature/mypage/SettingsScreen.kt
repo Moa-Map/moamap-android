@@ -45,6 +45,7 @@ import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.mypage.presentation.SettingsViewModel
+import com.moamap.app.feature.terms.domain.model.TermsCode
 
 private val ToggleShape = RoundedCornerShape(18.dp)
 private val SettingsRowHeight = 47.dp
@@ -53,14 +54,14 @@ private val SettingsRowHeight = 47.dp
 internal fun SettingsScreen(
     onBackClick: () -> Unit,
     onLoggedOut: () -> Unit,
-    onTermsClick: () -> Unit,
-    onPrivacyPolicyClick: () -> Unit,
+    onOpenTerms: (termId: Long) -> Unit,
     onInquiryClick: () -> Unit,
     onNoticeClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val loggedOut by viewModel.loggedOut.collectAsStateWithLifecycle()
+    val termsToOpen by viewModel.termsToOpen.collectAsStateWithLifecycle()
     val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     var logoutConfirmVisible by rememberSaveable { mutableStateOf(false) }
@@ -70,11 +71,17 @@ internal fun SettingsScreen(
         if (loggedOut) onLoggedOut()
     }
 
+    LaunchedEffect(termsToOpen) {
+        val termId = termsToOpen ?: return@LaunchedEffect
+        viewModel.consumeTermsToOpen()
+        onOpenTerms(termId)
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         SettingsContent(
             onBackClick = onBackClick,
-            onTermsClick = onTermsClick,
-            onPrivacyPolicyClick = onPrivacyPolicyClick,
+            onTermsClick = { viewModel.openTerms(TermsCode.SERVICE) },
+            onPrivacyPolicyClick = { viewModel.openTerms(TermsCode.POLICY) },
             onInquiryClick = onInquiryClick,
             onNoticeClick = onNoticeClick,
             onLogoutClick = { logoutConfirmVisible = true },

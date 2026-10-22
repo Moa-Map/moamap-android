@@ -35,9 +35,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
+import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.feature.terms.domain.TERMS_CHECK_FAILED_MESSAGE
 
 /** 피그마 918:1219 (393 x 852) 기준 값. */
 private val LoginLogoSize = DpSize(width = 173.dp, height = 103.dp)
@@ -62,9 +64,10 @@ private const val SocialButtonLabelAlpha = 0.85f
 
 private const val LoginTitle = "취향을 담아,\n우리만의 지도로"
 
+/** @param onLoginSuccess 로그인과 약관 동의 상태 확인을 마쳤다. 인자는 동의할 약관이 남았는지다. */
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (needsTermsAgreement: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
@@ -73,18 +76,19 @@ fun LoginScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(uiState) {
-        if (uiState == LoginUiState.Success) {
-            viewModel.consumeSuccess()
-            onLoginSuccess()
-        }
+        val success = uiState as? LoginUiState.Success ?: return@LaunchedEffect
+        viewModel.consumeSuccess()
+        onLoginSuccess(success.needsTermsAgreement)
     }
 
     LoginContent(
         isLoading = uiState == LoginUiState.Loading,
         errorMessage = (uiState as? LoginUiState.Error)?.message,
+        termsCheckFailed = uiState == LoginUiState.TermsCheckFailed,
         onGoogleClick = { viewModel.loginWithGoogle(context) },
         onKakaoClick = { viewModel.loginWithKakao(context) },
         onErrorShown = viewModel::consumeError,
+        onRetryTermsCheckClick = viewModel::retryTermsCheck,
         modifier = modifier,
     )
 }
@@ -93,9 +97,11 @@ fun LoginScreen(
 internal fun LoginContent(
     isLoading: Boolean,
     errorMessage: String?,
+    termsCheckFailed: Boolean,
     onGoogleClick: () -> Unit,
     onKakaoClick: () -> Unit,
     onErrorShown: () -> Unit,
+    onRetryTermsCheckClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
 
@@ -153,6 +159,18 @@ internal fun LoginContent(
             Spacer(Modifier.weight(BottomSpacerWeight))
         }
 
+        // 로그인 직후 약관 동의 여부를 확인하지 못했다. 버튼 아래 여백에 띄워 버튼 자리는 움직이지 않는다.
+        if (termsCheckFailed) {
+            MoaMapErrorNotice(
+                message = TERMS_CHECK_FAILED_MESSAGE,
+                onRetryClick = onRetryTermsCheckClick,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 60.dp),
+            )
+        }
+
         ErrorSnackbar(
             message = errorMessage,
             onShown = onErrorShown,
@@ -202,9 +220,27 @@ private fun LoginScreenPreview() {
         LoginContent(
             isLoading = false,
             errorMessage = null,
+            termsCheckFailed = false,
             onGoogleClick = {},
             onKakaoClick = {},
             onErrorShown = {},
+            onRetryTermsCheckClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Composable
+private fun LoginScreenTermsCheckFailedPreview() {
+    MoaMapTheme {
+        LoginContent(
+            isLoading = false,
+            errorMessage = null,
+            termsCheckFailed = true,
+            onGoogleClick = {},
+            onKakaoClick = {},
+            onErrorShown = {},
+            onRetryTermsCheckClick = {},
         )
     }
 }

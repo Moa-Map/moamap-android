@@ -2,7 +2,11 @@ package com.moamap.app.feature.mypage.presentation
 
 import android.content.Context
 import com.moamap.app.core.network.ApiException
+import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.onboarding.domain.repository.AuthRepository
+import com.moamap.app.feature.terms.FakeTermsRepository
+import com.moamap.app.feature.terms.domain.model.TermsKind
+import com.moamap.app.feature.terms.testTerms
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -54,13 +58,20 @@ class SettingsViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val repository = FakeAuthRepository()
+    private val terms = FakeTermsRepository(
+        termsList = listOf(
+            testTerms(11, "SERVICE"),
+            testTerms(12, "AGE"),
+            testTerms(13, "POLICY", TermsKind.VIEW_ONLY),
+        ),
+    )
 
     private lateinit var viewModel: SettingsViewModel
 
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        viewModel = SettingsViewModel(repository)
+        viewModel = SettingsViewModel(repository, terms)
     }
 
     @After
@@ -155,5 +166,41 @@ class SettingsViewModelTest {
         advanceUntilIdle()
 
         assertEquals(1, repository.withdrawCount)
+    }
+
+    // ---- 이용약관·개인정보처리방침 (이슈 #350) ----
+
+    @Test
+    fun `약관 목록에서 코드로 찾은 약관 번호로 전문을 연다`() = runTest(dispatcher) {
+        viewModel.openTerms("SERVICE")
+        advanceUntilIdle()
+        assertEquals(11L, viewModel.termsToOpen.value)
+
+        viewModel.consumeTermsToOpen()
+        viewModel.openTerms("POLICY")
+        advanceUntilIdle()
+        assertEquals(13L, viewModel.termsToOpen.value)
+    }
+
+    @Test
+    fun `약관 목록을 못 불러오면 안내를 띄운다`() = runTest(dispatcher) {
+        terms.listError = ConnectionException(IOException("offline"))
+
+        viewModel.openTerms("SERVICE")
+        advanceUntilIdle()
+
+        assertNull(viewModel.termsToOpen.value)
+        assertEquals("네트워크에 연결할 수 없어요", viewModel.errorMessage.value)
+    }
+
+    @Test
+    fun `목록에 그 약관이 없으면 안내를 띄운다`() = runTest(dispatcher) {
+        terms.termsList = emptyList()
+
+        viewModel.openTerms("POLICY")
+        advanceUntilIdle()
+
+        assertNull(viewModel.termsToOpen.value)
+        assertEquals(TERMS_OPEN_ERROR, viewModel.errorMessage.value)
     }
 }

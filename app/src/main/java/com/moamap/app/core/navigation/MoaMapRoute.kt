@@ -20,21 +20,21 @@ sealed interface MoaMapRoute {
     }
 
     /**
-     * 소셜 로그인 다음의 이용약관 동의. 필수에 동의해야 [Explore] 로 간다.
+     * 이용약관 동의. 스플래시나 로그인 직후 서버가 동의할 약관이 남았다고 하면 온다. 필수에 동의해야 [Explore] 로 간다.
      *
-     * [Login] 위에 쌓는다 - 뒤로 가면 로그인을 취소하고 그 아래 로그인 화면으로 돌아간다.
+     * 뒤로 가면 로그인을 취소하고 로그인 화면으로 간다.
      */
     data object TermsAgreement : MoaMapRoute {
         override val route = "terms_agreement"
     }
 
-    /** 약관 하나의 전문. 동의 화면의 항목과 설정의 이용약관·개인정보처리방침이 연다. */
+    /** 약관 하나의 전문. 동의 화면의 항목과 설정의 이용약관·개인정보처리방침이 서버 약관 번호로 연다. */
     data object TermsDetail : MoaMapRoute {
-        const val ARG_CODE = "code"
+        const val ARG_TERM_ID = "termId"
 
-        override val route = "terms_detail/{$ARG_CODE}"
+        override val route = "terms_detail/{$ARG_TERM_ID}"
 
-        fun createRoute(code: String): String = "terms_detail/${Uri.encode(code)}"
+        fun createRoute(termId: Long): String = "terms_detail/$termId"
     }
 
     data object Explore : MoaMapRoute {

@@ -7,6 +7,10 @@ import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.onboarding.domain.model.GoogleLoginCancelledException
 import com.moamap.app.feature.onboarding.domain.model.KakaoLoginCancelledException
 import com.moamap.app.feature.onboarding.domain.repository.AuthRepository
+import com.moamap.app.feature.terms.FakeTermsRepository
+import com.moamap.app.feature.terms.domain.model.TermsAgreementStatus
+import com.moamap.app.feature.terms.domain.repository.TermsRepository
+import com.moamap.app.feature.terms.testTerms
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -46,7 +50,12 @@ private class FakeAuthRepository : AuthRepository {
         failure?.let { throw it }
     }
 
-    override suspend fun logout() = Unit
+    var logoutCount: Int = 0
+        private set
+
+    override suspend fun logout() {
+        logoutCount++
+    }
 
     override suspend fun withdraw() = TODO("사용하지 않음")
 
@@ -58,6 +67,7 @@ class LoginViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
     private val repository = FakeAuthRepository()
+    private val terms = FakeTermsRepository()
 
     /** 카카오 SDK 때문에 시그니처에 남아 있을 뿐 이 테스트에서는 쓰이지 않는다. */
     private val context: Context = ContextWrapper(null)
@@ -67,7 +77,7 @@ class LoginViewModelTest {
     @Before
     fun setUp() {
         Dispatchers.setMain(dispatcher)
-        viewModel = LoginViewModel(repository)
+        viewModel = LoginViewModel(repository, terms)
     }
 
     @After
@@ -80,7 +90,7 @@ class LoginViewModelTest {
         viewModel.loginWithKakao(context)
         advanceUntilIdle()
 
-        assertEquals(LoginUiState.Success, viewModel.uiState.value)
+        assertEquals(LoginUiState.Success(needsTermsAgreement = false), viewModel.uiState.value)
     }
 
     @Test
@@ -173,7 +183,7 @@ class LoginViewModelTest {
         advanceUntilIdle()
 
         assertEquals(1, repository.googleLoginCount)
-        assertEquals(LoginUiState.Success, viewModel.uiState.value)
+        assertEquals(LoginUiState.Success(needsTermsAgreement = false), viewModel.uiState.value)
     }
 
     @Test
@@ -211,5 +221,80 @@ class LoginViewModelTest {
 
         gate.complete(Unit)
         advanceUntilIdle()
+    }
+
+    // ---- 로그인 직후 약관 동의 상태 확인 (이슈 #350) ----
+
+    @Test
+    fun `동의할 약관이 남았으면 동의 화면으로 가라는 신호를 낸다`() = runTest(dispatcher) {
+        val needs = FakeTermsRepository(
+            statuses = listOf(TermsAgreementStatus(needsAgreement = true, pendingTerms = listOf(testTerms(1, "SERVICE")))),
+        )
+        viewModel = LoginViewModel(repository, needs)
+
+        viewModel.loginWithKakao(context)
+        advanceUntilIdle()
+
+        assertEquals(LoginUiState.Success(needsTermsAgreement = true), viewModel.uiState.value)
+    }
+
+    @Test
+    fun `동의 상태를 확인하는 동안 로딩을 이어 간다`() = runTest(dispatcher) {
+        val gate = CompletableDeferred<Unit>()
+        val slow = object : TermsRepository by terms {
+            override suspend fun getAgreementStatus(): TermsAgreementStatus {
+                gate.await()
+                return terms.getAgreementStatus()
+            }
+        }
+        viewModel = LoginViewModel(repository, slow)
+
+        viewModel.loginWithKakao(context)
+        advanceUntilIdle()
+        assertEquals(LoginUiState.Loading, viewModel.uiState.value)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(LoginUiState.Success(needsTermsAgreement = false), viewModel.uiState.value)
+    }
+
+    /** 홈으로 그냥 보내지도, 로그아웃하지도 않는다. */
+    @Test
+    fun `동의 상태를 확인하지 못하면 안내를 띄우고 다시 시도하면 다시 묻는다`() = runTest(dispatcher) {
+        terms.statusError = ConnectionException(IOException("offline"))
+
+        viewModel.loginWithKakao(context)
+        advanceUntilIdle()
+        assertEquals(LoginUiState.TermsCheckFailed, viewModel.uiState.value)
+        assertEquals(0, repository.logoutCount)
+
+        terms.statusError = null
+        viewModel.retryTermsCheck()
+        advanceUntilIdle()
+
+        assertEquals(1, repository.loginCount)
+        assertEquals(2, terms.statusCount)
+        assertEquals(LoginUiState.Success(needsTermsAgreement = false), viewModel.uiState.value)
+    }
+
+    @Test
+    fun `동의 상태 확인이 401 이면 세션을 지우고 로그인 화면에 머문다`() = runTest(dispatcher) {
+        terms.statusError = ApiException(code = "AUTH_001", status = 401, serverMessage = "만료")
+
+        viewModel.loginWithKakao(context)
+        advanceUntilIdle()
+
+        assertEquals(1, repository.logoutCount)
+        assertEquals(LoginUiState.Error("카카오 로그인에 실패했어요"), viewModel.uiState.value)
+    }
+
+    @Test
+    fun `로그인이 실패하면 동의 상태를 묻지 않는다`() = runTest(dispatcher) {
+        repository.failure = ConnectionException(IOException("boom"))
+
+        viewModel.loginWithKakao(context)
+        advanceUntilIdle()
+
+        assertEquals(0, terms.statusCount)
     }
 }

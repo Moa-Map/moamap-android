@@ -1,10 +1,12 @@
 package com.moamap.app.feature.onboarding.presentation
 
 import android.content.Context
-import com.moamap.app.core.auth.FakeAgreedTermsVersionStore
+import com.moamap.app.core.network.ApiException
+import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.onboarding.domain.repository.AuthRepository
-import com.moamap.app.feature.terms.domain.model.Terms
-import com.moamap.app.feature.terms.domain.repository.TermsRepository
+import com.moamap.app.feature.terms.FakeTermsRepository
+import com.moamap.app.feature.terms.domain.model.TermsAgreementStatus
+import com.moamap.app.feature.terms.testTerms
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -12,10 +14,11 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
-
-private const val CURRENT_VERSION = "2026-10-09"
+import java.io.IOException
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class SplashViewModelTest {
@@ -30,12 +33,6 @@ class SplashViewModelTest {
     @After
     fun tearDown() {
         Dispatchers.resetMain()
-    }
-
-    private class FakeTermsRepository : TermsRepository {
-        override suspend fun getAgreementTerms(): List<Terms> = emptyList()
-        override suspend fun getTerms(code: String): Terms = TODO("사용하지 않음")
-        override suspend fun getCurrentVersion(): String = CURRENT_VERSION
     }
 
     private class FakeAuthRepository(
@@ -58,43 +55,97 @@ class SplashViewModelTest {
         override suspend fun hasSession(): Boolean = hasSession
     }
 
-    private fun destination(auth: AuthRepository, agreedVersion: String?): SplashDestination {
-        val viewModel = SplashViewModel(auth, FakeTermsRepository(), FakeAgreedTermsVersionStore(agreedVersion))
-        dispatcher.scheduler.advanceUntilIdle()
-        return viewModel.destination.value
-    }
+    private fun status(needsAgreement: Boolean) = TermsAgreementStatus(
+        needsAgreement = needsAgreement,
+        pendingTerms = if (needsAgreement) listOf(testTerms(1, "SERVICE")) else emptyList(),
+    )
+
+    private fun viewModel(auth: AuthRepository, terms: FakeTermsRepository): SplashViewModel =
+        SplashViewModel(auth, terms).also { dispatcher.scheduler.advanceUntilIdle() }
 
     @Test
-    fun `세션이 없으면 로그인 화면으로 간다`() {
+    fun `세션이 없으면 동의 상태를 묻지 않고 로그인 화면으로 간다`() {
         val auth = FakeAuthRepository(hasSession = false)
+        val terms = FakeTermsRepository()
 
-        assertEquals(SplashDestination.Login, destination(auth, agreedVersion = null))
+        assertEquals(SplashDestination.Login, viewModel(auth, terms).destination.value)
+        assertEquals(0, terms.statusCount)
         assertEquals(0, auth.logoutCount)
     }
 
     @Test
-    fun `지금 약관에 동의한 세션이면 홈으로 간다`() {
+    fun `동의할 약관이 없으면 홈으로 간다`() {
         val auth = FakeAuthRepository(hasSession = true)
+        val terms = FakeTermsRepository(statuses = listOf(status(needsAgreement = false)))
 
-        assertEquals(SplashDestination.Main, destination(auth, agreedVersion = CURRENT_VERSION))
+        assertEquals(SplashDestination.Main, viewModel(auth, terms).destination.value)
         assertEquals(0, auth.logoutCount)
     }
 
-    /** 이 기능 전부터 로그인해 있던 사람, 동의 화면에서 앱을 끈 사람, 약관이 바뀐 뒤 처음 켠 사람. */
     @Test
-    fun `동의한 버전이 없거나 다르면 로그아웃하고 로그인 화면으로 간다`() {
-        listOf(null, "2026-01-01").forEach { agreedVersion ->
-            val auth = FakeAuthRepository(hasSession = true)
+    fun `동의할 약관이 남았으면 동의 화면으로 간다`() {
+        val auth = FakeAuthRepository(hasSession = true)
+        val terms = FakeTermsRepository(statuses = listOf(status(needsAgreement = true)))
 
-            assertEquals(SplashDestination.Login, destination(auth, agreedVersion))
-            assertEquals(1, auth.logoutCount)
+        assertEquals(SplashDestination.TermsAgreement, viewModel(auth, terms).destination.value)
+        assertEquals(0, auth.logoutCount)
+    }
+
+    /** 홈으로 그냥 보내지도, 로그아웃하지도 않는다. */
+    @Test
+    fun `동의 상태를 확인하지 못하면 스플래시에 머물러 다시 시도하게 한다`() {
+        listOf(
+            ConnectionException(IOException("offline")),
+            ApiException(code = "COMMON_005", status = 503, serverMessage = "점검 중"),
+        ).forEach { error ->
+            val auth = FakeAuthRepository(hasSession = true)
+            val terms = FakeTermsRepository().apply { statusError = error }
+
+            val viewModel = viewModel(auth, terms)
+
+            assertEquals(SplashDestination.Undecided, viewModel.destination.value)
+            assertTrue(viewModel.termsCheckFailed.value)
+            assertEquals(0, auth.logoutCount)
         }
     }
 
     @Test
-    fun `로그아웃이 실패해도 로그인 화면으로 간다`() {
-        val auth = FakeAuthRepository(hasSession = true, logoutError = RuntimeException("boom"))
+    fun `다시 시도하면 동의 상태를 다시 묻고 결과대로 간다`() {
+        val auth = FakeAuthRepository(hasSession = true)
+        val terms = FakeTermsRepository(statuses = listOf(status(needsAgreement = true)))
+            .apply { statusError = ConnectionException(IOException("offline")) }
+        val viewModel = viewModel(auth, terms)
 
-        assertEquals(SplashDestination.Login, destination(auth, agreedVersion = null))
+        terms.statusError = null
+        viewModel.retry()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(2, terms.statusCount)
+        assertFalse(viewModel.termsCheckFailed.value)
+        assertEquals(SplashDestination.TermsAgreement, viewModel.destination.value)
+    }
+
+    @Test
+    fun `401 이면 로그아웃하고 로그인 화면으로 간다`() {
+        val auth = FakeAuthRepository(hasSession = true)
+        val terms = FakeTermsRepository().apply {
+            statusError = ApiException(code = "AUTH_001", status = 401, serverMessage = "만료")
+        }
+
+        val viewModel = viewModel(auth, terms)
+
+        assertEquals(SplashDestination.Login, viewModel.destination.value)
+        assertFalse(viewModel.termsCheckFailed.value)
+        assertEquals(1, auth.logoutCount)
+    }
+
+    @Test
+    fun `401 뒤 로그아웃이 실패해도 로그인 화면으로 간다`() {
+        val auth = FakeAuthRepository(hasSession = true, logoutError = RuntimeException("boom"))
+        val terms = FakeTermsRepository().apply {
+            statusError = ApiException(code = "AUTH_001", status = 401, serverMessage = "만료")
+        }
+
+        assertEquals(SplashDestination.Login, viewModel(auth, terms).destination.value)
     }
 }
