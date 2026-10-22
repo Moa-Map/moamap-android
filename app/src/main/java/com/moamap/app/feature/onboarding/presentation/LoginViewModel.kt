@@ -47,7 +47,9 @@ class LoginViewModel @Inject constructor(
 
     private fun login(defaultError: String, block: suspend () -> Unit) {
         // 버튼 연타로 로그인 창이 여러 번 뜨지 않게 한다. 다른 소셜 로그인이 진행 중일 때도 막는다.
-        if (_uiState.value == LoginUiState.Loading) return
+        // 약관 확인에 실패한 동안에도 막는다. 세션이 열려 있어 「로그아웃」으로만 빠져나간다.
+        val state = _uiState.value
+        if (state == LoginUiState.Loading || state is LoginUiState.TermsCheckFailed) return
 
         _uiState.value = LoginUiState.Loading
         viewModelScope.launch {
@@ -72,9 +74,32 @@ class LoginViewModel @Inject constructor(
 
     /** 「다시 시도」. 로그인은 이미 됐으니 약관 동의 상태만 다시 묻는다. */
     fun retryTermsCheck() {
-        if (_uiState.value != LoginUiState.TermsCheckFailed) return
+        val state = _uiState.value
+        if (state !is LoginUiState.TermsCheckFailed || state.loggingOut) return
         _uiState.value = LoginUiState.Loading
         viewModelScope.launch { checkTermsAgreement(DEFAULT_LOGIN_ERROR) }
+    }
+
+    /**
+     * 확인 실패 안내 아래의 「로그아웃」. 세션을 지우고 로그인 화면(처음 상태)으로 돌아간다.
+     *
+     * 실패하면 세션이 남았을 수 있어 안내를 띄우고 확인 실패 화면에 머문다.
+     */
+    fun logoutAfterTermsCheckFailed() {
+        val state = _uiState.value
+        if (state !is LoginUiState.TermsCheckFailed || state.loggingOut) return
+        _uiState.value = LoginUiState.TermsCheckFailed(loggingOut = true)
+        viewModelScope.launch {
+            _uiState.value = try {
+                authRepository.logout()
+                LoginUiState.Idle
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "약관 확인 실패 화면에서 로그아웃 실패", e)
+                LoginUiState.TermsCheckFailed(logoutErrorMessage = TERMS_CHECK_LOGOUT_FAILED_MESSAGE)
+            }
+        }
     }
 
     /** 로그인 버튼의 로딩을 이어 가며 동의 상태를 묻고, 결과대로 동의 화면이나 홈으로 보낸다. */
@@ -82,7 +107,7 @@ class LoginViewModel @Inject constructor(
         _uiState.value = when (termsRepository.checkAgreement(authRepository)) {
             TermsAgreementCheck.NeedsAgreement -> LoginUiState.Success(needsTermsAgreement = true)
             TermsAgreementCheck.Agreed -> LoginUiState.Success(needsTermsAgreement = false)
-            TermsAgreementCheck.Failed -> LoginUiState.TermsCheckFailed
+            TermsAgreementCheck.Failed -> LoginUiState.TermsCheckFailed()
             // 방금 받은 세션을 서버가 끝냈다. 남은 것을 지우고 로그인 화면에 머문다.
             TermsAgreementCheck.SessionExpired -> {
                 try {
@@ -103,7 +128,13 @@ class LoginViewModel @Inject constructor(
     }
 
     fun consumeError() {
-        _uiState.update { state -> if (state is LoginUiState.Error) LoginUiState.Idle else state }
+        _uiState.update { state ->
+            when (state) {
+                is LoginUiState.Error -> LoginUiState.Idle
+                is LoginUiState.TermsCheckFailed -> state.copy(logoutErrorMessage = null)
+                else -> state
+            }
+        }
     }
 }
 

@@ -15,6 +15,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
@@ -53,8 +54,15 @@ private class FakeAuthRepository : AuthRepository {
     var logoutCount: Int = 0
         private set
 
+    var logoutFailure: Throwable? = null
+
+    /** null 이면 즉시 끝난다. 값을 넣으면 완료될 때까지 로그아웃이 매달린다. */
+    var pendingLogout: CompletableDeferred<Unit>? = null
+
     override suspend fun logout() {
         logoutCount++
+        pendingLogout?.await()
+        logoutFailure?.let { throw it }
     }
 
     override suspend fun withdraw() = TODO("사용하지 않음")
@@ -268,7 +276,7 @@ class LoginViewModelTest {
 
         viewModel.loginWithKakao(context)
         advanceUntilIdle()
-        assertEquals(LoginUiState.TermsCheckFailed, viewModel.uiState.value)
+        assertEquals(LoginUiState.TermsCheckFailed(), viewModel.uiState.value)
         assertEquals(0, repository.logoutCount)
 
         terms.statusError = null
@@ -301,7 +309,7 @@ class LoginViewModelTest {
         advanceUntilIdle()
 
         assertEquals(0, repository.logoutCount)
-        assertEquals(LoginUiState.TermsCheckFailed, viewModel.uiState.value)
+        assertEquals(LoginUiState.TermsCheckFailed(), viewModel.uiState.value)
     }
 
     @Test
@@ -312,5 +320,78 @@ class LoginViewModelTest {
         advanceUntilIdle()
 
         assertEquals(0, terms.statusCount)
+    }
+
+    // ---- 확인 실패 중 로그아웃·로그인 버튼 (iOS 에 맞춤) ----
+
+    private fun TestScope.failTermsCheck() {
+        terms.statusError = ConnectionException(IOException("offline"))
+        viewModel.loginWithKakao(context)
+        advanceUntilIdle()
+        assertEquals(LoginUiState.TermsCheckFailed(), viewModel.uiState.value)
+    }
+
+    /** 세션이 열려 있어 「로그아웃」으로만 빠져나간다. */
+    @Test
+    fun `약관 확인에 실패한 동안에는 로그인 버튼이 먹지 않는다`() = runTest(dispatcher) {
+        failTermsCheck()
+
+        viewModel.loginWithKakao(context)
+        viewModel.loginWithGoogle(context)
+        advanceUntilIdle()
+
+        assertEquals(1, repository.loginCount)
+        assertEquals(0, repository.googleLoginCount)
+        assertEquals(LoginUiState.TermsCheckFailed(), viewModel.uiState.value)
+    }
+
+    @Test
+    fun `로그아웃하면 세션을 지우고 처음 로그인 화면으로 돌아간다`() = runTest(dispatcher) {
+        failTermsCheck()
+
+        viewModel.logoutAfterTermsCheckFailed()
+        advanceUntilIdle()
+
+        assertEquals(1, repository.logoutCount)
+        assertEquals(LoginUiState.Idle, viewModel.uiState.value)
+    }
+
+    @Test
+    fun `로그아웃 중에는 다시 시도와 로그아웃을 다시 누를 수 없다`() = runTest(dispatcher) {
+        failTermsCheck()
+        val gate = CompletableDeferred<Unit>()
+        repository.pendingLogout = gate
+
+        viewModel.logoutAfterTermsCheckFailed()
+        advanceUntilIdle()
+        assertEquals(LoginUiState.TermsCheckFailed(loggingOut = true), viewModel.uiState.value)
+
+        viewModel.logoutAfterTermsCheckFailed()
+        viewModel.retryTermsCheck()
+        advanceUntilIdle()
+
+        assertEquals(1, repository.logoutCount)
+        assertEquals(1, terms.statusCount)
+
+        gate.complete(Unit)
+        advanceUntilIdle()
+        assertEquals(LoginUiState.Idle, viewModel.uiState.value)
+    }
+
+    @Test
+    fun `로그아웃에 실패하면 안내를 띄우고 확인 실패 화면에 머문다`() = runTest(dispatcher) {
+        failTermsCheck()
+        repository.logoutFailure = IOException("disk")
+
+        viewModel.logoutAfterTermsCheckFailed()
+        advanceUntilIdle()
+
+        assertEquals(
+            LoginUiState.TermsCheckFailed(logoutErrorMessage = "로그아웃하지 못했어요. 잠시 후 다시 시도해 주세요."),
+            viewModel.uiState.value,
+        )
+
+        viewModel.consumeError()
+        assertEquals(LoginUiState.TermsCheckFailed(), viewModel.uiState.value)
     }
 }

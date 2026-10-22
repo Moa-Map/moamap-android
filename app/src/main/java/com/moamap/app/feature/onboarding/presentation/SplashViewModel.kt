@@ -45,6 +45,14 @@ class SplashViewModel @Inject constructor(
     /** 약관 동의 여부를 확인하지 못했다. 로고 아래에 안내와 「다시 시도」를 띄운다. */
     val termsCheckFailed: StateFlow<Boolean> = _termsCheckFailed.asStateFlow()
 
+    private val _loggingOut = MutableStateFlow(false)
+
+    /** 「로그아웃」을 진행 중. 「다시 시도」·「로그아웃」을 다시 누를 수 없다. */
+    val loggingOut: StateFlow<Boolean> = _loggingOut.asStateFlow()
+
+    private val _errorMessage = MutableStateFlow<String?>(null)
+    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
+
     init {
         viewModelScope.launch {
             // 판단과 최소 노출 시간을 동시에 돌린다. 판단이 더 오래 걸리면 끝날 때까지 기다린다.
@@ -56,9 +64,37 @@ class SplashViewModel @Inject constructor(
 
     /** 「다시 시도」. 동의 상태만 다시 묻는다. */
     fun retry() {
-        if (!_termsCheckFailed.value) return
+        if (!_termsCheckFailed.value || _loggingOut.value) return
         _termsCheckFailed.value = false
         viewModelScope.launch { show(decideDestination()) }
+    }
+
+    /**
+     * 확인 실패 안내 아래의 「로그아웃」. 서버가 계속 실패해도 앱 안에서 빠져나갈 수 있게 한다.
+     *
+     * 실패하면 세션이 남았을 수 있어 화면에 머문다 - 로그인 화면으로 보내면 다음 실행에 다시 이 화면에 갇힌다.
+     */
+    fun logout() {
+        if (!_termsCheckFailed.value || _loggingOut.value) return
+        _loggingOut.value = true
+        viewModelScope.launch {
+            try {
+                authRepository.logout()
+                _termsCheckFailed.value = false
+                _destination.value = SplashDestination.Login
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "약관 확인 실패 화면에서 로그아웃 실패", e)
+                _errorMessage.value = TERMS_CHECK_LOGOUT_FAILED_MESSAGE
+            } finally {
+                _loggingOut.value = false
+            }
+        }
+    }
+
+    fun consumeError() {
+        _errorMessage.value = null
     }
 
     private fun show(destination: SplashDestination?) {
@@ -78,14 +114,14 @@ class SplashViewModel @Inject constructor(
             TermsAgreementCheck.NeedsAgreement -> SplashDestination.TermsAgreement
             TermsAgreementCheck.Failed -> null
             TermsAgreementCheck.SessionExpired -> {
-                logout()
+                clearExpiredSession()
                 SplashDestination.Login
             }
         }
     }
 
     /** 서버가 세션을 끝냈어도 로컬에 남은 것이 있으면 지운다. 남으면 다음 실행에 또 401 을 받는다. */
-    private suspend fun logout() {
+    private suspend fun clearExpiredSession() {
         try {
             authRepository.logout()
         } catch (e: CancellationException) {

@@ -14,8 +14,17 @@ sealed interface LoginUiState {
      */
     data class Success(val needsTermsAgreement: Boolean) : LoginUiState
 
-    /** 로그인은 됐는데 약관 동의 여부를 확인하지 못했다. 화면 아래쪽에 안내와 「다시 시도」를 띄운다. */
-    data object TermsCheckFailed : LoginUiState
+    /**
+     * 로그인은 됐는데 약관 동의 여부를 확인하지 못했다. 화면 아래쪽에 안내와 「다시 시도」·「로그아웃」을 띄우고 로그인
+     * 버튼은 막는다 - 빠져나가려면 「로그아웃」을 누른다(iOS 와 같다).
+     *
+     * @param loggingOut 「로그아웃」을 진행 중. 「다시 시도」·「로그아웃」을 다시 누를 수 없다.
+     * @param logoutErrorMessage 로그아웃하지 못했다는 한 번짜리 안내. 화면에 머문다.
+     */
+    data class TermsCheckFailed(
+        val loggingOut: Boolean = false,
+        val logoutErrorMessage: String? = null,
+    ) : LoginUiState
 
     data class Error(val message: String) : LoginUiState
 }

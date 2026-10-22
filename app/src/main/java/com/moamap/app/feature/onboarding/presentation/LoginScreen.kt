@@ -35,11 +35,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
-import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
-import com.moamap.app.feature.terms.domain.TERMS_CHECK_FAILED_MESSAGE
 
 /** 피그마 918:1219 (393 x 852) 기준 값. */
 private val LoginLogoSize = DpSize(width = 173.dp, height = 103.dp)
@@ -81,14 +79,18 @@ fun LoginScreen(
         onLoginSuccess(success.needsTermsAgreement)
     }
 
+    val termsCheckFailed = uiState as? LoginUiState.TermsCheckFailed
+
     LoginContent(
         isLoading = uiState == LoginUiState.Loading,
-        errorMessage = (uiState as? LoginUiState.Error)?.message,
-        termsCheckFailed = uiState == LoginUiState.TermsCheckFailed,
+        errorMessage = (uiState as? LoginUiState.Error)?.message ?: termsCheckFailed?.logoutErrorMessage,
+        termsCheckFailed = termsCheckFailed != null,
+        loggingOut = termsCheckFailed?.loggingOut == true,
         onGoogleClick = { viewModel.loginWithGoogle(context) },
         onKakaoClick = { viewModel.loginWithKakao(context) },
         onErrorShown = viewModel::consumeError,
         onRetryTermsCheckClick = viewModel::retryTermsCheck,
+        onLogoutClick = viewModel::logoutAfterTermsCheckFailed,
         modifier = modifier,
     )
 }
@@ -98,12 +100,16 @@ internal fun LoginContent(
     isLoading: Boolean,
     errorMessage: String?,
     termsCheckFailed: Boolean,
+    loggingOut: Boolean,
     onGoogleClick: () -> Unit,
     onKakaoClick: () -> Unit,
     onErrorShown: () -> Unit,
     onRetryTermsCheckClick: () -> Unit,
+    onLogoutClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // 약관 확인에 실패한 동안에는 세션이 열려 있어 「로그아웃」으로만 빠져나간다.
+    val loginEnabled = !isLoading && !termsCheckFailed
 
     Box(
         modifier = modifier
@@ -144,14 +150,14 @@ internal fun LoginContent(
                     iconRes = R.drawable.ic_google_logo,
                     label = "구글로 계속하기",
                     backgroundColor = MoaMapPrimitiveColors.White,
-                    enabled = !isLoading,
+                    enabled = loginEnabled,
                     onClick = onGoogleClick,
                 )
                 SocialLoginButton(
                     iconRes = R.drawable.ic_kakao_logo,
                     label = "카카오톡으로 계속하기",
                     backgroundColor = KakaoYellow,
-                    enabled = !isLoading,
+                    enabled = loginEnabled,
                     onClick = onKakaoClick,
                 )
             }
@@ -161,13 +167,14 @@ internal fun LoginContent(
 
         // 로그인 직후 약관 동의 여부를 확인하지 못했다. 버튼 아래 여백에 띄워 버튼 자리는 움직이지 않는다.
         if (termsCheckFailed) {
-            MoaMapErrorNotice(
-                message = TERMS_CHECK_FAILED_MESSAGE,
+            TermsCheckFailedNotice(
+                loggingOut = loggingOut,
                 onRetryClick = onRetryTermsCheckClick,
+                onLogoutClick = onLogoutClick,
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .navigationBarsPadding()
-                    .padding(bottom = 60.dp),
+                    .padding(bottom = 24.dp),
             )
         }
 
@@ -221,10 +228,12 @@ private fun LoginScreenPreview() {
             isLoading = false,
             errorMessage = null,
             termsCheckFailed = false,
+            loggingOut = false,
             onGoogleClick = {},
             onKakaoClick = {},
             onErrorShown = {},
             onRetryTermsCheckClick = {},
+            onLogoutClick = {},
         )
     }
 }
@@ -237,10 +246,12 @@ private fun LoginScreenTermsCheckFailedPreview() {
             isLoading = false,
             errorMessage = null,
             termsCheckFailed = true,
+            loggingOut = false,
             onGoogleClick = {},
             onKakaoClick = {},
             onErrorShown = {},
             onRetryTermsCheckClick = {},
+            onLogoutClick = {},
         )
     }
 }

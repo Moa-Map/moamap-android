@@ -37,7 +37,7 @@ class SplashViewModelTest {
 
     private class FakeAuthRepository(
         var hasSession: Boolean,
-        private val logoutError: Exception? = null,
+        var logoutError: Exception? = null,
     ) : AuthRepository {
         var logoutCount = 0
 
@@ -165,5 +165,60 @@ class SplashViewModelTest {
         assertEquals(SplashDestination.Undecided, viewModel.destination.value)
         assertTrue(viewModel.termsCheckFailed.value)
         assertEquals(0, auth.logoutCount)
+    }
+
+    // ---- 확인 실패 중 로그아웃 (iOS 에 맞춤) ----
+
+    private fun failedViewModel(auth: FakeAuthRepository): SplashViewModel {
+        val terms = FakeTermsRepository().apply { statusError = ConnectionException(IOException("offline")) }
+        return viewModel(auth, terms).also { assertTrue(it.termsCheckFailed.value) }
+    }
+
+    /** 서버가 계속 실패해도 앱 안에서 빠져나갈 수 있어야 한다. */
+    @Test
+    fun `확인 실패 중 로그아웃하면 세션을 지우고 로그인 화면으로 간다`() {
+        val auth = FakeAuthRepository(hasSession = true)
+        val viewModel = failedViewModel(auth)
+
+        viewModel.logout()
+        assertTrue(viewModel.loggingOut.value)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, auth.logoutCount)
+        assertEquals(SplashDestination.Login, viewModel.destination.value)
+        assertFalse(viewModel.loggingOut.value)
+    }
+
+    @Test
+    fun `로그아웃 중에는 다시 시도와 로그아웃을 다시 누를 수 없다`() {
+        val auth = FakeAuthRepository(hasSession = true)
+        val terms = FakeTermsRepository().apply { statusError = ConnectionException(IOException("offline")) }
+        val viewModel = viewModel(auth, terms)
+
+        viewModel.logout()
+        viewModel.logout()
+        viewModel.retry()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, auth.logoutCount)
+        assertEquals(1, terms.statusCount)
+    }
+
+    /** 세션이 남았을 수 있다. 로그인 화면으로 보내면 다음 실행에 다시 이 화면에 갇힌다. */
+    @Test
+    fun `로그아웃에 실패하면 안내를 띄우고 스플래시에 머문다`() {
+        val auth = FakeAuthRepository(hasSession = true, logoutError = IOException("disk"))
+        val viewModel = failedViewModel(auth)
+
+        viewModel.logout()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(SplashDestination.Undecided, viewModel.destination.value)
+        assertTrue(viewModel.termsCheckFailed.value)
+        assertFalse(viewModel.loggingOut.value)
+        assertEquals("로그아웃하지 못했어요. 잠시 후 다시 시도해 주세요.", viewModel.errorMessage.value)
+
+        viewModel.consumeError()
+        assertEquals(null, viewModel.errorMessage.value)
     }
 }
