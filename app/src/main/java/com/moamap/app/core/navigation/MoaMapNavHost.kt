@@ -50,7 +50,6 @@ import com.moamap.app.feature.onboarding.presentation.LoginScreen
 import com.moamap.app.feature.onboarding.presentation.SplashScreen
 import com.moamap.app.feature.terms.TermsAgreementScreen
 import com.moamap.app.feature.terms.TermsDetailScreen
-import com.moamap.app.feature.terms.domain.model.TermsCode
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
@@ -73,14 +72,13 @@ internal fun MoaMapNavHost(
     /**
      * 세션이 끝나면 로그인 화면으로 보낸다.
      *
-     * 스플래시와 로그인 화면에서는 무시한다. 스플래시는 토큰이 없으면 스스로 로그인으로 가고,
-     * 로그인 화면은 이미 도착한 곳이다. 지금 목적지는 수집 시점에 읽는다 - [destination] 을 키로
-     * 두면 화면이 바뀔 때마다 수집이 끊겼다 다시 붙는다.
+     * 로그인 전 화면에서는 무시한다. 스플래시는 토큰이 없으면 스스로 로그인으로 가고, 로그인 화면은 이미 도착한
+     * 곳이며, 약관 동의 화면은 401 을 스스로 받아 로그인으로 간다. 지금 목적지는 수집 시점에 읽는다 - [destination] 을
+     * 키로 두면 화면이 바뀔 때마다 수집이 끊겼다 다시 붙는다.
      */
     LaunchedEffect(sessionExpired) {
         sessionExpired.collect {
-            val route = navController.currentDestination?.route
-            if (route in PreLoginRoutes) {
+            if (navController.isOnPreLoginScreen()) {
                 return@collect
             }
             navController.navigateToLoginClearingStack()
@@ -102,7 +100,7 @@ internal fun MoaMapNavHost(
      */
     LaunchedEffect(pendingShare, destination) {
         val share = pendingShare ?: return@LaunchedEffect
-        if (destination == null || destination in PreLoginRoutes) {
+        if (destination == null || navController.isOnPreLoginScreen()) {
             return@LaunchedEffect
         }
 
@@ -134,39 +132,38 @@ internal fun MoaMapNavHost(
             composable(MoaMapRoute.Splash.route) {
                 SplashScreen(
                     onNavigateToLogin = { navController.replaceSplashWith(MoaMapRoute.Login) },
+                    onNavigateToTermsAgreement = { navController.replaceSplashWith(MoaMapRoute.TermsAgreement) },
                     onNavigateToMain = { navController.replaceSplashWith(MoaMapRoute.Explore) },
                 )
             }
             composable(MoaMapRoute.Login.route) {
                 LoginScreen(
-                    // 소셜 로그인 다음에 약관 동의를 받는다. 로그인 화면은 남겨 둔다 - 동의 화면에서
-                    // 뒤로 가면 로그인을 취소하고 여기로 돌아온다.
-                    onLoginSuccess = {
-                        navController.navigate(MoaMapRoute.TermsAgreement.route) {
-                            launchSingleTop = true
+                    // 서버가 동의할 약관이 남았다고 하면 동의 화면으로, 아니면 홈으로 간다.
+                    onLoginSuccess = { needsTermsAgreement ->
+                        if (needsTermsAgreement) {
+                            navController.navigate(MoaMapRoute.TermsAgreement.route) {
+                                launchSingleTop = true
+                            }
+                        } else {
+                            navController.navigateClearingPreLogin(MoaMapRoute.Explore)
                         }
                     },
                 )
             }
             composable(MoaMapRoute.TermsAgreement.route) {
                 TermsAgreementScreen(
-                    onAgreed = {
-                        navController.navigate(MoaMapRoute.Explore.route) {
-                            // 로그인·동의 화면으로 되돌아갈 수 없게 지운다.
-                            popUpTo(MoaMapRoute.Login.route) { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    },
-                    onCancelled = { navController.popBackStack() },
-                    onTermsClick = { code ->
-                        navController.navigate(MoaMapRoute.TermsDetail.createRoute(code))
+                    onAgreed = { navController.navigateClearingPreLogin(MoaMapRoute.Explore) },
+                    // 스플래시에서 바로 왔으면 아래에 로그인 화면이 없다. 어느 쪽이든 로그인 화면 하나만 남긴다.
+                    onCancelled = { navController.navigateClearingPreLogin(MoaMapRoute.Login) },
+                    onTermsClick = { termId ->
+                        navController.navigate(MoaMapRoute.TermsDetail.createRoute(termId))
                     },
                 )
             }
             composable(
                 route = MoaMapRoute.TermsDetail.route,
                 arguments = listOf(
-                    navArgument(MoaMapRoute.TermsDetail.ARG_CODE) { type = NavType.StringType },
+                    navArgument(MoaMapRoute.TermsDetail.ARG_TERM_ID) { type = NavType.LongType },
                 ),
             ) {
                 TermsDetailScreen(onBackClick = navController::popBackStack)
@@ -382,11 +379,8 @@ internal fun MoaMapNavHost(
                 SettingsScreen(
                     onBackClick = navController::popBackStack,
                     onLoggedOut = { navController.navigateToLoginClearingStack() },
-                    onTermsClick = {
-                        navController.navigate(MoaMapRoute.TermsDetail.createRoute(TermsCode.SERVICE))
-                    },
-                    onPrivacyPolicyClick = {
-                        navController.navigate(MoaMapRoute.TermsDetail.createRoute(TermsCode.PRIVACY_POLICY))
+                    onOpenTerms = { termId ->
+                        navController.navigate(MoaMapRoute.TermsDetail.createRoute(termId))
                     },
                     onInquiryClick = { navController.navigate(MoaMapRoute.Inquiry.route) },
                     onNoticeClick = { navController.navigate(MoaMapRoute.Notices.route) },
@@ -466,6 +460,26 @@ private val PreLoginRoutes = setOf(
     MoaMapRoute.TermsAgreement.route,
 )
 
+/**
+ * 지금 화면이 로그인을 마치기 전인지. 경로가 없으면(그래프를 붙이기 전) 로그인 전으로 본다.
+ *
+ * 약관 전문은 경로만으로 가를 수 없다. 동의 화면 위에서 열면 동의를 마치기 전이고, 설정에서 열면 로그인 후다. 그래서
+ * 아래에 동의 화면이 깔려 있는지를 함께 본다.
+ */
+internal fun isPreLoginScreen(route: String?, termsAgreementInBackStack: Boolean): Boolean = when (route) {
+    null -> true
+    in PreLoginRoutes -> true
+    MoaMapRoute.TermsDetail.route -> termsAgreementInBackStack
+    else -> false
+}
+
+private fun NavHostController.isOnPreLoginScreen(): Boolean {
+    val route = currentDestination?.route
+    val termsAgreementInBackStack = route == MoaMapRoute.TermsDetail.route &&
+        runCatching { getBackStackEntry(MoaMapRoute.TermsAgreement.route) }.isSuccess
+    return isPreLoginScreen(route, termsAgreementInBackStack)
+}
+
 private const val UNSUPPORTED_SHARE_MESSAGE = "인스타그램과 네이버·카카오·구글 지도 링크만 가져올 수 있어요"
 
 /**
@@ -486,6 +500,17 @@ private const val ImportedPlacesForNewMapKey = "create_map_imported_places"
 private fun NavHostController.replaceSplashWith(destination: MoaMapRoute) {
     navigate(destination.route) {
         popUpTo(MoaMapRoute.Splash.route) { inclusive = true }
+        launchSingleTop = true
+    }
+}
+
+/**
+ * 로그인 전 화면(로그인·약관 동의)을 모두 지우고 [destination] 으로 간다. 홈에서 뒤로 가 동의 화면으로, 동의를 취소한 뒤
+ * 뒤로 가 동의 화면으로 돌아가지 않게 한다.
+ */
+private fun NavHostController.navigateClearingPreLogin(destination: MoaMapRoute) {
+    navigate(destination.route) {
+        popUpTo(graph.id) { inclusive = true }
         launchSingleTop = true
     }
 }

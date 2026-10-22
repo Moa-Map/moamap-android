@@ -2,11 +2,14 @@ package com.moamap.app.feature.onboarding.presentation
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 
@@ -58,29 +62,83 @@ private val SplashBackground = Brush.verticalGradient(
 @Composable
 fun SplashScreen(
     onNavigateToLogin: () -> Unit,
+    onNavigateToTermsAgreement: () -> Unit,
     onNavigateToMain: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SplashViewModel = hiltViewModel(),
 ) {
     val destination by viewModel.destination.collectAsStateWithLifecycle()
+    val termsCheckFailed by viewModel.termsCheckFailed.collectAsStateWithLifecycle()
+    val loggingOut by viewModel.loggingOut.collectAsStateWithLifecycle()
+    val errorMessage by viewModel.errorMessage.collectAsStateWithLifecycle()
 
     LaunchedEffect(destination) {
         when (destination) {
             SplashDestination.Undecided -> Unit
             SplashDestination.Login -> onNavigateToLogin()
+            SplashDestination.TermsAgreement -> onNavigateToTermsAgreement()
             SplashDestination.Main -> onNavigateToMain()
         }
     }
 
-    SplashContent(modifier = modifier)
+    SplashContent(
+        termsCheckFailed = termsCheckFailed,
+        loggingOut = loggingOut,
+        errorMessage = errorMessage,
+        onRetryClick = viewModel::retry,
+        onLogoutClick = viewModel::logout,
+        onErrorShown = viewModel::consumeError,
+        modifier = modifier,
+    )
 }
 
+/**
+ * @param termsCheckFailed 약관 동의 여부를 확인하지 못했다. 화면 아래에 안내와 「다시 시도」·「로그아웃」을 띄운다.
+ * 로고와 문구는 가운데 그대로 둔다(iOS 와 같다).
+ */
 @Composable
-internal fun SplashContent(modifier: Modifier = Modifier) {
-    Column(
+internal fun SplashContent(
+    termsCheckFailed: Boolean,
+    loggingOut: Boolean,
+    errorMessage: String?,
+    onRetryClick: () -> Unit,
+    onLogoutClick: () -> Unit,
+    onErrorShown: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Box(
         modifier = modifier
             .fillMaxSize()
             .background(SplashBackground),
+    ) {
+        SplashLogo()
+
+        if (termsCheckFailed) {
+            TermsCheckFailedNotice(
+                loggingOut = loggingOut,
+                onRetryClick = onRetryClick,
+                onLogoutClick = onLogoutClick,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 24.dp),
+            )
+        }
+
+        ErrorSnackbar(
+            message = errorMessage,
+            onShown = onErrorShown,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding(),
+        )
+    }
+}
+
+@Composable
+private fun SplashLogo() {
+    Column(
+        modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Spacer(Modifier.weight(TopSpacerWeight))
@@ -110,6 +168,28 @@ internal fun SplashContent(modifier: Modifier = Modifier) {
 @Composable
 private fun SplashScreenPreview() {
     MoaMapTheme {
-        SplashContent()
+        SplashContent(
+            termsCheckFailed = false,
+            loggingOut = false,
+            errorMessage = null,
+            onRetryClick = {},
+            onLogoutClick = {},
+            onErrorShown = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Composable
+private fun SplashScreenTermsCheckFailedPreview() {
+    MoaMapTheme {
+        SplashContent(
+            termsCheckFailed = true,
+            loggingOut = false,
+            errorMessage = null,
+            onRetryClick = {},
+            onLogoutClick = {},
+            onErrorShown = {},
+        )
     }
 }

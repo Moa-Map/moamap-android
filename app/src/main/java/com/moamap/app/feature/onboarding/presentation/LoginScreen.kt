@@ -62,9 +62,10 @@ private const val SocialButtonLabelAlpha = 0.85f
 
 private const val LoginTitle = "취향을 담아,\n우리만의 지도로"
 
+/** @param onLoginSuccess 로그인과 약관 동의 상태 확인을 마쳤다. 인자는 동의할 약관이 남았는지다. */
 @Composable
 fun LoginScreen(
-    onLoginSuccess: () -> Unit,
+    onLoginSuccess: (needsTermsAgreement: Boolean) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: LoginViewModel = hiltViewModel(),
 ) {
@@ -73,18 +74,23 @@ fun LoginScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(uiState) {
-        if (uiState == LoginUiState.Success) {
-            viewModel.consumeSuccess()
-            onLoginSuccess()
-        }
+        val success = uiState as? LoginUiState.Success ?: return@LaunchedEffect
+        viewModel.consumeSuccess()
+        onLoginSuccess(success.needsTermsAgreement)
     }
+
+    val termsCheckFailed = uiState as? LoginUiState.TermsCheckFailed
 
     LoginContent(
         isLoading = uiState == LoginUiState.Loading,
-        errorMessage = (uiState as? LoginUiState.Error)?.message,
+        errorMessage = (uiState as? LoginUiState.Error)?.message ?: termsCheckFailed?.logoutErrorMessage,
+        termsCheckFailed = termsCheckFailed != null,
+        loggingOut = termsCheckFailed?.loggingOut == true,
         onGoogleClick = { viewModel.loginWithGoogle(context) },
         onKakaoClick = { viewModel.loginWithKakao(context) },
         onErrorShown = viewModel::consumeError,
+        onRetryTermsCheckClick = viewModel::retryTermsCheck,
+        onLogoutClick = viewModel::logoutAfterTermsCheckFailed,
         modifier = modifier,
     )
 }
@@ -93,11 +99,17 @@ fun LoginScreen(
 internal fun LoginContent(
     isLoading: Boolean,
     errorMessage: String?,
+    termsCheckFailed: Boolean,
+    loggingOut: Boolean,
     onGoogleClick: () -> Unit,
     onKakaoClick: () -> Unit,
     onErrorShown: () -> Unit,
+    onRetryTermsCheckClick: () -> Unit,
+    onLogoutClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // 약관 확인에 실패한 동안에는 세션이 열려 있어 「로그아웃」으로만 빠져나간다.
+    val loginEnabled = !isLoading && !termsCheckFailed
 
     Box(
         modifier = modifier
@@ -138,19 +150,32 @@ internal fun LoginContent(
                     iconRes = R.drawable.ic_google_logo,
                     label = "구글로 계속하기",
                     backgroundColor = MoaMapPrimitiveColors.White,
-                    enabled = !isLoading,
+                    enabled = loginEnabled,
                     onClick = onGoogleClick,
                 )
                 SocialLoginButton(
                     iconRes = R.drawable.ic_kakao_logo,
                     label = "카카오톡으로 계속하기",
                     backgroundColor = KakaoYellow,
-                    enabled = !isLoading,
+                    enabled = loginEnabled,
                     onClick = onKakaoClick,
                 )
             }
 
             Spacer(Modifier.weight(BottomSpacerWeight))
+        }
+
+        // 로그인 직후 약관 동의 여부를 확인하지 못했다. 버튼 아래 여백에 띄워 버튼 자리는 움직이지 않는다.
+        if (termsCheckFailed) {
+            TermsCheckFailedNotice(
+                loggingOut = loggingOut,
+                onRetryClick = onRetryTermsCheckClick,
+                onLogoutClick = onLogoutClick,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 24.dp),
+            )
         }
 
         ErrorSnackbar(
@@ -202,9 +227,31 @@ private fun LoginScreenPreview() {
         LoginContent(
             isLoading = false,
             errorMessage = null,
+            termsCheckFailed = false,
+            loggingOut = false,
             onGoogleClick = {},
             onKakaoClick = {},
             onErrorShown = {},
+            onRetryTermsCheckClick = {},
+            onLogoutClick = {},
+        )
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Composable
+private fun LoginScreenTermsCheckFailedPreview() {
+    MoaMapTheme {
+        LoginContent(
+            isLoading = false,
+            errorMessage = null,
+            termsCheckFailed = true,
+            loggingOut = false,
+            onGoogleClick = {},
+            onKakaoClick = {},
+            onErrorShown = {},
+            onRetryTermsCheckClick = {},
+            onLogoutClick = {},
         )
     }
 }
