@@ -54,8 +54,12 @@ class TermsAgreementViewModelTest {
 
         override suspend fun withdraw() = TODO("사용하지 않음")
 
-        override suspend fun hasSession(): Boolean = true
+        var session: Boolean = true
+
+        override suspend fun hasSession(): Boolean = session
     }
+
+    private val unauthorized = ApiException(code = "AUTH_001", status = 401, serverMessage = "만료")
 
     private val service = testTerms(1, "SERVICE")
     private val age = testTerms(2, "AGE")
@@ -210,13 +214,103 @@ class TermsAgreementViewModelTest {
     }
 
     @Test
-    fun `불러올 때 401 이면 로그아웃하고 로그인 화면으로 간다`() {
+    fun `불러올 때 401 이고 세션이 비었으면 로그아웃하고 로그인 화면으로 간다`() {
         val auth = FakeAuthRepository()
         val terms = repository().apply {
-            statusError = ApiException(code = "AUTH_001", status = 401, serverMessage = "만료")
+            statusError = unauthorized
+            onAuthorizedCall = { auth.session = false }
         }
 
         val viewModel = viewModel(terms, auth)
+
+        assertEquals(1, auth.logoutCount)
+        assertEquals(TermsAgreementResult.Cancelled, viewModel.uiState.value.result)
+    }
+
+    /** 토큰 갱신이 잠깐 실패한 것이다. 로그아웃하면 서버 리프레시 토큰까지 버린다. */
+    @Test
+    fun `불러올 때 401 이어도 세션이 남아 있으면 로그아웃하지 않고 다시 시도하게 한다`() {
+        val auth = FakeAuthRepository()
+        val terms = repository().apply { statusError = unauthorized }
+
+        val viewModel = viewModel(terms, auth)
+
+        assertEquals(0, auth.logoutCount)
+        assertEquals(TERMS_LOAD_FAILED_MESSAGE, viewModel.uiState.value.loadErrorMessage)
+        assertNull(viewModel.uiState.value.result)
+    }
+
+    @Test
+    fun `보낼 때 401 이고 세션이 비었으면 로그아웃하고 로그인 화면으로 간다`() {
+        val auth = FakeAuthRepository()
+        val terms = repository().apply { agreeError = unauthorized }
+        val viewModel = viewModel(terms, auth)
+        viewModel.toggleAll()
+        terms.onAuthorizedCall = { auth.session = false }
+
+        viewModel.onBottomButtonClick()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, auth.logoutCount)
+        assertEquals(TermsAgreementResult.Cancelled, viewModel.uiState.value.result)
+    }
+
+    @Test
+    fun `보낼 때 401 이어도 세션이 남아 있으면 화면에 머물고 안내만 띄운다`() {
+        val auth = FakeAuthRepository()
+        val terms = repository().apply { agreeError = unauthorized }
+        val viewModel = viewModel(terms, auth)
+        viewModel.toggleAll()
+
+        viewModel.onBottomButtonClick()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(0, auth.logoutCount)
+        assertEquals(TERMS_AGREE_FAILED_MESSAGE, viewModel.uiState.value.message)
+        assertNull(viewModel.uiState.value.result)
+    }
+
+    /** 보낸 동의가 성공해 홈으로 가면 시작한 로그아웃이 중간에 끊긴다. */
+    @Test
+    fun `보내는 동안 뒤로 가기는 무시하고 동의를 마친다`() {
+        val auth = FakeAuthRepository()
+        val terms = repository()
+        val viewModel = viewModel(terms, auth)
+        viewModel.toggleAll()
+
+        viewModel.onBottomButtonClick()
+        viewModel.cancel()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(0, auth.logoutCount)
+        assertEquals(TermsAgreementResult.Agreed, viewModel.uiState.value.result)
+    }
+
+    @Test
+    fun `보내기가 실패해 끝난 뒤에는 다시 뒤로 갈 수 있다`() {
+        val auth = FakeAuthRepository()
+        val terms = repository().apply { agreeError = ConnectionException(IOException("offline")) }
+        val viewModel = viewModel(terms, auth)
+        viewModel.toggleAll()
+        viewModel.onBottomButtonClick()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.cancel()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, auth.logoutCount)
+        assertEquals(TermsAgreementResult.Cancelled, viewModel.uiState.value.result)
+    }
+
+    /** 불러오기가 뒤늦게 「이미 다 동의함」으로 끝나도 홈으로 가지 않는다 - 시작한 로그아웃이 끊긴다. */
+    @Test
+    fun `불러오는 중에 뒤로 가면 불러온 결과로 홈에 가지 않고 로그인 화면으로 간다`() {
+        val auth = FakeAuthRepository()
+        val terms = repository(TermsAgreementStatus(needsAgreement = false, pendingTerms = emptyList()))
+        val viewModel = TermsAgreementViewModel(terms, auth)
+
+        viewModel.cancel()
+        dispatcher.scheduler.advanceUntilIdle()
 
         assertEquals(1, auth.logoutCount)
         assertEquals(TermsAgreementResult.Cancelled, viewModel.uiState.value.result)

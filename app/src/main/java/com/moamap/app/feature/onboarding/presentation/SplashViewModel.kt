@@ -73,7 +73,7 @@ class SplashViewModel @Inject constructor(
     private suspend fun decideDestination(): SplashDestination? {
         if (!authRepository.hasSession()) return SplashDestination.Login
 
-        return when (termsRepository.checkAgreement()) {
+        return when (termsRepository.checkAgreement(authRepository)) {
             TermsAgreementCheck.Agreed -> SplashDestination.Main
             TermsAgreementCheck.NeedsAgreement -> SplashDestination.TermsAgreement
             TermsAgreementCheck.Failed -> null

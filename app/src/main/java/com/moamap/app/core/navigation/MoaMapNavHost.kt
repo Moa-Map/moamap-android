@@ -72,14 +72,13 @@ internal fun MoaMapNavHost(
     /**
      * 세션이 끝나면 로그인 화면으로 보낸다.
      *
-     * 스플래시와 로그인 화면에서는 무시한다. 스플래시는 토큰이 없으면 스스로 로그인으로 가고,
-     * 로그인 화면은 이미 도착한 곳이다. 지금 목적지는 수집 시점에 읽는다 - [destination] 을 키로
-     * 두면 화면이 바뀔 때마다 수집이 끊겼다 다시 붙는다.
+     * 로그인 전 화면에서는 무시한다. 스플래시는 토큰이 없으면 스스로 로그인으로 가고, 로그인 화면은 이미 도착한
+     * 곳이며, 약관 동의 화면은 401 을 스스로 받아 로그인으로 간다. 지금 목적지는 수집 시점에 읽는다 - [destination] 을
+     * 키로 두면 화면이 바뀔 때마다 수집이 끊겼다 다시 붙는다.
      */
     LaunchedEffect(sessionExpired) {
         sessionExpired.collect {
-            val route = navController.currentDestination?.route
-            if (route in PreLoginRoutes) {
+            if (navController.isOnPreLoginScreen()) {
                 return@collect
             }
             navController.navigateToLoginClearingStack()
@@ -101,7 +100,7 @@ internal fun MoaMapNavHost(
      */
     LaunchedEffect(pendingShare, destination) {
         val share = pendingShare ?: return@LaunchedEffect
-        if (destination == null || destination in PreLoginRoutes) {
+        if (destination == null || navController.isOnPreLoginScreen()) {
             return@LaunchedEffect
         }
 
@@ -460,6 +459,26 @@ private val PreLoginRoutes = setOf(
     MoaMapRoute.Login.route,
     MoaMapRoute.TermsAgreement.route,
 )
+
+/**
+ * 지금 화면이 로그인을 마치기 전인지. 경로가 없으면(그래프를 붙이기 전) 로그인 전으로 본다.
+ *
+ * 약관 전문은 경로만으로 가를 수 없다. 동의 화면 위에서 열면 동의를 마치기 전이고, 설정에서 열면 로그인 후다. 그래서
+ * 아래에 동의 화면이 깔려 있는지를 함께 본다.
+ */
+internal fun isPreLoginScreen(route: String?, termsAgreementInBackStack: Boolean): Boolean = when (route) {
+    null -> true
+    in PreLoginRoutes -> true
+    MoaMapRoute.TermsDetail.route -> termsAgreementInBackStack
+    else -> false
+}
+
+private fun NavHostController.isOnPreLoginScreen(): Boolean {
+    val route = currentDestination?.route
+    val termsAgreementInBackStack = route == MoaMapRoute.TermsDetail.route &&
+        runCatching { getBackStackEntry(MoaMapRoute.TermsAgreement.route) }.isSuccess
+    return isPreLoginScreen(route, termsAgreementInBackStack)
+}
 
 private const val UNSUPPORTED_SHARE_MESSAGE = "인스타그램과 네이버·카카오·구글 지도 링크만 가져올 수 있어요"
 

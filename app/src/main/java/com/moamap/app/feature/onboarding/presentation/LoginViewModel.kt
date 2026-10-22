@@ -79,11 +79,11 @@ class LoginViewModel @Inject constructor(
 
     /** 로그인 버튼의 로딩을 이어 가며 동의 상태를 묻고, 결과대로 동의 화면이나 홈으로 보낸다. */
     private suspend fun checkTermsAgreement(defaultError: String) {
-        _uiState.value = when (termsRepository.checkAgreement()) {
+        _uiState.value = when (termsRepository.checkAgreement(authRepository)) {
             TermsAgreementCheck.NeedsAgreement -> LoginUiState.Success(needsTermsAgreement = true)
             TermsAgreementCheck.Agreed -> LoginUiState.Success(needsTermsAgreement = false)
             TermsAgreementCheck.Failed -> LoginUiState.TermsCheckFailed
-            // 방금 받은 세션이 거부됐다. 남은 것을 지우고 로그인 화면에 머문다.
+            // 방금 받은 세션을 서버가 끝냈다. 남은 것을 지우고 로그인 화면에 머문다.
             TermsAgreementCheck.SessionExpired -> {
                 try {
                     authRepository.logout()

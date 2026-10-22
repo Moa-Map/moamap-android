@@ -26,6 +26,12 @@ class FakeTermsRepository(
     var agreeError: Exception? = null
     var agreeResult = TermsAgreementStatus(needsAgreement = false, pendingTerms = emptyList())
 
+    /**
+     * 동의 상태·동의를 부를 때마다 먼저 돈다. 서버가 토큰 갱신을 거부해 `TokenAuthenticator` 가 세션을 지우는 것을
+     * 흉내 낼 때 쓴다.
+     */
+    var onAuthorizedCall: () -> Unit = {}
+
     var statusCount = 0
         private set
 
@@ -40,12 +46,14 @@ class FakeTermsRepository(
 
     override suspend fun getAgreementStatus(): TermsAgreementStatus {
         statusCount++
+        onAuthorizedCall()
         statusError?.let { throw it }
         return if (statuses.size > 1) statuses.removeFirst() else statuses.first()
     }
 
     override suspend fun agree(termIds: List<Long>): TermsAgreementStatus {
         agreedTermIds += termIds
+        onAuthorizedCall()
         agreeError?.let { throw it }
         return agreeResult
     }

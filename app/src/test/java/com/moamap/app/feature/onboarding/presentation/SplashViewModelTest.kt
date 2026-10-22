@@ -36,7 +36,7 @@ class SplashViewModelTest {
     }
 
     private class FakeAuthRepository(
-        private val hasSession: Boolean,
+        var hasSession: Boolean,
         private val logoutError: Exception? = null,
     ) : AuthRepository {
         var logoutCount = 0
@@ -125,11 +125,15 @@ class SplashViewModelTest {
         assertEquals(SplashDestination.TermsAgreement, viewModel.destination.value)
     }
 
+    private val unauthorized = ApiException(code = "AUTH_001", status = 401, serverMessage = "만료")
+
+    /** 서버가 토큰 갱신을 거부하면 `TokenAuthenticator` 가 세션을 지운 뒤 401 이 올라온다. */
     @Test
-    fun `401 이면 로그아웃하고 로그인 화면으로 간다`() {
+    fun `401 뒤 세션이 비었으면 로그아웃하고 로그인 화면으로 간다`() {
         val auth = FakeAuthRepository(hasSession = true)
         val terms = FakeTermsRepository().apply {
-            statusError = ApiException(code = "AUTH_001", status = 401, serverMessage = "만료")
+            statusError = unauthorized
+            onAuthorizedCall = { auth.hasSession = false }
         }
 
         val viewModel = viewModel(auth, terms)
@@ -143,9 +147,23 @@ class SplashViewModelTest {
     fun `401 뒤 로그아웃이 실패해도 로그인 화면으로 간다`() {
         val auth = FakeAuthRepository(hasSession = true, logoutError = RuntimeException("boom"))
         val terms = FakeTermsRepository().apply {
-            statusError = ApiException(code = "AUTH_001", status = 401, serverMessage = "만료")
+            statusError = unauthorized
+            onAuthorizedCall = { auth.hasSession = false }
         }
 
         assertEquals(SplashDestination.Login, viewModel(auth, terms).destination.value)
+    }
+
+    /** 토큰 갱신이 네트워크 오류·5xx 로 잠깐 실패하면 토큰이 남은 채 401 이 올라온다. 로그아웃하면 서버 리프레시 토큰까지 버린다. */
+    @Test
+    fun `401 이어도 세션이 남아 있으면 로그아웃하지 않고 다시 시도하게 한다`() {
+        val auth = FakeAuthRepository(hasSession = true)
+        val terms = FakeTermsRepository().apply { statusError = unauthorized }
+
+        val viewModel = viewModel(auth, terms)
+
+        assertEquals(SplashDestination.Undecided, viewModel.destination.value)
+        assertTrue(viewModel.termsCheckFailed.value)
+        assertEquals(0, auth.logoutCount)
     }
 }

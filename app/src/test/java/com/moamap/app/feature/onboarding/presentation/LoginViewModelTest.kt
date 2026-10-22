@@ -59,7 +59,10 @@ private class FakeAuthRepository : AuthRepository {
 
     override suspend fun withdraw() = TODO("사용하지 않음")
 
-    override suspend fun hasSession(): Boolean = false
+    /** 로그인에 성공하면 세션이 생긴다. */
+    var session: Boolean = true
+
+    override suspend fun hasSession(): Boolean = session
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -278,14 +281,27 @@ class LoginViewModelTest {
     }
 
     @Test
-    fun `동의 상태 확인이 401 이면 세션을 지우고 로그인 화면에 머문다`() = runTest(dispatcher) {
+    fun `동의 상태 확인이 401 이고 세션이 비었으면 세션을 지우고 로그인 화면에 머문다`() = runTest(dispatcher) {
         terms.statusError = ApiException(code = "AUTH_001", status = 401, serverMessage = "만료")
+        terms.onAuthorizedCall = { repository.session = false }
 
         viewModel.loginWithKakao(context)
         advanceUntilIdle()
 
         assertEquals(1, repository.logoutCount)
         assertEquals(LoginUiState.Error("카카오 로그인에 실패했어요"), viewModel.uiState.value)
+    }
+
+    /** 토큰 갱신이 잠깐 실패한 것이다. 로그아웃하면 방금 받은 서버 리프레시 토큰까지 버린다. */
+    @Test
+    fun `동의 상태 확인이 401 이어도 세션이 남아 있으면 로그아웃하지 않고 다시 시도하게 한다`() = runTest(dispatcher) {
+        terms.statusError = ApiException(code = "AUTH_001", status = 401, serverMessage = "만료")
+
+        viewModel.loginWithKakao(context)
+        advanceUntilIdle()
+
+        assertEquals(0, repository.logoutCount)
+        assertEquals(LoginUiState.TermsCheckFailed, viewModel.uiState.value)
     }
 
     @Test

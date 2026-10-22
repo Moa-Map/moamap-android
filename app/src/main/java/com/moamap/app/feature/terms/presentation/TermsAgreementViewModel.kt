@@ -8,7 +8,7 @@ import com.moamap.app.core.common.toUserMessage
 import com.moamap.app.core.common.toggle
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.onboarding.domain.repository.AuthRepository
-import com.moamap.app.feature.terms.domain.isUnauthorized
+import com.moamap.app.feature.terms.domain.isSessionExpired
 import com.moamap.app.feature.terms.domain.model.Terms
 import com.moamap.app.feature.terms.domain.model.TermsKind
 import com.moamap.app.feature.terms.domain.repository.TERMS_CHANGED_CODE
@@ -103,6 +103,8 @@ class TermsAgreementViewModel @Inject constructor(
                     val terms = async { termsRepository.getTermsList() }
                     status.await() to terms.await()
                 }
+                // 불러오는 사이 뒤로 갔다. 로그아웃이 끝나기 전에 홈으로 가면 그 로그아웃이 중간에 끊긴다.
+                if (cancelling) return@launch
                 if (!status.needsAgreement) {
                     // 다른 기기에서 이미 동의했다.
                     _uiState.update { state -> state.copy(loading = false, result = TermsAgreementResult.Agreed) }
@@ -121,7 +123,8 @@ class TermsAgreementViewModel @Inject constructor(
                 throw e
             } catch (e: Exception) {
                 Log.w(TAG, "약관 동의 화면 불러오기 실패", e)
-                if (e.isUnauthorized()) {
+                if (cancelling) return@launch
+                if (e.isSessionExpired(authRepository)) {
                     cancel()
                     return@launch
                 }
@@ -148,7 +151,7 @@ class TermsAgreementViewModel @Inject constructor(
     /** 아래 버튼. 필수를 다 체크하기 전에는 전부 체크만 하고, 다 체크했으면 서버에 동의를 보낸다. */
     fun onBottomButtonClick() {
         val state = _uiState.value
-        if (state.loading || state.loadErrorMessage != null) return
+        if (cancelling || state.loading || state.loadErrorMessage != null) return
         if (!state.requiredChecked) {
             _uiState.update { it.copy(checked = it.allTermIds()) }
             return
@@ -177,7 +180,7 @@ class TermsAgreementViewModel @Inject constructor(
                 Log.w(TAG, "약관 동의 실패", e)
                 _uiState.update { it.copy(submitting = false) }
                 when {
-                    e.isUnauthorized() -> cancel()
+                    e.isSessionExpired(authRepository) -> cancel()
                     e.isTermsChanged() -> load(message = TERMS_CHANGED_MESSAGE)
                     // 서버 문구는 보여 주지 않는다.
                     else -> _uiState.update { it.copy(message = e.toUserMessage(TERMS_AGREE_FAILED_MESSAGE)) }
@@ -191,9 +194,11 @@ class TermsAgreementViewModel @Inject constructor(
      *
      * 서버·카카오 로그아웃이 실패해도 로컬 세션은 지워지므로([AuthRepository.logout]) 결과와 상관없이 로그인 화면으로
      * 돌아간다.
+     *
+     * 동의를 보내는 동안에는 무시한다. 보낸 동의가 성공해 홈으로 가면 시작한 로그아웃이 중간에 끊긴다(iOS 와 같다).
      */
     fun cancel() {
-        if (cancelling) return
+        if (cancelling || _uiState.value.submitting) return
         cancelling = true
         viewModelScope.launch {
             try {
