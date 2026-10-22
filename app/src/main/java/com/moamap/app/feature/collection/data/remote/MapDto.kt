@@ -78,6 +78,8 @@ data class MapSummaryDto(
     val joined: Boolean = false,
     /** 로그인할 때 기본으로 생기는 개인 지도. 프라이빗 탭에서 따로 묶는다. */
     val personal: Boolean = false,
+    // OWNER, ADMIN, MEMBER. 지도 상세의 myRole 과 같은 값이다.
+    val myRole: String? = null,
 )
 
 /** 지도 상세/생성/수정/합류 응답 */
