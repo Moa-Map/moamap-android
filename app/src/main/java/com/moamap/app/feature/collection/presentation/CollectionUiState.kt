@@ -3,7 +3,6 @@ package com.moamap.app.feature.collection.presentation
 import androidx.compose.runtime.Immutable
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.collection.domain.model.MyMap
-import com.moamap.app.feature.mapdetail.domain.model.MapRole
 
 /** 초대 코드 입력 모달. */
 sealed interface JoinState {
@@ -72,8 +71,6 @@ data class CollectionUiState(
     val selectedTab: MapType = MapType.Community,
     val community: MyMapsState = MyMapsState.Loading,
     val private: MyMapsState = MyMapsState.Loading,
-    /** 커뮤니티 탭 지도별 내 역할. 받기 전이거나 못 받은 지도는 키가 없다. */
-    val roles: Map<Long, MapRole> = emptyMap(),
     val join: JoinState = JoinState.Hidden,
     /** 편집 중이 아니면 null 이다. */
     val edit: CollectionEditState? = null,

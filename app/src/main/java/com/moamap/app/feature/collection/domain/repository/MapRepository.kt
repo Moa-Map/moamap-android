@@ -5,7 +5,6 @@ import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.collection.domain.model.MyMap
 import com.moamap.app.feature.collection.domain.model.NewMap
 import com.moamap.app.feature.mapdetail.domain.model.LeaveOutcome
-import com.moamap.app.feature.mapdetail.domain.model.MapRole
 
 interface MapRepository {
 
@@ -59,13 +58,6 @@ interface MapRepository {
      * 내 지도 목록 응답에는 내 역할이 없어서 지도 상세를 한 번 더 읽어 판단한다.
      */
     suspend fun getLeaveOutcome(mapId: Long): LeaveOutcome?
-
-    /**
-     * 이 지도에서의 내 역할. 모음 카드의 방장·관리자 뱃지에 쓴다.
-     *
-     * 내 지도 목록 응답에는 내 역할이 없어서 지도 상세를 한 번 더 읽는다.
-     */
-    suspend fun getMyRole(mapId: Long): MapRole
 
     /**
      * 지도에서 나간다. 혼자 남은 프라이빗 지도의 방장이면 지도를 삭제한다.

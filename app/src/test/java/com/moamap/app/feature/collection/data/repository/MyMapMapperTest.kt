@@ -1,6 +1,7 @@
 package com.moamap.app.feature.collection.data.repository
 
 import com.moamap.app.feature.collection.data.remote.MapSummaryDto
+import com.moamap.app.feature.mapdetail.domain.model.MapRole
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -24,6 +25,7 @@ class MyMapMapperTest {
         memberCount: Int = 12,
         placeCount: Int = 5,
         personal: Boolean = false,
+        myRole: String? = null,
     ) = MapSummaryDto(
         id = id,
         name = name,
@@ -32,6 +34,7 @@ class MyMapMapperTest {
         memberCount = memberCount,
         placeCount = placeCount,
         personal = personal,
+        myRole = myRole,
     )
 
     @Test
@@ -66,6 +69,38 @@ class MyMapMapperTest {
     fun `개인 지도 여부를 그대로 옮긴다`() {
         assertTrue(dto(personal = true).toMyMap().personal)
         assertFalse(dto(personal = false).toMyMap().personal)
+    }
+
+    @Test
+    fun `내 역할을 지도 상세와 같은 규칙으로 옮긴다`() {
+        assertEquals(MapRole.Owner, dto(myRole = "OWNER").toMyMap().role)
+        assertEquals(MapRole.Admin, dto(myRole = "ADMIN").toMyMap().role)
+        assertEquals(MapRole.Member, dto(myRole = "MEMBER").toMyMap().role)
+    }
+
+    /** 역할을 못 읽어도 뱃지만 빠진다. 목록 파싱을 실패로 만들지 않는다. */
+    @Test
+    fun `내 역할이 null 이거나 모르는 값이면 뱃지 없이 본다`() {
+        assertEquals(MapRole.None, dto(myRole = null).toMyMap().role)
+        assertEquals(MapRole.None, dto(myRole = "GUEST").toMyMap().role)
+    }
+
+    @Test
+    fun `내 역할이 응답에 없어도 목록을 읽는다`() {
+        val myMap = json
+            .decodeFromString<MapSummaryDto>("""{"id":1,"name":"성수 카페 투어"}""")
+            .toMyMap()
+
+        assertEquals(MapRole.None, myMap.role)
+    }
+
+    @Test
+    fun `응답의 myRole 을 읽는다`() {
+        val myMap = json
+            .decodeFromString<MapSummaryDto>("""{"id":1,"name":"성수 카페 투어","myRole":"ADMIN"}""")
+            .toMyMap()
+
+        assertEquals(MapRole.Admin, myMap.role)
     }
 
     /**

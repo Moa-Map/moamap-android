@@ -64,14 +64,15 @@ internal data class CollectionMapUiModel(
     val role: MapRole = MapRole.None,
 )
 
-internal fun MyMap.toCommunityUiModel(role: MapRole = MapRole.None) = CollectionMapUiModel(
+internal fun MyMap.toCommunityUiModel() = CollectionMapUiModel(
     id = id,
     title = title,
     imageUrl = imageUrl,
     placeCount = formatPlaceCount(placeCount),
     verified = official,
     memberCount = formatMemberCount(memberCount),
-    role = role,
+    // 공식지도는 운영 지도라 방장·관리자 뱃지를 달지 않는다.
+    role = if (official) MapRole.None else role,
 )
 
 /** 프라이빗 카드는 장소 수만 보여주는 자리다. 인원 수는 시안에 없다. */

@@ -210,7 +210,6 @@ private fun CollectionContent(
                 when (selectedTab) {
                     MapType.Community -> CommunityTabContent(
                         state = uiState.community,
-                        roles = uiState.roles,
                         edit = edit,
                         onRetryClick = onRetryClick,
                         onMapClick = onMapClick,
@@ -429,11 +428,10 @@ private fun CollectionScreenPreview() {
             uiState = CollectionUiState(
                 community = MyMapsState.Success(
                     listOf(
-                        MyMap(1L, "서울 팝업스토어 맵", null, 2312, 116, official = false, personal = false),
-                        MyMap(2L, "성수 카페 투어", null, 24, 0, official = false, personal = false),
+                        MyMap(1L, "서울 팝업스토어 맵", null, 2312, 116, official = false, personal = false, role = MapRole.Admin),
+                        MyMap(2L, "성수 카페 투어", null, 24, 0, official = false, personal = false, role = MapRole.Owner),
                     ),
                 ),
-                roles = mapOf(1L to MapRole.Admin, 2L to MapRole.Owner),
             ),
             onTabClick = {},
             onRetryClick = {},
@@ -457,10 +455,9 @@ private fun CollectionScreenEditPreview() {
                 community = MyMapsState.Success(
                     listOf(
                         MyMap(1L, "서울 팝업스토어 맵", null, 2312, 116, official = false, personal = false),
-                        MyMap(2L, "성수 카페 투어", null, 24, 0, official = false, personal = false),
+                        MyMap(2L, "성수 카페 투어", null, 24, 0, official = false, personal = false, role = MapRole.Owner),
                     ),
                 ),
-                roles = mapOf(2L to MapRole.Owner),
                 edit = CollectionEditState(
                     eligibility = mapOf(1L to LeaveEligibility.Allowed, 2L to LeaveEligibility.Owner),
                     selected = setOf(1L),
