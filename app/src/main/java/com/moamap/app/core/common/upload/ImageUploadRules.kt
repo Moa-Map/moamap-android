@@ -1,5 +1,7 @@
 package com.moamap.app.core.common.upload
 
+import android.os.Build
+
 /**
  * 서버가 이미지 업로드 주소를 발급해 주는 범위.
  *
@@ -12,10 +14,31 @@ package com.moamap.app.core.common.upload
  * | 지도 로그 게시물 사진 | [MAX_POST_PHOTO_FILE_SIZE] |
  * | 장소 후기 사진 | [MAX_REVIEW_PHOTO_FILE_SIZE] |
  *
- * **한 곳에만 둔다.** 갤러리 선택기가 거르는 형식과 발급 전에 검증하는 형식이 따로 놀면,
- * 서버 계약이 바뀔 때 한쪽만 고쳐도 티가 나지 않는다.
+ * **한 곳에만 둔다.** 갤러리 선택기가 거르는 형식([uploadableSourceContentTypes])과 발급 전에 검증하는 형식이
+ * 따로 놀면, 서버 계약이 바뀔 때 한쪽만 고쳐도 티가 나지 않는다.
  */
 internal val ALLOWED_IMAGE_CONTENT_TYPES = setOf("image/jpeg", "image/png", "image/webp")
+
+/**
+ * HEIC/HEIF. 서버는 받지 않지만 원본으로는 받는다 - 줄이면서 JPEG 로 바꾸기 때문이다.
+ *
+ * 갤럭시·픽셀은 고화질 설정에서 이 형식으로 저장하고, iOS 도 HEIC 를 JPEG 로 바꿔 올린다.
+ */
+private val HEIF_IMAGE_CONTENT_TYPES = setOf("image/heic", "image/heif")
+
+/**
+ * 줄여서 JPEG 로 바꿀 수 있는 원본 형식. 갤러리 선택기가 보여 주는 형식도 이것이다.
+ *
+ * HEIC/HEIF 는 API 28 이상에서만 받는다. 그 아래는 `ImageDecoder` 가 없고, `BitmapFactory` 가 읽지 못하는
+ * 기기가 있다. GIF 등 나머지는 읽을 수는 있어도 첫 장면만 조용히 올라가므로 받지 않는다.
+ *
+ * SDK 버전을 인자로 받는다. `Build.VERSION.SDK_INT` 를 직접 읽으면 유닛 테스트에서 고정할 수 없다.
+ */
+internal fun uploadableSourceContentTypes(sdkInt: Int): Set<String> = if (sdkInt >= Build.VERSION_CODES.P) {
+    ALLOWED_IMAGE_CONTENT_TYPES + HEIF_IMAGE_CONTENT_TYPES
+} else {
+    ALLOWED_IMAGE_CONTENT_TYPES
+}
 
 private const val BYTES_IN_MEGABYTE = 1024L * 1024
 
@@ -60,9 +83,9 @@ sealed class ImageUploadException(message: String) : Exception(message) {
     class Unreadable : ImageUploadException("사진을 읽지 못했어요. 다른 사진을 골라 주세요")
 }
 
-/** 서버가 받는 형식인지만 본다. 줄이기 전 원본 형식을 거를 때도 쓴다. */
-internal fun requireSupportedImageType(contentType: String) {
-    if (contentType.lowercase() !in ALLOWED_IMAGE_CONTENT_TYPES) {
+/** 줄이기 전에 원본 형식을 거른다. 받는 형식은 [uploadableSourceContentTypes] 다. */
+internal fun requireUploadableSourceType(contentType: String, sdkInt: Int) {
+    if (contentType.lowercase() !in uploadableSourceContentTypes(sdkInt)) {
         throw ImageUploadException.UnsupportedType()
     }
 }
@@ -83,7 +106,9 @@ internal fun validateImageUpload(
     fileSize: Long,
     maxFileSize: Long = MAX_IMAGE_FILE_SIZE,
 ) {
-    requireSupportedImageType(contentType)
+    if (contentType.lowercase() !in ALLOWED_IMAGE_CONTENT_TYPES) {
+        throw ImageUploadException.UnsupportedType()
+    }
     if (fileSize <= 0) {
         throw ImageUploadException.Unreadable()
     }

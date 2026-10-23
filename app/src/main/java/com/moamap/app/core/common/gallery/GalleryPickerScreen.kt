@@ -3,6 +3,7 @@ package com.moamap.app.core.common.gallery
 import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
+import android.os.Build
 import android.provider.Settings
 import android.view.Window
 import androidx.activity.compose.LocalActivity
@@ -60,7 +61,7 @@ import androidx.compose.ui.window.DialogWindowProvider
 import androidx.core.view.WindowCompat
 import coil3.compose.AsyncImage
 import com.moamap.app.R
-import com.moamap.app.core.common.upload.ALLOWED_IMAGE_CONTENT_TYPES
+import com.moamap.app.core.common.upload.uploadableSourceContentTypes
 import com.moamap.app.core.designsystem.component.MoaMapBackButton
 import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -175,7 +176,7 @@ internal fun GalleryPickerScreen(
 
         val loaded = loadDeviceImages(
             context = context,
-            mimeTypes = ALLOWED_IMAGE_CONTENT_TYPES,
+            mimeTypes = uploadableSourceContentTypes(Build.VERSION.SDK_INT),
             limit = PageSize,
             offset = loadedPages * PageSize,
         )
