@@ -68,7 +68,7 @@ private class UnusedReviewUserService : UserService {
 
 /** `Uri` 를 JVM 테스트에서 만들 수 없어 사진 없는 경로만 검증한다. */
 private class NoReviewPhotoUploader : PhotoUploader {
-    override suspend fun inspect(uri: Uri): PhotoSpec = TODO("사진 없는 경로만 검증한다")
+    override suspend fun prepare(uri: Uri, maxFileSize: Long): PhotoSpec = TODO("사진 없는 경로만 검증한다")
     override suspend fun upload(uploadUrl: String, photo: PhotoSpec) = TODO("사진 없는 경로만 검증한다")
 }
 

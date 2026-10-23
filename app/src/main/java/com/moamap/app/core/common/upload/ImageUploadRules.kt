@@ -60,14 +60,21 @@ sealed class ImageUploadException(message: String) : Exception(message) {
     class Unreadable : ImageUploadException("사진을 읽지 못했어요. 다른 사진을 골라 주세요")
 }
 
+/** 서버가 받는 형식인지만 본다. 줄이기 전 원본 형식을 거를 때도 쓴다. */
+internal fun requireSupportedImageType(contentType: String) {
+    if (contentType.lowercase() !in ALLOWED_IMAGE_CONTENT_TYPES) {
+        throw ImageUploadException.UnsupportedType()
+    }
+}
+
 /**
- * 발급을 요청하기 전에 거른다.
+ * 발급을 요청하기 전에 거른다. 줄인 결과(`PhotoCompressor`)를 마지막으로 확인한다.
  *
  * `android.net.Uri` 를 받지 않는다. 유닛 테스트에서 `Uri` 를 만들 수 없어서, 판단이 들어간
  * 부분만이라도 밖으로 빼둬야 테스트로 고정된다.
  *
- * 크기가 0 이면 막는다. 크기를 알려 주지 않는 사진은 읽기 단계(`PresignedPhotoUploader`)가 직접 세어 오므로, 그래도
- * 0 이면 읽을 수 없는 사진이다. 서버는 크기 0 을 「크기 초과」로 거절하고, 크기 없이 나눠 보내는 업로드도 스토리지가 받지 않는다.
+ * 크기가 0 이면 막는다. 줄여 쓴 결과가 비었다면 읽을 수 없는 사진이다. 서버는 크기 0 을
+ * 「크기 초과」로 거절해 엉뚱한 안내가 된다.
  *
  * @param maxFileSize 용도별 한도. 생략하면 커버·프로필 기준이다.
  */
@@ -76,9 +83,7 @@ internal fun validateImageUpload(
     fileSize: Long,
     maxFileSize: Long = MAX_IMAGE_FILE_SIZE,
 ) {
-    if (contentType.lowercase() !in ALLOWED_IMAGE_CONTENT_TYPES) {
-        throw ImageUploadException.UnsupportedType()
-    }
+    requireSupportedImageType(contentType)
     if (fileSize <= 0) {
         throw ImageUploadException.Unreadable()
     }

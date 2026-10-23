@@ -61,7 +61,7 @@ private class FakeMapPostService(
  * `Uri` 는 JVM 유닛 테스트에서 만들 수 없어 사진이 있는 경로는 다루지 않는다. 다른 저장소 테스트와 같다.
  */
 private class NoPhotoUploader : PhotoUploader {
-    override suspend fun inspect(uri: Uri) = TODO("사진 없는 경로만 검증한다")
+    override suspend fun prepare(uri: Uri, maxFileSize: Long) = TODO("사진 없는 경로만 검증한다")
     override suspend fun upload(uploadUrl: String, photo: PhotoSpec) =
         TODO("사진 없는 경로만 검증한다")
 }

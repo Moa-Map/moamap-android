@@ -128,7 +128,7 @@ private class FakePlaceService(
  * 사진이 없을 때 아예 부르지 않는지만 본다. 이 가짜는 불려서는 안 된다.
  */
 private class UnusedPhotoUploader : PhotoUploader {
-    override suspend fun inspect(uri: Uri) = TODO("사진 없는 경로만 검증한다")
+    override suspend fun prepare(uri: Uri, maxFileSize: Long) = TODO("사진 없는 경로만 검증한다")
     override suspend fun upload(uploadUrl: String, photo: PhotoSpec) =
         TODO("사진 없는 경로만 검증한다")
 }

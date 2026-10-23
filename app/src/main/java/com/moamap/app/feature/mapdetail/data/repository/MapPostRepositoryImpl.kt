@@ -3,7 +3,7 @@ package com.moamap.app.feature.mapdetail.data.repository
 import android.net.Uri
 import com.moamap.app.core.common.upload.MAX_POST_PHOTO_FILE_SIZE
 import com.moamap.app.core.common.upload.PhotoUploader
-import com.moamap.app.core.common.upload.validateImageUpload
+import com.moamap.app.core.common.upload.preparing
 import com.moamap.app.feature.mapdetail.data.remote.MapPostCreateRequestDto
 import com.moamap.app.feature.mapdetail.data.remote.MapPostPhotoUploadUrlRequestDto
 import com.moamap.app.feature.mapdetail.data.remote.MapPostPlaceTagRequestDto
@@ -47,37 +47,29 @@ internal class MapPostRepositoryImpl @Inject constructor(
     }
 
     /**
-     * 전부 먼저 살펴본 뒤에 올린다.
+     * 전부 먼저 줄여 둔 뒤에 올린다.
      *
-     * 한 장씩 살펴보고 곧바로 올리면, 셋째 사진이 형식에 걸렸을 때 앞의 두 장은 이미 올라가
-     * 지울 방법이 없다. 형식·크기 검사는 발급을 요청하기 전에 모두 끝낸다.
+     * 한 장씩 줄이고 곧바로 올리면, 셋째 사진이 형식에 걸렸을 때 앞의 두 장은 이미 올라가
+     * 지울 방법이 없다. 형식·크기 검사(줄여도 한도를 넘는지)는 발급을 요청하기 전에 모두 끝낸다.
      */
     override suspend fun uploadPhotos(mapId: Long, photos: List<Uri>): List<String> {
         if (photos.isEmpty()) return emptyList()
 
-        val specs = photos.map { uri ->
-            uploader.inspect(uri).also { photo ->
-                validateImageUpload(
-                    contentType = photo.contentType,
-                    fileSize = photo.size,
-                    maxFileSize = MAX_POST_PHOTO_FILE_SIZE,
+        return uploader.preparing(photos, maxFileSize = MAX_POST_PHOTO_FILE_SIZE) { specs ->
+            specs.map { photo ->
+                val issued = mapPostService.createPhotoUploadUrl(
+                    mapId = mapId,
+                    request = MapPostPhotoUploadUrlRequestDto(
+                        contentType = photo.contentType,
+                        fileSize = photo.size,
+                    ),
                 )
+                require(issued.uploadUrl.isNotBlank() && issued.fileUrl.isNotBlank()) {
+                    "사진 업로드 주소가 비어 있습니다"
+                }
+                uploader.upload(uploadUrl = issued.uploadUrl, photo = photo)
+                issued.fileUrl
             }
-        }
-
-        return specs.map { photo ->
-            val issued = mapPostService.createPhotoUploadUrl(
-                mapId = mapId,
-                request = MapPostPhotoUploadUrlRequestDto(
-                    contentType = photo.contentType,
-                    fileSize = photo.size,
-                ),
-            )
-            require(issued.uploadUrl.isNotBlank() && issued.fileUrl.isNotBlank()) {
-                "사진 업로드 주소가 비어 있습니다"
-            }
-            uploader.upload(uploadUrl = issued.uploadUrl, photo = photo)
-            issued.fileUrl
         }
     }
 
