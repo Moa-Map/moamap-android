@@ -65,7 +65,7 @@ internal fun hasPartialGalleryAccess(context: Context): Boolean {
 /**
  * 최근 사진을 [limit] 장씩 읽는다. 최신 사진이 앞에 온다.
  *
- * 서버가 받는 형식만 읽는다 - 고르고 나서 "이 형식은 안 돼요" 를 보여주느니 아예 안 보이는 편이 낫다.
+ * 올릴 수 있는 형식만 읽는다 - 고르고 나서 "이 형식은 안 돼요" 를 보여주느니 아예 안 보이는 편이 낫다.
  * 읽지 못하면 빈 목록이다. 권한이 없거나 막 회수된 경우라, 화면은 권한 안내를 띄운다.
  */
 internal suspend fun loadDeviceImages(

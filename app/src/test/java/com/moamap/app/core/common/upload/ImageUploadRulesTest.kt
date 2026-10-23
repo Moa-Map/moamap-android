@@ -6,7 +6,7 @@ import org.junit.Test
 
 class ImageUploadRulesTest {
 
-    /** 갤러리 선택기가 이 목록을 그대로 파생해 쓴다. 한쪽만 바뀌면 조용히 어긋난다. */
+    /** 발급 전 마지막 검사와 갤러리 선택기가 이 목록에서 파생해 쓴다. 한쪽만 바뀌면 조용히 어긋난다. */
     @Test
     fun `허용 형식은 서버 계약 세 가지다`() {
         assertEquals(
@@ -125,6 +125,66 @@ class ImageUploadRulesTest {
         assertEquals(
             "사진 크기는 10MB 이하여야 해요",
             ImageUploadException.TooLarge(MAX_IMAGE_FILE_SIZE).message,
+        )
+    }
+
+    /** 줄이면서 JPEG 로 바꾸므로 서버가 받지 않는 HEIC 도 원본으로는 받는다. iOS 와 같다. */
+    @Test
+    fun `API 28 이상이면 HEIC 와 HEIF 원본을 받는다`() {
+        requireUploadableSourceType("image/heic", sdkInt = 28)
+        requireUploadableSourceType("image/heif", sdkInt = 28)
+        requireUploadableSourceType("image/heic", sdkInt = 35)
+    }
+
+    /** ImageDecoder 가 없고 BitmapFactory 가 읽지 못하는 기기가 있다. 읽지 못했다고 하느니 형식을 알린다. */
+    @Test
+    fun `API 28 미만이면 HEIC 와 HEIF 원본은 UnsupportedType 이다`() {
+        assertThrows(ImageUploadException.UnsupportedType::class.java) {
+            requireUploadableSourceType("image/heic", sdkInt = 27)
+        }
+        assertThrows(ImageUploadException.UnsupportedType::class.java) {
+            requireUploadableSourceType("image/heif", sdkInt = 24)
+        }
+    }
+
+    @Test
+    fun `서버가 받는 세 형식은 어느 버전에서나 원본으로 받는다`() {
+        listOf(24, 27, 28, 35).forEach { sdkInt ->
+            ALLOWED_IMAGE_CONTENT_TYPES.forEach { type -> requireUploadableSourceType(type, sdkInt) }
+        }
+    }
+
+    /** 읽을 수는 있어도 첫 장면만 조용히 올라간다. */
+    @Test
+    fun `GIF 원본은 어느 버전에서나 UnsupportedType 이다`() {
+        listOf(24, 28, 35).forEach { sdkInt ->
+            assertThrows(ImageUploadException.UnsupportedType::class.java) {
+                requireUploadableSourceType("image/gif", sdkInt)
+            }
+        }
+    }
+
+    @Test
+    fun `원본 형식은 대소문자를 가리지 않는다`() {
+        requireUploadableSourceType("IMAGE/HEIC", sdkInt = 28)
+        requireUploadableSourceType("Image/Jpeg", sdkInt = 24)
+    }
+
+    /** 결과는 늘 JPEG 다. HEIC 를 원본으로 받는다고 발급 검사까지 풀리면 서버 400 을 받는다. */
+    @Test
+    fun `발급 전 검사는 HEIC 를 여전히 막는다`() {
+        assertThrows(ImageUploadException.UnsupportedType::class.java) {
+            validateImageUpload("image/heic", fileSize = 1024)
+        }
+    }
+
+    /** 갤러리 선택기가 이 목록으로 보여 준다. 버전에 따라 HEIC 사진이 보이고 안 보인다. */
+    @Test
+    fun `원본으로 받는 형식은 28 이상에서만 HEIC 와 HEIF 가 더해진다`() {
+        assertEquals(ALLOWED_IMAGE_CONTENT_TYPES, uploadableSourceContentTypes(27))
+        assertEquals(
+            ALLOWED_IMAGE_CONTENT_TYPES + setOf("image/heic", "image/heif"),
+            uploadableSourceContentTypes(28),
         )
     }
 }

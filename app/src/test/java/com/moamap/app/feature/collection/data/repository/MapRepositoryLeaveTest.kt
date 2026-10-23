@@ -71,7 +71,7 @@ private class LeaveRecordingMapService(var detail: MapDetailDto) : MapService {
 }
 
 private class LeaveTestPhotoUploader : PhotoUploader {
-    override suspend fun inspect(uri: Uri): PhotoSpec = TODO("사용하지 않음")
+    override suspend fun prepare(uri: Uri, maxFileSize: Long): PhotoSpec = TODO("사용하지 않음")
     override suspend fun upload(uploadUrl: String, photo: PhotoSpec) = TODO("사용하지 않음")
 }
 
