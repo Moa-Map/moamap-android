@@ -598,7 +598,6 @@ class CollectionViewModelTest {
 
         viewModel.toggleSelection(1L)
         assertEquals(setOf(1L), viewModel.uiState.value.edit!!.selected)
-        assertTrue(viewModel.uiState.value.edit!!.selectionBarVisible)
 
         viewModel.toggleSelection(1L)
         assertTrue(viewModel.uiState.value.edit!!.selected.isEmpty())

@@ -30,6 +30,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
@@ -101,7 +102,8 @@ fun CollectionScreen(
     }
     val edit = uiState.edit
 
-    val selectionBarVisible = edit?.selectionBarVisible == true
+    // 편집하는 동안은 고르기 전부터 선택 막대가 하단 탭 자리를 대신한다(시안 「편집 - default」).
+    val selectionBarVisible = edit != null
     LaunchedEffect(selectionBarVisible) { onSelectionBarVisibleChange(selectionBarVisible) }
     DisposableEffect(Unit) { onDispose { onSelectionBarVisibleChange(false) } }
 
@@ -261,7 +263,7 @@ private fun CollectionContent(
         // 안내는 하단 탭(또는 선택 막대) 위에 쌓는다.
         Column(modifier = Modifier.align(Alignment.BottomCenter)) {
             ErrorSnackbar(message = uiState.notice, onShown = onNoticeShown)
-            if (edit != null && edit.selectionBarVisible) {
+            if (edit != null) {
                 SelectionBar(
                     count = edit.selected.size,
                     leaving = edit.leaving,
@@ -276,7 +278,9 @@ private fun CollectionContent(
 }
 
 /**
- * 고른 지도 수와 나가기. 시안 `1974:8444`. 하단 탭 자리를 대신한다.
+ * 고른 지도 수와 나가기. 시안 릴리즈 v1 「하단」(`4925:35373`)·「편집 - default」(`5061:50957`). 하단 탭 자리를 대신한다.
+ *
+ * 아무것도 고르지 않았으면 「나가기」가 바탕 없는 회색 글자이고 눌리지 않는다. 고르면 빨간 둥근 버튼이 된다.
  */
 @Composable
 private fun SelectionBar(count: Int, leaving: Boolean, onLeaveClick: () -> Unit) {
@@ -298,14 +302,17 @@ private fun SelectionBar(count: Int, leaving: Boolean, onLeaveClick: () -> Unit)
                 style = MoaMapTheme.typography.subtitle2,
                 color = MoaMapTheme.colors.textNormal,
             )
+            val selected = count > 0
             Text(
                 text = "나가기",
                 style = MoaMapTheme.typography.button2,
-                color = MoaMapTheme.colors.textWhite,
+                color = if (selected) MoaMapTheme.colors.textWhite else MoaMapTheme.colors.textAssistive,
+                // 시안은 회색 글자를 오른쪽 끝에 바로 붙이지만, 고를 때 글자가 옮겨 다니지 않게 안쪽 12·8 을
+                // 둘 다 둔다(10-26 사용자 결정).
                 modifier = Modifier
                     .clip(RoundedCornerShape(1000.dp))
-                    .background(MoaMapTheme.colors.statusAlert)
-                    .clickable(enabled = !leaving, onClick = onLeaveClick)
+                    .background(if (selected) MoaMapTheme.colors.statusAlert else Color.Transparent)
+                    .clickable(enabled = selected && !leaving, onClick = onLeaveClick)
                     .padding(horizontal = 12.dp, vertical = 8.dp),
             )
         }

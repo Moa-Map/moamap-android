@@ -60,9 +60,6 @@ data class CollectionEditState(
 ) {
     fun eligibilityOf(mapId: Long): LeaveEligibility =
         eligibility[mapId] ?: LeaveEligibility.Checking
-
-    /** 아래 선택 막대. 하단 탭 대신 뜬다. */
-    val selectionBarVisible: Boolean get() = selected.isNotEmpty()
 }
 
 /**
