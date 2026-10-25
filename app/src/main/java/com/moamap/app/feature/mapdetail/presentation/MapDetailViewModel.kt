@@ -15,6 +15,7 @@ import com.moamap.app.feature.mapdetail.domain.model.leavingDeletesMap
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
 import com.moamap.app.feature.mapdetail.domain.model.canEditInfo
+import com.moamap.app.feature.mapdetail.domain.model.showsMembersMenu
 import com.moamap.app.feature.mapdetail.domain.model.canLeaveFromMenu
 import com.moamap.app.feature.mapdetail.domain.model.roleBadge
 import com.moamap.app.feature.mapdetail.domain.model.shareableInviteCode
@@ -92,6 +93,9 @@ data class MapDetailScreenState(
 
     /** 메뉴에 지도 정보를 넣을지. 지도를 만든 방장만이다. */
     val canEditInfo: Boolean get() = map.mapOrNull?.canEditInfo ?: false
+
+    /** 메뉴에 멤버 관리를 넣을지. 나만의 지도는 뺀다. */
+    val showsMembersMenu: Boolean get() = map.mapOrNull?.showsMembersMenu ?: false
 
     /** 나가기 확인 팝업이 고를 안내. 나갈 수 없거나 지도를 아직 못 읽었으면 null 이다. */
     val leaveOutcome: LeaveOutcome? get() = map.mapOrNull?.leaveOutcome

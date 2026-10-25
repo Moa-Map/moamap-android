@@ -31,6 +31,7 @@ internal val MapDetailMenuEnd = 20.dp
  * 뒤에 깔린 지도까지 흐린다. 지도가 TextureView 라 Compose 흐림이 잡는다 - `MapDetailMap` 참고.
  * 메뉴 밖 화면은 어둡게 덮지 않는다(시안).
  *
+ * @param showsMembers 멤버 관리 줄을 넣을지. 나만의 지도는 뺀다 - `MapDetail.showsMembersMenu` 참고.
  * @param canEditInfo 지도 정보 줄을 넣을지. 지도를 만든 방장만이다 - `MapDetail.canEditInfo` 참고.
  * @param canShareInviteCode 초대코드 줄을 넣을지. 초대코드를 쥔 프라이빗 지도 참여자다 -
  * `MapDetail.shareableInviteCode` 참고.
@@ -39,6 +40,7 @@ internal val MapDetailMenuEnd = 20.dp
  */
 @Composable
 internal fun MapDetailMenu(
+    showsMembers: Boolean,
     canEditInfo: Boolean,
     canShareInviteCode: Boolean,
     canLeave: Boolean,
@@ -53,7 +55,7 @@ internal fun MapDetailMenu(
 ) {
     ModalActionMenu(
         items = buildList {
-            add(ActionMenuItem(R.drawable.ic_person, "멤버 관리", onMembersClick))
+            if (showsMembers) add(ActionMenuItem(R.drawable.ic_person, "멤버 관리", onMembersClick))
             add(ActionMenuItem(R.drawable.ic_map, "장소 관리", onManageClick))
             if (canEditInfo) add(ActionMenuItem(R.drawable.ic_info, "지도 정보", onInfoClick))
             if (canShareInviteCode) add(ActionMenuItem(R.drawable.ic_key, "초대코드", onInviteCodeClick))
@@ -75,6 +77,7 @@ private fun MapDetailMenuPreview() {
                 .background(MoaMapTheme.colors.backgroundSecondary),
         ) {
             MapDetailMenu(
+                showsMembers = true,
                 canEditInfo = false,
                 canShareInviteCode = false,
                 canLeave = true,
@@ -102,6 +105,7 @@ private fun MapDetailMenuPrivatePreview() {
                 .background(MoaMapTheme.colors.backgroundSecondary),
         ) {
             MapDetailMenu(
+                showsMembers = true,
                 canEditInfo = true,
                 canShareInviteCode = true,
                 canLeave = false,

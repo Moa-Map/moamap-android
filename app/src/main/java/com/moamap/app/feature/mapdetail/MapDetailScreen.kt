@@ -683,6 +683,7 @@ fun MapDetailScreen(
                     },
             )
             MapDetailMenu(
+                showsMembers = screenState.showsMembersMenu,
                 canEditInfo = screenState.canEditInfo,
                 canShareInviteCode = screenState.inviteCode != null,
                 canLeave = screenState.canLeave,

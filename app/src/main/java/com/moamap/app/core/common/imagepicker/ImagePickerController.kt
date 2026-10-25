@@ -18,6 +18,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.moamap.app.core.common.gallery.GalleryPickerDialog
+import com.moamap.app.core.common.gallery.openAppSettings
+import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
+import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import java.io.File
 
 /** 촬영본 확장자. 카메라 앱은 JPEG 로 저장한다. */
@@ -66,6 +69,7 @@ internal fun rememberImagePickerController(
     val context = LocalContext.current
     val currentOnImageSelected by rememberUpdatedState(onImageSelected)
     var pendingCameraUri by rememberSaveable { mutableStateOf<String?>(null) }
+    var cameraDeniedVisible by rememberSaveable { mutableStateOf(false) }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
@@ -93,7 +97,8 @@ internal fun rememberImagePickerController(
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
-        if (granted) launchCamera()
+        // 거부하면 안내한다. 두 번 거부한 뒤에는 시스템 팝업 없이 바로 여기로 온다.
+        if (granted) launchCamera() else cameraDeniedVisible = true
     }
 
     val requestCamera: () -> Unit = {
@@ -122,6 +127,21 @@ internal fun rememberImagePickerController(
                 uris.forEach { uri -> currentOnImageSelected(uri) }
             },
             onDismiss = state::dismissGallery,
+        )
+    }
+
+    if (cameraDeniedVisible) {
+        MoaMapConfirmDialog(
+            title = "카메라 권한이 필요해요",
+            message = "설정에서 카메라 접근을 허용하면 사진을 찍을 수 있어요.",
+            confirmText = "설정 열기",
+            onConfirm = {
+                cameraDeniedVisible = false
+                context.openAppSettings()
+            },
+            onDismissRequest = { cameraDeniedVisible = false },
+            dismissText = "닫기",
+            dismissColor = MoaMapPrimitiveColors.Gray200,
         )
     }
 

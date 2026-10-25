@@ -219,6 +219,13 @@ class MapDetailRuleTest {
     }
 
     @Test
+    fun `나만의 지도 메뉴에는 멤버 관리가 없다`() {
+        assertFalse(map(MapType.Private, MapRole.Owner, joined = true, personal = true).showsMembersMenu)
+        assertTrue(map(MapType.Private, MapRole.Owner, joined = true).showsMembersMenu)
+        assertTrue(map(MapType.Community, MapRole.Member, joined = true).showsMembersMenu)
+    }
+
+    @Test
     fun `나갈 수 있는 사람의 메뉴에만 나가기가 있다`() {
         assertTrue(map(MapType.Community, MapRole.Member, joined = true).canLeaveFromMenu)
         assertTrue(map(MapType.Community, MapRole.Admin, joined = true).canLeaveFromMenu)

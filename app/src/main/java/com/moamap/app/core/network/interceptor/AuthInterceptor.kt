@@ -22,6 +22,7 @@ internal const val BEARER_PREFIX = "Bearer "
  */
 private val NO_AUTH_PATHS = setOf(
     "/api/v1/auth/kakao/login",
+    "/api/v1/auth/google/login",
     "/api/v1/auth/token/refresh",
     "/api/v1/auth/logout",
 )

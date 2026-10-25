@@ -385,6 +385,20 @@ class CollectionViewModelTest {
     }
 
     @Test
+    fun `초대 코드는 6자에서 자르고 6자일 때만 보낼 수 있다`() = runTest(dispatcher) {
+        val viewModel = startedViewModel()
+        viewModel.openJoinDialog()
+
+        viewModel.updateInviteCode("A1B2C")
+        assertFalse((viewModel.uiState.value.join as JoinState.Editing).canSubmit)
+
+        viewModel.updateInviteCode("A1B2C3D4")
+        val join = viewModel.uiState.value.join as JoinState.Editing
+        assertEquals("A1B2C3", join.code)
+        assertTrue(join.canSubmit)
+    }
+
+    @Test
     fun `한글은 초대 코드로 받지 않는다`() = runTest(dispatcher) {
         val viewModel = startedViewModel()
         viewModel.openJoinDialog()
