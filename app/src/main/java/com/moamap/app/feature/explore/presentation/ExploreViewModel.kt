@@ -3,8 +3,10 @@ package com.moamap.app.feature.explore.presentation
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moamap.app.feature.explore.domain.model.Banner
 import com.moamap.app.feature.explore.domain.model.CommunityMap
 import com.moamap.app.feature.explore.domain.model.CommunityMapSort
+import com.moamap.app.feature.explore.domain.repository.BannerRepository
 import com.moamap.app.feature.explore.domain.repository.CommunityMapRepository
 import com.moamap.app.feature.officialmap.domain.repository.OfficialMapRepository
 import com.moamap.app.feature.officialmap.presentation.OfficialMapsState
@@ -32,6 +34,8 @@ sealed interface CommunityMapsState {
 }
 
 data class ExploreUiState(
+    /** 맨 위 배너. null 이면 받는 중, 비었으면 등록된 배너가 없거나 못 받았다 - 둘 다 기본 그림을 보여 준다. */
+    val banners: List<Banner>? = null,
     val communityMaps: CommunityMapsState = CommunityMapsState.Loading,
     val officialMaps: OfficialMapsState = OfficialMapsState.Loading,
 )
@@ -40,6 +44,7 @@ data class ExploreUiState(
 class ExploreViewModel @Inject constructor(
     private val repository: CommunityMapRepository,
     private val officialMapRepository: OfficialMapRepository,
+    private val bannerRepository: BannerRepository,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ExploreUiState())
@@ -48,6 +53,7 @@ class ExploreViewModel @Inject constructor(
     /** 화면을 빠르게 오가면 이전 요청은 버린다. 늦게 도착한 응답이 최신 결과를 덮지 않게 한다. */
     private var communityJob: Job? = null
     private var officialJob: Job? = null
+    private var bannerJob: Job? = null
 
     private companion object {
         const val TAG = "ExploreViewModel"
@@ -56,7 +62,7 @@ class ExploreViewModel @Inject constructor(
     }
 
     /**
-     * 화면이 보일 때 두 목록을 읽는다. 첫 조회도 이 경로가 겸한다.
+     * 화면이 보일 때 배너와 두 목록을 읽는다. 첫 조회도 이 경로가 겸한다.
      *
      * 지도에 참여하거나 나가고 돌아오는 경로가 여기다. 탭 전환이 상태를 복원하므로 이
      * ViewModel 은 살아남고, 다시 읽지 않으면 카드의 참여 여부가 낡아 진입 분기가 틀어진다.
@@ -67,6 +73,27 @@ class ExploreViewModel @Inject constructor(
     fun refresh() {
         loadCommunityMaps(keepCurrent = _uiState.value.communityMaps is CommunityMapsState.Success)
         loadOfficialMaps(keepCurrent = _uiState.value.officialMaps is OfficialMapsState.Success)
+        loadBanners()
+    }
+
+    /**
+     * 배너는 실패해도 다시 시도를 띄우지 않는다. 기본 그림이 그 자리를 채운다.
+     *
+     * 돌아올 때 다시 읽다가 실패하면 보던 배너를 그대로 둔다.
+     */
+    private fun loadBanners() {
+        bannerJob?.cancel()
+        bannerJob = viewModelScope.launch {
+            try {
+                val banners = bannerRepository.getBanners()
+                _uiState.update { it.copy(banners = banners) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "배너 조회 실패", e)
+                _uiState.update { it.copy(banners = it.banners ?: emptyList()) }
+            }
+        }
     }
 
     /** 커뮤니티 목록만 다시 읽는다. 멀쩡한 공식지도까지 다시 부르지 않는다. */

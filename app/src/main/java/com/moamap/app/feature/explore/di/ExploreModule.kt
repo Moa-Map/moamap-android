@@ -1,9 +1,12 @@
 package com.moamap.app.feature.explore.di
 
+import com.moamap.app.feature.explore.data.remote.BannerService
 import com.moamap.app.feature.explore.data.remote.CommunityMapService
 import com.moamap.app.feature.explore.data.remote.PlaceService
 import com.moamap.app.feature.explore.data.remote.ReviewService
+import com.moamap.app.feature.explore.data.repository.BannerRepositoryImpl
 import com.moamap.app.feature.explore.data.repository.CommunityMapRepositoryImpl
+import com.moamap.app.feature.explore.domain.repository.BannerRepository
 import com.moamap.app.feature.explore.domain.repository.CommunityMapRepository
 import dagger.Binds
 import dagger.Module
@@ -21,11 +24,20 @@ internal abstract class ExploreModule {
     @Singleton
     abstract fun bindCommunityMapRepository(impl: CommunityMapRepositoryImpl): CommunityMapRepository
 
+    @Binds
+    @Singleton
+    abstract fun bindBannerRepository(impl: BannerRepositoryImpl): BannerRepository
+
     companion object {
         @Provides
         @Singleton
         fun provideCommunityMapService(retrofit: Retrofit): CommunityMapService =
             retrofit.create(CommunityMapService::class.java)
+
+        @Provides
+        @Singleton
+        fun provideBannerService(retrofit: Retrofit): BannerService =
+            retrofit.create(BannerService::class.java)
 
         /** 장소 가져오기(`feature/collection`)가 인스타그램 추출 API 를 호출할 때 쓴다. */
         @Provides
