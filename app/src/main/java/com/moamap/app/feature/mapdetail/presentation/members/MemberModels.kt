@@ -50,20 +50,19 @@ internal fun MemberUiModel.canGrantRole(grantEnabled: Boolean): Boolean =
 
 /** 멤버 관리에서 역할을 어디까지 드러낼지. 지도 종류가 정한다. */
 internal enum class MemberRoleDisplay {
-    /** 커뮤니티: 방장·관리자 태그와 역할 안내. */
+    /** 커뮤니티: 방장·관리자 뱃지와 역할 안내. */
     All,
 
-    /** 프라이빗: 만든 사람의 방장 태그만. 역할이 나뉘지 않아 관리자도 역할 안내도 없다. */
-    OwnerOnly,
-
-    /** 공식지도: 공공데이터를 받아 보는 지도라 역할이 뜻을 갖지 않는다. */
+    /**
+     * 프라이빗·공식지도: 역할을 드러내지 않는다. 프라이빗은 역할이 나뉘지 않고(피그마 릴리즈 v1 「멤버관리」에
+     * 뱃지 없음), 공식지도는 공공데이터를 받아 보는 지도라 역할이 뜻을 갖지 않는다.
+     */
     None,
 }
 
 internal fun memberRoleDisplayOf(type: MapType): MemberRoleDisplay = when (type) {
     MapType.Community -> MemberRoleDisplay.All
-    MapType.Private -> MemberRoleDisplay.OwnerOnly
-    MapType.Official -> MemberRoleDisplay.None
+    MapType.Private, MapType.Official -> MemberRoleDisplay.None
 }
 
 /**
@@ -81,9 +80,6 @@ internal fun List<MemberUiModel>.splitMine(
     return me to filter { member -> member.id != me.id }
 }
 
-/** 이름 옆에 붙일 태그. 일반 멤버에게는 붙지 않는다. */
-internal fun MemberUiModel.tag(display: MemberRoleDisplay): MemberRole? = when {
-    role == MemberRole.Owner && display != MemberRoleDisplay.None -> MemberRole.Owner
-    role == MemberRole.Admin && display == MemberRoleDisplay.All -> MemberRole.Admin
-    else -> null
-}
+/** 이름 옆에 붙일 역할 뱃지. 커뮤니티 지도의 방장·관리자에게만 붙는다. */
+internal fun MemberUiModel.tag(display: MemberRoleDisplay): MemberRole? =
+    role.takeIf { display == MemberRoleDisplay.All && role != MemberRole.Member }

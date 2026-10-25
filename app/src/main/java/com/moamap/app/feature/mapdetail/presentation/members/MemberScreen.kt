@@ -2,7 +2,6 @@ package com.moamap.app.feature.mapdetail.presentation.members
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +21,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.moamap.app.core.designsystem.component.MoaMapCenteredNotice
+import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
 import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
 import com.moamap.app.core.designsystem.component.MoaMapGuideRow
 import com.moamap.app.core.designsystem.component.MoaMapLoadingIndicator
@@ -43,20 +47,27 @@ import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.designsystem.theme.withDesignLineHeight
+import com.moamap.app.feature.mapdetail.RoleBadge
+import com.moamap.app.feature.mapdetail.domain.model.MapRole
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 
 private val MemberCardShape = RoundedCornerShape(12.dp)
 private val AvatarSize = 50.dp
-private val RoleTagShape = RoundedCornerShape(1000.dp)
+
+/** 이름 옆 역할 뱃지. 원 지름 20(피그마)에 바깥 흰 테두리까지 그린 크기다. */
+private val RoleBadgeSize = 23.dp
+
+/** 이름과 뱃지 원 사이 4(피그마). 그림 가장자리의 흰 테두리 몫 1.5 를 뺀다. */
+private val RoleBadgeGap = 2.5.dp
 
 private val RoleGuideScrim = MoaMapPrimitiveColors.Gray500.copy(alpha = 0.7f)
 
 /**
  * 멤버 관리. 상단바 메뉴에서 들어온다.
  *
- * 장소 관리처럼 지도 상세 위에 겹쳐 그린다. 목록과 권한 부여가 지도 상세 백스택에 묶인
+ * 장소 관리처럼 지도 상세 위에 겹쳐 그린다. 목록과 관리자 지정이 지도 상세 백스택에 묶인
  * [MemberViewModel] 을 그대로 쓰기 때문이다.
  *
  * [roleDisplay] 와 [canGrantRole] 을 밖에서 받는다. 화면이 지도 종류를 직접 알 필요는 없고,
@@ -81,6 +92,24 @@ internal fun MemberScreen(
 ) {
     // 역할 안내 말풍선이 이 화면을 흐려 바탕으로 깐다.
     val roleGuideHazeState = rememberHazeState()
+    // 관리자로 지정하기 전에 한 번 묻는다(피그마 릴리즈 v1 「멤버관리 - info」).
+    var grantTargetId by rememberSaveable { mutableStateOf<Long?>(null) }
+    val grantTarget = members.firstOrNull { member -> member.id == grantTargetId }
+    if (grantTarget != null) {
+        MoaMapConfirmDialog(
+            title = grantTarget.name,
+            titleSuffix = "님을 관리자로 지정할까요?",
+            message = "관리자는 장소 신청 관리하고, 모든 장소를 수정·삭제할 수 있어요",
+            confirmText = "확인",
+            onConfirm = {
+                grantTargetId = null
+                onGrantRoleClick(grantTarget.id)
+            },
+            onDismissRequest = { grantTargetId = null },
+            dismissText = "닫기",
+            dismissColor = MoaMapPrimitiveColors.Gray200,
+        )
+    }
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -127,7 +156,7 @@ internal fun MemberScreen(
                         val (me, others) = sections
                         item(key = "my-title") { MemberSectionTitle("내 역할") }
                         item(key = me.id) {
-                            // 시안 「본인」 카드에는 권한 부여 버튼이 없다.
+                            // 시안 「본인」 카드에는 관리자 지정 버튼이 없다.
                             MemberCard(
                                 member = me,
                                 tag = me.tag(roleDisplay),
@@ -149,7 +178,7 @@ internal fun MemberScreen(
                             canGrant = member.canGrantRole(canGrantRole),
                             // 오가는 중에는 다른 카드의 버튼도 잠근다. 한 번에 하나만 처리한다.
                             grantEnabled = !granting,
-                            onGrantRoleClick = { onGrantRoleClick(member.id) },
+                            onGrantRoleClick = { grantTargetId = member.id },
                         )
                     }
                 }
@@ -264,9 +293,9 @@ private fun MemberCard(
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
                     Row(
-                        // 태그가 없어도 줄 높이는 시안대로 태그 높이(24)에 맞춘다.
+                        // 뱃지가 없어도 줄 높이는 시안대로 24 로 둔다.
                         modifier = Modifier.height(24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(RoleBadgeGap),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
@@ -277,7 +306,7 @@ private fun MemberCard(
                             overflow = TextOverflow.Ellipsis,
                             modifier = Modifier.weight(1f, fill = false),
                         )
-                        if (tag != null) MemberRoleTag(tag)
+                        if (tag != null) RoleBadge(role = tag.toMapRole(), size = RoleBadgeSize)
                     }
                     member.placeCount?.let { count ->
                         Text(
@@ -302,27 +331,10 @@ private fun MemberAvatar(imageUrl: String?) {
     PhotoThumbnail(imageUrl = imageUrl, size = AvatarSize, shape = CircleShape)
 }
 
-/** 방장은 파란 태그, 관리자는 회색 태그. 일반 멤버는 [tag] 가 null 이라 여기까지 오지 않는다. */
-@Composable
-private fun MemberRoleTag(role: MemberRole) {
-    val owner = role == MemberRole.Owner
-    Text(
-        text = if (owner) "방장" else "관리자",
-        style = MoaMapTheme.typography.caption0,
-        color = if (owner) MoaMapPrimitiveColors.Blue900 else MoaMapPrimitiveColors.Gray900,
-        // 배경을 먼저 깐다. 순서를 뒤집으면 나중에 그려지는 배경이 테두리를 덮는다.
-        modifier = Modifier
-            .background(
-                color = if (owner) MoaMapPrimitiveColors.Blue50 else MoaMapPrimitiveColors.Gray50,
-                shape = RoleTagShape,
-            )
-            .border(
-                width = 1.dp,
-                color = if (owner) MoaMapPrimitiveColors.Blue500 else MoaMapPrimitiveColors.Gray500,
-                shape = RoleTagShape,
-            )
-            .padding(horizontal = 12.dp, vertical = 4.dp),
-    )
+private fun MemberRole.toMapRole(): MapRole = when (this) {
+    MemberRole.Owner -> MapRole.Owner
+    MemberRole.Admin -> MapRole.Admin
+    MemberRole.Member -> MapRole.Member
 }
 
 @Composable
@@ -335,7 +347,8 @@ private fun GrantRoleButton(enabled: Boolean, onClick: () -> Unit) {
             .padding(8.dp),
     ) {
         Text(
-            text = "권한 부여",
+            // 피그마는 「권한 부여」지만 무엇을 주는지 보이게 바꿨다(10-25 사용자 결정).
+            text = "관리자 지정",
             style = MoaMapTheme.typography.button2,
             color = MoaMapTheme.colors.textWhite,
         )
@@ -374,7 +387,7 @@ private fun MemberScreenCommunityPreview() {
     }
 }
 
-/** 프라이빗 지도: 역할 안내·관리자 태그·권한 부여 없이 만든 사람의 방장 태그만. 내 카드도 따로 두지 않는다. */
+/** 프라이빗 지도: 역할 안내·뱃지·관리자 지정 없이 한 줄 목록. 내 카드도 따로 두지 않는다. */
 @Preview(showBackground = true, widthDp = 393, heightDp = 852)
 @Composable
 private fun MemberScreenPrivatePreview() {
@@ -384,7 +397,7 @@ private fun MemberScreenPrivatePreview() {
             myId = 1L,
             loading = false,
             errorMessage = null,
-            roleDisplay = MemberRoleDisplay.OwnerOnly,
+            roleDisplay = MemberRoleDisplay.None,
             canGrantRole = false,
             granting = false,
             onGrantRoleClick = {},

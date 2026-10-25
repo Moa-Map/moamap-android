@@ -1,5 +1,6 @@
 package com.moamap.app.feature.mapdetail.presentation.members
 
+import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.mapdetail.domain.model.MapMember
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
 import org.junit.Assert.assertEquals
@@ -79,7 +80,7 @@ class MemberUiModelTest {
 
     @Test
     fun `프라이빗 지도는 나누지 않는다`() {
-        assertNull(members.splitMine(myId = 1L, display = MemberRoleDisplay.OwnerOnly))
+        assertNull(members.splitMine(myId = 1L, display = memberRoleDisplayOf(MapType.Private)))
     }
 
     @Test
