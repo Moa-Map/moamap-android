@@ -17,7 +17,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val TAG = "SettingsViewModel"
-private const val LOGOUT_ERROR = "로그아웃하지 못했어요. 잠시 후 다시 시도해주세요."
+private const val LOGOUT_ERROR = "로그아웃하지 못했어요. 잠시 후 다시 시도해 주세요."
 private const val WITHDRAW_ERROR = "탈퇴하지 못했어요. 잠시 후 다시 시도해 주세요."
 internal const val TERMS_OPEN_ERROR = "약관을 불러오지 못했어요"
 

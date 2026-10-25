@@ -5,6 +5,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
+import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.mapdetail.domain.model.LeaveOutcome
 
@@ -26,9 +27,12 @@ internal fun MapLeaveDialog(
         title = mapName,
         titleSuffix = "에서 나가시겠습니까?",
         message = leaveConfirmMessage(outcome),
-        confirmText = "나가기",
+        // 버튼은 피그마 릴리즈 v1 「나가기 모달」 그대로 [닫기][확인]이다.
+        confirmText = "확인",
         onConfirm = onConfirm,
         onDismissRequest = onDismiss,
+        dismissText = "닫기",
+        dismissColor = MoaMapPrimitiveColors.Gray200,
     )
 }
 

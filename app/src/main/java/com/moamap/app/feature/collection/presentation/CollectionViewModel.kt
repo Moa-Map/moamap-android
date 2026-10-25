@@ -10,6 +10,7 @@ import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.collection.domain.model.MyMap
 import com.moamap.app.feature.collection.domain.repository.MapRepository
+import com.moamap.app.feature.mapdetail.domain.model.LeaveOutcome
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -25,7 +26,6 @@ private const val LOAD_FAILED_MESSAGE = "지도 목록을 불러오지 못했어
 private const val INVALID_CODE_MESSAGE = "코드를 다시 확인해주세요"
 private const val ALREADY_JOINED_MESSAGE = "이미 참여 중인 지도예요"
 private const val JOIN_FAILED_MESSAGE = "지도에 참여하지 못했어요"
-internal const val OWNER_CANNOT_LEAVE_MESSAGE = "방장인 지도는 나갈 수 없어요"
 internal const val PERSONAL_CANNOT_LEAVE_MESSAGE = "나만의 지도는 나갈 수 없어요"
 internal const val LEAVE_CHECK_FAILED_MESSAGE = "지도 정보를 불러오지 못했어요"
 internal const val ORDER_SAVE_FAILED_MESSAGE = "순서를 저장하지 못했어요"
@@ -189,15 +189,18 @@ class CollectionViewModel @Inject constructor(
         _uiState.update { current -> current.withState(current.selectedTab, MyMapsState.Success(moved)) }
     }
 
-    /** 고를 수 없는 지도를 누르면 이유를 알린다. 확인 중인 지도는 아무 일도 없다. */
+    /**
+     * 고를 수 없는 지도를 누르면 이유를 알린다. 확인 중인 지도는 아무 일도 없다.
+     *
+     * 방장인 지도는 고를 수 있다. [나가기]를 누를 때 팝업으로 막는다 - [openLeaveConfirm].
+     */
     fun toggleSelection(mapId: Long) {
         val edit = _uiState.value.edit ?: return
         if (edit.leaving) return
 
         val notice = when (edit.eligibilityOf(mapId)) {
             LeaveEligibility.Checking -> return
-            LeaveEligibility.Allowed -> null
-            LeaveEligibility.Owner -> OWNER_CANNOT_LEAVE_MESSAGE
+            LeaveEligibility.Allowed, LeaveEligibility.Owner -> null
             LeaveEligibility.Personal -> PERSONAL_CANNOT_LEAVE_MESSAGE
             LeaveEligibility.Unknown -> LEAVE_CHECK_FAILED_MESSAGE
         }
@@ -213,7 +216,15 @@ class CollectionViewModel @Inject constructor(
     fun openLeaveConfirm() {
         val edit = _uiState.value.edit ?: return
         if (edit.leaving || edit.selected.isEmpty()) return
-        _uiState.update { state -> state.copy(edit = edit.copy(confirmVisible = true)) }
+        val hasOwnerMap = edit.selected.any { mapId -> edit.eligibilityOf(mapId) == LeaveEligibility.Owner }
+        _uiState.update { state ->
+            state.copy(edit = if (hasOwnerMap) edit.copy(ownerNoticeVisible = true) else edit.copy(confirmVisible = true))
+        }
+    }
+
+    fun closeOwnerNotice() {
+        val edit = _uiState.value.edit ?: return
+        _uiState.update { state -> state.copy(edit = edit.copy(ownerNoticeVisible = false)) }
     }
 
     fun closeLeaveConfirm() {
@@ -272,8 +283,15 @@ class CollectionViewModel @Inject constructor(
         false
     }
 
+    /**
+     * 혼자 남은 프라이빗 지도의 방장(나가면 지도 삭제)도 방장으로 막는다. 지도 삭제를 여러 개 한 번에 하지
+     * 않는다(iOS 와 같게, 10-25 사용자 결정).
+     */
     private suspend fun checkEligibility(mapId: Long): LeaveEligibility = try {
-        if (repository.getLeaveOutcome(mapId) == null) LeaveEligibility.Owner else LeaveEligibility.Allowed
+        when (repository.getLeaveOutcome(mapId)) {
+            null, LeaveOutcome.DeleteMap -> LeaveEligibility.Owner
+            else -> LeaveEligibility.Allowed
+        }
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {

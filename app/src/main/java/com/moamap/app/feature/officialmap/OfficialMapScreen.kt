@@ -120,7 +120,15 @@ private fun OfficialMapContent(
                     MoaMapErrorNotice(message = state.message, onRetryClick = onRetryClick)
                 }
 
-                is OfficialMapsState.Success -> {
+                is OfficialMapsState.Success -> if (state.maps.isEmpty()) {
+                    MoaMapListPlaceholder {
+                        Text(
+                            text = "아직 등록된 공식지도가 없어요",
+                            style = MoaMapTheme.typography.body2,
+                            color = MoaMapTheme.colors.textAssistive,
+                        )
+                    }
+                } else {
                     state.maps.forEach { officialMap ->
                         OfficialMapCard(
                             map = officialMap,

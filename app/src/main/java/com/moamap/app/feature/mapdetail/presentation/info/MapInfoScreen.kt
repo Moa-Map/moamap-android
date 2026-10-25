@@ -81,27 +81,31 @@ internal fun MapInfoScreen(
                 textBottomPadding = MapInfoHeroTextBottomPadding,
             )
 
-            // 소개할 게 없으면 제목만 남은 빈 섹션이 된다. 지도 소개 화면처럼 통째로 뺀다.
-            if (map.tags.isNotEmpty() || map.description != null) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp)
-                        .padding(top = 40.dp, bottom = 20.dp),
-                ) {
-                    MapIntroSectionTitle("지도 소개")
-                    Spacer(Modifier.height(12.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        if (map.tags.isNotEmpty()) {
-                            MapIntroTagRow(tags = map.tags)
-                        }
-                        if (map.description != null) {
-                            Text(
-                                text = map.description,
-                                style = MoaMapTheme.typography.body3.withDesignLineHeight(),
-                                color = MoaMapTheme.colors.textAlternative,
-                            )
-                        }
+            // 소개할 게 없으면 비었다고 알린다(iOS). 고칠 사람이 보는 화면이라 빈 섹션도 남긴다.
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp)
+                    .padding(top = 40.dp, bottom = 20.dp),
+            ) {
+                MapIntroSectionTitle("지도 소개")
+                Spacer(Modifier.height(12.dp))
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (map.tags.isNotEmpty()) {
+                        MapIntroTagRow(tags = map.tags)
+                    }
+                    if (map.description != null) {
+                        Text(
+                            text = map.description,
+                            style = MoaMapTheme.typography.body3.withDesignLineHeight(),
+                            color = MoaMapTheme.colors.textAlternative,
+                        )
+                    } else if (map.tags.isEmpty()) {
+                        Text(
+                            text = "아직 지도 소개가 없어요",
+                            style = MoaMapTheme.typography.body2.withDesignLineHeight(),
+                            color = MoaMapTheme.colors.textAssistive,
+                        )
                     }
                 }
             }
