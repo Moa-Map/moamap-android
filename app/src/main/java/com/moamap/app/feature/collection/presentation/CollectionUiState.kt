@@ -13,9 +13,12 @@ sealed interface JoinState {
         val submitting: Boolean = false,
         val errorMessage: String? = null,
     ) : JoinState {
-        val canSubmit: Boolean get() = code.isNotBlank() && !submitting
+        val canSubmit: Boolean get() = code.length == INVITE_CODE_LENGTH && !submitting
     }
 }
+
+/** 서버가 발급하는 초대 코드 길이. */
+internal const val INVITE_CODE_LENGTH = 6
 
 /** 목록 영역의 상태. 탭 전환은 목록 바깥이므로 바뀜 상태와 분리한다. */
 sealed interface MyMapsState {

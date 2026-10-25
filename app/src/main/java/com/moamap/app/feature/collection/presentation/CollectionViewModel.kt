@@ -302,7 +302,7 @@ class CollectionViewModel @Inject constructor(
     }
 
     /**
-     * 코드는 영문 대문자와 숫자만 남긴다. 화면의 `#` 은 장식이라 값에 넣지 않는다.
+     * 코드는 영문 대문자와 숫자만 남기고 6자에서 자른다. 화면의 `#` 은 장식이라 값에 넣지 않는다.
      *
      * `Char.isLetterOrDigit()` 은 한글도 문자로 보기 때문에 쓸 수 없다. 서버가 발급하는
      * 코드는 `VH4YXZ` 같은 ASCII 영숫자다.
@@ -311,7 +311,7 @@ class CollectionViewModel @Inject constructor(
         val editing = _uiState.value.join as? JoinState.Editing ?: return
         if (editing.submitting) return
 
-        val normalized = input.filter { char -> char.isAsciiAlphanumeric() }.uppercase()
+        val normalized = input.filter { char -> char.isAsciiAlphanumeric() }.uppercase().take(INVITE_CODE_LENGTH)
         _uiState.update { state ->
             state.copy(join = editing.copy(code = normalized, errorMessage = null))
         }

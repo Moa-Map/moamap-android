@@ -119,6 +119,10 @@ val MapDetail.topBarAction: MapDetailAction
 val MapDetail.showsMenu: Boolean
     get() = joined && type != MapType.Official
 
+/** 상단바 메뉴에 「멤버 관리」를 넣을지. 함께 쓰는 사람이 없는 나만의 지도는 뺀다. */
+val MapDetail.showsMembersMenu: Boolean
+    get() = showsMenu && !personal
+
 /**
  * 상단바 메뉴에 「지도 정보」를 넣을지. 그 화면에서 이름·설명·태그·사진을 고칠 수 있다.
  *

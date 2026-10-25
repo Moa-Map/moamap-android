@@ -76,6 +76,15 @@ class AuthInterceptorTest {
     }
 
     @Test
+    fun `구글 로그인 요청에는 헤더를 붙이지 않는다`() {
+        val store = FakeAuthTokenStore(AuthToken("access-1", "refresh-1"))
+
+        call("/api/v1/auth/google/login", store)
+
+        assertNull(server.takeRequest().getHeader("Authorization"))
+    }
+
+    @Test
     fun `토큰 갱신 요청에는 헤더를 붙이지 않는다`() {
         // 만료된 액세스 토큰을 실으면 갱신 자체가 401 로 막힌다.
         val store = FakeAuthTokenStore(AuthToken("expired", "refresh-1"))
