@@ -41,6 +41,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
+import com.moamap.app.core.designsystem.component.MoaMapNoticeDialog
 import com.moamap.app.core.designsystem.component.MoaMapTabTopBarHeight
 import com.moamap.app.core.designsystem.component.MoaMapTopBarLogo
 import com.moamap.app.core.designsystem.component.ShadowedSurface
@@ -56,10 +57,16 @@ import com.moamap.app.feature.collection.presentation.JoinMapDialog
 import com.moamap.app.feature.collection.presentation.JoinState
 import com.moamap.app.feature.collection.presentation.LeaveEligibility
 import com.moamap.app.feature.collection.presentation.MyMapsState
+import com.moamap.app.feature.mapdetail.domain.model.LeaveOutcome
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
+import com.moamap.app.feature.mapdetail.leaveConfirmMessage
+import kotlinx.coroutines.delay
 
 /** 편집에서 지도를 고르면 하단 탭 대신 뜨는 막대. 시안 `1974:8444`. */
 private val SelectionBarHeight = 75.dp
+
+/** 방장 안내 팝업이 저절로 닫히기까지. iOS 와 같다. */
+private const val OWNER_NOTICE_MILLIS = 2_500L
 
 private val CollectionTabs = listOf(MapType.Community, MapType.Private)
 
@@ -105,12 +112,26 @@ fun CollectionScreen(
         MoaMapConfirmDialog(
             title = "${edit.selected.size}개의 지도",
             titleSuffix = "에서 나가시겠습니까?",
-            message = "나가면 모음 탭에서 지도가 사라집니다",
+            // 프라이빗 지도는 초대 코드로만 다시 들어온다고 함께 알린다(iOS).
+            message = leaveConfirmMessage(
+                if (uiState.selectedTab == MapType.Private) LeaveOutcome.LeaveNeedsInviteCode else LeaveOutcome.Leave,
+            ),
             confirmText = "나가기",
             onConfirm = viewModel::leaveSelected,
             onDismissRequest = viewModel::closeLeaveConfirm,
             dismissText = "닫기",
             dismissColor = MoaMapPrimitiveColors.Gray200,
+        )
+    }
+    if (edit?.ownerNoticeVisible == true) {
+        LaunchedEffect(Unit) {
+            delay(OWNER_NOTICE_MILLIS)
+            viewModel.closeOwnerNotice()
+        }
+        MoaMapNoticeDialog(
+            title = "방장은 지도를 나갈 수 없습니다.",
+            message = "방장인 지도를 빼고 다시 골라주세요",
+            onDismissRequest = viewModel::closeOwnerNotice,
         )
     }
 

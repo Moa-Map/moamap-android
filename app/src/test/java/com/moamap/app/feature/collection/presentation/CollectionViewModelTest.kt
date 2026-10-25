@@ -555,16 +555,41 @@ class CollectionViewModelTest {
     }
 
     @Test
-    fun `고를 수 없는 지도를 누르면 이유를 알리고 고르지 않는다`() = runTest(dispatcher) {
+    fun `나만의 지도를 누르면 이유를 알리고 고르지 않는다`() = runTest(dispatcher) {
         val viewModel = editingViewModel()
 
-        viewModel.toggleSelection(2L)
-        assertEquals(OWNER_CANNOT_LEAVE_MESSAGE, viewModel.uiState.value.notice)
-
         viewModel.toggleSelection(3L)
-        assertEquals(PERSONAL_CANNOT_LEAVE_MESSAGE, viewModel.uiState.value.notice)
 
+        assertEquals(PERSONAL_CANNOT_LEAVE_MESSAGE, viewModel.uiState.value.notice)
         assertTrue(viewModel.uiState.value.edit!!.selected.isEmpty())
+    }
+
+    @Test
+    fun `방장인 지도는 고를 수 있고 나가기를 누르면 막는다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+        viewModel.toggleSelection(1L)
+        viewModel.toggleSelection(2L)
+        assertNull(viewModel.uiState.value.notice)
+
+        viewModel.openLeaveConfirm()
+
+        val edit = viewModel.uiState.value.edit!!
+        assertTrue(edit.ownerNoticeVisible)
+        assertFalse(edit.confirmVisible)
+        viewModel.closeOwnerNotice()
+        assertFalse(viewModel.uiState.value.edit!!.ownerNoticeVisible)
+        assertEquals(setOf(1L, 2L), viewModel.uiState.value.edit!!.selected)
+    }
+
+    @Test
+    fun `혼자 남은 프라이빗 지도의 방장도 방장으로 막는다`() = runTest(dispatcher) {
+        repository.result = { listOf(myMap(1L)) }
+        repository.leaveOutcome = { LeaveOutcome.DeleteMap }
+        val viewModel = startedViewModel()
+        viewModel.startEdit()
+        advanceUntilIdle()
+
+        assertEquals(LeaveEligibility.Owner, viewModel.uiState.value.edit!!.eligibilityOf(1L))
     }
 
     @Test

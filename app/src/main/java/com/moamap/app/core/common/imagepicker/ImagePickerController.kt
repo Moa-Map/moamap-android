@@ -133,7 +133,8 @@ internal fun rememberImagePickerController(
     if (cameraDeniedVisible) {
         MoaMapConfirmDialog(
             title = "카메라 권한이 필요해요",
-            message = "설정에서 카메라 접근을 허용하면 사진을 찍을 수 있어요.",
+            // 한 줄로 두면 「찍을 / 수」처럼 단어 중간에서 꺾인다.
+            message = "설정에서 카메라 접근을 허용하면\n사진을 찍을 수 있어요.",
             confirmText = "설정 열기",
             onConfirm = {
                 cameraDeniedVisible = false

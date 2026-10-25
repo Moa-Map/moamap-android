@@ -33,7 +33,7 @@ enum class LeaveEligibility {
     Checking,
     Allowed,
 
-    /** 방장이라 서버가 나가기를 막는다. */
+    /** 방장이라 나갈 수 없다. 고를 수는 있고, [나가기]를 누르면 막는다(iOS·피그마). */
     Owner,
 
     /** 나만의 지도. 나갈 대상이 아니다. */
@@ -53,6 +53,8 @@ data class CollectionEditState(
     val selected: Set<Long> = emptySet(),
     /** 나가기 확인 팝업. */
     val confirmVisible: Boolean = false,
+    /** 고른 지도에 방장인 지도가 섞여 나갈 수 없다는 팝업. */
+    val ownerNoticeVisible: Boolean = false,
     /** 나가는 중. 이때는 고르기·닫기를 막는다. */
     val leaving: Boolean = false,
 ) {

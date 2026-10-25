@@ -1,5 +1,6 @@
 package com.moamap.app.core.designsystem.component
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -119,6 +120,36 @@ fun MoaMapAlertDialog(
                 text = buttonText,
                 color = MoaMapPrimitiveColors.Blue500,
                 onClick = onDismissRequest,
+            )
+        }
+    }
+}
+
+/**
+ * 버튼 없이 알리는 팝업. 「팝업창」 모양에 제목·부제만 둔다(모음 편집 방장 안내, 피그마 릴리즈 v1).
+ *
+ * 바깥·뒤로가기·카드를 누르면 [onDismissRequest] 를 부른다. 저절로 닫는 시간은 호출부가 정한다.
+ */
+@Composable
+fun MoaMapNoticeDialog(
+    title: String,
+    message: String,
+    onDismissRequest: () -> Unit,
+) {
+    PopupCard(onDismissRequest = onDismissRequest) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(interactionSource = null, indication = null, onClick = onDismissRequest),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            SingleLineTitle(title = title, suffix = "")
+            Text(
+                text = message,
+                style = MoaMapTheme.typography.body2.withDesignLineHeight(),
+                color = MoaMapTheme.colors.textAlternative,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }

@@ -109,10 +109,10 @@ internal fun PrivateTabContent(
             onMapShareImportClick = onMapShareImportClick,
         )
 
-        // 목록이 비어도 「프라이빗 지도」 제목과 「편집」은 보이고, 그 아래에서 비었다고 알린다.
+        // iOS 와 같게: 탭에 지도가 하나도 없을 때만 비었다고 알리고, 빈 섹션은 제목째 숨긴다.
         MapsStateContent(
             state = state,
-            emptyMessage = null,
+            emptyMessage = "아직 만든 지도가 없어요",
             onRetryClick = onRetryClick,
         ) { maps ->
             val sections = maps.splitPersonal()
@@ -126,7 +126,6 @@ internal fun PrivateTabContent(
                     edit = edit,
                     onMapClick = onMapClick,
                     onMapMove = onMapMove,
-                    emptyMessage = "참여하고 있는 프라이빗 지도가 없습니다",
                     editToggle = {
                         EditToggle(edit = edit, onClick = onEditClick, modifier = Modifier.align(Alignment.End))
                     },
@@ -264,7 +263,7 @@ internal fun ImportActionCard(
     }
 }
 
-/** 목록이 비어도 제목은 남긴다. 자리가 사라졌다 나타나면 화면 구성이 바뀌어 보인다. */
+/** 지도가 없으면 제목째 숨긴다(iOS). 제목만 떠 있고 아래가 비어 있으면 못 불러온 것처럼 보인다. */
 @Composable
 private fun PrivateMapSection(
     title: String,
@@ -272,16 +271,13 @@ private fun PrivateMapSection(
     edit: CollectionEditState?,
     onMapClick: (MyMap) -> Unit,
     onMapMove: (mapId: Long, targetId: Long) -> Unit = { _, _ -> },
-    /** 있으면 지도가 없어도 섹션을 그리고 이 문구로 비었다고 알린다. 없으면 섹션째 숨긴다. */
-    emptyMessage: String? = null,
     editToggle: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
-    // 제목만 떠 있고 아래가 비어 있으면 못 불러온 것처럼 보인다.
-    if (maps.isEmpty() && emptyMessage == null) return
+    if (maps.isEmpty()) return
 
     val reorder = rememberMapReorderState(ids = maps.map { map -> map.id }, spacing = CardSpacing, onMove = onMapMove)
     // 시안: 제목과 목록 사이 12, 「편집」과 카드·카드끼리는 8.
-    // 폭을 채워야 「편집」이 오른쪽 끝에 붙는다. 카드가 없으면 안내 문구 폭으로 줄어든다.
+    // 폭을 채워야 「편집」이 오른쪽 끝에 붙는다.
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -297,14 +293,6 @@ private fun PrivateMapSection(
             verticalArrangement = Arrangement.spacedBy(CardSpacing),
         ) {
             editToggle?.invoke(this)
-            if (maps.isEmpty() && emptyMessage != null) {
-                Text(
-                    text = emptyMessage,
-                    style = MoaMapTheme.typography.body2,
-                    color = MoaMapTheme.colors.textAssistive,
-                    modifier = Modifier.padding(horizontal = 4.dp),
-                )
-            }
             // 순서를 바꾸면 카드가 자리째 옮겨가야 끌던 손잡이의 동작이 끊기지 않는다.
             maps.forEach { map ->
                 key(map.id) {
@@ -363,7 +351,8 @@ private fun MyMapCard(
                 PlaceImportCheckBox(
                     checked = selected,
                     enabled = eligibility == LeaveEligibility.Allowed ||
-                        eligibility == LeaveEligibility.Checking,
+                        eligibility == LeaveEligibility.Checking ||
+                        eligibility == LeaveEligibility.Owner,
                 )
             }
         },
