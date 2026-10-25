@@ -1,8 +1,10 @@
 package com.moamap.app.feature.explore.presentation
 
+import com.moamap.app.feature.explore.domain.model.Banner
 import com.moamap.app.feature.explore.domain.model.CommunityMap
 import com.moamap.app.feature.explore.domain.model.CommunityMapPage
 import com.moamap.app.feature.explore.domain.model.CommunityMapSort
+import com.moamap.app.feature.explore.domain.repository.BannerRepository
 import com.moamap.app.feature.explore.domain.repository.CommunityMapRepository
 import com.moamap.app.feature.officialmap.domain.model.OfficialMap
 import com.moamap.app.feature.officialmap.domain.repository.OfficialMapRepository
@@ -16,6 +18,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -104,10 +107,54 @@ class ExploreViewModelTest {
         }
     }
 
+    private class FakeBannerRepository(
+        var result: () -> List<Banner> = { emptyList() },
+    ) : BannerRepository {
+        override suspend fun getBanners(): List<Banner> = result()
+    }
+
     private fun viewModel(
         repository: CommunityMapRepository,
         officialMapRepository: OfficialMapRepository = FakeOfficialMapRepository(),
-    ) = ExploreViewModel(repository, officialMapRepository)
+        bannerRepository: BannerRepository = FakeBannerRepository(),
+    ) = ExploreViewModel(repository, officialMapRepository, bannerRepository)
+
+    @Test
+    fun `배너는 서버 순서 그대로 받는다`() = runTest {
+        val banners = listOf(Banner(2L, "https://b/2.png"), Banner(1L, "https://b/1.png"))
+        val viewModel = viewModel(FakeRepository(), bannerRepository = FakeBannerRepository { banners })
+        assertNull(viewModel.uiState.value.banners)
+
+        viewModel.refresh()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(banners, viewModel.uiState.value.banners)
+    }
+
+    @Test
+    fun `배너를 못 받으면 빈 목록이라 기본 그림을 보여 준다`() = runTest {
+        val viewModel = viewModel(FakeRepository(), bannerRepository = FakeBannerRepository { error("배너 실패") })
+
+        viewModel.refresh()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(emptyList<Banner>(), viewModel.uiState.value.banners)
+    }
+
+    @Test
+    fun `다시 읽다 배너를 못 받으면 보던 배너를 둔다`() = runTest {
+        val banners = listOf(Banner(1L, "https://b/1.png"))
+        val bannerRepository = FakeBannerRepository { banners }
+        val viewModel = viewModel(FakeRepository(), bannerRepository = bannerRepository)
+        viewModel.refresh()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        bannerRepository.result = { error("배너 실패") }
+        viewModel.refresh()
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(banners, viewModel.uiState.value.banners)
+    }
 
     @Test
     fun `인기순 앞 3개만 태그 없이 조회한다`() = runTest {

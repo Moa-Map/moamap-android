@@ -60,8 +60,7 @@ import com.moamap.app.feature.explore.presentation.CommunityMapCard
 import com.moamap.app.feature.explore.presentation.CommunityMapsState
 import com.moamap.app.feature.explore.presentation.ExploreUiState
 import com.moamap.app.feature.explore.presentation.ExploreViewModel
-import com.moamap.app.feature.explore.presentation.FeaturedMapCarousel
-import com.moamap.app.feature.explore.presentation.FeaturedMapMocks
+import com.moamap.app.feature.explore.presentation.HomeBannerCarousel
 import com.moamap.app.feature.mypage.ProfileMenu
 import com.moamap.app.feature.officialmap.domain.model.OfficialMap
 import com.moamap.app.feature.officialmap.presentation.OfficialMapsState
@@ -207,8 +206,7 @@ private fun ExploreContent(
                     .padding(top = ContentTopGap),
                 verticalArrangement = Arrangement.spacedBy(SectionGap),
             ) {
-                // 히어로는 운영자 추천 API 가 없어 임시 데이터다(10-03 사용자 결정).
-                FeaturedMapCarousel(maps = FeaturedMapMocks)
+                HomeBannerCarousel(banners = uiState.banners)
                 CommunityMapSection(
                     state = uiState.communityMaps,
                     onSeeAllClick = onSeeAllCommunityMapsClick,
@@ -509,6 +507,7 @@ private fun ExploreScreenPreview() {
     MoaMapTheme {
         ExploreContent(
             uiState = ExploreUiState(
+                banners = emptyList(),
                 communityMaps = CommunityMapsState.Success(previewCommunityMaps()),
                 officialMaps = OfficialMapsState.Success(previewOfficialMaps()),
             ),
