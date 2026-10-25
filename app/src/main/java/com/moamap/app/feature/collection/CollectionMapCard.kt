@@ -2,7 +2,6 @@ package com.moamap.app.feature.collection
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -37,6 +36,7 @@ import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.collection.domain.model.MyMap
+import com.moamap.app.feature.mapdetail.RoleBadge
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
 
 /** 카드 썸네일과 같은 높이를 유지해 제목/메타가 위아래로 벌어지도록 한다. */
@@ -146,6 +146,7 @@ internal fun CollectionMapCard(
                     PhotoThumbnail(imageUrl = map.imageUrl, size = CardThumbnailSize)
                     RoleBadge(
                         role = map.role,
+                        size = RoleBadgeSize,
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
                             .offset(x = RoleBadgeOffsetX, y = RoleBadgeOffsetY),
@@ -218,21 +219,6 @@ internal fun CollectionMapCard(
             }
         }
     }
-}
-
-/** 방장은 파란 원에 점 셋 달린 왕관, 관리자는 노란 원에 점 없는 왕관. 그 밖의 역할은 그리지 않는다. */
-@Composable
-private fun RoleBadge(role: MapRole, modifier: Modifier = Modifier) {
-    val (iconRes, label) = when (role) {
-        MapRole.Owner -> R.drawable.ic_role_badge_owner to "방장"
-        MapRole.Admin -> R.drawable.ic_role_badge_admin to "관리자"
-        MapRole.Member, MapRole.None -> return
-    }
-    Image(
-        painter = painterResource(iconRes),
-        contentDescription = label,
-        modifier = modifier.size(RoleBadgeSize),
-    )
 }
 
 @Composable
