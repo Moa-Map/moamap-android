@@ -98,20 +98,7 @@ class CollectionViewModelTest {
             events += "save"
         }
 
-        /**
-         * 커뮤니티 탭을 읽을 때 함께 불리는 참여한 공식지도.
-         *
-         * 탭을 몇 번 읽었는지 보는 [calls] 에는 넣지 않고 [officialCalls] 로 따로 센다.
-         */
-        var officialResult: () -> List<MyMap> = { emptyList() }
-        var officialCalls = 0
-
         override suspend fun getMyMaps(type: MapType): List<MyMap> {
-            if (type == MapType.Official) {
-                officialCalls++
-                delay(delayMillis)
-                return officialResult()
-            }
             calls += type
             events += "load"
             delay(delayMillis)
@@ -205,26 +192,32 @@ class CollectionViewModelTest {
     }
 
     @Test
-    fun `커뮤니티 탭은 참여한 공식지도를 맨 위에 둔다`() = runTest(dispatcher) {
-        repository.officialResult = { listOf(myMap(9)) }
-        repository.result = { listOf(myMap(1), myMap(2)) }
+    fun `커뮤니티 탭은 서버가 공식지도까지 담아 준 목록을 순서 그대로 쓴다`() = runTest(dispatcher) {
+        repository.result = { listOf(myMap(1), myMap(9, official = true), myMap(2)) }
 
         val viewModel = startedViewModel()
 
         val state = viewModel.uiState.value.community as MyMapsState.Success
-        assertEquals(listOf(9L, 1L, 2L), state.maps.map { it.id })
-        assertEquals(1, repository.officialCalls)
+        // 공식지도를 따로 받아 붙이면 서버가 이미 담아 준 지도가 두 번씩 보인다.
+        assertEquals(listOf(1L, 9L, 2L), state.maps.map { it.id })
+        assertEquals(listOf(MapType.Community), repository.calls)
     }
 
     @Test
-    fun `공식지도를 못 받아도 커뮤니티 지도는 보여준다`() = runTest(dispatcher) {
-        repository.officialResult = { throw IOException("boom") }
-        repository.result = { listOf(myMap(1)) }
-
+    fun `순서를 바꾸고 나가면 공식지도까지 한 번에 저장한 뒤 나간다`() = runTest(dispatcher) {
+        repository.result = { listOf(myMap(9L, official = true), myMap(1L), myMap(2L)) }
         val viewModel = startedViewModel()
+        viewModel.startEdit()
+        advanceUntilIdle()
+        viewModel.moveMap(mapId = 2L, targetId = 9L)
+        viewModel.toggleSelection(1L)
+        repository.events.clear()
 
-        val state = viewModel.uiState.value.community as MyMapsState.Success
-        assertEquals(listOf(1L), state.maps.map { it.id })
+        viewModel.leaveSelected()
+        advanceUntilIdle()
+
+        assertEquals(listOf(MapType.Community to listOf(2L, 9L, 1L)), repository.orderUpdates)
+        assertEquals(listOf("save", "leave", "load"), repository.events)
     }
 
     @Test
@@ -243,18 +236,16 @@ class CollectionViewModelTest {
     }
 
     @Test
-    fun `프라이빗 탭에는 공식지도를 합치지 않는다`() = runTest(dispatcher) {
-        repository.officialResult = { listOf(myMap(9)) }
-        repository.result = { listOf(myMap(1)) }
+    fun `어느 탭이든 공식지도를 따로 묻지 않는다`() = runTest(dispatcher) {
+        repository.result = { type -> if (type == MapType.Private) listOf(myMap(5)) else listOf(myMap(1)) }
         val viewModel = startedViewModel()
 
         viewModel.selectTab(MapType.Private)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value.private as MyMapsState.Success
-        assertEquals(listOf(1L), state.maps.map { it.id })
-        // 커뮤니티 탭을 읽을 때 한 번뿐이다.
-        assertEquals(1, repository.officialCalls)
+        assertEquals(listOf(5L), state.maps.map { it.id })
+        assertEquals(listOf(MapType.Community, MapType.Private), repository.calls)
     }
 
     @Test
@@ -753,28 +744,23 @@ class CollectionViewModelTest {
     }
 
     @Test
-    fun `커뮤니티 탭의 공식지도는 공식지도 순서로 따로 저장한다`() = runTest(dispatcher) {
-        repository.officialResult = { listOf(myMap(9L, official = true), myMap(8L, official = true)) }
-        repository.result = { listOf(myMap(1L), myMap(2L)) }
+    fun `커뮤니티 탭은 공식지도까지 한 줄 순서로 한 번에 저장한다`() = runTest(dispatcher) {
+        repository.result = { listOf(myMap(9L, official = true), myMap(1L), myMap(8L, official = true), myMap(2L)) }
         val viewModel = startedViewModel()
         viewModel.startEdit()
         advanceUntilIdle()
 
-        viewModel.moveMap(mapId = 8L, targetId = 9L)
-        viewModel.moveMap(mapId = 2L, targetId = 1L)
+        viewModel.moveMap(mapId = 2L, targetId = 9L)
         viewModel.finishEdit()
         advanceUntilIdle()
 
-        assertEquals(
-            listOf(MapType.Official to listOf(8L, 9L), MapType.Community to listOf(2L, 1L)),
-            repository.orderUpdates,
-        )
+        // 공식지도를 따로 보내면 서버가 빠진 지도가 있다고 거절한다(MAP_022).
+        assertEquals(listOf(MapType.Community to listOf(2L, 9L, 1L, 8L)), repository.orderUpdates)
     }
 
     @Test
-    fun `순서가 그대로인 종류는 보내지 않는다`() = runTest(dispatcher) {
-        repository.officialResult = { listOf(myMap(9L, official = true), myMap(8L, official = true)) }
-        repository.result = { listOf(myMap(1L), myMap(2L)) }
+    fun `공식지도만 옮겨도 탭 전체 순서를 보낸다`() = runTest(dispatcher) {
+        repository.result = { listOf(myMap(9L, official = true), myMap(8L, official = true), myMap(1L), myMap(2L)) }
         val viewModel = startedViewModel()
         viewModel.startEdit()
         advanceUntilIdle()
@@ -783,21 +769,19 @@ class CollectionViewModelTest {
         viewModel.finishEdit()
         advanceUntilIdle()
 
-        assertEquals(listOf(MapType.Official to listOf(8L, 9L)), repository.orderUpdates)
+        assertEquals(listOf(MapType.Community to listOf(8L, 9L, 1L, 2L)), repository.orderUpdates)
     }
 
     @Test
-    fun `공식지도와 커뮤니티 지도는 서로의 자리로 옮기지 않는다`() = runTest(dispatcher) {
-        repository.officialResult = { listOf(myMap(9L, official = true)) }
-        repository.result = { listOf(myMap(1L), myMap(2L)) }
+    fun `공식지도와 커뮤니티 지도도 서로의 자리로 옮긴다`() = runTest(dispatcher) {
+        repository.result = { listOf(myMap(9L, official = true), myMap(1L), myMap(2L)) }
         val viewModel = startedViewModel()
         viewModel.startEdit()
         advanceUntilIdle()
 
         viewModel.moveMap(mapId = 1L, targetId = 9L)
 
-        // 서버가 공식지도를 늘 위에 두므로, 섞어 두면 다시 읽을 때 순서가 바뀐다.
-        assertEquals(listOf(9L, 1L, 2L), viewModel.communityIds())
+        assertEquals(listOf(1L, 9L, 2L), viewModel.communityIds())
     }
 
     @Test
