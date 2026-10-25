@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -276,35 +277,23 @@ private fun TermsRow(
 }
 
 /**
- * 보기만 하는 약관 줄: 「‹제목› 보기」 · 「>」. 체크 표시가 없어 체크 표시 자리(24 + 8)만큼 비우고 글을 약관 줄과 맞춘다.
- * 시안이 없어 약관 줄과 같은 글자·색을 쓴다.
+ * 보기만 하는 약관 줄: 밑줄 그은 「‹제목› 보기」. 시안(릴리즈 v1 「이용약관 동의」): caption0 `#828586`, 왼쪽 16 에서
+ * 시작해 위 약관 줄의 체크 표시와 같은 선이다. 화살표는 없다.
  */
 @Composable
 private fun ViewOnlyTermsRow(
     terms: Terms,
     onOpen: () -> Unit,
 ) {
-    Row(
+    Text(
+        text = "${terms.title} 보기",
+        style = MoaMapTheme.typography.caption0.withDesignLineHeight(),
+        color = MoaMapTheme.colors.textAssistive,
+        textDecoration = TextDecoration.Underline,
         modifier = Modifier
-            .fillMaxWidth()
             .padding(horizontal = 16.dp)
             .clickable(role = Role.Button, onClickLabel = "전문 보기", onClick = onOpen),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Spacer(Modifier.width(32.dp))
-        Text(
-            text = "${terms.title} 보기",
-            style = MoaMapTheme.typography.subtitle4,
-            color = MoaMapTheme.colors.textAlternative,
-            modifier = Modifier.weight(1f),
-        )
-        Icon(
-            painter = painterResource(R.drawable.ic_arrow_right),
-            contentDescription = null,
-            tint = MoaMapTheme.colors.textAlternative,
-            modifier = Modifier.size(24.dp),
-        )
-    }
+    )
 }
 
 /** 체크 표시. 시안: 안 고르면 회색 `#C5C7C7`, 고르면 파랑 `#09A8FA`. */
