@@ -13,8 +13,6 @@ import com.moamap.app.feature.collection.domain.repository.MapRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -168,7 +166,7 @@ class CollectionViewModel @Inject constructor(
 
         if (moved != null) {
             orderSaveJob = viewModelScope.launch {
-                if (!saveOrder(tab, moved, edit.initialOrder)) load(tab, keepCurrent = true)
+                if (!saveOrder(tab, moved)) load(tab, keepCurrent = true)
             }
         }
     }
@@ -177,7 +175,7 @@ class CollectionViewModel @Inject constructor(
      * 편집 중 [mapId] 를 [targetId] 자리로 옮긴다. 손잡이를 끌어 이웃 카드를 넘을 때마다 불린다.
      *
      * 화면 안에서만 바꾸고, 저장은 편집을 끝낼 때 한 번 한다([finishEdit]).
-     * 공식지도와 커뮤니티 지도는 서버가 순서를 따로 둬서 서로의 자리로는 옮기지 않는다.
+     * 커뮤니티 탭의 공식지도도 서버가 커뮤니티 지도와 한 줄 순서로 두어 어디로든 옮긴다.
      */
     fun moveMap(mapId: Long, targetId: Long) {
         val state = _uiState.value
@@ -186,7 +184,6 @@ class CollectionViewModel @Inject constructor(
         val from = maps.indexOfFirst { map -> map.id == mapId }
         val to = maps.indexOfFirst { map -> map.id == targetId }
         if (from < 0 || to < 0) return
-        if (maps[from].official != maps[to].official) return
 
         val moved = maps.toMutableList().apply { add(to, removeAt(from)) }
         _uiState.update { current -> current.withState(current.selectedTab, MyMapsState.Success(moved)) }
@@ -243,7 +240,7 @@ class CollectionViewModel @Inject constructor(
         }
         editJob?.cancel()
         viewModelScope.launch {
-            if (moved != null) saveOrder(type, moved, edit.initialOrder)
+            if (moved != null) saveOrder(type, moved)
             val failed = edit.selected.count { mapId -> !tryLeave(mapId) }
             _uiState.update { state ->
                 // 순서 저장 실패 안내가 떠 있으면 나가기 실패가 없는 한 지우지 않는다.
@@ -261,14 +258,11 @@ class CollectionViewModel @Inject constructor(
     /**
      * 바꾼 순서를 저장한다. 실패하면 알리고 false 를 돌려준다.
      *
-     * 서버는 종류별로 그 종류의 내 지도를 빠짐없이 받아야 한다. 커뮤니티 탭에 함께 보이는 공식지도는
-     * 따로 보내고, 순서가 그대로인 종류는 보내지 않는다.
+     * 서버는 탭의 내 지도를 빠짐없이 한 번에 받는다. 커뮤니티 탭은 함께 보이는 공식지도까지 한 줄 순서다 -
+     * 나눠 보내면 빠진 지도가 있다고 거절한다(`MAP_022`).
      */
-    private suspend fun saveOrder(tab: MapType, maps: List<MyMap>, initialOrder: List<Long>): Boolean = try {
-        maps.groupBy { map -> if (map.official) MapType.Official else tab }.forEach { (type, group) ->
-            val ids = group.map { map -> map.id }
-            if (ids != initialOrder.filter { id -> id in ids }) repository.updateMyMapOrder(type, ids)
-        }
+    private suspend fun saveOrder(tab: MapType, maps: List<MyMap>): Boolean = try {
+        repository.updateMyMapOrder(tab, maps.map { map -> map.id })
         true
     } catch (e: CancellationException) {
         throw e
@@ -378,7 +372,8 @@ class CollectionViewModel @Inject constructor(
             // 바꾼 순서를 저장하는 중이면 기다린다. 먼저 읽으면 저장 전 순서로 되돌아간다.
             orderSaveJob?.join()
             try {
-                val maps = if (type == MapType.Community) getCommunityTabMaps() else repository.getMyMaps(type)
+                // 커뮤니티 탭은 서버가 참여한 공식지도까지 내가 정한 순서로 한 목록에 담아 준다.
+                val maps = repository.getMyMaps(type)
                 _uiState.update { state ->
                     state.withState(type, MyMapsState.Success(maps))
                 }
@@ -390,29 +385,6 @@ class CollectionViewModel @Inject constructor(
                 onLoadFailed(type, keepCurrent)
             }
         }
-    }
-
-    /**
-     * 커뮤니티 탭 목록. 참여한 공식지도를 맨 위에 둔다.
-     *
-     * 서버 「내 지도」는 종류별로만 줘서 공식지도를 따로 받아 붙인다. 공식지도를 못 받아도
-     * 커뮤니티 지도는 보여준다 - 곁가지 하나 때문에 탭이 통째로 실패하면 안 된다.
-     *
-     * 모음 탭에서만 합친다. 장소 가져오기의 지도 고르기에 공식지도가 섞이면 서버가 등록을 거절한다.
-     */
-    private suspend fun getCommunityTabMaps(): List<MyMap> = coroutineScope {
-        val official = async {
-            try {
-                repository.getMyMaps(MapType.Official)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "참여한 공식지도 조회 실패", e)
-                emptyList()
-            }
-        }
-        val community = repository.getMyMaps(MapType.Community)
-        official.await() + community
     }
 
     /** 새로고침이 실패했는데 이미 보여줄 목록이 있으면 지우지 않는다. */

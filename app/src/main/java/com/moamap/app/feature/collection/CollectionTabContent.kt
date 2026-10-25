@@ -61,15 +61,9 @@ internal fun CommunityTabContent(
         emptyMessage = "아직 참여한 지도가 없어요",
         onRetryClick = onRetryClick,
     ) { maps ->
-        // 맨 위 공식지도와 커뮤니티 지도는 서버가 순서를 따로 둔다. 끌기도 각자 안에서만 한다.
-        val (official, community) = maps.partition { map -> map.official }
-        val officialReorder = rememberMapReorderState(
-            ids = official.map { map -> map.id },
-            spacing = CardSpacing,
-            onMove = onMapMove,
-        )
-        val communityReorder = rememberMapReorderState(
-            ids = community.map { map -> map.id },
+        // 공식지도와 커뮤니티 지도는 서버가 한 줄 순서로 둔다. 서로의 자리로도 끌어 옮긴다.
+        val reorder = rememberMapReorderState(
+            ids = maps.map { map -> map.id },
             spacing = CardSpacing,
             onMove = onMapMove,
         )
@@ -81,17 +75,15 @@ internal fun CommunityTabContent(
             EditToggle(edit = edit, onClick = onEditClick, modifier = Modifier.align(Alignment.End))
             Column(verticalArrangement = Arrangement.spacedBy(CardSpacing)) {
                 // 순서를 바꾸면 카드가 자리째 옮겨가야 끌던 손잡이의 동작이 끊기지 않는다.
-                listOf(official to officialReorder, community to communityReorder).forEach { (group, reorder) ->
-                    group.forEach { map ->
-                        key(map.id) {
-                            MyMapCard(
-                                map = map,
-                                uiModel = map.toCommunityUiModel(),
-                                edit = edit,
-                                reorder = reorder,
-                                onClick = { onMapClick(map) },
-                            )
-                        }
+                maps.forEach { map ->
+                    key(map.id) {
+                        MyMapCard(
+                            map = map,
+                            uiModel = map.toCommunityUiModel(),
+                            edit = edit,
+                            reorder = reorder,
+                            onClick = { onMapClick(map) },
+                        )
                     }
                 }
             }
