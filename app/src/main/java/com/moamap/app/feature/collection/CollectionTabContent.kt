@@ -20,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.moamap.app.R
@@ -314,8 +315,10 @@ private fun PrivateMapSection(
 private fun EditToggle(edit: CollectionEditState?, onClick: () -> Unit, modifier: Modifier = Modifier) {
     Text(
         text = if (edit != null) "완료" else "편집",
-        style = MoaMapTheme.typography.button1,
+        // 시안 릴리즈 v1 「모음/커뮤니티」: button3(14)에 밑줄. 목록과 사이 12 는 줄 높이 상자 기준이다.
+        style = MoaMapTheme.typography.button3.withDesignLineHeight(),
         color = MoaMapTheme.colors.textNormal,
+        textDecoration = TextDecoration.Underline,
         modifier = modifier.clickable(enabled = edit?.leaving != true, onClick = onClick),
     )
 }
