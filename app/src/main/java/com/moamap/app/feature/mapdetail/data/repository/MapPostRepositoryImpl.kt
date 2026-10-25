@@ -8,6 +8,7 @@ import com.moamap.app.feature.mapdetail.data.remote.MapPostCreateRequestDto
 import com.moamap.app.feature.mapdetail.data.remote.MapPostPhotoUploadUrlRequestDto
 import com.moamap.app.feature.mapdetail.data.remote.MapPostPlaceTagRequestDto
 import com.moamap.app.feature.mapdetail.data.remote.MapPostService
+import com.moamap.app.feature.mapdetail.domain.model.MapPost
 import com.moamap.app.feature.mapdetail.domain.model.MapPostPage
 import com.moamap.app.feature.mapdetail.domain.model.MapPostSort
 import com.moamap.app.feature.mapdetail.domain.model.NewMapPost
@@ -45,6 +46,9 @@ internal class MapPostRepositoryImpl @Inject constructor(
             isLast = response.last || response.content.isEmpty(),
         )
     }
+
+    override suspend fun getPost(mapId: Long, postId: Long): MapPost =
+        mapPostService.getPost(mapId = mapId, postId = postId).toMapPost()
 
     /**
      * 전부 먼저 줄여 둔 뒤에 올린다.

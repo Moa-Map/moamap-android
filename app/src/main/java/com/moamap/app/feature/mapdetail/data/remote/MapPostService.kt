@@ -28,6 +28,13 @@ interface MapPostService {
         @Query("sort") sort: String? = null,
     ): PageResponse<MapPostDto>
 
+    /** 게시물 하나. 목록과 같은 모양이다. 지워졌으면 404. */
+    @GET("api/v1/maps/{mapId}/posts/{postId}")
+    suspend fun getPost(
+        @Path("mapId") mapId: Long,
+        @Path("postId") postId: Long,
+    ): MapPostDto
+
     /** 게시물 작성. 지도 멤버만 쓸 수 있고, 읽기가 열린 커뮤니티 지도도 멤버여야 한다. */
     @POST("api/v1/maps/{mapId}/posts")
     suspend fun createPost(

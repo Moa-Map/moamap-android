@@ -1,6 +1,7 @@
 package com.moamap.app.feature.mapdetail.domain.repository
 
 import android.net.Uri
+import com.moamap.app.feature.mapdetail.domain.model.MapPost
 import com.moamap.app.feature.mapdetail.domain.model.MapPostPage
 import com.moamap.app.feature.mapdetail.domain.model.MapPostSort
 import com.moamap.app.feature.mapdetail.domain.model.NewMapPost
@@ -9,6 +10,9 @@ interface MapPostRepository {
 
     /** [page] 는 0 부터 센다. */
     suspend fun getPosts(mapId: Long, page: Int, sort: MapPostSort): MapPostPage
+
+    /** 게시물 하나. 알림에서 바로 열 때 쓴다. */
+    suspend fun getPost(mapId: Long, postId: Long): MapPost
 
     /**
      * 사진을 올리고 게시물에 담을 주소를 고른 순서대로 돌려준다.

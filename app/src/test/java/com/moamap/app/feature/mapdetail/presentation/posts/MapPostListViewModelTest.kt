@@ -49,6 +49,8 @@ private class FakeMapPostRepository(
     /** 열어 두면 조회가 여기서 멈춘다. 응답이 늦게 도착하는 상황을 만들 때 쓴다. */
     var gate: CompletableDeferred<Unit>? = null
 
+    override suspend fun getPost(mapId: Long, postId: Long): MapPost = TODO("알림에서 열 때만 쓴다")
+
     override suspend fun getPosts(mapId: Long, page: Int, sort: MapPostSort): MapPostPage {
         requests += PostsRequest(page, sort)
         gate?.await()

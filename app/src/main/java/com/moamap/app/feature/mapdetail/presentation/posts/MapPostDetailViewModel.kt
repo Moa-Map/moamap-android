@@ -6,10 +6,12 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.auth.CurrentUserStore
+import com.moamap.app.core.navigation.MoaMapRoute
 import com.moamap.app.core.navigation.requireMapId
 import com.moamap.app.feature.mapdetail.domain.model.MapPost
 import com.moamap.app.feature.mapdetail.domain.model.MapPostComment
 import com.moamap.app.feature.mapdetail.domain.repository.MapPostCommentRepository
+import com.moamap.app.feature.mapdetail.domain.repository.MapPostRepository
 import com.moamap.app.core.common.toUserMessage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -58,12 +60,15 @@ data class MapPostDetailUiState(
  * 로그 탭 게시물 상세와 댓글.
  *
  * 게시물 내용은 목록에서 받은 것을 그대로 쓴다. 따로 다시 읽지 않는다 - 목록이 이미 같은 응답을 들고 있다.
+ *
+ * 알림으로 들어와 경로에 게시물(`postId`)이 있을 때만 그 게시물을 읽어 바로 연다.
  */
 @HiltViewModel
 class MapPostDetailViewModel @Inject constructor(
-    savedStateHandle: SavedStateHandle,
+    private val savedStateHandle: SavedStateHandle,
     private val repository: MapPostCommentRepository,
     private val currentUserStore: CurrentUserStore,
+    private val postRepository: MapPostRepository,
 ) : ViewModel() {
 
     private val mapId: Long = savedStateHandle.requireMapId()
@@ -73,6 +78,10 @@ class MapPostDetailViewModel @Inject constructor(
 
     private var loadJob: Job? = null
     private var sendJob: Job? = null
+
+    init {
+        openFromRoute()
+    }
 
     /** 상세를 열고 댓글을 읽는다. 다른 게시물을 보던 중이면 그 요청은 버린다. */
     fun open(post: MapPost) {
@@ -142,6 +151,27 @@ class MapPostDetailViewModel @Inject constructor(
                 _uiState.update { state ->
                     state.copy(loading = false, errorMessage = e.toUserMessage(COMMENT_LOAD_FAILED_MESSAGE))
                 }
+            }
+        }
+    }
+
+    /**
+     * 경로에 실려 온 게시물을 연다. 한 번 열면 경로에서 지운다 - 닫은 뒤 화면을 돌리면 다시 열리면 안 된다.
+     *
+     * 지워진 게시물이면 열지 않고 지도만 보인다.
+     */
+    private fun openFromRoute() {
+        val postId = savedStateHandle.get<Long>(MoaMapRoute.MapDetail.ARG_POST_ID)
+            ?.takeIf { id -> id != MoaMapRoute.MapDetail.NO_POST_ID }
+            ?: return
+        savedStateHandle[MoaMapRoute.MapDetail.ARG_POST_ID] = MoaMapRoute.MapDetail.NO_POST_ID
+        viewModelScope.launch {
+            try {
+                open(postRepository.getPost(mapId = mapId, postId = postId))
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "알림의 게시물 조회 실패 (mapId=$mapId, postId=$postId)", e)
             }
         }
     }
