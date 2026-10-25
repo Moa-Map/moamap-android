@@ -94,8 +94,11 @@ private val TopBarEndPadding = 16.dp
 private val TopBarIconSize = 24.dp
 private val ProfileIconTouchSize = 40.dp
 
-/** 알림 ↔ 프로필 아이콘. 시안 12 에서 프로필 칸 여백(8)을 뺀다. */
-private val TopBarIconGap = 4.dp
+/**
+ * 알림 아이콘(24)을 누르는 칸. 시안의 알림 ↔ 프로필 아이콘 사이 12 를 알림 칸 여백(4)과 프로필 칸 여백(8)이
+ * 채운다 - 둘 사이에 따로 띄우지 않는다.
+ */
+private val NotificationIconTouchSize = 32.dp
 
 /**
  * 프로필 메뉴 위치. 이번 시안에 메뉴가 없어 예전처럼 프로필 아이콘 바로 아래(4)·오른쪽 끝을 맞춘다.
@@ -122,6 +125,7 @@ fun ExploreScreen(
     onScrolledToTop: () -> Unit = {},
     onProfileEditClick: () -> Unit = {},
     onSettingsClick: () -> Unit = {},
+    onNotificationClick: () -> Unit = {},
     onCommunityMapClick: (CommunityMap) -> Unit = {},
     onSeeAllCommunityMapsClick: () -> Unit = {},
     onOfficialMapClick: (OfficialMap) -> Unit = {},
@@ -143,6 +147,7 @@ fun ExploreScreen(
         onScrolledToTop = onScrolledToTop,
         onProfileEditClick = onProfileEditClick,
         onSettingsClick = onSettingsClick,
+        onNotificationClick = onNotificationClick,
         onCommunityMapClick = onCommunityMapClick,
         onSeeAllCommunityMapsClick = onSeeAllCommunityMapsClick,
         onCommunityRetryClick = viewModel::retryCommunityMaps,
@@ -158,6 +163,7 @@ private fun ExploreContent(
     uiState: ExploreUiState,
     onProfileEditClick: () -> Unit,
     onSettingsClick: () -> Unit,
+    onNotificationClick: () -> Unit,
     onCommunityMapClick: (CommunityMap) -> Unit,
     onSeeAllCommunityMapsClick: () -> Unit,
     onCommunityRetryClick: () -> Unit,
@@ -196,6 +202,7 @@ private fun ExploreContent(
         ) {
             ExploreTopBar(
                 onLogoClick = { scope.launch { scrollState.animateScrollTo(0) } },
+                onNotificationClick = onNotificationClick,
                 onProfileClick = { profileMenuVisible = true },
             )
 
@@ -263,6 +270,7 @@ private fun ExploreContent(
 @Composable
 private fun ExploreTopBar(
     onLogoClick: () -> Unit,
+    onNotificationClick: () -> Unit,
     onProfileClick: () -> Unit,
 ) {
     Row(
@@ -275,14 +283,19 @@ private fun ExploreTopBar(
     ) {
         MoaMapTopBarLogo(onClick = onLogoClick)
         Spacer(Modifier.weight(1f))
-        // 알림 기능이 생길 때까지 보이기만 한다(백엔드 알림 API 없음, 10-03 사용자 결정).
-        Icon(
-            painter = painterResource(R.drawable.ic_bell_filled),
-            contentDescription = "알림",
-            tint = MoaMapPrimitiveColors.Gray800,
-            modifier = Modifier.size(TopBarIconSize),
-        )
-        Spacer(Modifier.width(TopBarIconGap))
+        Box(
+            modifier = Modifier
+                .size(NotificationIconTouchSize)
+                .clickable(role = Role.Button, onClick = onNotificationClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                painter = painterResource(R.drawable.ic_bell_filled),
+                contentDescription = "알림",
+                tint = MoaMapPrimitiveColors.Gray800,
+                modifier = Modifier.size(TopBarIconSize),
+            )
+        }
         Box(
             modifier = Modifier
                 .size(ProfileIconTouchSize)
@@ -513,6 +526,7 @@ private fun ExploreScreenPreview() {
             ),
             onProfileEditClick = {},
             onSettingsClick = {},
+            onNotificationClick = {},
             onCommunityMapClick = {},
             onSeeAllCommunityMapsClick = {},
             onCommunityRetryClick = {},

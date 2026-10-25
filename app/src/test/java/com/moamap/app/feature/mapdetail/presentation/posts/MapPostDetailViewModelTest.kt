@@ -1,11 +1,16 @@
 package com.moamap.app.feature.mapdetail.presentation.posts
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import com.moamap.app.core.auth.FakeCurrentUserStore
 import com.moamap.app.core.navigation.MoaMapRoute
 import com.moamap.app.feature.mapdetail.domain.model.MapPost
 import com.moamap.app.feature.mapdetail.domain.model.MapPostComment
+import com.moamap.app.feature.mapdetail.domain.model.MapPostPage
+import com.moamap.app.feature.mapdetail.domain.model.MapPostSort
+import com.moamap.app.feature.mapdetail.domain.model.NewMapPost
 import com.moamap.app.feature.mapdetail.domain.repository.MapPostCommentRepository
+import com.moamap.app.feature.mapdetail.domain.repository.MapPostRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
@@ -49,6 +54,22 @@ private class FakeCommentRepository(
     }
 }
 
+/** 게시물 하나를 읽는 쪽만 흉내 낸다. 알림에서 들어와 바로 열 때만 쓴다. */
+private class FakePostRepository(var post: MapPost? = null) : MapPostRepository {
+    val loads = mutableListOf<Pair<Long, Long>>()
+
+    override suspend fun getPost(mapId: Long, postId: Long): MapPost {
+        loads += mapId to postId
+        return post ?: throw IOException("지워진 게시물")
+    }
+
+    override suspend fun getPosts(mapId: Long, page: Int, sort: MapPostSort): MapPostPage = TODO("상세는 목록을 읽지 않는다")
+
+    override suspend fun uploadPhotos(mapId: Long, photos: List<Uri>): List<String> = TODO("상세는 사진을 올리지 않는다")
+
+    override suspend fun createPost(mapId: Long, post: NewMapPost) = TODO("상세는 게시물을 쓰지 않는다")
+}
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class MapPostDetailViewModelTest {
 
@@ -72,11 +93,43 @@ class MapPostDetailViewModelTest {
         Dispatchers.resetMain()
     }
 
-    private fun viewModel(repository: MapPostCommentRepository, myId: Long? = 1L) = MapPostDetailViewModel(
-        savedStateHandle = SavedStateHandle(mapOf(MoaMapRoute.MapDetail.ARG_MAP_ID to 7L)),
+    private fun viewModel(
+        repository: MapPostCommentRepository,
+        myId: Long? = 1L,
+        savedStateHandle: SavedStateHandle = SavedStateHandle(mapOf(MoaMapRoute.MapDetail.ARG_MAP_ID to 7L)),
+        postRepository: MapPostRepository = FakePostRepository(),
+    ) = MapPostDetailViewModel(
+        savedStateHandle = savedStateHandle,
         repository = repository,
         currentUserStore = FakeCurrentUserStore(myId),
+        postRepository = postRepository,
     )
+
+    @Test
+    fun `알림으로 들어오면 그 게시물을 읽어 바로 열고 경로에서 지운다`() = runTest {
+        val handle = SavedStateHandle(
+            mapOf(MoaMapRoute.MapDetail.ARG_MAP_ID to 7L, MoaMapRoute.MapDetail.ARG_POST_ID to 5L),
+        )
+        val postRepository = FakePostRepository(post)
+        val viewModel = viewModel(FakeCommentRepository(), savedStateHandle = handle, postRepository = postRepository)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf(7L to 5L), postRepository.loads)
+        assertEquals(post, viewModel.uiState.value.post)
+        // 닫은 뒤 화면을 돌려 다시 만들어져도 또 열리지 않는다.
+        assertEquals(MoaMapRoute.MapDetail.NO_POST_ID, handle.get<Long>(MoaMapRoute.MapDetail.ARG_POST_ID))
+    }
+
+    @Test
+    fun `알림의 게시물이 지워졌으면 열지 않는다`() = runTest {
+        val handle = SavedStateHandle(
+            mapOf(MoaMapRoute.MapDetail.ARG_MAP_ID to 7L, MoaMapRoute.MapDetail.ARG_POST_ID to 5L),
+        )
+        val viewModel = viewModel(FakeCommentRepository(), savedStateHandle = handle)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertNull(viewModel.uiState.value.post)
+    }
 
     private fun opened(repository: FakeCommentRepository, myId: Long? = 1L) =
         viewModel(repository, myId).apply {

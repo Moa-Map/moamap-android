@@ -50,6 +50,8 @@ private class CommentRecordingPostService(
         return MapPostCommentDto(id = 99, mapPostId = postId, userId = 1, content = request.content)
     }
 
+    override suspend fun getPost(mapId: Long, postId: Long): MapPostDto = TODO("사용하지 않음")
+
     override suspend fun getPosts(mapId: Long, page: Int?, size: Int?, sort: String?): PageResponse<MapPostDto> =
         TODO("사용하지 않음")
 

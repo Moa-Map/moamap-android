@@ -3,6 +3,7 @@ package com.moamap.app.feature.mapdetail.presentation.posts
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import com.moamap.app.core.navigation.MoaMapRoute
+import com.moamap.app.feature.mapdetail.domain.model.MapPost
 import com.moamap.app.feature.mapdetail.domain.model.MapPostPage
 import com.moamap.app.feature.mapdetail.domain.model.MapPostSort
 import com.moamap.app.feature.mapdetail.domain.model.NewMapPost
@@ -29,6 +30,8 @@ private class FakeCalendarRepository(
 
     val requests = mutableListOf<Pair<Int, MapPostSort>>()
     var failingPage: Int? = null
+
+    override suspend fun getPost(mapId: Long, postId: Long): MapPost = TODO("알림에서 열 때만 쓴다")
 
     override suspend fun getPosts(mapId: Long, page: Int, sort: MapPostSort): MapPostPage {
         requests += page to sort

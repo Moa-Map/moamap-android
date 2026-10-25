@@ -29,6 +29,8 @@ private class FakeMapPostService(
     val calls = mutableListOf<PostsCall>()
     val created = mutableListOf<Pair<Long, MapPostCreateRequestDto>>()
 
+    override suspend fun getPost(mapId: Long, postId: Long): MapPostDto = TODO("사용하지 않음")
+
     override suspend fun getPosts(
         mapId: Long,
         page: Int?,

@@ -5,6 +5,7 @@ import androidx.lifecycle.SavedStateHandle
 import com.moamap.app.core.common.upload.ImageUploadException
 import com.moamap.app.core.navigation.MoaMapRoute
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
+import com.moamap.app.feature.mapdetail.domain.model.MapPost
 import com.moamap.app.feature.mapdetail.domain.model.MapPostPage
 import com.moamap.app.feature.mapdetail.domain.model.MapPostPlaceTag
 import com.moamap.app.feature.mapdetail.domain.model.MapPostSort
@@ -45,6 +46,8 @@ private class FakeCreateRepository : MapPostRepository {
     var uploadResult: List<String> = emptyList()
     var uploadError: Exception? = null
     var createError: Exception? = null
+
+    override suspend fun getPost(mapId: Long, postId: Long): MapPost = TODO("알림에서 열 때만 쓴다")
 
     override suspend fun getPosts(mapId: Long, page: Int, sort: MapPostSort): MapPostPage =
         TODO("작성 화면은 목록을 읽지 않는다")

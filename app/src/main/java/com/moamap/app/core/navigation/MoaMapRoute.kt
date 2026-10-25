@@ -143,7 +143,11 @@ sealed interface MoaMapRoute {
         const val ARG_MAP_ID = "mapId"
         const val ARG_MAP_TITLE = "mapTitle"
 
-        override val route = "map_detail/{$ARG_MAP_ID}?$ARG_MAP_TITLE={$ARG_MAP_TITLE}"
+        /** 열자마자 띄울 게시물. 알림에서 게시글 댓글을 눌렀을 때다. 없으면 [NO_POST_ID]. */
+        const val ARG_POST_ID = "postId"
+        const val NO_POST_ID = -1L
+
+        override val route = "map_detail/{$ARG_MAP_ID}?$ARG_MAP_TITLE={$ARG_MAP_TITLE}&$ARG_POST_ID={$ARG_POST_ID}"
 
         /**
          * 이름은 선택값이라 경로 조각이 아니라 질의 문자열에 싣는다. 설명 화면처럼 넘길
@@ -152,8 +156,8 @@ sealed interface MoaMapRoute {
          *
          * 이름에 `/` 나 `&` 가 들어가면 주소가 끊기므로 인코딩해서 넘긴다.
          */
-        fun createRoute(mapId: Long, mapTitle: String = ""): String =
-            "map_detail/$mapId?$ARG_MAP_TITLE=${Uri.encode(mapTitle)}"
+        fun createRoute(mapId: Long, mapTitle: String = "", postId: Long = NO_POST_ID): String =
+            "map_detail/$mapId?$ARG_MAP_TITLE=${Uri.encode(mapTitle)}&$ARG_POST_ID=$postId"
     }
 
     data object ProfileEdit : MoaMapRoute {
@@ -170,6 +174,11 @@ sealed interface MoaMapRoute {
     }
 
     /** 설정 「공지사항」 목록. */
+    /** 내 알림. 홈 종 아이콘으로 들어온다. */
+    data object Notifications : MoaMapRoute {
+        override val route = "notifications"
+    }
+
     data object Notices : MoaMapRoute {
         override val route = "notices"
     }

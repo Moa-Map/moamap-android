@@ -28,10 +28,10 @@ import androidx.navigation.navArgument
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.feature.collection.CollectionScreen
 import com.moamap.app.feature.collection.domain.model.PlaceImportSource
-import com.moamap.app.feature.collection.share.SharedLink
 import com.moamap.app.feature.collection.presentation.createmap.CreateMapScreen
 import com.moamap.app.feature.collection.presentation.createmap.decodeImportedPlaces
 import com.moamap.app.feature.collection.presentation.createmap.encodeImportedPlaces
+import com.moamap.app.feature.collection.share.SharedLink
 import com.moamap.app.feature.explore.CommunityMapListScreen
 import com.moamap.app.feature.explore.ExploreScreen
 import com.moamap.app.feature.mapdetail.MapDetailScreen
@@ -41,6 +41,8 @@ import com.moamap.app.feature.mypage.NoticeDetailScreen
 import com.moamap.app.feature.mypage.NoticeListScreen
 import com.moamap.app.feature.mypage.ProfileEditScreen
 import com.moamap.app.feature.mypage.SettingsScreen
+import com.moamap.app.feature.notification.NotificationScreen
+import com.moamap.app.feature.notification.presentation.NotificationDestination
 import com.moamap.app.feature.officialmap.OfficialMapScreen
 import com.moamap.app.feature.officialmap.domain.model.isDensityOfficialMap
 import com.moamap.app.feature.officialmap.domain.model.isRestroomOfficialMap
@@ -182,6 +184,9 @@ internal fun MoaMapNavHost(
                     },
                     onSettingsClick = {
                         navController.navigate(MoaMapRoute.Settings.route)
+                    },
+                    onNotificationClick = {
+                        navController.navigate(MoaMapRoute.Notifications.route)
                     },
                     onCommunityMapClick = { map ->
                         navController.navigateToMap(mapId = map.id, mapTitle = map.title, joined = map.joined)
@@ -358,7 +363,10 @@ internal fun MoaMapNavHost(
             }
             composable(
                 route = MoaMapRoute.MapDetail.route,
-                arguments = MapScreenArguments,
+                arguments = MapScreenArguments + navArgument(MoaMapRoute.MapDetail.ARG_POST_ID) {
+                    type = NavType.LongType
+                    defaultValue = MoaMapRoute.MapDetail.NO_POST_ID
+                },
             ) { backStackEntry ->
                 MapDetailScreen(
                     // 미리보기를 거쳐 들어와 참여했으면 소개 화면은 볼 일이 없다. 함께 지워
@@ -388,6 +396,20 @@ internal fun MoaMapNavHost(
             }
             composable(MoaMapRoute.Inquiry.route) {
                 InquiryScreen(onBackClick = navController::popBackStack)
+            }
+            composable(MoaMapRoute.Notifications.route) {
+                NotificationScreen(
+                    onBackClick = navController::popBackStack,
+                    // 알림이 가리키는 지도는 참여한 커뮤니티·프라이빗 지도다. 특수 공식지도 화면으로 갈 일은 없다.
+                    onDestination = { destination ->
+                        val route = when (destination) {
+                            is NotificationDestination.Map -> MoaMapRoute.MapDetail.createRoute(destination.mapId)
+                            is NotificationDestination.Post ->
+                                MoaMapRoute.MapDetail.createRoute(destination.mapId, postId = destination.postId)
+                        }
+                        navController.navigate(route)
+                    },
+                )
             }
             composable(MoaMapRoute.Notices.route) {
                 NoticeListScreen(
