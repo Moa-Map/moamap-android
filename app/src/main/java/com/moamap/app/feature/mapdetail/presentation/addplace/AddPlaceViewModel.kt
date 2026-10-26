@@ -28,7 +28,7 @@ import javax.inject.Inject
 
 private const val TAG = "AddPlaceViewModel"
 
-private const val SEARCH_FAILED_MESSAGE = "장소를 검색하지 못했어요"
+private const val SEARCH_FAILED_MESSAGE = "검색 결과를 불러오지 못했어요"
 private const val ADD_FAILED_MESSAGE = "장소를 추가하지 못했어요"
 private const val DUPLICATE_MESSAGE = "이미 이 지도에 있는 장소예요"
 

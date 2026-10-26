@@ -58,9 +58,7 @@ import com.moamap.app.feature.collection.presentation.JoinMapDialog
 import com.moamap.app.feature.collection.presentation.JoinState
 import com.moamap.app.feature.collection.presentation.LeaveEligibility
 import com.moamap.app.feature.collection.presentation.MyMapsState
-import com.moamap.app.feature.mapdetail.domain.model.LeaveOutcome
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
-import com.moamap.app.feature.mapdetail.leaveConfirmMessage
 import kotlinx.coroutines.delay
 
 /** 편집에서 지도를 고르면 하단 탭 대신 뜨는 막대. 시안 `1974:8444`. */
@@ -77,6 +75,9 @@ private val MapType.label: String
         MapType.Private -> "프라이빗"
         MapType.Official -> "공식"
     }
+
+/** 골라서 나가기 확인 문구. 지금 보고 있는 탭에서 사라진다고 알린다(피그마 릴리즈 v1, iOS). */
+internal fun collectionLeaveMessage(tab: MapType): String = "나가면 ${tab.label} 탭에서 지도가 사라집니다"
 
 @Composable
 fun CollectionScreen(
@@ -121,10 +122,7 @@ fun CollectionScreen(
         MoaMapConfirmDialog(
             title = "${edit.selected.size}개의 지도",
             titleSuffix = "에서 나가시겠습니까?",
-            // 프라이빗 지도는 초대 코드로만 다시 들어온다고 함께 알린다(iOS).
-            message = leaveConfirmMessage(
-                if (uiState.selectedTab == MapType.Private) LeaveOutcome.LeaveNeedsInviteCode else LeaveOutcome.Leave,
-            ),
+            message = collectionLeaveMessage(uiState.selectedTab),
             confirmText = "나가기",
             onConfirm = viewModel::leaveSelected,
             onDismissRequest = viewModel::closeLeaveConfirm,

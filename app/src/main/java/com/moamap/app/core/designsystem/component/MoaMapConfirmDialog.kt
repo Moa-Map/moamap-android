@@ -47,7 +47,7 @@ private const val TITLE_ELLIPSIS = "…"
 /**
  * 한 번 더 묻는 확인 팝업. 피그마 「팝업창」 컴포넌트(`2039:13583`)다.
  *
- * 제목·부제 아래에 취소·확인 두 버튼을 둔다. 확인을 눌러도 스스로 닫지 않는다 - 닫을지,
+ * 제목·부제 아래에 닫기·확인 두 버튼을 둔다. 확인을 눌러도 스스로 닫지 않는다 - 닫을지,
  * 닫은 뒤 무엇을 할지는 호출부가 [onConfirm] 에서 정한다.
  *
  * 제목은 [title] + [titleSuffix] 를 늘 한 줄로 보여 준다. 한국어는 글자 단위로 줄이 바뀌어
@@ -56,7 +56,7 @@ private const val TITLE_ELLIPSIS = "…"
  *
  * @param title 제목 앞부분. 지도 이름처럼 길이를 알 수 없는 값을 둔다. 너무 길면 끝이 줄어든다.
  * @param titleSuffix 제목 뒷부분. 줄이지 않고 늘 다 보여 준다. 질문을 둔다.
- * @param dismissColor 취소 버튼 색. 시안마다 다르다(나가기 확인 Gray100, 모음 편집 Gray200).
+ * @param dismissColor 닫기 버튼 색. 시안마다 다르다(나가기 확인 Gray100, 모음 편집 Gray200).
  */
 @Composable
 fun MoaMapConfirmDialog(
@@ -66,7 +66,7 @@ fun MoaMapConfirmDialog(
     onConfirm: () -> Unit,
     onDismissRequest: () -> Unit,
     titleSuffix: String = "",
-    dismissText: String = "취소하기",
+    dismissText: String = "닫기",
     dismissColor: Color = MoaMapPrimitiveColors.Gray100,
 ) {
     PopupCard(onDismissRequest = onDismissRequest) {

@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -20,12 +21,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
+import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
+import com.moamap.app.core.designsystem.component.ButtonShadowColor
 import com.moamap.app.core.designsystem.component.MoaMapSearchBar
+import com.moamap.app.core.designsystem.component.MoaSymbolLogo
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -34,18 +40,26 @@ import com.moamap.app.feature.mapdetail.domain.model.PlaceCandidate
 /** 제목·안내 글이 검색창보다 안쪽으로 들어간 만큼(시안 4). */
 private val IntroStartInset = 4.dp
 
-/** 검색창 아래 검색 예시까지(시안 1번 화면). 디자인이 나중에 고친다고 했다(10-09). */
-private val SearchHintTopGap = 86.dp
+/** 검색창 아래 안내·결과 없음·오류 묶음까지(피그마 릴리즈 v1, iOS). */
+private val SearchStatusTopGap = 161.dp
 
+/** 안내 묶음 위의 흐린 로고 본체 너비. */
+private val SearchStatusLogoWidth = 75.dp
+private const val SEARCH_STATUS_LOGO_ALPHA = 0.6f
+
+/** 검색 예시. 카카오 키워드 검색 기준이다. */
 private const val SEARCH_HINT_EXAMPLES =
-    "- 도로명 + 건물번호 (위례성대로 2)\n- 건물명 + 번지 (방이동 44-2)\n- 건물명, 학교명 (반포 자이, 숭실대학교)"
+    "- 장소 이름 (숭실대학교, 롯데월드타워)\n- 지역 + 장소 이름 (성수 스타벅스)\n- 도로명 + 건물번호 (위례성대로 2)"
+
+private val RetryButtonHeight = 36.dp
+private val RetryButtonShape = RoundedCornerShape(8.dp)
 
 /**
  * 장소 추가 1단계. 카카오에서 장소를 찾아 고른다. 시안 「상세지도/장소추가」(검색 `4070:37922`, 결과
  * `4070:38652`).
  *
- * 검색 전에는 검색창 아래에 검색 예시를, 결과가 오면 그 자리에 이름·주소 줄을 모은 카드 하나를
- * 띄운다. 카카오 키워드 검색은 사진을 주지 않아 결과에 사진 칸이 없다.
+ * 검색 전·결과 없음·오류는 검색창 아래 같은 자리에 흐린 로고 + 제목 + 설명으로 알린다. 결과가 오면
+ * 그 자리에 이름·주소 줄을 모은 카드 하나를 띄운다. 카카오 키워드 검색은 사진을 주지 않아 결과에 사진 칸이 없다.
  */
 @Composable
 internal fun PlaceSearchContent(
@@ -83,19 +97,20 @@ internal fun PlaceSearchContent(
         SearchField(query = query, onQueryChange = onQueryChange)
 
         when (search) {
-            PlaceSearchState.Idle -> SearchHint(
-                modifier = Modifier.padding(start = IntroStartInset, top = SearchHintTopGap),
-            )
+            PlaceSearchState.Idle -> SearchHint()
 
             PlaceSearchState.Loading -> SearchPlaceholder { CircularProgressIndicator() }
 
-            is PlaceSearchState.Error -> SearchPlaceholder {
-                MoaMapErrorNotice(message = search.message, onRetryClick = onRetryClick)
+            is PlaceSearchState.Error -> SearchStatus(
+                title = search.message,
+                description = "잠시 후 다시 시도해주세요",
+            ) {
+                RetryButton(onClick = onRetryClick)
             }
 
             is PlaceSearchState.Success -> {
                 if (search.candidates.isEmpty()) {
-                    SearchPlaceholder("검색 결과가 없어요")
+                    SearchStatus(title = "검색 결과가 없어요", description = "장소명이나 주소를\n다시 확인해주세요")
                 } else {
                     Spacer(Modifier.height(4.dp))
                     CandidateListCard(candidates = search.candidates, onCandidateClick = onCandidateClick)
@@ -138,22 +153,14 @@ private fun SearchField(
     }
 }
 
-/**
- * 검색 예시. 시안은 Pretendard Medium 14 인데 앱에 그 굵기가 없고 디자인을 나중에 고친다고 해서
- * 본문 글꼴·회색으로 둔다(10-09).
- */
+/** 검색어를 넣기 전에 어떻게 찾으면 되는지 알려 준다. 예시 줄은 왼쪽을 맞춘다. */
 @Composable
-private fun SearchHint(modifier: Modifier = Modifier) {
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Text(
-            text = "이렇게 검색해보세요",
-            style = MoaMapTheme.typography.body2,
-            color = MoaMapTheme.colors.textAlternative,
-        )
+private fun SearchHint() {
+    SearchStatus(title = "이렇게 검색해보세요") {
         Text(
             text = SEARCH_HINT_EXAMPLES,
             style = MoaMapTheme.typography.body2,
-            color = MoaMapTheme.colors.textAssistive,
+            color = MoaMapTheme.colors.textAlternative,
         )
     }
 }
@@ -214,13 +221,78 @@ private fun CandidateRow(
 }
 
 @Composable
-private fun SearchPlaceholder(message: String) {
-    SearchPlaceholder {
+private fun SearchStatus(
+    title: String,
+    description: String,
+    action: (@Composable () -> Unit)? = null,
+) {
+    SearchStatus(title = title) {
         Text(
-            text = message,
+            text = description,
             style = MoaMapTheme.typography.body2,
-            color = MoaMapTheme.colors.textAssistive,
+            color = MoaMapTheme.colors.textAlternative,
+            textAlign = TextAlign.Center,
         )
+    }
+    if (action != null) {
+        Spacer(Modifier.height(16.dp))
+        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) { action() }
+    }
+}
+
+/** 안내·결과 없음·오류가 검색창 아래 같은 자리에 흐린 로고와 함께 뜬다. */
+@Composable
+private fun SearchStatus(title: String, detail: @Composable () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = SearchStatusTopGap),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        MoaSymbolLogo(
+            bodyWidth = SearchStatusLogoWidth,
+            modifier = Modifier.alpha(SEARCH_STATUS_LOGO_ALPHA),
+            contentDescription = null,
+        )
+        Column(
+            modifier = Modifier.semantics(mergeDescendants = true) {},
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text(
+                text = title,
+                style = MoaMapTheme.typography.subtitle4,
+                color = MoaMapTheme.colors.textNormal,
+                textAlign = TextAlign.Center,
+            )
+            detail()
+        }
+    }
+}
+
+/** 오류 아래 파란 「다시 시도」. */
+@Composable
+private fun RetryButton(onClick: () -> Unit) {
+    ShadowedSurface(
+        shape = RetryButtonShape,
+        color = MoaMapPrimitiveColors.Blue500,
+        shadowBlurRadius = ButtonShadowBlurRadius,
+        shadowColor = ButtonShadowColor,
+        onClick = onClick,
+    ) {
+        Box(
+            modifier = Modifier
+                .height(RetryButtonHeight)
+                .padding(horizontal = 8.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "다시 시도",
+                style = MoaMapTheme.typography.button2,
+                color = MoaMapTheme.colors.textWhite,
+            )
+        }
     }
 }
 
@@ -273,6 +345,38 @@ private fun PlaceSearchContentIdlePreview() {
             PlaceSearchContent(
                 query = "",
                 search = PlaceSearchState.Idle,
+                onQueryChange = {},
+                onRetryClick = {},
+                onCandidateClick = {},
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 700)
+@Composable
+private fun PlaceSearchContentEmptyPreview() {
+    MoaMapTheme {
+        Box(modifier = Modifier.background(MoaMapTheme.colors.backgroundSecondary)) {
+            PlaceSearchContent(
+                query = "커피나무",
+                search = PlaceSearchState.Success(emptyList()),
+                onQueryChange = {},
+                onRetryClick = {},
+                onCandidateClick = {},
+            )
+        }
+    }
+}
+
+@Preview(showBackground = true, widthDp = 393, heightDp = 700)
+@Composable
+private fun PlaceSearchContentErrorPreview() {
+    MoaMapTheme {
+        Box(modifier = Modifier.background(MoaMapTheme.colors.backgroundSecondary)) {
+            PlaceSearchContent(
+                query = "커피나무",
+                search = PlaceSearchState.Error("검색 결과를 불러오지 못했어요"),
                 onQueryChange = {},
                 onRetryClick = {},
                 onCandidateClick = {},

@@ -39,13 +39,19 @@ import com.moamap.app.core.designsystem.component.MoaMapTitleTopBar
 import com.moamap.app.core.designsystem.component.PhotoThumbnail
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
+import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.officialmap.domain.model.OfficialMap
 import com.moamap.app.feature.officialmap.presentation.OfficialMapViewModel
 import com.moamap.app.feature.officialmap.presentation.OfficialMapsState
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 
-private const val OFFICIAL_MAP_GUIDE = "모아맵이 공공데이터로 만든 지도예요.\n참여하면 모음 탭에서 바로 볼 수 있어요."
+/** 안내 말풍선 바탕. 멤버 관리 역할 안내와 같이 진회색 70% 에 뒤 흐림(iOS `MoaMapTooltip` 기본). */
+private val OfficialMapGuideScrim = MoaMapPrimitiveColors.Gray500.copy(alpha = 0.7f)
+
+private const val OFFICIAL_MAP_GUIDE = "모아맵이 직접 만들어 제공하는 지도예요\n핫플부터 핵심정보 지도들을 한 번에 담아 가세요"
 
 /** 카드 사진. 시안 「탐색탭_지도 · 공식지도 세부」(홈 커뮤니티 카드와 같은 틀). */
 private val CardImageSize = 80.dp
@@ -85,9 +91,11 @@ private fun OfficialMapContent(
     onMapClick: (OfficialMap) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    val guideHazeState = rememberHazeState()
     Column(
         modifier = modifier
             .fillMaxSize()
+            .hazeSource(guideHazeState)
             .background(MoaMapTheme.colors.backgroundPrimary)
             .statusBarsPadding()
             .navigationBarsPadding(),
@@ -103,7 +111,11 @@ private fun OfficialMapContent(
                 .padding(top = 12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            MoaMapGuideRow(text = "공식지도가 궁금하신가요?") {
+            MoaMapGuideRow(
+                text = "공식지도가 궁금하신가요?",
+                tooltipColor = OfficialMapGuideScrim,
+                tooltipHazeState = guideHazeState,
+            ) {
                 Text(
                     text = OFFICIAL_MAP_GUIDE,
                     style = MoaMapTheme.typography.caption0,

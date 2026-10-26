@@ -108,7 +108,7 @@ internal fun MapPostCreateScreen(
             .imePadding(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            MoaMapTitleTopBar(title = "새 게시물", onBackClick = onBackClick)
+            MoaMapTitleTopBar(title = "새 로그", onBackClick = onBackClick)
 
             Column(
                 modifier = Modifier
@@ -202,7 +202,7 @@ private fun ContentField(
                     Box {
                         if (value.isEmpty()) {
                             Text(
-                                text = "텍스트를 입력해주세요.",
+                                text = "이 장소에서의 이야기를 남겨보세요",
                                 style = MoaMapTheme.typography.body2,
                                 color = MoaMapTheme.colors.textAssistive,
                             )
@@ -359,7 +359,7 @@ private fun PlacePickerScreen(
             .pointerInput(Unit) { detectTapGestures() }
             .statusBarsPadding(),
     ) {
-        MoaMapTitleTopBar(title = "장소 선택", onBackClick = onBackClick)
+        MoaMapTitleTopBar(title = "장소 검색", onBackClick = onBackClick)
 
         if (places.isEmpty()) {
             Box(

@@ -89,7 +89,7 @@ internal fun JoinMapDialog(
             text = buildAnnotatedString {
                 append("친구에게 ")
                 withStyle(SpanStyle(color = MoaMapPrimitiveColors.Blue500)) {
-                    append("참여 코드")
+                    append("초대 코드")
                 }
                 append("를 받으세요")
             },
