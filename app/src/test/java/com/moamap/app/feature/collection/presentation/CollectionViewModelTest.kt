@@ -570,7 +570,6 @@ class CollectionViewModelTest {
     @Test
     fun `방장인 지도는 고를 수 있고 나가기를 누르면 막는다`() = runTest(dispatcher) {
         val viewModel = editingViewModel()
-        viewModel.toggleSelection(1L)
         viewModel.toggleSelection(2L)
         assertNull(viewModel.uiState.value.notice)
 
@@ -581,7 +580,7 @@ class CollectionViewModelTest {
         assertFalse(edit.confirmVisible)
         viewModel.closeOwnerNotice()
         assertFalse(viewModel.uiState.value.edit!!.ownerNoticeVisible)
-        assertEquals(setOf(1L, 2L), viewModel.uiState.value.edit!!.selected)
+        assertEquals(setOf(2L), viewModel.uiState.value.edit!!.selected)
     }
 
     @Test
@@ -604,6 +603,17 @@ class CollectionViewModelTest {
 
         viewModel.toggleSelection(1L)
         assertTrue(viewModel.uiState.value.edit!!.selected.isEmpty())
+    }
+
+    /** 시안 「편집 - active」(이슈 #382). 한 번에 하나만 나간다. */
+    @Test
+    fun `다른 지도를 누르면 고른 것이 그쪽으로 옮겨 간다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+
+        viewModel.toggleSelection(1L)
+        viewModel.toggleSelection(4L)
+
+        assertEquals(setOf(4L), viewModel.uiState.value.edit!!.selected)
     }
 
     @Test
@@ -633,9 +643,8 @@ class CollectionViewModelTest {
     }
 
     @Test
-    fun `고른 지도에서 모두 나가면 편집을 끝내고 목록을 다시 읽는다`() = runTest(dispatcher) {
+    fun `고른 지도에서 나가면 편집을 끝내고 목록을 다시 읽는다`() = runTest(dispatcher) {
         val viewModel = editingViewModel()
-        viewModel.toggleSelection(1L)
         viewModel.toggleSelection(4L)
         val loadsBefore = repository.calls.size
 
@@ -644,24 +653,24 @@ class CollectionViewModelTest {
         viewModel.leaveSelected()
         advanceUntilIdle()
 
-        assertEquals(listOf(1L, 4L), repository.leftMapIds)
+        assertEquals(listOf(4L), repository.leftMapIds)
         assertNull(viewModel.uiState.value.edit)
         assertNull(viewModel.uiState.value.notice)
         assertEquals(loadsBefore + 1, repository.calls.size)
     }
 
     @Test
-    fun `일부만 나가지 못하면 몇 개인지 알린다`() = runTest(dispatcher) {
+    fun `나가지 못하면 알리고 완료 토스트는 띄우지 않는다`() = runTest(dispatcher) {
         val viewModel = editingViewModel()
         repository.leaveFailures = setOf(4L)
-        viewModel.toggleSelection(1L)
         viewModel.toggleSelection(4L)
 
         viewModel.leaveSelected()
         advanceUntilIdle()
 
-        assertEquals(listOf(1L), repository.leftMapIds)
-        assertEquals(leaveFailedMessage(1), viewModel.uiState.value.notice)
+        assertTrue(repository.leftMapIds.isEmpty())
+        assertEquals(LEAVE_FAILED_MESSAGE, viewModel.uiState.value.notice)
+        assertNull(viewModel.uiState.value.toast)
     }
 
     @Test

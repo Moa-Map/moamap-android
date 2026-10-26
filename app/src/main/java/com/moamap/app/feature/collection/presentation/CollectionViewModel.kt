@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.common.MAP_JOINED_TOAST
 import com.moamap.app.core.common.MAP_LIST_UPDATED_TOAST
 import com.moamap.app.core.common.NETWORK_ERROR_MESSAGE
-import com.moamap.app.core.common.toggle
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.collection.domain.model.MapType
@@ -32,7 +31,7 @@ internal const val PERSONAL_CANNOT_LEAVE_MESSAGE = "나만의 지도는 나갈 �
 internal const val LEAVE_CHECK_FAILED_MESSAGE = "지도 정보를 불러오지 못했어요"
 internal const val ORDER_SAVE_FAILED_MESSAGE = "순서를 저장하지 못했어요"
 
-internal fun leaveFailedMessage(count: Int): String = "${count}개 지도에서 나가지 못했어요"
+internal const val LEAVE_FAILED_MESSAGE = "지도에서 나가지 못했어요"
 
 /** `[404] MAP_007: 유효하지 않은 초대 코드입니다.` */
 private const val INVALID_INVITE_CODE = "MAP_007"
@@ -220,7 +219,8 @@ class CollectionViewModel @Inject constructor(
             return
         }
 
-        val selected = edit.selected.toggle(mapId)
+        // 한 번에 하나만 나간다(시안 「편집 - active」). 다른 지도를 누르면 고른 것이 그쪽으로 옮겨 간다.
+        val selected = if (mapId in edit.selected) emptySet() else setOf(mapId)
         _uiState.update { state -> state.copy(edit = edit.copy(selected = selected)) }
     }
 
@@ -244,10 +244,9 @@ class CollectionViewModel @Inject constructor(
     }
 
     /**
-     * 고른 지도에서 모두 나간다.
+     * 고른 지도에서 나간다. 하나만 고를 수 있다 - [toggleSelection].
      *
-     * 한 곳씩 나간다. 일부가 실패해도 나머지는 계속하고, 끝나면 편집을 닫고 목록을 다시 읽는다.
-     * 실패한 지도는 목록에 그대로 남으니 몇 개인지만 알린다.
+     * 끝나면 성공·실패와 상관없이 편집을 닫고 목록을 다시 읽는다. 실패한 지도는 목록에 그대로 남는다.
      *
      * 순서를 바꿨으면 나가기 전에 저장한다. 나간 지도가 빠져도 남은 지도의 순서는 그대로다.
      */
@@ -263,14 +262,13 @@ class CollectionViewModel @Inject constructor(
         editJob?.cancel()
         viewModelScope.launch {
             if (moved != null) saveOrder(type, moved)
-            val failed = edit.selected.count { mapId -> !tryLeave(mapId) }
+            val left = edit.selected.all { mapId -> tryLeave(mapId) }
             _uiState.update { state ->
-                // 순서 저장 실패 안내가 떠 있으면 나가기 실패가 없는 한 지우지 않는다.
+                // 순서 저장 실패 안내가 떠 있으면 나가기에 성공한 한 지우지 않는다.
                 state.copy(
                     edit = null,
-                    notice = if (failed > 0) leaveFailedMessage(failed) else state.notice,
-                    // 하나도 못 나갔으면 바뀐 것이 없다. 일부만 나갔어도 목록은 바뀌었다.
-                    toast = if (failed < edit.selected.size) MAP_LIST_UPDATED_TOAST else state.toast,
+                    notice = if (left) state.notice else LEAVE_FAILED_MESSAGE,
+                    toast = if (left) MAP_LIST_UPDATED_TOAST else state.toast,
                 )
             }
             load(type, keepCurrent = true)

@@ -30,8 +30,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,10 +40,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
+import com.moamap.app.core.designsystem.component.MoaMapLargeButton
 import com.moamap.app.core.designsystem.component.MoaMapNoticeDialog
 import com.moamap.app.core.designsystem.component.MoaMapTabTopBarHeight
 import com.moamap.app.core.designsystem.component.MoaMapTopBarLogo
-import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -61,8 +59,8 @@ import com.moamap.app.feature.collection.presentation.MyMapsState
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
 import kotlinx.coroutines.delay
 
-/** 편집에서 지도를 고르면 하단 탭 대신 뜨는 막대. 시안 `1974:8444`. */
-private val SelectionBarHeight = 75.dp
+/** 「지도 나가기」 버튼과 홈 인디케이터 사이. 새 지도 만들기 버튼과 같다. */
+private val LeaveButtonBottomPadding = 13.dp
 
 /** 방장 안내 팝업이 저절로 닫히기까지. iOS 와 같다. */
 private const val OWNER_NOTICE_MILLIS = 2_500L
@@ -76,8 +74,14 @@ private val MapType.label: String
         MapType.Official -> "공식"
     }
 
-/** 골라서 나가기 확인 문구. 지금 보고 있는 탭에서 사라진다고 알린다(피그마 릴리즈 v1, iOS). */
-internal fun collectionLeaveMessage(tab: MapType): String = "나가면 ${tab.label} 탭에서 지도가 사라집니다"
+/**
+ * 골라서 나가기 확인 문구. 지금 보고 있는 탭에서 사라진다고 알리고, 프라이빗은 다시 들어오려면 초대 코드가
+ * 필요하다고 덧붙인다(피그마 릴리즈 v1 「팝업창」 `5068:52159`).
+ */
+internal fun collectionLeaveMessage(tab: MapType): String {
+    val message = "나가면 ${tab.label} 탭에서 지도가 사라집니다"
+    return if (tab == MapType.Private) "$message\n다시 참여하려면 초대 코드가 필요해요" else message
+}
 
 @Composable
 fun CollectionScreen(
@@ -86,7 +90,7 @@ fun CollectionScreen(
     onInstagramImportClick: () -> Unit = {},
     onMapShareImportClick: () -> Unit = {},
     onMapClick: (MyMap) -> Unit = {},
-    /** 아래 선택 막대가 떴는지. 뜬 동안 하단 탭을 숨겨야 한다 - 탭은 NavHost 가 그린다. */
+    /** 편집 중이라 아래 「지도 나가기」 버튼이 떴는지. 뜬 동안 하단 탭을 숨겨야 한다 - 탭은 NavHost 가 그린다. */
     onSelectionBarVisibleChange: (Boolean) -> Unit = {},
     /** 다른 화면이 돌려준 안내. 받았으면 [onPendingNoticeConsumed] 로 비운다. */
     pendingNotice: String? = null,
@@ -110,7 +114,7 @@ fun CollectionScreen(
     }
     val edit = uiState.edit
 
-    // 편집하는 동안은 고르기 전부터 선택 막대가 하단 탭 자리를 대신한다(시안 「편집 - default」).
+    // 편집하는 동안은 고르기 전부터 「지도 나가기」 버튼이 하단 탭 자리를 대신한다(시안 「편집 - default」).
     val selectionBarVisible = edit != null
     LaunchedEffect(selectionBarVisible) { onSelectionBarVisibleChange(selectionBarVisible) }
     DisposableEffect(Unit) { onDispose { onSelectionBarVisibleChange(false) } }
@@ -120,14 +124,14 @@ fun CollectionScreen(
 
     if (edit?.confirmVisible == true) {
         MoaMapConfirmDialog(
-            title = "${edit.selected.size}개의 지도",
-            titleSuffix = "에서 나가시겠습니까?",
+            title = "지도에서 나갈까요?",
             message = collectionLeaveMessage(uiState.selectedTab),
             confirmText = "나가기",
             onConfirm = viewModel::leaveSelected,
             onDismissRequest = viewModel::closeLeaveConfirm,
             dismissText = "닫기",
             dismissColor = MoaMapPrimitiveColors.Gray200,
+            confirmColor = MoaMapTheme.colors.statusAlert,
         )
     }
     if (edit?.ownerNoticeVisible == true) {
@@ -265,61 +269,25 @@ private fun CollectionContent(
             }
         }
 
-        // 안내는 하단 탭(또는 선택 막대) 위에 쌓는다.
+        // 안내는 하단 탭(또는 「지도 나가기」 버튼) 위에 쌓는다.
         Column(modifier = Modifier.align(Alignment.BottomCenter)) {
             ErrorSnackbar(message = uiState.notice, onShown = onNoticeShown)
             if (edit != null) {
-                SelectionBar(
-                    count = edit.selected.size,
-                    leaving = edit.leaving,
-                    onLeaveClick = onLeaveClick,
+                // 하단 탭 자리를 대신한다. 고르기 전에는 회색으로 막힌다(시안 「편집 - default」·「편집 - active」).
+                MoaMapLargeButton(
+                    label = "지도 나가기",
+                    enabled = edit.selected.isNotEmpty() && !edit.leaving,
+                    submitting = edit.leaving,
+                    onClick = onLeaveClick,
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding)
+                        .padding(top = LeaveButtonBottomPadding, bottom = LeaveButtonBottomPadding),
                 )
             } else {
                 // 하단 탭 자리. 탭은 NavHost 가 그린다.
                 Spacer(Modifier.navigationBarsPadding().height(80.dp))
             }
-        }
-    }
-}
-
-/**
- * 고른 지도 수와 나가기. 시안 릴리즈 v1 「하단」(`4925:35373`)·「편집 - default」(`5061:50957`). 하단 탭 자리를 대신한다.
- *
- * 아무것도 고르지 않았으면 「나가기」가 바탕 없는 회색 글자이고 눌리지 않는다. 고르면 빨간 둥근 버튼이 된다.
- */
-@Composable
-private fun SelectionBar(count: Int, leaving: Boolean, onLeaveClick: () -> Unit) {
-    ShadowedSurface(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RectangleShape,
-        color = MoaMapPrimitiveColors.White,
-    ) {
-        Row(
-            modifier = Modifier
-                .navigationBarsPadding()
-                .height(SelectionBarHeight)
-                .padding(horizontal = 36.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = "${count}개 선택됨",
-                style = MoaMapTheme.typography.subtitle2,
-                color = MoaMapTheme.colors.textNormal,
-            )
-            val selected = count > 0
-            Text(
-                text = "나가기",
-                style = MoaMapTheme.typography.button2,
-                color = if (selected) MoaMapTheme.colors.textWhite else MoaMapTheme.colors.textAssistive,
-                // 시안은 회색 글자를 오른쪽 끝에 바로 붙이지만, 고를 때 글자가 옮겨 다니지 않게 안쪽 12·8 을
-                // 둘 다 둔다(10-26 사용자 결정).
-                modifier = Modifier
-                    .clip(RoundedCornerShape(1000.dp))
-                    .background(if (selected) MoaMapTheme.colors.statusAlert else Color.Transparent)
-                    .clickable(enabled = selected && !leaving, onClick = onLeaveClick)
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-            )
         }
     }
 }
