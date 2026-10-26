@@ -169,7 +169,7 @@ internal fun PhotoRemoveButton(onClick: () -> Unit, modifier: Modifier = Modifie
     Box(
         modifier = modifier
             .padding(4.dp)
-            .size(24.dp)
+            .size(28.dp)
             .clip(ChipShape)
             .background(MoaMapPrimitiveColors.TransparentBlack)
             .clickable(onClick = onClick),
@@ -179,7 +179,7 @@ internal fun PhotoRemoveButton(onClick: () -> Unit, modifier: Modifier = Modifie
             painter = painterResource(R.drawable.ic_close),
             contentDescription = "사진 빼기",
             tint = MoaMapPrimitiveColors.White,
-            modifier = Modifier.size(16.dp),
+            modifier = Modifier.size(20.dp),
         )
     }
 }

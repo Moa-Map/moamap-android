@@ -386,8 +386,8 @@ internal fun PlaceActions(
             PlaceActionButton(
                 label = "지도 보기",
                 iconRes = R.drawable.ic_map,
-                containerColor = MoaMapPrimitiveColors.Gray200,
-                contentColor = MoaMapPrimitiveColors.White,
+                containerColor = MoaMapPrimitiveColors.Yellow100,
+                contentColor = MoaMapPrimitiveColors.Yellow900,
                 loading = false,
                 onClick = onShowOnMapClick,
                 modifier = Modifier.weight(1f),

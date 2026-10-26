@@ -307,7 +307,7 @@ private fun ReviewDraftPhoto(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(2.dp)
-                    .size(20.dp)
+                    .size(24.dp)
                     .clip(CircleShape)
                     .background(MoaMapPrimitiveColors.Black.copy(alpha = 0.6f))
                     .clickable(role = Role.Button, onClick = onRemoveClick)
@@ -318,7 +318,7 @@ private fun ReviewDraftPhoto(
                     painter = painterResource(R.drawable.ic_close),
                     contentDescription = null,
                     tint = MoaMapPrimitiveColors.White,
-                    modifier = Modifier.size(14.dp),
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }
