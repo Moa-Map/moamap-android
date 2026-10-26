@@ -100,10 +100,11 @@ sealed interface MoaMapRoute {
      */
     data object DensityMapDetail : MoaMapRoute {
         override val route =
-            "density_map_detail/{${MapDetail.ARG_MAP_ID}}?${MapDetail.ARG_MAP_TITLE}={${MapDetail.ARG_MAP_TITLE}}"
+            "density_map_detail/{${MapDetail.ARG_MAP_ID}}?${MapDetail.ARG_MAP_TITLE}={${MapDetail.ARG_MAP_TITLE}}" +
+                "&${MapDetail.ARG_JOINED}={${MapDetail.ARG_JOINED}}"
 
-        fun createRoute(mapId: Long, mapTitle: String = ""): String =
-            "density_map_detail/$mapId?${MapDetail.ARG_MAP_TITLE}=${Uri.encode(mapTitle)}"
+        fun createRoute(mapId: Long, mapTitle: String = "", joined: Boolean = false): String =
+            "density_map_detail/$mapId?${MapDetail.ARG_MAP_TITLE}=${Uri.encode(mapTitle)}&${MapDetail.ARG_JOINED}=$joined"
     }
 
     /**
@@ -113,10 +114,11 @@ sealed interface MoaMapRoute {
      */
     data object RestroomMapDetail : MoaMapRoute {
         override val route =
-            "restroom_map_detail/{${MapDetail.ARG_MAP_ID}}?${MapDetail.ARG_MAP_TITLE}={${MapDetail.ARG_MAP_TITLE}}"
+            "restroom_map_detail/{${MapDetail.ARG_MAP_ID}}?${MapDetail.ARG_MAP_TITLE}={${MapDetail.ARG_MAP_TITLE}}" +
+                "&${MapDetail.ARG_JOINED}={${MapDetail.ARG_JOINED}}"
 
-        fun createRoute(mapId: Long, mapTitle: String = ""): String =
-            "restroom_map_detail/$mapId?${MapDetail.ARG_MAP_TITLE}=${Uri.encode(mapTitle)}"
+        fun createRoute(mapId: Long, mapTitle: String = "", joined: Boolean = false): String =
+            "restroom_map_detail/$mapId?${MapDetail.ARG_MAP_TITLE}=${Uri.encode(mapTitle)}&${MapDetail.ARG_JOINED}=$joined"
     }
 
     /**
@@ -147,7 +149,11 @@ sealed interface MoaMapRoute {
         const val ARG_POST_ID = "postId"
         const val NO_POST_ID = -1L
 
-        override val route = "map_detail/{$ARG_MAP_ID}?$ARG_MAP_TITLE={$ARG_MAP_TITLE}&$ARG_POST_ID={$ARG_POST_ID}"
+        /** 지도 소개에서 막 참여하고 들어왔다. 열자마자 「지도에 참여했어요」를 띄운다. */
+        const val ARG_JOINED = "joined"
+
+        override val route =
+            "map_detail/{$ARG_MAP_ID}?$ARG_MAP_TITLE={$ARG_MAP_TITLE}&$ARG_POST_ID={$ARG_POST_ID}&$ARG_JOINED={$ARG_JOINED}"
 
         /**
          * 이름은 선택값이라 경로 조각이 아니라 질의 문자열에 싣는다. 설명 화면처럼 넘길
@@ -156,8 +162,12 @@ sealed interface MoaMapRoute {
          *
          * 이름에 `/` 나 `&` 가 들어가면 주소가 끊기므로 인코딩해서 넘긴다.
          */
-        fun createRoute(mapId: Long, mapTitle: String = "", postId: Long = NO_POST_ID): String =
-            "map_detail/$mapId?$ARG_MAP_TITLE=${Uri.encode(mapTitle)}&$ARG_POST_ID=$postId"
+        fun createRoute(
+            mapId: Long,
+            mapTitle: String = "",
+            postId: Long = NO_POST_ID,
+            joined: Boolean = false,
+        ): String = "map_detail/$mapId?$ARG_MAP_TITLE=${Uri.encode(mapTitle)}&$ARG_POST_ID=$postId&$ARG_JOINED=$joined"
     }
 
     data object ProfileEdit : MoaMapRoute {

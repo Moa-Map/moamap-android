@@ -40,6 +40,8 @@ import com.moamap.app.feature.collection.presentation.placeimport.PlaceImportVie
 internal fun NavGraphBuilder.placeImportGraph(
     navController: NavHostController,
     onImportedForNewMap: (List<EditedPlace>) -> Unit,
+    /** 저장을 마쳐 흐름을 닫을 때. 돌아간 화면이 띄울 완료 토스트를 준다. */
+    onImportDone: (toast: String) -> Unit,
 ) {
     navigation(
         route = MoaMapRoute.PlaceImport.route,
@@ -211,6 +213,7 @@ internal fun NavGraphBuilder.placeImportGraph(
             LaunchedEffect(uiState.saveResult) {
                 if (uiState.saveResult != null) {
                     leaving = true
+                    uiState.doneToast?.let(onImportDone)
                     navController.popBackStack(MoaMapRoute.PlaceImport.route, inclusive = true)
                 }
             }

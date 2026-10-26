@@ -1,6 +1,7 @@
 package com.moamap.app.feature.mapdetail.presentation
 
 import androidx.lifecycle.SavedStateHandle
+import com.moamap.app.core.common.MAP_JOINED_TOAST
 import com.moamap.app.core.navigation.MoaMapRoute
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.mapdetail.domain.model.MapDetailAction
@@ -163,6 +164,20 @@ class MapDetailViewModelTest {
         assertFalse(viewModel.uiState.value.left)
         // 미리보기를 거쳐 들어왔다면 뒤로 갈 때 그 화면을 건너뛰어야 한다.
         assertTrue(viewModel.uiState.value.joinedHere)
+        assertEquals(MAP_JOINED_TOAST, viewModel.uiState.value.toast)
+    }
+
+    @Test
+    fun `지도 소개에서 참여하고 들어오면 한 번만 참여 토스트를 띄운다`() = runTest {
+        val handle = SavedStateHandle(
+            mapOf(MoaMapRoute.MapDetail.ARG_MAP_ID to 1L, MoaMapRoute.MapDetail.ARG_JOINED to true),
+        )
+        val joined = MapDetailViewModel(savedStateHandle = handle, repository = FakeMapDetailRepository())
+
+        assertEquals(MAP_JOINED_TOAST, joined.uiState.value.toast)
+        // 화면을 돌려 다시 만들어져도 또 뜨지 않는다.
+        assertEquals(false, handle.get<Boolean>(MoaMapRoute.MapDetail.ARG_JOINED))
+        assertNull(viewModel(FakeMapDetailRepository()).uiState.value.toast)
     }
 
     @Test

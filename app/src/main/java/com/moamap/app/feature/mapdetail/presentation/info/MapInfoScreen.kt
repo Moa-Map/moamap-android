@@ -28,6 +28,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.MoaMapBackButton
+import com.moamap.app.core.designsystem.component.MoaMapToast
 import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.designsystem.theme.withDesignLineHeight
@@ -59,6 +60,9 @@ internal fun MapInfoScreen(
     onBackClick: () -> Unit,
     onEditClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 수정을 저장하고 돌아왔을 때 한 번 띄우는 토스트. */
+    toastMessage: String? = null,
+    onToastShown: () -> Unit = {},
 ) {
     Box(
         modifier = modifier
@@ -141,6 +145,16 @@ internal fun MapInfoScreen(
                 )
             }
         }
+
+        // 시안에 이 화면의 자리가 없어 모음 탭 예시와 같은 높이(시스템 막대 위 32)에 둔다.
+        MoaMapToast(
+            message = toastMessage,
+            onShown = onToastShown,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 32.dp),
+        )
     }
 }
 

@@ -56,6 +56,8 @@ internal data class PlaceImportUiState(
     val saving: Boolean = false,
     /** 등록이 끝나면 채워진다. 흐름을 빠져나갈 신호도 겸한다. */
     val saveResult: PlaceSaveResult? = null,
+    /** 저장을 마치고 돌아간 화면이 띄우는 완료 토스트. [saveResult] 와 함께 채운다. */
+    val doneToast: String? = null,
     /** 한 번 보여주고 소비하는 실패 안내. 추출 결과와 독립적이다. */
     val errorMessage: String? = null,
 ) {

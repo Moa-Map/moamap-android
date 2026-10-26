@@ -90,6 +90,8 @@ fun CollectionScreen(
     /** 다른 화면이 돌려준 안내. 받았으면 [onPendingNoticeConsumed] 로 비운다. */
     pendingNotice: String? = null,
     onPendingNoticeConsumed: () -> Unit = {},
+    /** 완료 토스트. 하단 탭 위에 그려야 해서 NavHost 가 띄운다. */
+    onToast: (String) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: CollectionViewModel = hiltViewModel(),
 ) {
@@ -99,6 +101,11 @@ fun CollectionScreen(
         pendingNotice ?: return@LaunchedEffect
         viewModel.showNotice(pendingNotice)
         onPendingNoticeConsumed()
+    }
+    LaunchedEffect(uiState.toast) {
+        val toast = uiState.toast ?: return@LaunchedEffect
+        onToast(toast)
+        viewModel.consumeToast()
     }
     val edit = uiState.edit
 

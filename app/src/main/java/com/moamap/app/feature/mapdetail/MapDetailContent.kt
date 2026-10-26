@@ -8,6 +8,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import com.moamap.app.R
+import com.moamap.app.core.designsystem.component.MoaMapToast
 import com.moamap.app.feature.mapdetail.domain.model.MapPost
 import com.moamap.app.feature.mapdetail.domain.model.MapPostSort
 import com.moamap.app.feature.mapdetail.presentation.posts.MapPostListUiState
@@ -48,6 +49,9 @@ import kotlinx.coroutines.launch
 
 /** 시트가 가리지 않도록 지도 컨트롤을 시트 위로 띄우는 여백. */
 private val MapControlsBottomGap = 16.dp
+
+/** 완료 토스트 아래 끝과 장소 목록 시트 위 끝 사이. 시안 「내부 (방장뷰)」: 토스트 620~656, 시트 665. */
+private val ToastSheetGap = 9.dp
 
 /**
  * 접힌 시트 높이의 첫 값. 제목·검색창·카테고리 칩까지 보이는 높이다.
@@ -106,6 +110,9 @@ internal fun MapDetailContent(
     modifier: Modifier = Modifier,
     /** 공식지도. 시안대로 장소/로그 탭을 띄우지 않고, 장소 시트도 검색·칩·하트 없이 그린다. */
     official: Boolean = false,
+    /** 한 번 띄우는 완료 토스트. 장소 탭은 목록 시트 바로 위, 로그 탭은 화면 아래에 뜬다. */
+    toastMessage: String? = null,
+    onToastShown: () -> Unit = {},
     mapContent: @Composable () -> Unit,
 ) {
     Column(
@@ -152,6 +159,8 @@ internal fun MapDetailContent(
                         onAddPlaceClick = onAddPlaceClick,
                         onMyLocationClick = onMyLocationClick,
                         official = official,
+                        toastMessage = toastMessage,
+                        onToastShown = onToastShown,
                         mapContent = mapContent,
                     )
                 }
@@ -190,6 +199,13 @@ internal fun MapDetailContent(
                                     .padding(end = 20.dp, bottom = 20.dp),
                             )
                         }
+                        MoaMapToast(
+                            message = toastMessage,
+                            onShown = onToastShown,
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 20.dp),
+                        )
                     }
                 }
             }
@@ -238,6 +254,8 @@ private fun MapDetailPlacesContent(
     onAddPlaceClick: () -> Unit,
     onMyLocationClick: () -> Unit,
     official: Boolean,
+    toastMessage: String?,
+    onToastShown: () -> Unit,
     mapContent: @Composable () -> Unit,
 ) {
     // 장소 시트가 떠 있는 동안에만 목록 시트를 숨길 수 있다. 사람이 끌어서 숨기지는 못한다.
@@ -348,6 +366,13 @@ private fun MapDetailPlacesContent(
                         .padding(end = 20.dp, bottom = peekHeight + MapControlsBottomGap),
                 )
             }
+            MoaMapToast(
+                message = toastMessage,
+                onShown = onToastShown,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = peekHeight + ToastSheetGap),
+            )
         }
     }
 }
