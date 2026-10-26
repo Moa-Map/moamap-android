@@ -101,4 +101,24 @@ internal open class FakeMapDetailRepository(
         likeFailure?.let { throw it }
         return PlaceLike(liked = liked, likeCount = confirmedLikeCount)
     }
+
+    /** 수정·삭제를 실패시켜야 하는 테스트가 있다. 비어 있으면 성공한다. */
+    var placeChangeFailure: Throwable? = null
+
+    /** 마지막 수정 요청의 메모·태그. */
+    var lastUpdate: Pair<String, List<String>>? = null
+
+    override suspend fun updatePlace(placeId: Long, memo: String, tags: List<String>): MapPlace {
+        calls += "updatePlace"
+        delay(responseDelayMillis)
+        placeChangeFailure?.let { throw it }
+        lastUpdate = memo to tags
+        return testPlace(placeId).copy(description = memo, tags = tags)
+    }
+
+    override suspend fun deletePlace(placeId: Long) {
+        calls += "deletePlace"
+        delay(responseDelayMillis)
+        placeChangeFailure?.let { throw it }
+    }
 }

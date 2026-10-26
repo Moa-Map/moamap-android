@@ -52,6 +52,7 @@ fun PlaceDto.toMapPlace(): MapPlace = MapPlace(
     kakaoPlaceId = kakaoPlaceId?.trim().orEmpty(),
     likeCount = likeCount,
     liked = likedByMe,
+    createdBy = createdBy,
 )
 
 private const val INSTAGRAM_SOURCE_TYPE = "INSTAGRAM"

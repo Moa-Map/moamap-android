@@ -1,6 +1,7 @@
 package com.moamap.app.feature.mapdetail
 
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.clickable
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -24,6 +26,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,6 +53,7 @@ import com.moamap.app.core.designsystem.component.ImageSourceMenu
 import com.moamap.app.core.designsystem.component.MoaMapBackButton
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
 import com.moamap.app.core.designsystem.component.MoaMapSheetGrabber
+import com.moamap.app.core.designsystem.component.MoaMapToast
 import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -65,6 +69,9 @@ private val SheetGrabberAreaHeight = 16.dp
 
 /** 사진 고르기 메뉴 아래 끝과 댓글 입력칸 사이(시안). */
 private val PhotoMenuGapAboveInput = 4.dp
+
+/** 토스트 아래 끝과 댓글 입력칸 사이. 시안은 토스트가 입력 줄 위 끝에 거의 붙어 있다. */
+private val ToastGapAboveInput = 4.dp
 private val PageActionGap = 8.dp
 private val CompactActionGap = 4.dp
 
@@ -102,8 +109,19 @@ internal fun PlaceDetailContent(
     onCancelEdit: () -> Unit = {},
     onDeleteReview: (Long) -> Unit = {},
     showsReactions: Boolean = true,
+    /** null 이 아니면 페이지 상단 바에 ⋮ 메뉴(수정하기·삭제하기)를 둔다. 고치거나 지울 수 있는 장소다. */
+    onEditPlaceClick: (() -> Unit)? = null,
+    /** 메뉴의 삭제하기를 팝업에서 한 번 더 확인받은 뒤 부른다. */
+    onDeletePlace: () -> Unit = {},
+    /** 한 번 띄우는 완료 토스트. 장소 정보를 고친 뒤다. 댓글 입력 줄 바로 위에 뜬다(시안). */
+    toastMessage: String? = null,
+    onToastShown: () -> Unit = {},
 ) {
     var reviewPhoto by rememberSaveable(place.id) { mutableStateOf<Uri?>(null) }
+    // 메뉴는 화면을 돌리면 닫혀도 된다. 시트로 내려가면 메뉴 아이콘이 없어 함께 닫는다.
+    var placeMenuVisible by remember(place.id) { mutableStateOf(false) }
+    LaunchedEffect(sheet) { if (sheet) placeMenuVisible = false }
+    var deletePlaceConfirmVisible by rememberSaveable(place.id) { mutableStateOf(false) }
     // 옆으로 밀어 버튼이 드러난 댓글. 한 번에 한 줄만 연다.
     var openReviewId by remember(place.id) { mutableStateOf<Long?>(null) }
     // 삭제를 확인받는 중인 댓글.
@@ -134,7 +152,10 @@ internal fun PlaceDetailContent(
                     if (isSheet) {
                         PlaceSheetTopBar(onBackClick = onBackClick, onCloseClick = onCloseClick)
                     } else {
-                        PlaceDetailTopBar(onBackClick = onBackClick)
+                        PlaceDetailTopBar(
+                            onBackClick = onBackClick,
+                            onMenuClick = onEditPlaceClick?.let { { placeMenuVisible = true } },
+                        )
                     }
                 }
             }
@@ -246,6 +267,71 @@ internal fun PlaceDetailContent(
             )
         }
 
+        if (deletePlaceConfirmVisible) {
+            // 시안이 없어 댓글 삭제 팝업과 같은 말투로 둔다(이슈 #376).
+            MoaMapConfirmDialog(
+                title = "장소를 삭제할까요?",
+                message = "삭제한 장소는 되돌릴 수 없어요",
+                confirmText = "삭제",
+                onConfirm = {
+                    deletePlaceConfirmVisible = false
+                    onDeletePlace()
+                },
+                onDismissRequest = { deletePlaceConfirmVisible = false },
+            )
+        }
+
+        val onEditPlace = onEditPlaceClick
+        if (placeMenuVisible && onEditPlace != null) {
+            // 메뉴 밖을 누르면 닫는다.
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .pointerInput(Unit) {
+                        detectTapGestures { placeMenuVisible = false }
+                    },
+            )
+            PlaceDetailMenu(
+                onEditClick = {
+                    placeMenuVisible = false
+                    onEditPlace()
+                },
+                onDeleteClick = {
+                    placeMenuVisible = false
+                    deletePlaceConfirmVisible = true
+                },
+                hazeState = photoMenuHazeState,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = MapDetailMenuTop, end = MapDetailMenuEnd),
+            )
+            BackHandler { placeMenuVisible = false }
+        }
+
+        // 댓글 입력 줄 바로 위(시안). 입력 줄이 없는 장소(공식지도)는 아래에서 20 위다.
+        val toastAnchor = composerInputBounds?.takeIf { showsReactions }?.translate(-contentOrigin)
+        MoaMapToast(
+            message = toastMessage,
+            onShown = onToastShown,
+            modifier = if (toastAnchor == null) {
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 20.dp)
+            } else {
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+                        layout(placeable.width, placeable.height) {
+                            val bottom = toastAnchor.top - ToastGapAboveInput.toPx()
+                            placeable.place(x = 0, y = bottom.roundToInt() - placeable.height)
+                        }
+                    }
+            },
+        )
+
         if (pickerState.isSourceMenuVisible) {
             // 입력칸 자리는 화면 기준이라 이 화면 기준으로 옮긴다. 키보드가 올라와 입력칸이 움직여도 따라간다.
             val anchor = composerInputBounds?.translate(-contentOrigin)
@@ -317,9 +403,12 @@ internal fun BackCloseControls(
     }
 }
 
-/** 장소 상세 페이지 상단 바. 시안 GNB 58 에 뒤로가기만 있다. 페이지는 화면 맨 위라 상태 표시줄만큼 내린다. */
+/**
+ * 장소 상세 페이지 상단 바. 시안 GNB 58 에 뒤로가기, 고치거나 지울 수 있는 장소면 오른쪽 끝 20 에 메뉴(32).
+ * 페이지는 화면 맨 위라 상태 표시줄만큼 내린다.
+ */
 @Composable
-private fun PlaceDetailTopBar(onBackClick: () -> Unit) {
+private fun PlaceDetailTopBar(onBackClick: () -> Unit, onMenuClick: (() -> Unit)?) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -332,6 +421,18 @@ private fun PlaceDetailTopBar(onBackClick: () -> Unit) {
                 .align(Alignment.CenterStart)
                 .padding(start = MoaMapTopBarIconEdgePadding),
         )
+        onMenuClick?.let { onClick ->
+            Icon(
+                painter = painterResource(R.drawable.ic_menu),
+                contentDescription = "장소 메뉴",
+                tint = MoaMapTheme.colors.textNormal,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = MapDetailMenuEnd)
+                    .clickable(onClick = onClick)
+                    .size(32.dp),
+            )
+        }
     }
 }
 

@@ -299,6 +299,11 @@ class MapDetailViewModel @Inject constructor(
         }
     }
 
+    /** 장소 정보를 고친 뒤 서버가 돌려준 값으로 그 장소만 바꾼다. 목록 전체를 다시 읽지 않는다. */
+    fun replacePlace(updated: MapPlace) {
+        updatePlace(updated.id) { updated }
+    }
+
     private fun updatePlace(placeId: Long, change: (MapPlace) -> MapPlace) {
         _uiState.update { state ->
             state.copy(places = state.places.map { place -> if (place.id == placeId) change(place) else place })

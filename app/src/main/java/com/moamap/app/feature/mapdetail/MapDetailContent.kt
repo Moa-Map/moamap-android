@@ -110,7 +110,10 @@ internal fun MapDetailContent(
     modifier: Modifier = Modifier,
     /** 공식지도. 시안대로 장소/로그 탭을 띄우지 않고, 장소 시트도 검색·칩·하트 없이 그린다. */
     official: Boolean = false,
-    /** 한 번 띄우는 완료 토스트. 장소 탭은 목록 시트 바로 위, 로그 탭은 화면 아래에 뜬다. */
+    /**
+     * 한 번 띄우는 완료 토스트. 장소 탭은 목록 시트 바로 위(펼친 목록이면 그 위 화면 아래), 로그 탭은 화면 아래에
+     * 뜬다.
+     */
     toastMessage: String? = null,
     onToastShown: () -> Unit = {},
     mapContent: @Composable () -> Unit,
@@ -310,70 +313,75 @@ private fun MapDetailPlacesContent(
         }
     }
 
-    BottomSheetScaffold(
-        scaffoldState = scaffoldState,
-        sheetContent = {
-            MapDetailBottomSheet(
-                places = places,
-                placeCount = placeCount,
-                categoryFilters = categoryFilters,
-                selectedCategory = selectedCategory,
-                onCategorySelect = onCategorySelect,
-                searchQuery = searchQuery,
-                onSearchQueryChange = onSearchQueryChange,
-                // 접힌 시트에서 검색창을 누르면 목록이 안 보인다. 눌린 김에 끝까지 올린다.
-                onSearchFocused = { scope.launch { scaffoldState.bottomSheetState.expand() } },
-                onPlaceClick = onPlaceClick,
-                onLikeClick = onLikeClick,
-                onHeaderHeightChange = { height -> peekHeight = height },
-                official = official,
-            )
-        },
-        sheetPeekHeight = peekHeight,
-        sheetShape = RoundedCornerShape(topStart = 38.dp, topEnd = 38.dp),
-        sheetContainerColor = MoaMapTheme.colors.backgroundSecondary,
-        sheetTonalElevation = 0.dp,
-        sheetShadowElevation = 10.dp,
-        sheetDragHandle = null,
-        modifier = Modifier.fillMaxSize(),
-    ) { _ ->
-        Box(modifier = Modifier.fillMaxSize()) {
-            mapContent()
-            // 장소 시트가 떠 있는 동안 지도 위 탭·버튼을 숨긴다. 시트 위가 비친 지도라 버튼이 시트 가장자리에
-            // 걸쳐 보이고, 로그 탭을 누르면 시트 뒤 화면만 바뀐다.
-            if (!placeSheetOpen) {
-                if (!official) {
-                    MapDetailTabBar(
-                        selectedTab = MapDetailTab.Places,
-                        onTabSelected = onTabSelected,
-                        modifier = Modifier.align(Alignment.TopCenter),
+    // 토스트는 시트보다 위 층에 둔다. 지도 층에 두면 목록을 펼쳐 둔 채 장소를 지웠을 때 다시 펼쳐진 시트가 덮는다.
+    Box(modifier = Modifier.fillMaxSize()) {
+        BottomSheetScaffold(
+            scaffoldState = scaffoldState,
+            sheetContent = {
+                MapDetailBottomSheet(
+                    places = places,
+                    placeCount = placeCount,
+                    categoryFilters = categoryFilters,
+                    selectedCategory = selectedCategory,
+                    onCategorySelect = onCategorySelect,
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = onSearchQueryChange,
+                    // 접힌 시트에서 검색창을 누르면 목록이 안 보인다. 눌린 김에 끝까지 올린다.
+                    onSearchFocused = { scope.launch { scaffoldState.bottomSheetState.expand() } },
+                    onPlaceClick = onPlaceClick,
+                    onLikeClick = onLikeClick,
+                    onHeaderHeightChange = { height -> peekHeight = height },
+                    official = official,
+                )
+            },
+            sheetPeekHeight = peekHeight,
+            sheetShape = RoundedCornerShape(topStart = 38.dp, topEnd = 38.dp),
+            sheetContainerColor = MoaMapTheme.colors.backgroundSecondary,
+            sheetTonalElevation = 0.dp,
+            sheetShadowElevation = 10.dp,
+            sheetDragHandle = null,
+            modifier = Modifier.fillMaxSize(),
+        ) { _ ->
+            Box(modifier = Modifier.fillMaxSize()) {
+                mapContent()
+                // 장소 시트가 떠 있는 동안 지도 위 탭·버튼을 숨긴다. 시트 위가 비친 지도라 버튼이 시트 가장자리에
+                // 걸쳐 보이고, 로그 탭을 누르면 시트 뒤 화면만 바뀐다.
+                if (!placeSheetOpen) {
+                    if (!official) {
+                        MapDetailTabBar(
+                            selectedTab = MapDetailTab.Places,
+                            onTabSelected = onTabSelected,
+                            modifier = Modifier.align(Alignment.TopCenter),
+                        )
+                    }
+                    MyLocationButton(
+                        inProgress = myLocationInProgress,
+                        onClick = onMyLocationClick,
+                        modifier = Modifier
+                            .align(Alignment.BottomStart)
+                            .padding(start = 20.dp, bottom = peekHeight + MapControlsBottomGap),
+                    )
+                    MapDetailMapControls(
+                        is3d = is3d,
+                        canAddPlace = canAddPlace,
+                        on3dToggleClick = on3dToggleClick,
+                        onAddPlaceClick = onAddPlaceClick,
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 20.dp, bottom = peekHeight + MapControlsBottomGap),
                     )
                 }
-                MyLocationButton(
-                    inProgress = myLocationInProgress,
-                    onClick = onMyLocationClick,
-                    modifier = Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(start = 20.dp, bottom = peekHeight + MapControlsBottomGap),
-                )
-                MapDetailMapControls(
-                    is3d = is3d,
-                    canAddPlace = canAddPlace,
-                    on3dToggleClick = on3dToggleClick,
-                    onAddPlaceClick = onAddPlaceClick,
-                    modifier = Modifier
-                        .align(Alignment.BottomEnd)
-                        .padding(end = 20.dp, bottom = peekHeight + MapControlsBottomGap),
-                )
             }
-            MoaMapToast(
-                message = toastMessage,
-                onShown = onToastShown,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = peekHeight + ToastSheetGap),
-            )
         }
+        // 접힌 시트면 그 위 [ToastSheetGap], 펼친 시트면 목록 위 화면 아래 20(로그 탭과 같은 자리)이다.
+        val sheetExpanded = scaffoldState.bottomSheetState.targetValue == SheetValue.Expanded
+        MoaMapToast(
+            message = toastMessage,
+            onShown = onToastShown,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = if (sheetExpanded) 20.dp else peekHeight + ToastSheetGap),
+        )
     }
 }
 

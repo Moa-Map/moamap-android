@@ -78,6 +78,11 @@ internal fun PlaceFormContent(
     modifier: Modifier = Modifier,
     /** 본문 맨 위 「장소등록」 제목. 단계 제목이 상단 바에 있는 장소 추가는 뺀다. */
     showsTitle: Boolean = true,
+    /**
+     * 사진 칸과 장소 카드의 썸네일. 장소 수정은 뺀다 - 서버가 장소 사진을 바꾸지 못하고, 시안 카드에도
+     * 사진이 없다.
+     */
+    showsPhotos: Boolean = true,
 ) {
     Column(
         modifier = modifier
@@ -96,15 +101,17 @@ internal fun PlaceFormContent(
             )
         }
 
-        SelectedPlaceCard(name = placeName, address = placeAddress)
+        SelectedPlaceCard(name = placeName, address = placeAddress, showsThumbnail = showsPhotos)
 
-        FormSection(title = "사진") {
-            PhotoPicker(
-                photos = photos,
-                canAddPhoto = canAddPhoto,
-                onAddPhotoClick = onAddPhotoClick,
-                onRemovePhoto = onRemovePhoto,
-            )
+        if (showsPhotos) {
+            FormSection(title = "사진") {
+                PhotoPicker(
+                    photos = photos,
+                    canAddPhoto = canAddPhoto,
+                    onAddPhotoClick = onAddPhotoClick,
+                    onRemovePhoto = onRemovePhoto,
+                )
+            }
         }
 
         FormSection(title = "태그") {
@@ -175,7 +182,7 @@ private fun FormSection(
 }
 
 @Composable
-private fun SelectedPlaceCard(name: String, address: String) {
+private fun SelectedPlaceCard(name: String, address: String, showsThumbnail: Boolean) {
     ShadowedSurface(
         modifier = Modifier.fillMaxWidth(),
         shape = SelectedCardShape,
@@ -188,7 +195,7 @@ private fun SelectedPlaceCard(name: String, address: String) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             // 카카오 검색은 사진을 주지 않아 늘 기본 사진이다(시안 `4070:38883` 「장소」 카드).
-            PhotoThumbnail(imageUrl = null, size = 64.dp)
+            if (showsThumbnail) PhotoThumbnail(imageUrl = null, size = 64.dp)
 
             Column(
                 modifier = Modifier.weight(1f),

@@ -84,6 +84,33 @@ class MapDetailRepositoryImplTest {
         assertEquals("MAP_001", (error as ApiException).code)
     }
 
+    /** 서버는 null 칸을 그대로 두므로, 비운 메모·태그도 빈 값으로 실어야 지워진다(이슈 #376). */
+    @Test
+    fun `장소 수정은 메모·태그만 싣고 비운 값도 보낸다`() = runTest {
+        server.enqueue(
+            MockResponse().setBody("""{"success":true,"data":{"id":5,"name":"카페","description":"","tags":[]}}"""),
+        )
+
+        val updated = repository.updatePlace(placeId = 5, memo = "", tags = emptyList())
+
+        val request = server.takeRequest()
+        assertEquals("PATCH", request.method)
+        assertEquals("/api/v1/places/5", request.path)
+        assertEquals("""{"description":"","tags":[]}""", request.body.readUtf8())
+        assertEquals(5L, updated.id)
+    }
+
+    @Test
+    fun `장소 삭제는 그 장소로 DELETE 를 보낸다`() = runTest {
+        server.enqueue(MockResponse().setBody("""{"success":true,"data":null}"""))
+
+        repository.deletePlace(placeId = 5)
+
+        val request = server.takeRequest()
+        assertEquals("DELETE", request.method)
+        assertEquals("/api/v1/places/5", request.path)
+    }
+
     private fun errorResponse(status: Int, code: String, message: String) = MockResponse()
         .setResponseCode(status)
         .setBody("""{"success":false,"error":{"code":"$code","message":"$message","status":$status}}""")

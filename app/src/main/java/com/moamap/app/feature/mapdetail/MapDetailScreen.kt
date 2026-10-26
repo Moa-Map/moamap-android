@@ -53,6 +53,10 @@ import com.moamap.app.feature.mapdetail.presentation.MapLoadState
 import com.moamap.app.feature.mapdetail.presentation.mapOrNull
 import com.moamap.app.feature.mapdetail.presentation.personal.PersonalMapAddViewModel
 import com.moamap.app.feature.mapdetail.presentation.review.PlaceReviewViewModel
+import com.moamap.app.core.common.PLACE_DELETED_TOAST
+import com.moamap.app.feature.mapdetail.domain.model.canManagePlace
+import com.moamap.app.feature.mapdetail.presentation.placeedit.PlaceEditScreen
+import com.moamap.app.feature.mapdetail.presentation.placeedit.PlaceEditViewModel
 import com.mapbox.geojson.Point
 import com.mapbox.maps.EdgeInsets
 import com.mapbox.maps.dsl.cameraOptions
@@ -96,6 +100,7 @@ fun MapDetailScreen(
     // internal 타입을 노출하게 되고, 그걸 풀려면 카드 모델까지 공개로 넓혀야 한다.
     val memberViewModel: MemberViewModel = hiltViewModel()
     val mapInfoEditViewModel: MapInfoEditViewModel = hiltViewModel()
+    val placeEditViewModel: PlaceEditViewModel = hiltViewModel()
 
     val screenState by viewModel.uiState.collectAsStateWithLifecycle()
     val reviewState by reviewViewModel.uiState.collectAsStateWithLifecycle()
@@ -108,6 +113,7 @@ fun MapDetailScreen(
     val postDetailState by postDetailViewModel.uiState.collectAsStateWithLifecycle()
     val memberState by memberViewModel.uiState.collectAsStateWithLifecycle()
     val mapInfoEditState by mapInfoEditViewModel.uiState.collectAsStateWithLifecycle()
+    val placeEditState by placeEditViewModel.uiState.collectAsStateWithLifecycle()
 
     // 나가기가 끝나면 왔던 곳(탐색 또는 모음)으로 돌아간다.
     LaunchedEffect(screenState.left) {
@@ -265,6 +271,22 @@ fun MapDetailScreen(
     // 지도 정보를 고치면 상단 제목과 지도 정보 화면이 새 값을 그려야 한다.
     LaunchedEffect(mapInfoEditState.savedCount) {
         if (mapInfoEditState.savedCount > 0) viewModel.refresh()
+    }
+
+    // 고친 장소는 서버가 돌려준 값으로 그 장소만 바꾼다. 열려 있는 장소 페이지도 새 메모·태그를 그린다.
+    LaunchedEffect(placeEditState.savedPlace) {
+        val saved = placeEditState.savedPlace ?: return@LaunchedEffect
+        viewModel.replacePlace(saved)
+        placeEditViewModel.consumeSavedPlace()
+    }
+
+    // 지운 장소의 페이지를 닫고 지도로 돌아가 알린다. 장소 수가 줄어 상단과 시트 제목도 다시 읽는다.
+    LaunchedEffect(placeEditState.deletedPlaceId) {
+        val deletedId = placeEditState.deletedPlaceId ?: return@LaunchedEffect
+        if (uiState.selectedPlaceId == deletedId) closePlaceDetail()
+        mapToast = PLACE_DELETED_TOAST
+        viewModel.refresh()
+        placeEditViewModel.consumeDeletedPlace()
     }
 
     // 수락한 장소는 지도에 새로 떠야 한다. 거절은 지도를 바꾸지 않아 신호가 오지 않는다.
@@ -768,6 +790,33 @@ fun MapDetailScreen(
                 showsReactions = !screenState.isOfficial,
                 onSheetPlaced = { sheetHeightPx -> placeFocus = PlaceFocus(place.id, sheetHeightPx) },
                 closeSignal = placeSheetCloseSignal,
+                // 화면 모델에는 등록자가 없어 받아 둔 장소에서 찾는다. 내 id 는 댓글이 이미 읽어 둔 것을 쓴다.
+                onEditPlaceClick = screenState.places.firstOrNull { mapPlace -> mapPlace.id == place.id }
+                    ?.takeIf { mapPlace ->
+                        screenState.map.mapOrNull?.canManagePlace(mapPlace.createdBy, reviewState.myUserId) == true
+                    }
+                    ?.let { mapPlace -> { placeEditViewModel.open(mapPlace) } },
+                onDeletePlace = { placeEditViewModel.delete(place.id) },
+                toastMessage = placeEditState.toast,
+                onToastShown = placeEditViewModel::consumeToast,
+            )
+        }
+
+        placeEditState.form?.let { form ->
+            PlaceEditScreen(
+                form = form,
+                canSave = placeEditState.canSave,
+                errorMessage = placeEditState.errorMessage,
+                discardConfirmVisible = placeEditState.discardConfirmVisible,
+                onBackClick = placeEditViewModel::requestClose,
+                onTagInputChange = placeEditViewModel::updateTagInput,
+                onTagBackspace = placeEditViewModel::removeLastTagIfInputEmpty,
+                onRemoveTag = placeEditViewModel::removeTag,
+                onMemoChange = placeEditViewModel::updateMemo,
+                onSaveClick = placeEditViewModel::save,
+                onErrorShown = placeEditViewModel::consumeError,
+                onKeepEditing = placeEditViewModel::keepEditing,
+                onDiscard = placeEditViewModel::close,
             )
         }
 
@@ -777,6 +826,7 @@ fun MapDetailScreen(
         // 있고, 조회 실패는 곁가지 목록이 안 뜬 것뿐이다.
         ErrorSnackbar(
             message = screenState.errorMessage
+                ?: placeEditState.deleteErrorMessage
                 ?: memberState.grantErrorMessage
                 ?: pendingState.actionErrorMessage
                 ?: pendingState.errorMessage
@@ -784,6 +834,7 @@ fun MapDetailScreen(
             onShown = {
                 when {
                     screenState.errorMessage != null -> viewModel.consumeErrorMessage()
+                    placeEditState.deleteErrorMessage != null -> placeEditViewModel.consumeDeleteError()
                     memberState.grantErrorMessage != null -> memberViewModel.consumeGrantError()
                     pendingState.actionErrorMessage != null -> pendingViewModel.consumeActionError()
                     pendingState.errorMessage != null -> pendingViewModel.consumeLoadError()
@@ -806,7 +857,9 @@ fun MapDetailScreen(
     BackHandler(enabled = mapInfoEditState.form != null) { mapInfoEditViewModel.close() }
     BackHandler(enabled = menuVisible) { menuVisible = false }
     // 장소 상세가 가장 위에 떠 있다. 기기 뒤로가기는 이걸 먼저 닫는다.
-    BackHandler(enabled = uiState.selectedPlaceId != null) { closePlaceDetail() }
+    BackHandler(enabled = uiState.selectedPlaceId != null && placeEditState.form == null) { closePlaceDetail() }
+    // 장소 수정은 장소 상세 위에 뜬다. 평소엔 수정 화면이 먼저 받고, 화면을 돌려 다시 그린 뒤엔 여기가 받는다.
+    BackHandler(enabled = placeEditState.form != null) { placeEditViewModel.requestClose() }
     // 장소 추가는 지도 위의 버튼에서만 열려 장소 상세와 함께 떠 있지 않는다.
     BackHandler(enabled = addPlaceVisible) { addPlaceBack() }
 

@@ -22,6 +22,17 @@ data class PlaceCreateRequestDto(
     val photoUrls: List<String>? = null,
 )
 
+/**
+ * PATCH api/v1/places/{id} 요청. 앱이 고치는 메모·태그만 둔다.
+ *
+ * 비우려면 빈 값(`""`·빈 목록)을 보낸다. null 은 `Json` 이 싣지 않아 서버가 그대로 둔다.
+ */
+@Serializable
+data class PlaceUpdateRequestDto(
+    val description: String? = null,
+    val tags: List<String>? = null,
+)
+
 /** 서버가 한 번에 받는 장소 수. 이보다 많으면 나눠 보내야 한다. */
 const val MAX_BULK_PLACES = 100
 

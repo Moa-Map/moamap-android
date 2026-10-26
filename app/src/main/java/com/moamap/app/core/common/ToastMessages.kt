@@ -8,6 +8,10 @@ internal const val PLACE_ADDED_TOAST = "장소를 추가했어요"
 internal const val PLACE_REQUESTED_TOAST = "추가 요청을 보냈어요"
 internal const val MAP_JOINED_TOAST = "지도에 참여했어요"
 internal const val MAP_INFO_UPDATED_TOAST = "지도 정보가 수정됐어요"
+internal const val PLACE_UPDATED_TOAST = "장소 정보가 수정됐어요"
+
+/** 장소 삭제는 시안이 없다(이슈 #376 에서 정함). */
+internal const val PLACE_DELETED_TOAST = "장소를 삭제했어요"
 
 /** 장소를 넣은 뒤의 토스트. 한 곳이라도 승인을 기다려야 하면 요청을 보냈다고 알린다(10-26 사용자 결정). */
 internal fun placeAddedToast(needsApproval: Boolean): String =

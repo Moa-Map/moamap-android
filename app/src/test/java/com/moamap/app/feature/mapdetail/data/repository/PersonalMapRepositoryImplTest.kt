@@ -27,6 +27,7 @@ import com.moamap.app.feature.explore.data.remote.PlaceCreateRequestDto
 import com.moamap.app.feature.explore.data.remote.PlaceDto
 import com.moamap.app.feature.explore.data.remote.PlaceLikeDto
 import com.moamap.app.feature.explore.data.remote.PlaceService
+import com.moamap.app.feature.explore.data.remote.PlaceUpdateRequestDto
 import com.moamap.app.feature.mapdetail.domain.repository.PersonalMapNotFoundException
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -68,6 +69,8 @@ private class CopyingPlaceService(private val place: PlaceDto) : PlaceService {
     ): PageResponse<PlaceActivityDto> = TODO("사용하지 않음")
 
     override suspend fun likePlace(placeId: Long): PlaceLikeDto = TODO("사용하지 않음")
+    override suspend fun updatePlace(id: Long, request: PlaceUpdateRequestDto): PlaceDto = TODO("사용하지 않음")
+    override suspend fun deletePlace(id: Long) = TODO("사용하지 않음")
 
     override suspend fun unlikePlace(placeId: Long): PlaceLikeDto = TODO("사용하지 않음")
 

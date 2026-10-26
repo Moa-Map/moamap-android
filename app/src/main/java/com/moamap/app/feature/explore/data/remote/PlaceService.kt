@@ -59,6 +59,22 @@ interface PlaceService {
     @GET("api/v1/places/{id}")
     suspend fun getPlace(@Path("id") id: Long): PlaceDto
 
+    /**
+     * 장소 정보를 고친다. 보낸 칸만 바뀌고 null 인 칸은 그대로다. 태그는 보낸 목록으로 통째로 바뀐다.
+     *
+     * 프라이빗 지도는 멤버 누구나, 그 밖에는 방장·관리자와 등록한 본인만 받는다(스웨거 설명보다 넓다,
+     * 백엔드 `PlaceService.checkModifyPermission`). 사진은 받지 않는다.
+     */
+    @PATCH("api/v1/places/{id}")
+    suspend fun updatePlace(
+        @Path("id") id: Long,
+        @Body request: PlaceUpdateRequestDto,
+    ): PlaceDto
+
+    /** 장소를 지운다(소프트 삭제). 권한은 [updatePlace] 와 같다. */
+    @DELETE("api/v1/places/{id}")
+    suspend fun deletePlace(@Path("id") id: Long)
+
     @PATCH("api/v1/places/{id}/approve")
     suspend fun approvePlace(@Path("id") id: Long): PlaceDto
 
