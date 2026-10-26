@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -12,8 +14,10 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
+import com.moamap.app.core.designsystem.component.MoaMapToast
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.mapdetail.MapDetailTopBar
 import com.moamap.app.feature.mapdetail.MapLeaveDialog
@@ -70,6 +74,15 @@ internal fun OfficialMapScaffold(
             message = membership.errorMessage,
             onShown = membershipViewModel::consumeErrorMessage,
             modifier = Modifier.align(Alignment.BottomCenter),
+        )
+        // 참여 토스트. 이 지도들은 장소 목록 시트가 없어 화면 아래(시스템 막대 위 32)에 둔다.
+        MoaMapToast(
+            message = membership.toast,
+            onShown = membershipViewModel::consumeToast,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = 32.dp),
         )
     }
 

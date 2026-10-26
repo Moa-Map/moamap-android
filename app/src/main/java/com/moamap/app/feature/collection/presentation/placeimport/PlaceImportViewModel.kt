@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.common.NETWORK_ERROR_MESSAGE
 import com.moamap.app.core.common.actionableMessage
+import com.moamap.app.core.common.placeAddedToast
 import com.moamap.app.core.common.toggle
 import com.moamap.app.core.common.upload.ImageUploadException
 import com.moamap.app.core.navigation.MoaMapRoute
@@ -14,6 +15,7 @@ import com.moamap.app.core.network.ApiException
 import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.collection.domain.model.ImportedPlace
 import com.moamap.app.feature.collection.domain.model.MapType
+import com.moamap.app.feature.collection.domain.model.MyMap
 import com.moamap.app.feature.collection.domain.model.PlaceEdit
 import com.moamap.app.feature.collection.domain.model.PlaceExtractionException
 import com.moamap.app.feature.collection.domain.model.PlaceImportSource
@@ -21,6 +23,7 @@ import com.moamap.app.feature.collection.domain.model.PlaceSaveResult
 import com.moamap.app.feature.collection.domain.repository.MapRepository
 import com.moamap.app.feature.collection.domain.repository.PlaceImportRepository
 import com.moamap.app.feature.collection.presentation.MyMapsState
+import com.moamap.app.feature.mapdetail.domain.model.MapRole
 import com.moamap.app.feature.mapdetail.presentation.addplace.MAX_PLACE_PHOTOS
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -43,6 +46,9 @@ private const val DEFAULT_SAVE_ERROR = "장소를 저장하지 못했어요"
  * 중첩 그래프의 back stack entry 에 스코프해서 4개 화면이 같은 인스턴스를 본다.
  * 흐름을 벗어나면 함께 정리되므로 다음에 다시 들어와도 이전 입력이 남지 않는다.
  */
+/** 장소를 넣을 수 있는 지도 종류. 지금은 프라이빗(나만의 지도 포함)만 고를 수 있다. */
+private val TARGET_MAP_TYPE = MapType.Private
+
 @HiltViewModel
 internal class PlaceImportViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
@@ -258,7 +264,7 @@ internal class PlaceImportViewModel @Inject constructor(
 
         mapsJob = viewModelScope.launch {
             val maps = try {
-                mapRepository.getMyMaps(MapType.Private)
+                mapRepository.getMyMaps(TARGET_MAP_TYPE)
             } catch (e: CancellationException) {
                 throw e
             } catch (throwable: Throwable) {
@@ -312,7 +318,7 @@ internal class PlaceImportViewModel @Inject constructor(
                 if (result.created == 0) {
                     state.copy(saving = false, errorMessage = result.toEmptyMessage())
                 } else {
-                    state.copy(saving = false, saveResult = result)
+                    state.copy(saving = false, saveResult = result, doneToast = placeImportDoneToast(state))
                 }
             }
         }
@@ -346,3 +352,19 @@ private fun Throwable.toUserMessage(): String = when (this) {
     is ConnectionException -> NETWORK_ERROR_MESSAGE
     else -> DEFAULT_EXTRACTION_ERROR
 }
+
+/**
+ * 가져오기를 마친 토스트. 고른 지도 중 하나라도 승인을 기다려야 하면 요청을 보냈다고 알린다(10-26 사용자 결정).
+ *
+ * 지금은 프라이빗 지도(나만의 지도 포함)만 고를 수 있어 늘 바로 추가된다. 커뮤니티 지도를 고를 수 있게 되면
+ * [needsApproval] 이 방장·관리자가 아닌 지도를 가려낸다.
+ */
+internal fun placeImportDoneToast(state: PlaceImportUiState): String {
+    val maps = (state.targetMaps as? MyMapsState.Success)?.maps.orEmpty()
+    val needsApproval = maps.any { map -> map.id in state.selectedMapIds && map.needsApproval(TARGET_MAP_TYPE) }
+    return placeAddedToast(needsApproval)
+}
+
+/** 이 지도에 장소를 넣으면 승인을 기다려야 하는지. 커뮤니티 지도의 일반 멤버만 그렇다. */
+internal fun MyMap.needsApproval(type: MapType): Boolean =
+    type == MapType.Community && role != MapRole.Owner && role != MapRole.Admin

@@ -1,6 +1,7 @@
 package com.moamap.app.feature.collection.presentation.placeimport
 
 import androidx.lifecycle.SavedStateHandle
+import com.moamap.app.core.common.PLACE_ADDED_TOAST
 import com.moamap.app.core.common.upload.ImageUploadException
 import com.moamap.app.core.common.upload.MAX_PLACE_PHOTO_FILE_SIZE
 import com.moamap.app.core.navigation.MoaMapRoute
@@ -16,6 +17,7 @@ import com.moamap.app.feature.collection.domain.repository.MapRepository
 import com.moamap.app.feature.collection.domain.model.EditedPlace
 import com.moamap.app.feature.collection.domain.repository.PlaceImportRepository
 import com.moamap.app.feature.collection.presentation.MyMapsState
+import com.moamap.app.feature.mapdetail.domain.model.MapRole
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -467,6 +469,17 @@ class PlaceImportViewModelTest {
 
         assertEquals(setOf(MyMaps[0].id), repository.savedMapIds)
         assertEquals(listOf(Places[1]), repository.savedPlaces?.map { it.place })
+        // 프라이빗 지도라 바로 들어갔다.
+        assertEquals(PLACE_ADDED_TOAST, viewModel.uiState.value.doneToast)
+    }
+
+    @Test
+    fun `커뮤니티 지도의 일반 멤버만 승인을 기다린다`() {
+        val map = MyMaps[0]
+        assertTrue(map.copy(role = MapRole.Member).needsApproval(MapType.Community))
+        assertFalse(map.copy(role = MapRole.Admin).needsApproval(MapType.Community))
+        assertFalse(map.copy(role = MapRole.Owner).needsApproval(MapType.Community))
+        assertFalse(map.copy(role = MapRole.Member).needsApproval(MapType.Private))
     }
 
     @Test

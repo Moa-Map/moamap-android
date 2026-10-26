@@ -5,7 +5,9 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moamap.app.core.common.MAP_JOINED_TOAST
 import com.moamap.app.core.common.toUserMessage
+import com.moamap.app.core.navigation.MoaMapRoute
 import com.moamap.app.core.navigation.requireMapId
 import com.moamap.app.feature.mapdetail.domain.model.LeaveOutcome
 import com.moamap.app.feature.mapdetail.domain.model.MapDetailAction
@@ -62,6 +64,8 @@ data class MapDetailScreenState(
     val actionInProgress: Boolean = false,
     /** 한 번 보여주고 지우는 실패 안내. */
     val errorMessage: String? = null,
+    /** 한 번 보여주고 지우는 완료 토스트. 참여했을 때다. */
+    val toast: String? = null,
     /** 나가기가 끝났다. 화면이 이 신호를 보고 이전 화면으로 돌아간다. */
     val left: Boolean = false,
     /**
@@ -150,7 +154,14 @@ class MapDetailViewModel @Inject constructor(
 
     private val mapId: Long = savedStateHandle.requireMapId()
 
-    private val _uiState = MutableStateFlow(MapDetailScreenState())
+    // 지도 소개에서 참여하고 들어왔으면 열자마자 알린다. 경로에서 지워 화면을 돌려도 다시 뜨지 않게 한다.
+    private val _uiState = MutableStateFlow(
+        MapDetailScreenState(
+            toast = MAP_JOINED_TOAST.takeIf {
+                savedStateHandle.get<Boolean>(MoaMapRoute.MapDetail.ARG_JOINED) == true
+            }.also { savedStateHandle[MoaMapRoute.MapDetail.ARG_JOINED] = false },
+        ),
+    )
     val uiState: StateFlow<MapDetailScreenState> = _uiState.asStateFlow()
 
     /** 참여·나가기가 겹쳐 돌지 않게 잡아 두는 자리. */
@@ -189,6 +200,10 @@ class MapDetailViewModel @Inject constructor(
         _uiState.update { state -> state.copy(errorMessage = null) }
     }
 
+    fun consumeToast() {
+        _uiState.update { state -> state.copy(toast = null) }
+    }
+
     /**
      * 공개 지도에 참여한다.
      *
@@ -199,7 +214,9 @@ class MapDetailViewModel @Inject constructor(
      */
     fun join() = runAction(JOIN_FAILED_MESSAGE) {
         repository.joinMap(mapId)
-        _uiState.update { state -> state.copy(actionInProgress = false, joinedHere = true) }
+        _uiState.update { state ->
+            state.copy(actionInProgress = false, joinedHere = true, toast = MAP_JOINED_TOAST)
+        }
         loadMap()
     }
 

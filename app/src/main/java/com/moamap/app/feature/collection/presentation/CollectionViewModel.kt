@@ -3,6 +3,8 @@ package com.moamap.app.feature.collection.presentation
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moamap.app.core.common.MAP_JOINED_TOAST
+import com.moamap.app.core.common.MAP_LIST_UPDATED_TOAST
 import com.moamap.app.core.common.NETWORK_ERROR_MESSAGE
 import com.moamap.app.core.common.toggle
 import com.moamap.app.core.network.ApiException
@@ -117,6 +119,10 @@ class CollectionViewModel @Inject constructor(
         _uiState.update { state -> state.copy(notice = null) }
     }
 
+    fun consumeToast() {
+        _uiState.update { state -> state.copy(toast = null) }
+    }
+
     // ---------- 편집: 순서 바꾸기·골라서 나가기 ----------
 
     /**
@@ -164,9 +170,14 @@ class CollectionViewModel @Inject constructor(
         val moved = movedMaps(edit)
         _uiState.update { state -> state.copy(edit = null) }
 
+        // 순서를 바꿨을 때만 알린다. 아무것도 바꾸지 않고 끝냈으면 띄우지 않는다(10-26 사용자 결정).
         if (moved != null) {
             orderSaveJob = viewModelScope.launch {
-                if (!saveOrder(tab, moved)) load(tab, keepCurrent = true)
+                if (saveOrder(tab, moved)) {
+                    _uiState.update { state -> state.copy(toast = MAP_LIST_UPDATED_TOAST) }
+                } else {
+                    load(tab, keepCurrent = true)
+                }
             }
         }
     }
@@ -255,7 +266,12 @@ class CollectionViewModel @Inject constructor(
             val failed = edit.selected.count { mapId -> !tryLeave(mapId) }
             _uiState.update { state ->
                 // 순서 저장 실패 안내가 떠 있으면 나가기 실패가 없는 한 지우지 않는다.
-                state.copy(edit = null, notice = if (failed > 0) leaveFailedMessage(failed) else state.notice)
+                state.copy(
+                    edit = null,
+                    notice = if (failed > 0) leaveFailedMessage(failed) else state.notice,
+                    // 하나도 못 나갔으면 바뀐 것이 없다. 일부만 나갔어도 목록은 바뀌었다.
+                    toast = if (failed < edit.selected.size) MAP_LIST_UPDATED_TOAST else state.toast,
+                )
             }
             load(type, keepCurrent = true)
         }
@@ -356,7 +372,7 @@ class CollectionViewModel @Inject constructor(
                 // 탭을 옮기니 편집 중이었으면 끝낸다(바꾼 순서도 이때 저장된다). [selectTab] 과 같다.
                 finishEdit()
                 _uiState.update { state ->
-                    state.copy(join = JoinState.Hidden, selectedTab = MapType.Private)
+                    state.copy(join = JoinState.Hidden, selectedTab = MapType.Private, toast = MAP_JOINED_TOAST)
                 }
                 // 합류한 지도가 보이도록 프라이빗 목록을 다시 읽는다.
                 requestedTabs -= MapType.Private

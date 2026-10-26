@@ -2,6 +2,7 @@ package com.moamap.app.feature.mapdetail.presentation.addplace
 
 import android.net.Uri
 import androidx.compose.runtime.Immutable
+import com.moamap.app.core.common.placeAddedToast
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
@@ -88,5 +89,4 @@ fun addPlaceButtonLabel(map: MapDetail): String =
  * 승인 대기는 목록에 나타나지 않는다(`GET /places` 가 APPROVED 만 준다). 안내가 없으면
  * 사라진 것처럼 보인다.
  */
-fun addPlaceDoneMessage(map: MapDetail): String =
-    if (map.addsPlaceDirectly) "장소를 추가했어요" else "추가 요청을 보냈어요"
+fun addPlaceDoneMessage(map: MapDetail): String = placeAddedToast(needsApproval = !map.addsPlaceDirectly)

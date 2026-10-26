@@ -78,6 +78,8 @@ data class CollectionUiState(
     val edit: CollectionEditState? = null,
     /** 한 번 보여주고 지우는 안내. */
     val notice: String? = null,
+    /** 한 번 띄우는 완료 토스트. 하단 탭 위에 그려야 해서 화면 바깥(NavHost)이 띄운다. */
+    val toast: String? = null,
 ) {
     val currentMaps: MyMapsState
         get() = stateOf(selectedTab)
