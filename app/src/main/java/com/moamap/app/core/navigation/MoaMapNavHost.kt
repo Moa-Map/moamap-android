@@ -25,7 +25,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.moamap.app.core.common.MAP_CREATED_TOAST
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
+import com.moamap.app.core.designsystem.component.MoaMapToast
 import com.moamap.app.feature.collection.CollectionScreen
 import com.moamap.app.feature.collection.domain.model.PlaceImportSource
 import com.moamap.app.feature.collection.presentation.createmap.CreateMapScreen
@@ -92,6 +94,11 @@ internal fun MoaMapNavHost(
 
     // 모음 편집에서 지도를 고르면 그 화면이 하단 탭 자리에 선택 막대를 띄운다.
     var collectionSelectionBarVisible by remember { mutableStateOf(false) }
+    /**
+     * 탐색·모음 탭 위에 띄우는 완료 토스트. 시안대로 하단 탭 위 끝에 18 겹쳐 그려야 해서, 하단 탭을 그리는
+     * 이 자리에서 탭보다 나중에 그린다. 화면 안에 두면 탭에 가린다.
+     */
+    var tabToast by remember { mutableStateOf<String?>(null) }
 
     /**
      * 공유로 들어온 링크를 장소 가져오기 흐름으로 넘긴다.
@@ -230,6 +237,7 @@ internal fun MoaMapNavHost(
                 CollectionScreen(
                     pendingNotice = createMapNotice,
                     onPendingNoticeConsumed = { entry.savedStateHandle[CreateMapNoticeKey] = null },
+                    onToast = { message -> tabToast = message },
                     onSelectionBarVisibleChange = { visible -> collectionSelectionBarVisible = visible },
                     // 로고는 홈(탐색)으로 가는 버튼이다. 하단 탭으로 옮기는 것과 같게 옮기되,
                     // 홈은 보던 자리 대신 맨 위에서 시작한다.
@@ -276,6 +284,7 @@ internal fun MoaMapNavHost(
                     // 만든 지도로 이동하는 건 지도 상세가 실제 데이터를 받은 뒤에 정한다.
                     // 장소를 다 넣지 못했으면 돌아간 모음 탭이 안내하도록 넘긴다.
                     onCreated = { _, importNotice ->
+                        tabToast = MAP_CREATED_TOAST
                         if (importNotice != null) {
                             navController.previousBackStackEntry
                                 ?.savedStateHandle
@@ -306,6 +315,7 @@ internal fun MoaMapNavHost(
                         .savedStateHandle[ImportedPlacesForNewMapKey] = encodeImportedPlaces(places)
                     navController.popBackStack(MoaMapRoute.PlaceImport.route, inclusive = true)
                 },
+                onImportDone = { toast -> tabToast = toast },
             )
             composable(MoaMapRoute.OfficialMap.route) {
                 OfficialMapScreen(
@@ -355,7 +365,7 @@ internal fun MoaMapNavHost(
                     },
                     // 참여하고 나면 소개 화면은 볼 일이 없다. 뒤로가기가 탐색 탭으로 가게 지운다.
                     onJoined = { mapTitle, official ->
-                        navController.navigate(mapScreenRoute(mapId, mapTitle, official)) {
+                        navController.navigate(mapScreenRoute(mapId, mapTitle, official, joined = true)) {
                             popUpTo(MoaMapRoute.MapIntro.route) { inclusive = true }
                         }
                     },
@@ -454,6 +464,16 @@ internal fun MoaMapNavHost(
                 )
             }
         }
+
+        // 시안 「모음 프라이빗」: 토스트 아래 끝이 하단 탭 위 끝보다 18 아래다(하단 탭 아래 12 + 높이 58 - 18).
+        MoaMapToast(
+            message = tabToast,
+            onShown = { tabToast = null },
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .navigationBarsPadding()
+                .padding(bottom = TabToastBottomPadding),
+        )
     }
 }
 
@@ -465,6 +485,10 @@ private val MapScreenArguments = listOf(
     navArgument(MoaMapRoute.MapDetail.ARG_MAP_TITLE) {
         type = NavType.StringType
         defaultValue = ""
+    },
+    navArgument(MoaMapRoute.MapDetail.ARG_JOINED) {
+        type = NavType.BoolType
+        defaultValue = false
     },
 )
 
@@ -514,6 +538,8 @@ private const val ScrollToTopKey = "explore_scroll_to_top"
 
 /** 새 지도 만들기가 모음 탭에 돌려주는 안내. 불러온 장소를 다 넣지 못했을 때만 온다. */
 private const val CreateMapNoticeKey = "collection_create_map_notice"
+
+private val TabToastBottomPadding = 52.dp
 
 /** 장소 가져오기 흐름이 새 지도 만들기 화면에 돌려주는 결과. */
 private const val ImportedPlacesForNewMapKey = "create_map_imported_places"
@@ -589,10 +615,15 @@ private fun NavHostController.navigateToMap(
  * 지도 자체를 보는 화면. 장소가 없는 특수 공식지도(유동인구·공중화장실)는 지도 상세 대신
  * 전용 화면이다. 소개 화면의 미리보기·참여 후 이동도 이 규칙을 쓴다.
  */
-private fun mapScreenRoute(mapId: Long, mapTitle: String, official: Boolean): String = when {
+private fun mapScreenRoute(
+    mapId: Long,
+    mapTitle: String,
+    official: Boolean,
+    joined: Boolean = false,
+): String = when {
     isDensityOfficialMap(official, mapTitle) ->
-        MoaMapRoute.DensityMapDetail.createRoute(mapId = mapId, mapTitle = mapTitle)
+        MoaMapRoute.DensityMapDetail.createRoute(mapId = mapId, mapTitle = mapTitle, joined = joined)
     isRestroomOfficialMap(official, mapTitle) ->
-        MoaMapRoute.RestroomMapDetail.createRoute(mapId = mapId, mapTitle = mapTitle)
-    else -> MoaMapRoute.MapDetail.createRoute(mapId = mapId, mapTitle = mapTitle)
+        MoaMapRoute.RestroomMapDetail.createRoute(mapId = mapId, mapTitle = mapTitle, joined = joined)
+    else -> MoaMapRoute.MapDetail.createRoute(mapId = mapId, mapTitle = mapTitle, joined = joined)
 }

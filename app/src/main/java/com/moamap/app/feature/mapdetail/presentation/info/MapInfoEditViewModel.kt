@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moamap.app.core.common.MAP_INFO_UPDATED_TOAST
 import com.moamap.app.core.common.toUploadMessage
 import com.moamap.app.core.common.toUserMessage
 import com.moamap.app.feature.collection.domain.repository.MapRepository
@@ -66,6 +67,8 @@ internal data class MapInfoEditUiState(
     val errorMessage: String? = null,
     /** 저장에 성공한 횟수. 지도 상세는 이 값이 오를 때 지도를 다시 읽는다. */
     val savedCount: Int = 0,
+    /** 저장하고 돌아간 지도 정보 화면이 한 번 띄우는 완료 토스트. */
+    val toast: String? = null,
 ) {
     /** 이름은 서버 필수값이라 비우면 저장할 수 없다. */
     val canSave: Boolean
@@ -132,6 +135,10 @@ internal class MapInfoEditViewModel @Inject constructor(
         _uiState.update { state -> state.copy(errorMessage = null) }
     }
 
+    fun consumeToast() {
+        _uiState.update { state -> state.copy(toast = null) }
+    }
+
     /**
      * 새 사진을 골랐으면 먼저 올리고, 이름·설명·사진·태그를 저장한다.
      *
@@ -169,7 +176,9 @@ internal class MapInfoEditViewModel @Inject constructor(
                     imageUrl = imageUrl,
                     tags = form.tags,
                 )
-                _uiState.update { state -> MapInfoEditUiState(savedCount = state.savedCount + 1) }
+                _uiState.update { state ->
+                    MapInfoEditUiState(savedCount = state.savedCount + 1, toast = MAP_INFO_UPDATED_TOAST)
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (throwable: Throwable) {

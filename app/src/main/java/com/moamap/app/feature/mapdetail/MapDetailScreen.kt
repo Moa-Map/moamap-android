@@ -128,6 +128,8 @@ fun MapDetailScreen(
 
     // 지도에서 올라오는 안내. 장소 등록 완료와 위치 실패가 같은 스낵바 자리를 나눠 쓴다.
     var mapNotice by remember { mutableStateOf<String?>(null) }
+    /** 장소를 추가한 뒤 한 번 띄우는 완료 토스트. 실패 안내([mapNotice])와 모양이 달라 따로 든다. */
+    var mapToast by remember { mutableStateOf<String?>(null) }
 
     /** 좌표를 찾는 중. 버튼을 잠가 조회가 겹치지 않게 한다. */
     var myLocationInProgress by remember { mutableStateOf(false) }
@@ -556,6 +558,11 @@ fun MapDetailScreen(
                     onMapClick = onMapClick,
                 )
             },
+            // 참여 토스트가 먼저다. 둘이 겹치는 일은 거의 없다(참여한 뒤에야 장소를 넣는다).
+            toastMessage = screenState.toast ?: mapToast,
+            onToastShown = {
+                if (screenState.toast != null) viewModel.consumeToast() else mapToast = null
+            },
             // 상단 메뉴가 이 화면(지도 포함)을 흐려 바탕으로 깐다.
             modifier = Modifier.hazeSource(menuHazeState),
         )
@@ -596,7 +603,7 @@ fun MapDetailScreen(
                 onBackClick = addPlaceBack,
                 onAdded = { message ->
                     addPlaceVisible = false
-                    mapNotice = message
+                    mapToast = message
                     // 장소 수가 늘었다. 상단과 시트 제목이 옛 값을 들고 있으면 안 된다.
                     viewModel.retry()
                 },
@@ -651,6 +658,8 @@ fun MapDetailScreen(
                 map = infoMap,
                 onBackClick = { mapInfoVisible = false },
                 onEditClick = { mapInfoEditViewModel.open(infoMap) },
+                toastMessage = mapInfoEditState.toast,
+                onToastShown = mapInfoEditViewModel::consumeToast,
             )
         }
 

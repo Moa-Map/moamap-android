@@ -3,8 +3,6 @@ package com.moamap.app.feature.mapdetail
 import android.content.ClipData
 import android.content.Context
 import android.content.Intent
-import android.os.Build
-import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,7 +18,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -63,6 +65,8 @@ internal fun MapInviteCodeDialog(
     title: String = "친구 초대하기",
 ) {
     val context = LocalContext.current
+    // 복사하면 안내 줄이 「초대 코드를 복사했어요」로 바뀐다(시안 「초대 코드 - 코드 복사」). 토스트는 따로 띄우지 않는다.
+    var copied by rememberSaveable { mutableStateOf(false) }
     val clipboard = LocalClipboard.current
     val scope = rememberCoroutineScope()
 
@@ -100,17 +104,14 @@ internal fun MapInviteCodeDialog(
 
             InviteCodeBox(
                 inviteCode = inviteCode,
+                copied = copied,
                 onCopyClick = {
                     scope.launch {
                         clipboard.setClipEntry(
                             ClipEntry(ClipData.newPlainText("초대코드", inviteCode)),
                         )
                     }
-                    // 안드로이드 13 부터는 복사할 때 시스템이 자체 알림을 띄운다.
-                    // 우리가 또 띄우면 같은 안내가 두 번 뜬다.
-                    if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
-                        Toast.makeText(context, "초대 코드를 복사했어요", Toast.LENGTH_SHORT).show()
-                    }
+                    copied = true
                 },
             )
         }
@@ -142,6 +143,7 @@ internal fun MapInviteCodeDialog(
 @Composable
 private fun InviteCodeBox(
     inviteCode: String,
+    copied: Boolean,
     onCopyClick: () -> Unit,
 ) {
     Column(
@@ -173,7 +175,7 @@ private fun InviteCodeBox(
                 modifier = Modifier.size(CopyIconSize),
             )
             Text(
-                text = "초대 코드 복사하기",
+                text = if (copied) "초대 코드를 복사했어요" else "초대 코드 복사하기",
                 style = MoaMapTheme.typography.caption2.withDesignLineHeight(),
                 color = MoaMapPrimitiveColors.Gray300,
             )

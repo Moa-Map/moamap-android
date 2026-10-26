@@ -1,5 +1,7 @@
 package com.moamap.app.feature.collection.presentation
 
+import com.moamap.app.core.common.MAP_JOINED_TOAST
+import com.moamap.app.core.common.MAP_LIST_UPDATED_TOAST
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.collection.domain.model.MyMap
@@ -450,6 +452,7 @@ class CollectionViewModelTest {
         assertEquals(JoinState.Hidden, viewModel.uiState.value.join)
         assertEquals(MapType.Private, viewModel.uiState.value.selectedTab)
         assertEquals(listOf(MapType.Private), repository.calls)
+        assertEquals(MAP_JOINED_TOAST, viewModel.uiState.value.toast)
     }
 
     @Test
@@ -727,6 +730,7 @@ class CollectionViewModelTest {
         assertEquals(listOf(MapType.Community to listOf(2L, 1L, 3L, 4L)), repository.orderUpdates)
         assertEquals(listOf(2L, 1L, 3L, 4L), viewModel.communityIds())
         assertNull(viewModel.uiState.value.notice)
+        assertEquals(MAP_LIST_UPDATED_TOAST, viewModel.uiState.value.toast)
     }
 
     @Test
@@ -740,6 +744,8 @@ class CollectionViewModelTest {
         advanceUntilIdle()
 
         assertTrue(repository.orderUpdates.isEmpty())
+        // 바뀐 것이 없으면 알리지 않는다.
+        assertNull(viewModel.uiState.value.toast)
     }
 
     @Test
@@ -753,6 +759,7 @@ class CollectionViewModelTest {
 
         assertEquals(ORDER_SAVE_FAILED_MESSAGE, viewModel.uiState.value.notice)
         assertEquals(listOf(1L, 2L, 3L, 4L), viewModel.communityIds())
+        assertNull(viewModel.uiState.value.toast)
     }
 
     @Test
