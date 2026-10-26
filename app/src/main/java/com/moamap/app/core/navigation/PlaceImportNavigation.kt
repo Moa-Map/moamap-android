@@ -23,13 +23,15 @@ import com.moamap.app.feature.collection.presentation.placeimport.PlaceImportLoa
 import com.moamap.app.feature.collection.presentation.placeimport.PlaceImportMapScreen
 import com.moamap.app.feature.collection.presentation.placeimport.PlaceImportPlaceScreen
 import com.moamap.app.feature.collection.presentation.placeimport.PlaceImportRoute
+import com.moamap.app.feature.collection.presentation.placeimport.PlaceImportSearchScreen
 import com.moamap.app.feature.collection.presentation.placeimport.PlaceImportUrlScreen
 import com.moamap.app.feature.collection.presentation.placeimport.PlaceImportViewModel
 
 /**
  * 링크로 장소를 가져오는 5단계 흐름. URL 입력 → 로딩 → 장소 선택 → 편집 → 지도 선택.
  *
- * 편집 단계는 목록과 장소 하나를 고치는 상세 화면으로 나뉜다.
+ * 편집 단계는 목록과 장소 하나를 고치는 상세 화면으로 나뉜다. 인스타그램에서 장소를 하나도 못 찾으면 장소 선택
+ * 자리에 안내가 뜨고, 「직접 장소 검색하기」로 카카오 장소 검색에서 고른 장소가 편집으로 이어진다.
  *
  * 모든 화면이 그래프 back stack entry 에 스코프한 [PlaceImportViewModel] 하나를 공유한다.
  * 흐름을 벗어나면 ViewModel 이 함께 정리되므로 다음에 다시 들어와도 이전 입력이 남지 않는다.
@@ -120,12 +122,30 @@ internal fun NavGraphBuilder.placeImportGraph(
                 onBackClick = navController::popBackStack,
                 onErrorShown = viewModel::consumeError,
                 onPlaceClick = viewModel::togglePlace,
-                // 장소 화면을 백스택에 남겨둔다. 로딩 중 취소하면 보던 목록으로 돌아와야 한다.
-                onRetryClick = {
-                    viewModel.startExtraction()
-                    navController.navigate(PlaceImportRoute.LOADING)
-                },
                 onNextClick = { navController.navigate(PlaceImportRoute.EDIT) },
+                // 링크 입력으로 돌아간다. 입력해 둔 링크는 그대로라 고쳐서 다시 엔터만 누르면 된다.
+                onRelinkClick = { navController.popBackStack(PlaceImportRoute.URL, inclusive = false) },
+                onDirectSearchClick = { navController.navigate(PlaceImportRoute.SEARCH) },
+            )
+        }
+
+        composable(PlaceImportRoute.SEARCH) { entry ->
+            val viewModel = sharedPlaceImportViewModel(navController, entry)
+            val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+
+            PlaceImportSearchScreen(
+                query = uiState.searchQuery,
+                search = uiState.search,
+                onQueryChange = viewModel::updateSearchQuery,
+                onRetryClick = viewModel::retrySearch,
+                onCandidateClick = { candidate ->
+                    viewModel.selectSearchedPlace(candidate)
+                    // 못 찾음·검색 화면은 지운다. 남기면 뒤로 갈 때 검색한 장소가 「영상에서 찾은 장소」로 보인다.
+                    navController.navigate(PlaceImportRoute.EDIT) {
+                        popUpTo(PlaceImportRoute.PLACE) { inclusive = true }
+                    }
+                },
+                onBackClick = navController::popBackStack,
             )
         }
 
@@ -227,6 +247,7 @@ internal fun NavGraphBuilder.placeImportGraph(
                 }
             } else {
                 PlaceImportMapScreen(
+                    source = uiState.source,
                     places = places,
                     mapsState = uiState.targetMaps,
                     selectedMapIds = uiState.selectedMapIds,

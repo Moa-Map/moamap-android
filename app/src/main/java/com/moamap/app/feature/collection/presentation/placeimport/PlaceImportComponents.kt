@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -199,6 +200,81 @@ private fun PlaceImportButton(
     }
 }
 
+/**
+ * 아래에 세로로 쌓는 버튼 둘. 시안 「인스타그램 장소 찾기」·「검색결과 0」: 파란 버튼 아래 4 띄워 바탕 없는 회색
+ * 글자 버튼(54).
+ */
+@Composable
+internal fun PlaceImportStackedButtons(
+    primaryText: String,
+    primaryEnabled: Boolean,
+    onPrimaryClick: () -> Unit,
+    secondaryText: String,
+    onSecondaryClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = MoaMapDimens.ScreenHorizontalPadding, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        PlaceImportPrimaryButton(
+            text = primaryText,
+            enabled = primaryEnabled,
+            onClick = onPrimaryClick,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(PlaceImportButtonShape)
+                .clickable(onClick = onSecondaryClick)
+                .padding(vertical = 14.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = secondaryText,
+                style = MoaMapTheme.typography.button0.withDesignLineHeight(),
+                color = MoaMapTheme.colors.textAlternative,
+                maxLines = 1,
+            )
+        }
+    }
+}
+
+private val SelectionRadioSize = 20.dp
+private val SelectionRadioDotSize = 14.dp
+
+/**
+ * 동그라미 선택 표시. 시안 「모음탭_지도카드」 선택 off: 회색 테두리 원 20, on: 파란 테두리 + 안쪽 파란 점 14.
+ * 모음 편집과 인스타그램 지도 고르기가 쓴다. 고를 수 없으면([enabled] = false) 회색으로 채운다.
+ */
+@Composable
+internal fun SelectionRadio(selected: Boolean, enabled: Boolean = true) {
+    Box(
+        modifier = Modifier
+            .size(SelectionRadioSize)
+            .clip(CircleShape)
+            .background(if (enabled) Color.Transparent else MoaMapPrimitiveColors.Gray50)
+            .border(
+                width = 1.dp,
+                color = if (selected) MoaMapTheme.colors.primary else MoaMapPrimitiveColors.Gray100,
+                shape = CircleShape,
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) {
+            Box(
+                modifier = Modifier
+                    .size(SelectionRadioDotSize)
+                    .background(MoaMapTheme.colors.primary, CircleShape),
+            )
+        }
+    }
+}
+
 /** 선택된 카드를 감싸는 파란 테두리. 선택 안 된 카드는 테두리가 없다. */
 @Composable
 internal fun selectedCardBorder(selected: Boolean): BorderStroke? =
@@ -260,6 +336,8 @@ internal fun ImportedPlaceCard(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** 인스타그램은 시안대로 파란 테두리만으로 고른 것을 보인다. */
+    showsCheckBox: Boolean = true,
 ) {
     ShadowedSurface(
         modifier = modifier.fillMaxWidth(),
@@ -279,7 +357,7 @@ internal fun ImportedPlaceCard(
                 address = place.displayAddress,
                 modifier = Modifier.weight(1f),
             )
-            PlaceImportCheckBox(checked = selected)
+            if (showsCheckBox) PlaceImportCheckBox(checked = selected)
         }
     }
 }

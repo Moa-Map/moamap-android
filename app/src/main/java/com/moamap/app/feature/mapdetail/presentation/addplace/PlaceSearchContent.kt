@@ -102,7 +102,7 @@ internal fun PlaceSearchContent(
                 title = search.message,
                 description = "잠시 후 다시 시도해주세요",
             ) {
-                RetryButton(onClick = onRetryClick)
+                NoticeRetryButton(onClick = onRetryClick)
             }
 
             is PlaceSearchState.Success -> {
@@ -243,9 +243,9 @@ private fun SearchStatus(title: String, detail: @Composable () -> Unit) {
     MoaMapSymbolNotice(title = title, modifier = Modifier.padding(top = SearchStatusTopGap), detail = detail)
 }
 
-/** 오류 아래 파란 「다시 시도」. */
+/** 오류 아래 파란 「다시 시도」. 장소 가져오기 링크 입력의 불러오기 오류도 쓴다. */
 @Composable
-private fun RetryButton(onClick: () -> Unit) {
+internal fun NoticeRetryButton(onClick: () -> Unit) {
     ShadowedSurface(
         shape = RetryButtonShape,
         color = MoaMapPrimitiveColors.Blue500,

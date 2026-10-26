@@ -19,6 +19,9 @@ import com.moamap.app.feature.collection.domain.model.EditedPlace
 import com.moamap.app.feature.collection.domain.repository.PlaceImportRepository
 import com.moamap.app.feature.collection.presentation.MyMapsState
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
+import com.moamap.app.feature.mapdetail.domain.model.PlaceCandidate
+import com.moamap.app.feature.mapdetail.domain.repository.PlaceSearchRepository
+import com.moamap.app.feature.mapdetail.presentation.addplace.PlaceSearchState
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -54,17 +57,31 @@ private val MyMaps = listOf(
     MyMap(12L, "주말 데이트", null, memberCount = 3, placeCount = 0, official = false, personal = false),
 )
 
+private class FakePlaceSearchRepository : PlaceSearchRepository {
+
+    var results: List<PlaceCandidate> = emptyList()
+    val queries = mutableListOf<String>()
+
+    override suspend fun search(query: String): List<PlaceCandidate> {
+        queries += query
+        return results
+    }
+}
+
 private class FakeMapRepository : MapRepository {
 
     var failure: Throwable? = null
     var maps: List<MyMap> = MyMaps
+
+    /** 커뮤니티 탭 목록. 비워 두면 [maps] 를 그대로 준다. */
+    var communityMaps: List<MyMap>? = null
 
     val calls = mutableListOf<MapType>()
 
     override suspend fun getMyMaps(type: MapType): List<MyMap> {
         calls += type
         failure?.let { throw it }
-        return maps
+        return if (type == MapType.Community) communityMaps ?: maps else maps
     }
 
     override suspend fun updateMyMapOrder(type: MapType, mapIds: List<Long>) = TODO("사용하지 않음")
@@ -170,6 +187,7 @@ class PlaceImportViewModelTest {
     private val dispatcher = StandardTestDispatcher()
     private val repository = FakePlaceImportRepository()
     private val mapRepository = FakeMapRepository()
+    private val searchRepository = FakePlaceSearchRepository()
 
     private lateinit var viewModel: PlaceImportViewModel
 
@@ -188,6 +206,7 @@ class PlaceImportViewModelTest {
         ),
         repository,
         mapRepository,
+        searchRepository,
     )
 
     @After
@@ -734,12 +753,71 @@ class PlaceImportViewModelTest {
     }
 
     @Test
-    fun `저장할 지도 목록은 내 프라이빗 지도만 읽는다`() = runTest(dispatcher) {
+    fun `외부 지도의 저장할 지도 목록은 내 프라이빗 지도만 읽는다`() = runTest(dispatcher) {
+        advanceUntilIdle()
+        mapRepository.calls.clear()
+
+        viewModel = viewModel(PlaceImportSource.MapShare)
         advanceUntilIdle()
 
-        // 커뮤니티 지도는 남이 만든 것이라 여기에 저장할 수 없다.
         assertEquals(listOf(MapType.Private), mapRepository.calls)
         assertEquals(MyMapsState.Success(MyMaps), viewModel.uiState.value.targetMaps)
+    }
+
+    /** 시안 「장소 가져오기 - 지도 선택」(이슈 #386). 커뮤니티 지도는 방장만 넣는다. */
+    @Test
+    fun `인스타그램은 나만의 지도를 맨 위에 두고 내가 방장인 커뮤니티 지도를 덧붙인다`() = runTest(dispatcher) {
+        val personal = MyMap(1L, "나만의 지도", null, memberCount = 1, placeCount = 0, official = false, personal = true)
+        val owned = MyMap(21L, "내가 만든", null, 3, 0, official = false, personal = false, role = MapRole.Owner)
+        val joined = MyMap(22L, "참여한", null, 3, 0, official = false, personal = false, role = MapRole.Member)
+        val official = MyMap(23L, "공식", null, 9, 0, official = true, personal = false, role = MapRole.Owner)
+        mapRepository.maps = MyMaps + personal
+        mapRepository.communityMaps = listOf(joined, owned, official)
+
+        viewModel = viewModel(PlaceImportSource.Instagram)
+        advanceUntilIdle()
+
+        val maps = (viewModel.uiState.value.targetMaps as MyMapsState.Success).maps
+        assertEquals(listOf(1L, 11L, 12L, 21L), maps.map { it.id })
+    }
+
+    @Test
+    fun `직접 검색에서 고른 장소는 고른 장소 하나로 이어진다`() = runTest(dispatcher) {
+        val candidate = PlaceCandidate(
+            kakaoPlaceId = "777",
+            name = "커피나무",
+            address = "서울 동작구 상도동 1",
+            roadAddress = "서울 동작구 상도로 369",
+            latitude = 37.49,
+            longitude = 126.95,
+            category = "음식점 > 카페",
+            placeUrl = "http://place.map.kakao.com/777",
+        )
+        searchRepository.results = listOf(candidate)
+
+        viewModel.updateSearchQuery("커피나무")
+        advanceUntilIdle()
+        assertEquals(listOf("커피나무"), searchRepository.queries)
+        assertEquals(PlaceSearchState.Success(listOf(candidate)), viewModel.uiState.value.search)
+
+        viewModel.selectSearchedPlace(candidate)
+
+        val place = viewModel.uiState.value.selectedPlaces.single()
+        assertEquals("777", place.kakaoPlaceId)
+        assertEquals("KAKAO_SEARCH", place.sourceType)
+        assertEquals(37.49, place.lat, 0.0)
+    }
+
+    @Test
+    fun `불러오기 오류는 다시 입력할 때까지 남는다`() = runTest(dispatcher) {
+        repository.failure = ConnectionException(IOException("boom"))
+        startExtraction()
+        advanceUntilIdle()
+        assertEquals("네트워크에 연결할 수 없어요", viewModel.uiState.value.errorMessage)
+
+        viewModel.updateUrl("https://www.instagram.com/reel/XYZ/")
+
+        assertNull(viewModel.uiState.value.errorMessage)
     }
 
     @Test
