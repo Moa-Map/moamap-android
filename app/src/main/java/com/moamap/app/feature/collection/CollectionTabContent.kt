@@ -25,12 +25,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
 import com.moamap.app.core.designsystem.component.MoaMapListPlaceholder
+import com.moamap.app.core.designsystem.component.MoaMapSymbolNotice
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -63,33 +65,51 @@ internal fun CommunityTabContent(
 ) {
     MapsStateContent(
         state = state,
-        emptyMessage = "아직 참여한 지도가 없어요",
+        emptyMessage = null,
         onRetryClick = onRetryClick,
     ) { maps ->
-        // 공식지도와 커뮤니티 지도는 서버가 한 줄 순서로 둔다. 서로의 자리로도 끌어 옮긴다.
-        val reorder = rememberMapReorderState(
-            ids = maps.map { map -> map.id },
-            spacing = CardSpacing,
-            onMove = onMapMove,
-        )
-        // 시안 `1974:7318`: 목록 오른쪽 위에 「편집」, 목록과 12. 폭을 채워야 「편집」이 오른쪽 끝에 붙는다.
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            EditToggle(edit = edit, onClick = onEditClick, modifier = Modifier.align(Alignment.End))
-            Column(verticalArrangement = Arrangement.spacedBy(CardSpacing)) {
-                // 순서를 바꾸면 카드가 자리째 옮겨가야 끌던 손잡이의 동작이 끊기지 않는다.
-                maps.forEach { map ->
-                    key(map.id) {
-                        MyMapCard(
-                            map = map,
-                            uiModel = map.toCommunityUiModel(),
-                            edit = edit,
-                            reorder = reorder,
-                            onClick = { onMapClick(map) },
-                        )
-                    }
+        if (maps.isEmpty()) {
+            NoMapsNotice(
+                description = "새 지도를 만들거나\n관심 있는 지도에 참여해 보세요.",
+                modifier = Modifier.padding(top = CommunityEmptyNoticeTop),
+            )
+        } else {
+            CommunityMapList(maps, edit, onMapClick, onEditClick, onMapMove)
+        }
+    }
+}
+
+@Composable
+private fun CommunityMapList(
+    maps: List<MyMap>,
+    edit: CollectionEditState?,
+    onMapClick: (MyMap) -> Unit,
+    onEditClick: () -> Unit,
+    onMapMove: (mapId: Long, targetId: Long) -> Unit,
+) {
+    // 공식지도와 커뮤니티 지도는 서버가 한 줄 순서로 둔다. 서로의 자리로도 끌어 옮긴다.
+    val reorder = rememberMapReorderState(
+        ids = maps.map { map -> map.id },
+        spacing = CardSpacing,
+        onMove = onMapMove,
+    )
+    // 시안 `1974:7318`: 목록 오른쪽 위에 「편집」, 목록과 12. 폭을 채워야 「편집」이 오른쪽 끝에 붙는다.
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        EditToggle(edit = edit, onClick = onEditClick, modifier = Modifier.align(Alignment.End))
+        Column(verticalArrangement = Arrangement.spacedBy(CardSpacing)) {
+            // 순서를 바꾸면 카드가 자리째 옮겨가야 끌던 손잡이의 동작이 끊기지 않는다.
+            maps.forEach { map ->
+                key(map.id) {
+                    MyMapCard(
+                        map = map,
+                        uiModel = map.toCommunityUiModel(),
+                        edit = edit,
+                        reorder = reorder,
+                        onClick = { onMapClick(map) },
+                    )
                 }
             }
         }
@@ -114,10 +134,10 @@ internal fun PrivateTabContent(
             onMapShareImportClick = onMapShareImportClick,
         )
 
-        // iOS 와 같게: 탭에 지도가 하나도 없을 때만 비었다고 알리고, 빈 섹션은 제목째 숨긴다.
+        // 나만의 지도는 비면 제목째 숨기고, 프라이빗 지도는 비어도 제목 아래에 안내를 둔다(시안 「모음 프라이빗」).
         MapsStateContent(
             state = state,
-            emptyMessage = "아직 만든 지도가 없어요",
+            emptyMessage = null,
             onRetryClick = onRetryClick,
         ) { maps ->
             val sections = maps.splitPersonal()
@@ -133,6 +153,12 @@ internal fun PrivateTabContent(
                     onMapMove = onMapMove,
                     editToggle = {
                         EditToggle(edit = edit, onClick = onEditClick, modifier = Modifier.align(Alignment.End))
+                    },
+                    emptyContent = {
+                        NoMapsNotice(
+                            description = "새 지도를 만들거나\n초대 코드로 참여해 보세요",
+                            modifier = Modifier.padding(top = PrivateEmptyNoticeTop),
+                        )
                     },
                 )
             }
@@ -268,7 +294,10 @@ internal fun ImportActionCard(
     }
 }
 
-/** 지도가 없으면 제목째 숨긴다(iOS). 제목만 떠 있고 아래가 비어 있으면 못 불러온 것처럼 보인다. */
+/**
+ * 지도가 없으면 [emptyContent] 가 있을 때만 제목과 함께 그것을 그리고, 없으면 제목째 숨긴다. 제목만 떠 있고
+ * 아래가 비어 있으면 못 불러온 것처럼 보인다.
+ */
 @Composable
 private fun PrivateMapSection(
     title: String,
@@ -277,8 +306,16 @@ private fun PrivateMapSection(
     onMapClick: (MyMap) -> Unit,
     onMapMove: (mapId: Long, targetId: Long) -> Unit = { _, _ -> },
     editToggle: (@Composable ColumnScope.() -> Unit)? = null,
+    emptyContent: (@Composable () -> Unit)? = null,
 ) {
-    if (maps.isEmpty()) return
+    if (maps.isEmpty()) {
+        if (emptyContent == null) return
+        Column(modifier = Modifier.fillMaxWidth()) {
+            PrivateSectionTitle(title)
+            emptyContent()
+        }
+        return
+    }
 
     val reorder = rememberMapReorderState(ids = maps.map { map -> map.id }, spacing = CardSpacing, onMove = onMapMove)
     // 시안: 제목과 목록 사이 12, 「편집」과 카드·카드끼리는 8.
@@ -287,12 +324,7 @@ private fun PrivateMapSection(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(
-            text = title,
-            style = MoaMapTheme.typography.title2,
-            color = MoaMapTheme.colors.textNormal,
-            modifier = Modifier.padding(horizontal = 4.dp),
-        )
+        PrivateSectionTitle(title)
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(CardSpacing),
@@ -311,6 +343,42 @@ private fun PrivateMapSection(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun PrivateSectionTitle(title: String) {
+    Text(
+        text = title,
+        style = MoaMapTheme.typography.title2,
+        color = MoaMapTheme.colors.textNormal,
+        modifier = Modifier.padding(horizontal = 4.dp),
+    )
+}
+
+/** 커뮤니티 탭 지도 없음 안내의 위 끝. 시안은 화면 위에서 400 - 탭 아래 20 부터 잰 값이다. */
+private val CommunityEmptyNoticeTop = 208.dp
+
+/** 프라이빗 지도 없음 안내와 「프라이빗 지도」 제목 사이. 시안 「모음 프라이빗」 제목 아래 끝 468 → 안내 544. */
+private val PrivateEmptyNoticeTop = 76.dp
+
+/**
+ * 지도 없음 안내. 시안 릴리즈 v1 「모음/커뮤니티」·「모음 프라이빗」: 흐린 로고 아래 진회색 제목 「참여 중인 지도가
+ * 없어요」와 회색 설명 두 줄. 설명은 탭마다 다르다.
+ */
+@Composable
+private fun NoMapsNotice(description: String, modifier: Modifier = Modifier) {
+    MoaMapSymbolNotice(
+        title = "참여 중인 지도가 없어요",
+        titleColor = MoaMapTheme.colors.textAlternative,
+        modifier = modifier,
+    ) {
+        Text(
+            text = description,
+            style = MoaMapTheme.typography.body2,
+            color = MoaMapTheme.colors.textAssistive,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

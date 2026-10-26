@@ -476,7 +476,26 @@ private fun CollectionScreenEditPreview() {
     }
 }
 
-/** 프라이빗 탭에 나만의 지도만 있을 때: 「프라이빗 지도」 제목과 「편집」은 남고 비었다고 알린다. */
+/** 커뮤니티 탭에 참여한 지도가 없을 때: 화면 가운데쯤 로고와 「참여 중인 지도가 없어요」. */
+@Preview(showBackground = true, widthDp = 393, heightDp = 852)
+@Composable
+private fun CollectionScreenCommunityEmptyPreview() {
+    MoaMapTheme {
+        CollectionContent(
+            uiState = CollectionUiState(community = MyMapsState.Success(emptyList())),
+            onTabClick = {},
+            onRetryClick = {},
+            onHomeClick = {},
+            onInviteCodeClick = {},
+            onNewMapClick = {},
+            onInstagramImportClick = {},
+            onMapShareImportClick = {},
+            onMapClick = {},
+        )
+    }
+}
+
+/** 프라이빗 탭에 나만의 지도만 있을 때: 「프라이빗 지도」 제목 아래 로고와 「참여 중인 지도가 없어요」. */
 @Preview(showBackground = true, widthDp = 393, heightDp = 852)
 @Composable
 private fun CollectionScreenPrivateEmptyPreview() {
