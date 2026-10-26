@@ -109,7 +109,7 @@ internal fun MapInviteCodeDialog(
                     // 안드로이드 13 부터는 복사할 때 시스템이 자체 알림을 띄운다.
                     // 우리가 또 띄우면 같은 안내가 두 번 뜬다.
                     if (Build.VERSION.SDK_INT <= Build.VERSION_CODES.S_V2) {
-                        Toast.makeText(context, "초대코드를 복사했어요", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "초대 코드를 복사했어요", Toast.LENGTH_SHORT).show()
                     }
                 },
             )
