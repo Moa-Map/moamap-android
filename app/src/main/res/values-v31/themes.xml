@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!--
+        Android 12+ 는 시스템 스플래시를 끌 수 없다. 아이콘을 숨기고 바탕을 앱 스플래시 그라데이션의
+        위쪽 색(Blue100)으로 맞춰, 시스템 스플래시가 앱 스플래시의 첫 장면처럼 보이게 한다.
+    -->
+    <style name="Theme.MoaMap" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowSplashScreenBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@android:color/transparent</item>
+    </style>
+</resources>
