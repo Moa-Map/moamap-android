@@ -1,5 +1,7 @@
 package com.moamap.app.core.designsystem.component
 
+import androidx.annotation.DrawableRes
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
@@ -24,10 +26,15 @@ import com.moamap.app.core.designsystem.theme.MoaMapTheme
  * 높이 44, 흰 바탕, 모서리 12, 그림자 `0 0 8 4%`, 안쪽 좌우 16, 회색 돋보기 20 다음 4 를 띄우고
  * [content] 를 둔다. 안내 글자는 body2 `textAssistive`, 입력한 글자는 body2 `textNormal` 로
  * 채운다 - 시안의 기본·입력 중 상태다.
+ *
+ * @param iconRes 왼쪽 아이콘. 장소 가져오기 링크 입력은 링크 아이콘이다.
+ * @param border 오류 상태의 빨간 테두리처럼 겉선이 필요할 때.
  */
 @Composable
 fun MoaMapSearchBar(
     modifier: Modifier = Modifier,
+    @DrawableRes iconRes: Int = R.drawable.ic_search,
+    border: BorderStroke? = null,
     content: @Composable RowScope.() -> Unit,
 ) {
     // 모양·그림자는 ShadowedSurface 기본값(모서리 12, 카드 그림자)이 시안과 같다.
@@ -35,6 +42,7 @@ fun MoaMapSearchBar(
         modifier = modifier
             .fillMaxWidth()
             .height(44.dp),
+        border = border,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp),
@@ -42,7 +50,7 @@ fun MoaMapSearchBar(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(
-                painter = painterResource(R.drawable.ic_search),
+                painter = painterResource(iconRes),
                 contentDescription = null,
                 tint = MoaMapTheme.colors.textAssistive,
                 modifier = Modifier.size(20.dp),

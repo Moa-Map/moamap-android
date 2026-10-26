@@ -42,6 +42,7 @@ import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.collection.domain.model.ImportedPlace
 import com.moamap.app.feature.collection.domain.model.PlaceEdit
+import com.moamap.app.feature.collection.domain.model.PlaceImportSource
 
 internal val PlaceImportCardShape = RoundedCornerShape(12.dp)
 internal val PlaceImportButtonShape = RoundedCornerShape(8.dp)
@@ -74,8 +75,14 @@ internal val PlaceImportContentTopSpacing = 20.dp
 internal val PlaceImportSectionSpacing = 20.dp
 
 @Composable
-internal fun PlaceImportTopBar(onBackClick: () -> Unit) {
-    MoaMapTitleTopBar(title = "장소 가져오기", onBackClick = onBackClick)
+internal fun PlaceImportTopBar(onBackClick: () -> Unit, title: String = "장소 가져오기") {
+    MoaMapTitleTopBar(title = title, onBackClick = onBackClick)
+}
+
+/** 링크 입력·불러오는 중 화면의 상단 제목. 외부 지도는 「지도 가져오기」다(시안). 장소를 고른 뒤로는 둘 다 「장소 가져오기」. */
+internal fun linkStepTitle(source: PlaceImportSource): String = when (source) {
+    PlaceImportSource.Instagram -> "장소 가져오기"
+    PlaceImportSource.MapShare -> "지도 가져오기"
 }
 
 /** 각 단계 상단의 제목 + 설명. 피그마상 좌측으로 4dp 더 들어가 있다. */

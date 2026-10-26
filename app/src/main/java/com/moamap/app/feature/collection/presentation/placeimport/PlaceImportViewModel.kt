@@ -23,6 +23,8 @@ import com.moamap.app.feature.collection.domain.model.PlaceSaveResult
 import com.moamap.app.feature.collection.domain.repository.MapRepository
 import com.moamap.app.feature.collection.domain.repository.PlaceImportRepository
 import com.moamap.app.feature.collection.presentation.MyMapsState
+import com.moamap.app.feature.collection.share.SharedLink
+import com.moamap.app.feature.collection.share.SharedLinkParser
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
 import com.moamap.app.feature.mapdetail.presentation.addplace.MAX_PLACE_PHOTOS
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -82,8 +84,29 @@ internal class PlaceImportViewModel @Inject constructor(
      */
     private var previousResult: Pair<ExtractionState.Success, Set<String>>? = null
 
+    /** 한 줄 칸이라 붙여넣은 줄바꿈은 띄어쓰기로 바꾼다. 다시 입력하면 링크 오류 표시는 지운다. */
     fun updateUrl(url: String) {
-        _uiState.update { state -> state.copy(url = url) }
+        _uiState.update { state -> state.copy(url = url.replace('\n', ' '), linkInvalid = false) }
+    }
+
+    /**
+     * 링크 입력 화면의 키보드 엔터.
+     *
+     * 이 흐름이 받는 링크 형식이면(인스타그램 게시물 / 네이버·카카오·구글 지도) 앞뒤 글을 떼고 링크만 남겨
+     * 추출을 시작하고 true 를 준다. 아니면 입력칸에 오류를 띄우고 false 다(시안 「양식 오류」).
+     */
+    fun submitUrl(): Boolean {
+        val current = _uiState.value
+        if (current.url.isBlank()) return false
+
+        val link = importLinkOf(current.url, source)
+        if (link == null) {
+            _uiState.update { state -> state.copy(linkInvalid = true) }
+            return false
+        }
+        _uiState.update { state -> state.copy(url = link) }
+        startExtraction()
+        return true
     }
 
     /** 검색하기와 재시도가 함께 쓴다. */
@@ -100,6 +123,7 @@ internal class PlaceImportViewModel @Inject constructor(
                 extraction = ExtractionState.Loading,
                 selectedPlaceIds = emptySet(),
                 errorMessage = null,
+                linkInvalid = false,
             )
         }
 
@@ -116,7 +140,7 @@ internal class PlaceImportViewModel @Inject constructor(
                 throw e
             } catch (throwable: Throwable) {
                 Log.e(TAG, "장소 추출 실패", throwable)
-                failExtraction(throwable.toUserMessage())
+                failExtraction(throwable)
                 return@launch
             }
 
@@ -158,16 +182,20 @@ internal class PlaceImportViewModel @Inject constructor(
      * 추출에 실패해도 보고 있던 목록은 유지하고 안내만 띄운다.
      *
      * 결과를 지워버리면 재시도가 한 번 실패했다는 이유로 사용자가 처음부터 다시 해야 한다.
+     *
+     * 링크 탓이면 아래 안내 대신 입력칸에 오류를 띄운다. 네트워크·서버 탓은 링크를 고쳐도 소용없어 안내로 둔다.
      */
-    private fun failExtraction(message: String) {
+    private fun failExtraction(throwable: Throwable) {
         val restored = previousResult
         previousResult = null
+        val linkProblem = throwable.isLinkProblem()
 
         _uiState.update { state ->
             state.copy(
                 extraction = restored?.first ?: ExtractionState.Idle,
                 selectedPlaceIds = restored?.second.orEmpty(),
-                errorMessage = message,
+                errorMessage = if (linkProblem) null else throwable.toUserMessage(),
+                linkInvalid = linkProblem,
             )
         }
     }
@@ -344,6 +372,21 @@ private fun Throwable.toSaveMessage(): String = when (this) {
     is ConnectionException -> NETWORK_ERROR_MESSAGE
     else -> DEFAULT_SAVE_ERROR
 }
+
+/** 서버 `UNSUPPORTED_SHARE_LINK`. 지도 공유 링크가 아니다. */
+private const val UNSUPPORTED_SHARE_LINK_CODE = "PLACE_015"
+
+/** 링크를 고쳐야 풀리는 실패인지. 인스타그램 게시물을 못 읽었거나 서버가 지원하지 않는 공유 링크라고 답했다. */
+private fun Throwable.isLinkProblem(): Boolean =
+    this is PlaceExtractionException.CaptionUnavailable ||
+        (this is ApiException && code == UNSUPPORTED_SHARE_LINK_CODE)
+
+/**
+ * 입력한 글에서 이 흐름이 받는 링크를 뽑는다. 다른 앱 공유와 같은 판정이다 - [SharedLinkParser].
+ * 인스타그램 흐름에 지도 링크를 넣는 것처럼 흐름이 다르면 null 이다.
+ */
+internal fun importLinkOf(text: String, source: PlaceImportSource): String? =
+    (SharedLinkParser.parse(text) as? SharedLink.Supported)?.takeIf { link -> link.source == source }?.url
 
 private fun Throwable.toUserMessage(): String = when (this) {
     // 캡션을 못 읽은 이유는 사용자가 조치할 수 있는 내용이라 그대로 노출한다.

@@ -5,6 +5,7 @@ import com.moamap.app.core.common.PLACE_ADDED_TOAST
 import com.moamap.app.core.common.upload.ImageUploadException
 import com.moamap.app.core.common.upload.MAX_PLACE_PHOTO_FILE_SIZE
 import com.moamap.app.core.navigation.MoaMapRoute
+import com.moamap.app.core.network.ApiException
 import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.collection.domain.model.ImportedPlace
 import com.moamap.app.feature.collection.domain.model.MapType
@@ -258,6 +259,84 @@ class PlaceImportViewModelTest {
         assertEquals("비공개 게시물이라 장소를 가져올 수 없어요", viewModel.uiState.value.errorMessage)
     }
 
+    /** 시안 「양식 오류」(이슈 #380). 버튼 없이 키보드 엔터로 시작한다. */
+    @Test
+    fun `엔터를 누르면 형식이 맞는 링크만 불러오고 링크만 남긴다`() = runTest(dispatcher) {
+        viewModel.updateUrl("이 릴스 봐 https://www.instagram.com/reel/ABC123/")
+
+        assertTrue(viewModel.submitUrl())
+        advanceUntilIdle()
+
+        assertEquals("https://www.instagram.com/reel/ABC123/", viewModel.uiState.value.url)
+        assertEquals(1, repository.callCount)
+        assertFalse(viewModel.uiState.value.linkInvalid)
+    }
+
+    @Test
+    fun `형식이 틀린 링크는 불러오지 않고 입력칸 오류를 띄운다`() = runTest(dispatcher) {
+        viewModel.updateUrl("link")
+
+        assertFalse(viewModel.submitUrl())
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.linkInvalid)
+        assertEquals(0, repository.callCount)
+        assertEquals(ExtractionState.Idle, viewModel.uiState.value.extraction)
+    }
+
+    @Test
+    fun `다른 흐름의 링크도 형식 오류로 본다`() = runTest(dispatcher) {
+        // 인스타그램 흐름에 지도 링크를 넣었다.
+        viewModel.updateUrl("https://naver.me/xAbCdEf")
+
+        assertFalse(viewModel.submitUrl())
+
+        assertTrue(viewModel.uiState.value.linkInvalid)
+    }
+
+    @Test
+    fun `다시 입력하면 입력칸 오류가 사라진다`() = runTest(dispatcher) {
+        viewModel.updateUrl("link")
+        viewModel.submitUrl()
+
+        viewModel.updateUrl("link2")
+
+        assertFalse(viewModel.uiState.value.linkInvalid)
+    }
+
+    @Test
+    fun `빈 칸에서 엔터는 아무것도 하지 않는다`() = runTest(dispatcher) {
+        assertFalse(viewModel.submitUrl())
+
+        assertFalse(viewModel.uiState.value.linkInvalid)
+        assertEquals(0, repository.callCount)
+    }
+
+    @Test
+    fun `게시물을 읽지 못하면 아래 안내 대신 입력칸 오류를 띄운다`() = runTest(dispatcher) {
+        repository.failure = PlaceExtractionException.CaptionUnavailable()
+
+        startExtraction()
+        advanceUntilIdle()
+
+        assertTrue(viewModel.uiState.value.linkInvalid)
+        assertNull(viewModel.uiState.value.errorMessage)
+        assertEquals(ExtractionState.Idle, viewModel.uiState.value.extraction)
+    }
+
+    @Test
+    fun `서버가 지원하지 않는 공유 링크라고 하면 입력칸 오류를 띄운다`() = runTest(dispatcher) {
+        val mapShare = viewModel(PlaceImportSource.MapShare)
+        repository.failure = ApiException(status = 400, code = "PLACE_015", serverMessage = "지원하지 않는 공유 링크입니다.")
+        mapShare.updateUrl("https://naver.me/xAbCdEf")
+
+        assertTrue(mapShare.submitUrl())
+        advanceUntilIdle()
+
+        assertTrue(mapShare.uiState.value.linkInvalid)
+        assertNull(mapShare.uiState.value.errorMessage)
+    }
+
     @Test
     fun `서버에 닿지 못하면 네트워크 안내를 낸다`() = runTest(dispatcher) {
         repository.failure = ConnectionException(IOException("boom"))
@@ -270,7 +349,7 @@ class PlaceImportViewModelTest {
 
     @Test
     fun `안내를 소비하면 초기 상태로 돌아간다`() = runTest(dispatcher) {
-        repository.failure = PlaceExtractionException.CaptionUnavailable()
+        repository.failure = PlaceExtractionException.CaptionBlocked()
         startExtraction()
         advanceUntilIdle()
 

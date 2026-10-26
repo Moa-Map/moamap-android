@@ -21,9 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -31,7 +29,7 @@ import androidx.compose.ui.unit.dp
 import com.moamap.app.core.designsystem.component.ButtonShadowBlurRadius
 import com.moamap.app.core.designsystem.component.ButtonShadowColor
 import com.moamap.app.core.designsystem.component.MoaMapSearchBar
-import com.moamap.app.core.designsystem.component.MoaSymbolLogo
+import com.moamap.app.core.designsystem.component.MoaMapSymbolNotice
 import com.moamap.app.core.designsystem.component.ShadowedSurface
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -40,12 +38,8 @@ import com.moamap.app.feature.mapdetail.domain.model.PlaceCandidate
 /** 제목·안내 글이 검색창보다 안쪽으로 들어간 만큼(시안 4). */
 private val IntroStartInset = 4.dp
 
-/** 검색창 아래 안내·결과 없음·오류 묶음까지(피그마 릴리즈 v1, iOS). */
-private val SearchStatusTopGap = 161.dp
-
-/** 안내 묶음 위의 흐린 로고 본체 너비. */
-private val SearchStatusLogoWidth = 75.dp
-private const val SEARCH_STATUS_LOGO_ALPHA = 0.6f
+/** 검색창 아래 안내·결과 없음·오류 묶음까지(피그마 릴리즈 v1, iOS). 장소 가져오기 링크 입력도 같은 간격이다. */
+internal val SearchStatusTopGap = 161.dp
 
 /**
  * 검색 예시. 피그마 릴리즈 v1 「상세지도/장소추가」 그대로다(이슈 #378, iOS 와는 다를 수 있다). 세 예시 모두 카카오
@@ -246,32 +240,7 @@ private fun SearchStatus(
 /** 안내·결과 없음·오류가 검색창 아래 같은 자리에 흐린 로고와 함께 뜬다. */
 @Composable
 private fun SearchStatus(title: String, detail: @Composable () -> Unit) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = SearchStatusTopGap),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        MoaSymbolLogo(
-            bodyWidth = SearchStatusLogoWidth,
-            modifier = Modifier.alpha(SEARCH_STATUS_LOGO_ALPHA),
-            contentDescription = null,
-        )
-        Column(
-            modifier = Modifier.semantics(mergeDescendants = true) {},
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = title,
-                style = MoaMapTheme.typography.subtitle4,
-                color = MoaMapTheme.colors.textNormal,
-                textAlign = TextAlign.Center,
-            )
-            detail()
-        }
-    }
+    MoaMapSymbolNotice(title = title, modifier = Modifier.padding(top = SearchStatusTopGap), detail = detail)
 }
 
 /** 오류 아래 파란 「다시 시도」. */

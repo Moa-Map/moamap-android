@@ -63,15 +63,15 @@ internal fun NavGraphBuilder.placeImportGraph(
             val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
             PlaceImportUrlScreen(
+                source = uiState.source,
                 url = uiState.url,
-                canSearch = uiState.canSearch,
+                linkInvalid = uiState.linkInvalid,
                 errorMessage = uiState.errorMessage,
                 onUrlChange = viewModel::updateUrl,
                 onBackClick = navController::popBackStack,
                 onErrorShown = viewModel::consumeError,
-                onSearchClick = {
-                    viewModel.startExtraction()
-                    navController.navigate(PlaceImportRoute.LOADING)
+                onSubmit = {
+                    if (viewModel.submitUrl()) navController.navigate(PlaceImportRoute.LOADING)
                 },
             )
         }
@@ -87,8 +87,8 @@ internal fun NavGraphBuilder.placeImportGraph(
             // 그 화면을 재사용해 재시도를 반복해도 백스택이 자라지 않게 한다.
             LaunchedEffect(uiState.extraction, uiState.errorMessage) {
                 when {
-                    // 실패하면 직전 화면으로 돌아가고, 그 화면이 안내를 띄운다.
-                    uiState.errorMessage != null -> navController.popBackStack()
+                    // 실패하면 직전 화면으로 돌아가고, 그 화면이 안내(링크 탓이면 입력칸 오류)를 띄운다.
+                    uiState.errorMessage != null || uiState.linkInvalid -> navController.popBackStack()
 
                     uiState.extraction is ExtractionState.Success ->
                         navController.navigate(PlaceImportRoute.PLACE) {
