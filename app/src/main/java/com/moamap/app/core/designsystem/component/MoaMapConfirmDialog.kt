@@ -57,6 +57,7 @@ private const val TITLE_ELLIPSIS = "…"
  * @param title 제목 앞부분. 지도 이름처럼 길이를 알 수 없는 값을 둔다. 너무 길면 끝이 줄어든다.
  * @param titleSuffix 제목 뒷부분. 줄이지 않고 늘 다 보여 준다. 질문을 둔다.
  * @param dismissColor 닫기 버튼 색. 시안마다 다르다(나가기 확인 Gray100, 모음 편집 Gray200).
+ * @param confirmColor 확인 버튼 색. 기본 파랑, 모음 편집 나가기는 빨강이다.
  */
 @Composable
 fun MoaMapConfirmDialog(
@@ -68,6 +69,7 @@ fun MoaMapConfirmDialog(
     titleSuffix: String = "",
     dismissText: String = "닫기",
     dismissColor: Color = MoaMapPrimitiveColors.Gray100,
+    confirmColor: Color = MoaMapPrimitiveColors.Blue500,
 ) {
     PopupCard(onDismissRequest = onDismissRequest) {
         Column(
@@ -95,7 +97,7 @@ fun MoaMapConfirmDialog(
             )
             ConfirmDialogButton(
                 text = confirmText,
-                color = MoaMapPrimitiveColors.Blue500,
+                color = confirmColor,
                 onClick = onConfirm,
             )
         }
