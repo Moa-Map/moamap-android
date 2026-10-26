@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -25,6 +26,8 @@ private const val SYMBOL_NOTICE_LOGO_ALPHA = 0.6f
 internal fun MoaMapSymbolNotice(
     title: String,
     modifier: Modifier = Modifier,
+    /** 모음 탭 지도 없음 안내는 진회색(#4A4F52)이다. */
+    titleColor: Color = MoaMapTheme.colors.textNormal,
     detail: @Composable () -> Unit,
 ) {
     Column(
@@ -45,7 +48,7 @@ internal fun MoaMapSymbolNotice(
             Text(
                 text = title,
                 style = MoaMapTheme.typography.subtitle4,
-                color = MoaMapTheme.colors.textNormal,
+                color = titleColor,
                 textAlign = TextAlign.Center,
             )
             detail()
