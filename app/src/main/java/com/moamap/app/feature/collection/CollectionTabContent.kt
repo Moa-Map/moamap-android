@@ -1,11 +1,8 @@
 package com.moamap.app.feature.collection
 
 import androidx.annotation.DrawableRes
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -13,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -22,7 +18,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextAlign
@@ -41,6 +36,7 @@ import com.moamap.app.feature.collection.domain.model.MyMap
 import com.moamap.app.feature.collection.presentation.CollectionEditState
 import com.moamap.app.feature.collection.presentation.LeaveEligibility
 import com.moamap.app.feature.collection.presentation.MyMapsState
+import com.moamap.app.feature.collection.presentation.placeimport.SelectionRadio
 import com.moamap.app.feature.collection.presentation.placeimport.selectedCardBorder
 import com.moamap.app.feature.collection.presentation.splitPersonal
 
@@ -423,7 +419,7 @@ private fun MyMapCard(
             {
                 // 확인 중인 지도는 고를 수 있는 모양으로 둔다. 곧 대부분 고를 수 있게 된다.
                 val eligibility = current.eligibilityOf(map.id)
-                LeaveRadio(
+                SelectionRadio(
                     selected = selected,
                     enabled = eligibility == LeaveEligibility.Allowed ||
                         eligibility == LeaveEligibility.Checking ||
@@ -434,33 +430,3 @@ private fun MyMapCard(
     )
 }
 
-private val LeaveRadioSize = 20.dp
-private val LeaveRadioDotSize = 14.dp
-
-/**
- * 하나만 고르는 표시. 시안 「모음탭_지도카드」 선택 off: 회색 테두리 원 20, on: 파란 테두리 + 안쪽 파란 점 14.
- * 고를 수 없는 지도(나만의 지도 등)는 회색으로 채운다.
- */
-@Composable
-private fun LeaveRadio(selected: Boolean, enabled: Boolean) {
-    Box(
-        modifier = Modifier
-            .size(LeaveRadioSize)
-            .clip(CircleShape)
-            .background(if (enabled) Color.Transparent else MoaMapPrimitiveColors.Gray50)
-            .border(
-                width = 1.dp,
-                color = if (selected) MoaMapTheme.colors.primary else MoaMapPrimitiveColors.Gray100,
-                shape = CircleShape,
-            ),
-        contentAlignment = Alignment.Center,
-    ) {
-        if (selected) {
-            Box(
-                modifier = Modifier
-                    .size(LeaveRadioDotSize)
-                    .background(MoaMapTheme.colors.primary, CircleShape),
-            )
-        }
-    }
-}

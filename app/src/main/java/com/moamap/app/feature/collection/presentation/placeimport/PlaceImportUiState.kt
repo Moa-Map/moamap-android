@@ -7,6 +7,7 @@ import com.moamap.app.feature.collection.domain.model.PlaceEdit
 import com.moamap.app.feature.collection.domain.model.PlaceImportSource
 import com.moamap.app.feature.collection.domain.model.PlaceSaveResult
 import com.moamap.app.feature.collection.presentation.MyMapsState
+import com.moamap.app.feature.mapdetail.presentation.addplace.PlaceSearchState
 
 /**
  * 장소 추출 단계. 로딩 화면과 장소 선택 화면이 이 값으로 갈린다.
@@ -62,6 +63,9 @@ internal data class PlaceImportUiState(
     val errorMessage: String? = null,
     /** 링크 입력칸을 빨갛게 하고 「링크를 다시 확인해주세요」를 띄운다. 다시 입력하면 꺼진다. */
     val linkInvalid: Boolean = false,
+    /** 장소를 못 찾았을 때 「직접 장소 검색하기」의 검색어와 결과(인스타그램). */
+    val searchQuery: String = "",
+    val search: PlaceSearchState = PlaceSearchState.Idle,
 ) {
     val places: List<ImportedPlace>
         get() = (extraction as? ExtractionState.Success)?.places.orEmpty()

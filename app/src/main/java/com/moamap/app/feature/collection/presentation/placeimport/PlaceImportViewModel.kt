@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.common.NETWORK_ERROR_MESSAGE
 import com.moamap.app.core.common.actionableMessage
 import com.moamap.app.core.common.placeAddedToast
+import com.moamap.app.core.common.toUserMessage
 import com.moamap.app.core.common.toggle
 import com.moamap.app.core.common.upload.ImageUploadException
 import com.moamap.app.core.navigation.MoaMapRoute
@@ -26,10 +27,16 @@ import com.moamap.app.feature.collection.presentation.MyMapsState
 import com.moamap.app.feature.collection.share.SharedLink
 import com.moamap.app.feature.collection.share.SharedLinkParser
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
+import com.moamap.app.feature.mapdetail.domain.model.PlaceCandidate
+import com.moamap.app.feature.mapdetail.domain.repository.PlaceSearchRepository
 import com.moamap.app.feature.mapdetail.presentation.addplace.MAX_PLACE_PHOTOS
+import com.moamap.app.feature.mapdetail.presentation.addplace.PlaceSearchState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -38,7 +45,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val TAG = "PlaceImportViewModel"
-private const val DEFAULT_EXTRACTION_ERROR = "장소를 가져오지 못했어요"
+/** 시안 「상세지도/장소추가 - 에러」와 같은 문구다. 인스타그램은 링크 입력 화면 안내 자리에 [다시 시도]와 함께 뜬다. */
+private const val DEFAULT_EXTRACTION_ERROR = "검색 결과를 불러오지 못했어요"
+private const val SEARCH_FAILED_MESSAGE = "검색 결과를 불러오지 못했어요"
+private const val SEARCH_DEBOUNCE_MILLIS = 300L
 private const val MAPS_LOAD_FAILED_MESSAGE = "지도 목록을 불러오지 못했어요"
 private const val DEFAULT_SAVE_ERROR = "장소를 저장하지 못했어요"
 
@@ -48,7 +58,10 @@ private const val DEFAULT_SAVE_ERROR = "장소를 저장하지 못했어요"
  * 중첩 그래프의 back stack entry 에 스코프해서 4개 화면이 같은 인스턴스를 본다.
  * 흐름을 벗어나면 함께 정리되므로 다음에 다시 들어와도 이전 입력이 남지 않는다.
  */
-/** 장소를 넣을 수 있는 지도 종류. 지금은 프라이빗(나만의 지도 포함)만 고를 수 있다. */
+/**
+ * 장소를 넣을 수 있는 지도 종류. 외부 지도는 프라이빗(나만의 지도 포함)만 고른다. 인스타그램은 내가 방장인
+ * 커뮤니티 지도도 고른다 - [PlaceImportViewModel.loadTargetMaps].
+ */
 private val TARGET_MAP_TYPE = MapType.Private
 
 @HiltViewModel
@@ -56,6 +69,7 @@ internal class PlaceImportViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val placeImportRepository: PlaceImportRepository,
     private val mapRepository: MapRepository,
+    private val placeSearchRepository: PlaceSearchRepository,
 ) : ViewModel() {
 
     private val source: PlaceImportSource = PlaceImportSource.valueOf(
@@ -72,6 +86,8 @@ internal class PlaceImportViewModel @Inject constructor(
 
     private var mapsJob: Job? = null
 
+    private var searchJob: Job? = null
+
     init {
         loadTargetMaps()
     }
@@ -86,7 +102,10 @@ internal class PlaceImportViewModel @Inject constructor(
 
     /** 한 줄 칸이라 붙여넣은 줄바꿈은 띄어쓰기로 바꾼다. 다시 입력하면 링크 오류 표시는 지운다. */
     fun updateUrl(url: String) {
-        _uiState.update { state -> state.copy(url = url.replace('\n', ' '), linkInvalid = false) }
+        // 인스타그램은 불러오기 오류도 입력칸 아래 안내 자리에 남아 있다. 다시 입력하면 함께 지운다.
+        _uiState.update { state ->
+            state.copy(url = url.replace('\n', ' '), linkInvalid = false, errorMessage = null)
+        }
     }
 
     /**
@@ -286,13 +305,74 @@ internal class PlaceImportViewModel @Inject constructor(
     /** 지도 목록을 읽지 못했을 때 다시 읽는다. */
     fun retryLoadMaps() = loadTargetMaps()
 
+    // ---------- 장소를 못 찾았을 때 직접 검색(인스타그램) ----------
+
+    /** 장소 추가와 같은 카카오 장소 검색. 입력이 멈추면 찾는다. */
+    fun updateSearchQuery(query: String) {
+        _uiState.update { state -> state.copy(searchQuery = query) }
+        searchJob?.cancel()
+        if (query.isBlank()) {
+            _uiState.update { state -> state.copy(search = PlaceSearchState.Idle) }
+            return
+        }
+        searchJob = viewModelScope.launch {
+            delay(SEARCH_DEBOUNCE_MILLIS)
+            _uiState.update { state -> state.copy(search = PlaceSearchState.Loading) }
+            search(query)
+        }
+    }
+
+    fun retrySearch() {
+        val query = _uiState.value.searchQuery
+        if (query.isBlank()) return
+        searchJob?.cancel()
+        _uiState.update { state -> state.copy(search = PlaceSearchState.Loading) }
+        searchJob = viewModelScope.launch { search(query) }
+    }
+
+    private suspend fun search(query: String) {
+        val next = try {
+            PlaceSearchState.Success(placeSearchRepository.search(query))
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "장소 검색 실패", e)
+            PlaceSearchState.Error(e.toUserMessage(SEARCH_FAILED_MESSAGE))
+        }
+        _uiState.update { state -> state.copy(search = next) }
+    }
+
+    /** 검색에서 고른 장소를 영상에서 찾아 고른 것처럼 둔다. 이어서 편집 → 지도 고르기로 간다. */
+    fun selectSearchedPlace(candidate: PlaceCandidate) {
+        val place = candidate.toImportedPlace()
+        _uiState.update { state ->
+            state.copy(
+                extraction = ExtractionState.Success(listOf(place)),
+                selectedPlaceIds = setOf(place.id),
+                edits = emptyMap(),
+                uploadedPhotoUrls = emptyMap(),
+            )
+        }
+    }
+
+    /**
+     * 장소를 넣을 지도. 인스타그램은 시안대로 나만의 지도 → 프라이빗 지도 → 내가 방장인 커뮤니티 지도 순이다
+     * (커뮤니티는 방장만 넣는다, 이슈 #386). 외부 지도는 아직 예전 그대로 프라이빗 지도만 서버 순서로 둔다.
+     */
     private fun loadTargetMaps() {
         mapsJob?.cancel()
         _uiState.update { state -> state.copy(targetMaps = MyMapsState.Loading) }
 
         mapsJob = viewModelScope.launch {
             val maps = try {
-                mapRepository.getMyMaps(TARGET_MAP_TYPE)
+                when (source) {
+                    PlaceImportSource.MapShare -> mapRepository.getMyMaps(TARGET_MAP_TYPE)
+                    PlaceImportSource.Instagram -> coroutineScope {
+                        val community = async { mapRepository.getMyMaps(MapType.Community) }
+                        val private = mapRepository.getMyMaps(MapType.Private)
+                        instagramTargetMaps(private, community.await())
+                    }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (throwable: Throwable) {
@@ -387,6 +467,28 @@ private fun Throwable.isLinkProblem(): Boolean =
  */
 internal fun importLinkOf(text: String, source: PlaceImportSource): String? =
     (SharedLinkParser.parse(text) as? SharedLink.Supported)?.takeIf { link -> link.source == source }?.url
+
+/**
+ * 인스타그램 장소를 넣을 수 있는 지도. 나만의 지도 → 프라이빗 지도 → 내가 방장인 커뮤니티 지도 순이고, 묶음 안은
+ * 모음 탭 순서 그대로다. 커뮤니티 탭에 함께 오는 공식지도는 뺀다.
+ */
+internal fun instagramTargetMaps(private: List<MyMap>, community: List<MyMap>): List<MyMap> =
+    private.sortedBy { map -> !map.personal } +
+        community.filter { map -> !map.official && map.role == MapRole.Owner }
+
+/** 카카오 검색 결과를 링크에서 찾은 장소와 같은 모양으로. 장소 추가와 같은 출처(`KAKAO_SEARCH`)로 등록한다. */
+internal fun PlaceCandidate.toImportedPlace() = ImportedPlace(
+    id = kakaoPlaceId,
+    name = name,
+    address = address,
+    roadAddress = roadAddress,
+    lat = latitude,
+    lng = longitude,
+    category = category,
+    kakaoPlaceId = kakaoPlaceId,
+    sourceType = "KAKAO_SEARCH",
+    sourceUrl = placeUrl,
+)
 
 private fun Throwable.toUserMessage(): String = when (this) {
     // 캡션을 못 읽은 이유는 사용자가 조치할 수 있는 내용이라 그대로 노출한다.

@@ -39,6 +39,7 @@ import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapDimens
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.feature.collection.domain.model.PlaceImportSource
+import com.moamap.app.feature.mapdetail.presentation.addplace.NoticeRetryButton
 import com.moamap.app.feature.mapdetail.presentation.addplace.SearchStatusTopGap
 
 /**
@@ -60,6 +61,8 @@ internal fun PlaceImportUrlScreen(
     modifier: Modifier = Modifier,
 ) {
     val texts = linkStepTexts(source)
+    // 다시 입력하거나 다시 시도할 때 ViewModel 이 지운다 - 한 번 보이고 사라지는 안내가 아니다.
+    val inlineError = errorMessage.takeIf { source == PlaceImportSource.Instagram }
 
     Box(
         modifier = modifier
@@ -94,26 +97,48 @@ internal fun PlaceImportUrlScreen(
                             modifier = Modifier.padding(start = 2.dp, top = 4.dp),
                         )
                     }
-                    MoaMapSymbolNotice(
-                        title = texts.noticeTitle,
-                        modifier = Modifier.padding(top = SearchStatusTopGap),
-                    ) {
-                        Text(
-                            text = texts.noticeDescription,
-                            style = MoaMapTheme.typography.body2,
-                            color = MoaMapTheme.colors.textAlternative,
-                            textAlign = TextAlign.Center,
-                        )
+                    if (inlineError != null) {
+                        // 시안 「상세지도/장소추가 - 에러」: 안내 자리에 오류와 [다시 시도].
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            MoaMapSymbolNotice(
+                                title = inlineError,
+                                modifier = Modifier.padding(top = SearchStatusTopGap),
+                            ) {
+                                Text(
+                                    text = "잠시 후 다시 시도해주세요",
+                                    style = MoaMapTheme.typography.body2,
+                                    color = MoaMapTheme.colors.textAlternative,
+                                    textAlign = TextAlign.Center,
+                                )
+                            }
+                            Spacer(Modifier.height(16.dp))
+                            NoticeRetryButton(onClick = onSubmit)
+                        }
+                    } else {
+                        MoaMapSymbolNotice(
+                            title = texts.noticeTitle,
+                            modifier = Modifier.padding(top = SearchStatusTopGap),
+                        ) {
+                            Text(
+                                text = texts.noticeDescription,
+                                style = MoaMapTheme.typography.body2,
+                                color = MoaMapTheme.colors.textAlternative,
+                                textAlign = TextAlign.Center,
+                            )
+                        }
                     }
                 }
             }
         }
 
-        ErrorSnackbar(
-            message = errorMessage,
-            onShown = onErrorShown,
-            modifier = Modifier.align(Alignment.BottomCenter),
-        )
+        // 인스타그램 불러오기 오류는 위 안내 자리에 남긴다. 외부 지도는 아직 아래 안내 한 줄이다.
+        if (inlineError == null) {
+            ErrorSnackbar(
+                message = errorMessage,
+                onShown = onErrorShown,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
+        }
     }
 }
 

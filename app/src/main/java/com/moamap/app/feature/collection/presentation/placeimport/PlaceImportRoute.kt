@@ -15,6 +15,9 @@ internal object PlaceImportRoute {
     const val EDIT = "place_import/edit"
     const val MAP = "place_import/map"
 
+    /** 영상에서 장소를 못 찾았을 때 「직접 장소 검색하기」(인스타그램). */
+    const val SEARCH = "place_import/search"
+
     /** 장소 하나를 편집하는 화면. */
     const val ARG_PLACE_ID = "placeId"
     const val EDIT_DETAIL = "place_import/edit/{$ARG_PLACE_ID}"

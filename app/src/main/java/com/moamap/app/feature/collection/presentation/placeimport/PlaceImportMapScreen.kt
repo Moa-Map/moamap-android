@@ -29,13 +29,23 @@ import com.moamap.app.feature.collection.MapsStateContent
 import com.moamap.app.feature.collection.domain.model.ImportedPlace
 import com.moamap.app.feature.collection.domain.model.MyMap
 import com.moamap.app.feature.collection.presentation.MyMapsState
+import com.moamap.app.feature.collection.domain.model.PlaceImportSource
+import com.moamap.app.feature.collection.toCommunityUiModel
 import com.moamap.app.feature.collection.toPrivateUiModel
+import com.moamap.app.feature.mapdetail.domain.model.MapRole
 
 /** 하단 버튼에 마지막 카드가 가리지 않도록 확보하는 여백. */
 private val BottomBarClearance = 88.dp
 
+/**
+ * 인스타그램 지도 고르기 카드. 나만의 지도는 장소 수만, 나머지는 인원·장소 수를 둔다. 시안 카드에 역할 뱃지는 없다.
+ */
+private fun MyMap.toTargetUiModel() =
+    if (personal) toPrivateUiModel() else toCommunityUiModel().copy(role = MapRole.None)
+
 @Composable
 internal fun PlaceImportMapScreen(
+    source: PlaceImportSource,
     places: List<ImportedPlace>,
     mapsState: MyMapsState,
     selectedMapIds: Set<Long>,
@@ -51,6 +61,8 @@ internal fun PlaceImportMapScreen(
 ) {
     // 고른 장소를 펼쳐 봤는지는 이 화면에서만 쓰고 끝나므로 ViewModel 까지 올리지 않는다.
     var placesExpanded by rememberSaveable { mutableStateOf(false) }
+    // 인스타그램은 시안 「장소 가져오기 - 지도 선택」 모양이다. 외부 지도는 아직 예전 그대로.
+    val instagram = source == PlaceImportSource.Instagram
 
     Box(
         modifier = modifier
@@ -59,7 +71,7 @@ internal fun PlaceImportMapScreen(
             .statusBarsPadding(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            PlaceImportTopBar(onBackClick = onBackClick)
+            PlaceImportTopBar(onBackClick = onBackClick, title = if (instagram) "지도에 추가하기" else "장소 가져오기")
 
             Column(
                 modifier = Modifier
@@ -95,10 +107,12 @@ internal fun PlaceImportMapScreen(
                             // 한 장소를 여러 지도에 넣을 수 있어 체크박스로 복수 선택한다.
                             val selected = map.id in selectedMapIds
                             CollectionMapCard(
-                                map = map.toPrivateUiModel(),
+                                map = if (instagram) map.toTargetUiModel() else map.toPrivateUiModel(),
                                 onClick = { onMapClick(map.id) },
                                 border = selectedCardBorder(selected),
-                                trailingContent = { PlaceImportCheckBox(checked = selected) },
+                                trailingContent = {
+                                    if (instagram) SelectionRadio(selected) else PlaceImportCheckBox(checked = selected)
+                                },
                             )
                         }
                     }
@@ -116,7 +130,11 @@ internal fun PlaceImportMapScreen(
             )
             PlaceImportBottomBar {
                 PlaceImportPrimaryButton(
-                    text = if (saving) "저장하는 중.." else "저장하기",
+                    text = when {
+                        saving -> if (instagram) "추가하는 중.." else "저장하는 중.."
+                        instagram -> "추가하기"
+                        else -> "저장하기"
+                    },
                     enabled = canSave,
                     onClick = onSaveClick,
                     modifier = Modifier.weight(1f),
@@ -137,6 +155,7 @@ private val PreviewMaps = listOf(
 private fun PlaceImportMapScreenPreview() {
     MoaMapTheme {
         PlaceImportMapScreen(
+            source = PlaceImportSource.Instagram,
             places = listOf(
                 ImportedPlace(id = "1", name = "커피나무", address = "서울시 동작구 369"),
                 ImportedPlace(id = "2", name = "블루보틀 성수", address = "서울시 성동구 아차산로 7"),
