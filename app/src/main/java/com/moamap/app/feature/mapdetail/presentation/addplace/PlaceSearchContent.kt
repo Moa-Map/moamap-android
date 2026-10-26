@@ -47,9 +47,12 @@ private val SearchStatusTopGap = 161.dp
 private val SearchStatusLogoWidth = 75.dp
 private const val SEARCH_STATUS_LOGO_ALPHA = 0.6f
 
-/** 검색 예시. 카카오 키워드 검색 기준이다. */
+/**
+ * 검색 예시. 피그마 릴리즈 v1 「상세지도/장소추가」 그대로다(이슈 #378, iOS 와는 다를 수 있다). 세 예시 모두 카카오
+ * 키워드 검색에서 결과가 나온다(10-26 확인).
+ */
 private const val SEARCH_HINT_EXAMPLES =
-    "- 장소 이름 (숭실대학교, 롯데월드타워)\n- 지역 + 장소 이름 (성수 스타벅스)\n- 도로명 + 건물번호 (위례성대로 2)"
+    "- 도로명 + 건물번호 (위례성대로 2)\n- 건물명 + 번지 (방이동 44-2)\n- 건물명, 학교명 (반포 자이, 숭실대학교)"
 
 private val RetryButtonHeight = 36.dp
 private val RetryButtonShape = RoundedCornerShape(8.dp)
