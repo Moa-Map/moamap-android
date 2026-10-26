@@ -67,6 +67,29 @@ internal fun MapDetailMenu(
     )
 }
 
+/**
+ * 장소 페이지 상단바 메뉴. 고치거나 지울 수 있는 장소에서 우측 위 아이콘을 누르면 뜬다 -
+ * `MapDetail.canManagePlace` 참고. 시안 릴리즈 v1 「장소선택 - 내가 등록한 장소」. 자리·모양은 지도 상세
+ * 메뉴와 같다.
+ */
+@Composable
+internal fun PlaceDetailMenu(
+    onEditClick: () -> Unit,
+    onDeleteClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    hazeState: HazeState? = null,
+) {
+    ModalActionMenu(
+        items = listOf(
+            ActionMenuItem(R.drawable.ic_edit, "수정하기", onEditClick),
+            ActionMenuItem(R.drawable.ic_trash, "삭제하기", onDeleteClick),
+        ),
+        scrimColor = MapDetailMenuScrim,
+        hazeState = hazeState,
+        modifier = modifier,
+    )
+}
+
 @Preview(showBackground = true, widthDp = 393, heightDp = 300)
 @Composable
 private fun MapDetailMenuPreview() {

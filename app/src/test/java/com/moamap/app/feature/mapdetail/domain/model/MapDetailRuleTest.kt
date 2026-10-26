@@ -218,6 +218,34 @@ class MapDetailRuleTest {
         assertFalse(map(MapType.Official, MapRole.Owner, joined = true).canEditInfo)
     }
 
+    /** 서버 `PlaceService.checkModifyPermission` 과 같은 규칙이다(이슈 #376). */
+    @Test
+    fun `장소 수정·삭제는 프라이빗 멤버·방장·관리자·등록한 본인만 한다`() {
+        val me = 7L
+        val other = 8L
+        // 커뮤니티 멤버는 자기가 등록한 장소만.
+        assertTrue(map(MapType.Community, MapRole.Member, joined = true).canManagePlace(createdBy = me, myUserId = me))
+        assertFalse(map(MapType.Community, MapRole.Member, joined = true).canManagePlace(createdBy = other, myUserId = me))
+        // 방장·관리자는 남이 등록한 장소도.
+        assertTrue(map(MapType.Community, MapRole.Owner, joined = true).canManagePlace(createdBy = other, myUserId = me))
+        assertTrue(map(MapType.Community, MapRole.Admin, joined = true).canManagePlace(createdBy = other, myUserId = me))
+        // 프라이빗 지도(나만의 지도 포함)는 멤버 누구나.
+        assertTrue(map(MapType.Private, MapRole.Member, joined = true).canManagePlace(createdBy = other, myUserId = me))
+        assertTrue(
+            map(MapType.Private, MapRole.Owner, joined = true, personal = true)
+                .canManagePlace(createdBy = other, myUserId = me),
+        )
+    }
+
+    @Test
+    fun `참여하지 않았거나 내 id 를 모르면 장소 메뉴가 없다`() {
+        assertFalse(map(MapType.Community, MapRole.None, joined = false).canManagePlace(createdBy = 7L, myUserId = 7L))
+        assertFalse(map(MapType.Private, MapRole.None, joined = false).canManagePlace(createdBy = 7L, myUserId = 7L))
+        assertFalse(map(MapType.Community, MapRole.Member, joined = true).canManagePlace(createdBy = 7L, myUserId = null))
+        // 공식지도 장소는 운영자가 넣는다.
+        assertFalse(map(MapType.Official, MapRole.Member, joined = true).canManagePlace(createdBy = 1L, myUserId = 7L))
+    }
+
     @Test
     fun `나만의 지도 메뉴에는 멤버 관리가 없다`() {
         assertFalse(map(MapType.Private, MapRole.Owner, joined = true, personal = true).showsMembersMenu)

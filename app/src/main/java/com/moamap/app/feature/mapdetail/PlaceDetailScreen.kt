@@ -160,6 +160,12 @@ internal fun PlaceDetailScreen(
     onSheetPlaced: (sheetHeightPx: Float) -> Unit = {},
     /** 올리면 시트가 내려가며 닫힌다(장소 목록으로). 시트 위 빈 지도를 눌렀을 때다. */
     closeSignal: Int = 0,
+    /** null 이 아니면 페이지 상단 바에 ⋮ 메뉴(수정하기·삭제하기)를 둔다. */
+    onEditPlaceClick: (() -> Unit)? = null,
+    /** 삭제를 팝업에서 확인받은 뒤 부른다. */
+    onDeletePlace: () -> Unit = {},
+    toastMessage: String? = null,
+    onToastShown: () -> Unit = {},
 ) {
     var stage by rememberSaveable(place.id) { mutableStateOf(PlaceDetailStage.Sheet) }
     val probe = remember(place.id) { PlaceSheetProbe() }
@@ -238,6 +244,10 @@ internal fun PlaceDetailScreen(
             onCancelEdit = onCancelEdit,
             onDeleteReview = onDeleteReview,
             showsReactions = showsReactions,
+            onEditPlaceClick = onEditPlaceClick,
+            onDeletePlace = onDeletePlace,
+            toastMessage = toastMessage,
+            onToastShown = onToastShown,
             modifier = Modifier
                 .fillMaxSize()
                 .offset { IntOffset(0, offset.value.roundToInt()) }

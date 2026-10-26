@@ -135,6 +135,20 @@ val MapDetail.canEditInfo: Boolean
     get() = showsMenu && !personal && role == MapRole.Owner
 
 /**
+ * 장소 하나를 고치거나 지울 수 있는지. 장소 페이지 ⋮ 메뉴를 띄울지 정한다.
+ *
+ * 서버 규칙(백엔드 `PlaceService.checkModifyPermission`) 그대로다 - 멤버여야 하고, 프라이빗 지도(나만의
+ * 지도 포함)는 누구나, 그 밖에는 방장·관리자와 등록한 본인이다. 스웨거 설명의 「등록한 본인만」보다 넓다.
+ * 내 id 를 아직 모르면 본인 갈래는 열지 않는다.
+ */
+fun MapDetail.canManagePlace(createdBy: Long, myUserId: Long?): Boolean = when {
+    !joined || role == MapRole.None -> false
+    type == MapType.Private -> true
+    role == MapRole.Owner || role == MapRole.Admin -> true
+    else -> myUserId != null && createdBy == myUserId
+}
+
+/**
  * 나간 뒤에도 이 화면에 남는지.
  *
  * 공식지도는 나가면 그 자리에서 다시 참여하기로 돌아간다. 다른 지도는 나가면 이전 화면으로

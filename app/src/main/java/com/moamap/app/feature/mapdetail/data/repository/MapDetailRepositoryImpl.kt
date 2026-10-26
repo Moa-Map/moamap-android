@@ -3,6 +3,7 @@ package com.moamap.app.feature.mapdetail.data.repository
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.collection.data.remote.MapService
 import com.moamap.app.feature.explore.data.remote.PlaceService
+import com.moamap.app.feature.explore.data.remote.PlaceUpdateRequestDto
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.domain.model.PlaceLike
@@ -58,6 +59,13 @@ class MapDetailRepositoryImpl @Inject constructor(
     override suspend fun setPlaceLiked(placeId: Long, liked: Boolean): PlaceLike {
         val dto = if (liked) placeService.likePlace(placeId) else placeService.unlikePlace(placeId)
         return PlaceLike(liked = dto.liked, likeCount = dto.likeCount)
+    }
+
+    override suspend fun updatePlace(placeId: Long, memo: String, tags: List<String>): MapPlace =
+        placeService.updatePlace(placeId, PlaceUpdateRequestDto(description = memo, tags = tags)).toMapPlace()
+
+    override suspend fun deletePlace(placeId: Long) {
+        placeService.deletePlace(placeId)
     }
 }
 

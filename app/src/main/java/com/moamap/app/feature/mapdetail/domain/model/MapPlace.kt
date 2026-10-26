@@ -32,6 +32,8 @@ data class MapPlace(
     val likeCount: Int = 0,
     /** 내가 하트를 눌러 둔 상태인지. 서버가 요청한 사람 기준으로 내려준다. */
     val liked: Boolean = false,
+    /** 등록한 사람의 id. 수정·삭제 메뉴를 띄울지 가린다 - `MapDetail.canManagePlace`. */
+    val createdBy: Long = 0,
 )
 
 /** 하트를 누르거나 취소한 뒤 서버가 확정한 상태. */
