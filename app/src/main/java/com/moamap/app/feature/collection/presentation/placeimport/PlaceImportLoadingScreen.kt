@@ -49,7 +49,7 @@ internal fun PlaceImportLoadingScreen(
             .background(MoaMapTheme.colors.backgroundSecondary)
             .statusBarsPadding(),
     ) {
-        PlaceImportTopBar(onBackClick = onCancel)
+        PlaceImportTopBar(onBackClick = onCancel, title = linkStepTitle(source))
 
         Box(
             modifier = Modifier
