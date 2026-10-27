@@ -183,6 +183,11 @@ sealed interface MoaMapRoute {
         override val route = "inquiry"
     }
 
+    /** 설정 「차단 관리」. */
+    data object BlockManagement : MoaMapRoute {
+        override val route = "block_management"
+    }
+
     /** 설정 「공지사항」 목록. */
     /** 내 알림. 홈 종 아이콘으로 들어온다. */
     data object Notifications : MoaMapRoute {

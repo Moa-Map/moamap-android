@@ -38,6 +38,7 @@ import com.moamap.app.feature.explore.CommunityMapListScreen
 import com.moamap.app.feature.explore.ExploreScreen
 import com.moamap.app.feature.mapdetail.MapDetailScreen
 import com.moamap.app.feature.mapdetail.presentation.intro.MapIntroScreen
+import com.moamap.app.feature.mypage.BlockManagementScreen
 import com.moamap.app.feature.mypage.InquiryScreen
 import com.moamap.app.feature.mypage.NoticeDetailScreen
 import com.moamap.app.feature.mypage.NoticeListScreen
@@ -402,10 +403,14 @@ internal fun MoaMapNavHost(
                     },
                     onInquiryClick = { navController.navigate(MoaMapRoute.Inquiry.route) },
                     onNoticeClick = { navController.navigate(MoaMapRoute.Notices.route) },
+                    onBlockManagementClick = { navController.navigate(MoaMapRoute.BlockManagement.route) },
                 )
             }
             composable(MoaMapRoute.Inquiry.route) {
                 InquiryScreen(onBackClick = navController::popBackStack)
+            }
+            composable(MoaMapRoute.BlockManagement.route) {
+                BlockManagementScreen(onBackClick = navController::popBackStack)
             }
             composable(MoaMapRoute.Notifications.route) {
                 NotificationScreen(

@@ -57,6 +57,7 @@ internal fun SettingsScreen(
     onOpenTerms: (termId: Long) -> Unit,
     onInquiryClick: () -> Unit,
     onNoticeClick: () -> Unit,
+    onBlockManagementClick: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
@@ -84,6 +85,7 @@ internal fun SettingsScreen(
             onPrivacyPolicyClick = { viewModel.openTerms(TermsCode.POLICY) },
             onInquiryClick = onInquiryClick,
             onNoticeClick = onNoticeClick,
+            onBlockManagementClick = onBlockManagementClick,
             onLogoutClick = { logoutConfirmVisible = true },
             onWithdrawClick = { withdrawConfirmVisible = true },
         )
@@ -137,6 +139,7 @@ private fun SettingsContent(
     onPrivacyPolicyClick: () -> Unit,
     onInquiryClick: () -> Unit,
     onNoticeClick: () -> Unit,
+    onBlockManagementClick: () -> Unit,
     onLogoutClick: () -> Unit,
     onWithdrawClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -163,7 +166,7 @@ private fun SettingsContent(
                     shadowRadius = 5.dp,
                     content = {
                         SettingsRow(
-                            label = "알림 온오프",
+                            label = "알림 on/off",
                             trailingContent = { SettingsToggle() },
                         )
                     },
@@ -180,7 +183,8 @@ private fun SettingsContent(
                         onClick = onPrivacyPolicyClick,
                     )
                     // 시안의 「신고하기」 자리를 문의하기로 쓴다(10-05 사용자 결정).
-                    SettingsNavigationRow(label = "문의하기", onClick = onInquiryClick)
+                    SettingsNavigationRow(label = "문의하기", showDivider = true, onClick = onInquiryClick)
+                    SettingsNavigationRow(label = "차단 관리", onClick = onBlockManagementClick)
                 }
             }
 
@@ -348,6 +352,7 @@ private fun SettingsScreenPreview() {
             onPrivacyPolicyClick = {},
             onInquiryClick = {},
             onNoticeClick = {},
+            onBlockManagementClick = {},
             onLogoutClick = {},
             onWithdrawClick = {},
         )
