@@ -46,7 +46,7 @@ internal fun PlaceImportEditScreen(
             .statusBarsPadding(),
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            PlaceImportTopBar(onBackClick = onBackClick)
+            PlaceImportTopBar(onBackClick = onBackClick, title = "장소 편집하기")
 
             Column(
                 modifier = Modifier
@@ -63,7 +63,8 @@ internal fun PlaceImportEditScreen(
 
                 Spacer(Modifier.height(PlaceImportSectionSpacing))
 
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                // 시안 「장소 가져오기 - 편집」(`4925:36120`): 카드 사이 4.
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     places.forEach { place ->
                         EditablePlaceCard(
                             place = place,

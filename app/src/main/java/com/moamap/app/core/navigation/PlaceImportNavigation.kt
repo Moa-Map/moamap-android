@@ -73,7 +73,6 @@ internal fun NavGraphBuilder.placeImportGraph(
                 errorMessage = uiState.errorMessage,
                 onUrlChange = viewModel::updateUrl,
                 onBackClick = navController::popBackStack,
-                onErrorShown = viewModel::consumeError,
                 onSubmit = {
                     if (viewModel.submitUrl()) navController.navigate(PlaceImportRoute.LOADING)
                 },
@@ -132,6 +131,7 @@ internal fun NavGraphBuilder.placeImportGraph(
                 edits = uiState.edits,
                 onEditClick = { placeId -> navController.navigate(PlaceImportRoute.editDetail(placeId)) },
                 placesFromSearch = uiState.placesFromSearch,
+                unmatchedNames = uiState.unmatchedPlaceNames,
                 // 링크 입력으로 돌아간다. 입력해 둔 링크는 그대로라 고쳐서 다시 엔터만 누르면 된다.
                 onRelinkClick = { navController.popBackStack(PlaceImportRoute.URL, inclusive = false) },
                 onDirectSearchClick = { navController.navigate(PlaceImportRoute.SEARCH) },

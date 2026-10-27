@@ -21,7 +21,11 @@ internal sealed interface ExtractionState {
 
     data object Loading : ExtractionState
 
-    data class Success(val places: List<ImportedPlace>) : ExtractionState
+    /** [unmatchedNames] 는 외부 지도에서 위치를 못 찾아 빠진 장소의 이름이다. */
+    data class Success(
+        val places: List<ImportedPlace>,
+        val unmatchedNames: List<String> = emptyList(),
+    ) : ExtractionState
 }
 
 /**
@@ -63,14 +67,17 @@ internal data class PlaceImportUiState(
     val errorMessage: String? = null,
     /** 링크 입력칸을 빨갛게 하고 「링크를 다시 확인해주세요」를 띄운다. 다시 입력하면 꺼진다. */
     val linkInvalid: Boolean = false,
-    /** 장소를 못 찾았을 때 「직접 장소 검색하기」의 검색어와 결과(인스타그램). */
+    /** 장소를 못 찾았을 때 「직접 장소 검색하기」의 검색어와 결과. */
     val searchQuery: String = "",
     val search: PlaceSearchState = PlaceSearchState.Idle,
 ) {
     val places: List<ImportedPlace>
         get() = (extraction as? ExtractionState.Success)?.places.orEmpty()
 
-    /** 영상에서 못 찾아 「직접 장소 검색하기」로 고른 장소인지. 장소 고르기 안내 문구가 달라진다. */
+    val unmatchedPlaceNames: List<String>
+        get() = (extraction as? ExtractionState.Success)?.unmatchedNames.orEmpty()
+
+    /** 링크에서 못 찾아 「직접 장소 검색하기」로 고른 장소인지. 장소 고르기 안내 문구가 달라진다. */
     val placesFromSearch: Boolean
         get() = places.any { place -> place.sourceType == SEARCHED_PLACE_SOURCE_TYPE }
 

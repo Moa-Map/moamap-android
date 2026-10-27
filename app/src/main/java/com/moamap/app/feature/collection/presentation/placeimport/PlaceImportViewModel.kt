@@ -45,7 +45,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val TAG = "PlaceImportViewModel"
-/** 시안 「상세지도/장소추가 - 에러」와 같은 문구다. 인스타그램은 링크 입력 화면 안내 자리에 [다시 시도]와 함께 뜬다. */
+/** 시안 「상세지도/장소추가 - 에러」와 같은 문구다. 링크 입력 화면 안내 자리에 [다시 시도]와 함께 뜬다. */
 private const val DEFAULT_EXTRACTION_ERROR = "검색 결과를 불러오지 못했어요"
 private const val SEARCH_FAILED_MESSAGE = "검색 결과를 불러오지 못했어요"
 private const val SEARCH_DEBOUNCE_MILLIS = 300L
@@ -58,11 +58,6 @@ private const val DEFAULT_SAVE_ERROR = "장소를 저장하지 못했어요"
  * 중첩 그래프의 back stack entry 에 스코프해서 4개 화면이 같은 인스턴스를 본다.
  * 흐름을 벗어나면 함께 정리되므로 다음에 다시 들어와도 이전 입력이 남지 않는다.
  */
-/**
- * 장소를 넣을 수 있는 지도 종류. 외부 지도는 프라이빗(나만의 지도 포함)만 고른다. 인스타그램은 내가 방장인
- * 커뮤니티 지도도 고른다 - [PlaceImportViewModel.loadTargetMaps].
- */
-private val TARGET_MAP_TYPE = MapType.Private
 
 @HiltViewModel
 internal class PlaceImportViewModel @Inject constructor(
@@ -102,7 +97,7 @@ internal class PlaceImportViewModel @Inject constructor(
 
     /** 한 줄 칸이라 붙여넣은 줄바꿈은 띄어쓰기로 바꾼다. 다시 입력하면 링크 오류 표시는 지운다. */
     fun updateUrl(url: String) {
-        // 인스타그램은 불러오기 오류도 입력칸 아래 안내 자리에 남아 있다. 다시 입력하면 함께 지운다.
+        // 불러오기 오류도 입력칸 아래 안내 자리에 남아 있다. 다시 입력하면 함께 지운다.
         _uiState.update { state ->
             state.copy(url = url.replace('\n', ' '), linkInvalid = false, errorMessage = null)
         }
@@ -147,13 +142,15 @@ internal class PlaceImportViewModel @Inject constructor(
         }
 
         extractionJob = viewModelScope.launch {
-            val places = try {
+            val result = try {
                 when (source) {
                     PlaceImportSource.Instagram ->
-                        placeImportRepository.extractPlaces(current.url)
+                        ExtractionState.Success(placeImportRepository.extractPlaces(current.url))
 
                     PlaceImportSource.MapShare ->
-                        placeImportRepository.extractMapSharePlaces(current.url)
+                        placeImportRepository.extractMapSharePlaces(current.url).let { imported ->
+                            ExtractionState.Success(imported.places, imported.unmatchedNames)
+                        }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -167,8 +164,8 @@ internal class PlaceImportViewModel @Inject constructor(
             previousResult = null
             _uiState.update { state ->
                 state.copy(
-                    extraction = ExtractionState.Success(places),
-                    selectedPlaceIds = initialSelection(places),
+                    extraction = result,
+                    selectedPlaceIds = initialSelection(result.places),
                 )
             }
         }
@@ -305,7 +302,7 @@ internal class PlaceImportViewModel @Inject constructor(
     /** 지도 목록을 읽지 못했을 때 다시 읽는다. */
     fun retryLoadMaps() = loadTargetMaps()
 
-    // ---------- 장소를 못 찾았을 때 직접 검색(인스타그램) ----------
+    // ---------- 장소를 못 찾았을 때 직접 검색 ----------
 
     /** 장소 추가와 같은 카카오 장소 검색. 입력이 멈추면 찾는다. */
     fun updateSearchQuery(query: String) {
@@ -356,8 +353,8 @@ internal class PlaceImportViewModel @Inject constructor(
     }
 
     /**
-     * 장소를 넣을 지도. 인스타그램은 시안대로 나만의 지도 → 프라이빗 지도 → 내가 방장인 커뮤니티 지도 순이다
-     * (커뮤니티는 방장만 넣는다, 이슈 #386). 외부 지도는 아직 예전 그대로 프라이빗 지도만 서버 순서로 둔다.
+     * 장소를 넣을 지도. 시안대로 나만의 지도 → 프라이빗 지도 → 내가 방장인 커뮤니티 지도 순이다
+     * (커뮤니티는 방장만 넣는다, 이슈 #386·#390). 인스타그램과 외부 지도가 같다.
      */
     private fun loadTargetMaps() {
         mapsJob?.cancel()
@@ -365,13 +362,10 @@ internal class PlaceImportViewModel @Inject constructor(
 
         mapsJob = viewModelScope.launch {
             val maps = try {
-                when (source) {
-                    PlaceImportSource.MapShare -> mapRepository.getMyMaps(TARGET_MAP_TYPE)
-                    PlaceImportSource.Instagram -> coroutineScope {
-                        val community = async { mapRepository.getMyMaps(MapType.Community) }
-                        val private = mapRepository.getMyMaps(MapType.Private)
-                        instagramTargetMaps(private, community.await())
-                    }
+                coroutineScope {
+                    val community = async { mapRepository.getMyMaps(MapType.Community) }
+                    val private = mapRepository.getMyMaps(MapType.Private)
+                    importTargetMaps(private, community.await())
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -426,7 +420,8 @@ internal class PlaceImportViewModel @Inject constructor(
                 if (result.created == 0) {
                     state.copy(saving = false, errorMessage = result.toEmptyMessage())
                 } else {
-                    state.copy(saving = false, saveResult = result, doneToast = placeImportDoneToast(state))
+                    // 프라이빗 지도와 내가 방장인 커뮤니티 지도만 고를 수 있어 승인 없이 바로 들어간다 - [importTargetMaps].
+                    state.copy(saving = false, saveResult = result, doneToast = placeAddedToast(needsApproval = false))
                 }
             }
         }
@@ -469,10 +464,10 @@ internal fun importLinkOf(text: String, source: PlaceImportSource): String? =
     (SharedLinkParser.parse(text) as? SharedLink.Supported)?.takeIf { link -> link.source == source }?.url
 
 /**
- * 인스타그램 장소를 넣을 수 있는 지도. 나만의 지도 → 프라이빗 지도 → 내가 방장인 커뮤니티 지도 순이고, 묶음 안은
+ * 가져온 장소를 넣을 수 있는 지도. 나만의 지도 → 프라이빗 지도 → 내가 방장인 커뮤니티 지도 순이고, 묶음 안은
  * 모음 탭 순서 그대로다. 커뮤니티 탭에 함께 오는 공식지도는 뺀다.
  */
-internal fun instagramTargetMaps(private: List<MyMap>, community: List<MyMap>): List<MyMap> =
+internal fun importTargetMaps(private: List<MyMap>, community: List<MyMap>): List<MyMap> =
     private.sortedBy { map -> !map.personal } +
         community.filter { map -> !map.official && map.role == MapRole.Owner }
 
@@ -500,19 +495,3 @@ private fun Throwable.toUserMessage(): String = when (this) {
     is ConnectionException -> NETWORK_ERROR_MESSAGE
     else -> DEFAULT_EXTRACTION_ERROR
 }
-
-/**
- * 가져오기를 마친 토스트. 고른 지도 중 하나라도 승인을 기다려야 하면 요청을 보냈다고 알린다(10-26 사용자 결정).
- *
- * 지금은 프라이빗 지도(나만의 지도 포함)만 고를 수 있어 늘 바로 추가된다. 커뮤니티 지도를 고를 수 있게 되면
- * [needsApproval] 이 방장·관리자가 아닌 지도를 가려낸다.
- */
-internal fun placeImportDoneToast(state: PlaceImportUiState): String {
-    val maps = (state.targetMaps as? MyMapsState.Success)?.maps.orEmpty()
-    val needsApproval = maps.any { map -> map.id in state.selectedMapIds && map.needsApproval(TARGET_MAP_TYPE) }
-    return placeAddedToast(needsApproval)
-}
-
-/** 이 지도에 장소를 넣으면 승인을 기다려야 하는지. 커뮤니티 지도의 일반 멤버만 그렇다. */
-internal fun MyMap.needsApproval(type: MapType): Boolean =
-    type == MapType.Community && role != MapRole.Owner && role != MapRole.Admin

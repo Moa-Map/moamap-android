@@ -3,6 +3,7 @@ package com.moamap.app.feature.collection.data.repository
 import com.moamap.app.core.common.upload.PhotoUploader
 import com.moamap.app.feature.collection.domain.model.EditedPlace
 import com.moamap.app.feature.collection.domain.model.ImportedPlace
+import com.moamap.app.feature.collection.domain.model.MapShareImport
 import com.moamap.app.feature.collection.domain.model.PlaceExtractionException
 import com.moamap.app.feature.collection.domain.model.PlaceSaveResult
 import com.moamap.app.feature.collection.domain.repository.PlaceImportRepository
@@ -55,19 +56,21 @@ internal class PlaceImportRepositoryImpl @Inject constructor(
             .mapIndexed { index, candidate -> candidate.toImportedPlace(index) }
     }
 
-    override suspend fun extractMapSharePlaces(url: String): List<ImportedPlace> {
+    override suspend fun extractMapSharePlaces(url: String): MapShareImport {
         val response = placeService.extractFromMapShare(
             MapShareExtractRequestDto(url = url.trim()),
         )
 
-        // 재매칭에 실패한 unmatched 는 등록까지 갈 수 없어 목록에 올리지 않는다.
-        return response.matched
+        val places = response.matched
             .filter { candidate -> !candidate.name.isNullOrBlank() }
             .mapIndexed { index, candidate ->
                 // 후보마다 붙는 값이지만 리스트 전체가 한 지도에서 나온 것이라
                 // 비어 있으면 응답 최상단의 출처로 채운다.
                 candidate.toImportedPlace(index, candidate.sourceType ?: response.source)
             }
+        // 재매칭에 실패한 unmatched 는 등록까지 갈 수 없어 이름만 알린다. 이름이 없으면 보여 줄 것도 없다.
+        val unmatchedNames = response.unmatched.mapNotNull { place -> place.name?.trim()?.takeIf(String::isNotEmpty) }
+        return MapShareImport(places = places, unmatchedNames = unmatchedNames)
     }
 
     /**

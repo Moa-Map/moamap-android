@@ -2,6 +2,7 @@ package com.moamap.app.feature.collection.domain.repository
 
 import com.moamap.app.feature.collection.domain.model.EditedPlace
 import com.moamap.app.feature.collection.domain.model.ImportedPlace
+import com.moamap.app.feature.collection.domain.model.MapShareImport
 import com.moamap.app.feature.collection.domain.model.PlaceSaveResult
 
 interface PlaceImportRepository {
@@ -18,10 +19,11 @@ interface PlaceImportRepository {
      * 네이버·카카오·구글 지도 공유 링크를 서버에 넘겨 그 리스트의 장소를 받아온다.
      *
      * 인스타그램과 달리 앱이 링크를 열어볼 일이 없다. 서버가 직접 리스트를 읽는다.
+     * 카카오 장소와 맞추지 못한 장소는 이름만 따로 돌려준다.
      *
      * @throws com.moamap.app.core.network.NetworkException 서버 호출이 실패한 경우
      */
-    suspend fun extractMapSharePlaces(url: String): List<ImportedPlace>
+    suspend fun extractMapSharePlaces(url: String): MapShareImport
 
     /**
      * 편집에서 붙인 사진을 올리고 장소 id 로 찾을 수 있게 돌려준다.

@@ -8,6 +8,7 @@ import com.moamap.app.core.navigation.MoaMapRoute
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.collection.domain.model.ImportedPlace
+import com.moamap.app.feature.collection.domain.model.MapShareImport
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.collection.domain.model.MyMap
 import com.moamap.app.feature.collection.domain.model.NewMap
@@ -76,10 +77,7 @@ private class FakeMapRepository : MapRepository {
     /** 커뮤니티 탭 목록. 비워 두면 [maps] 를 그대로 준다. */
     var communityMaps: List<MyMap>? = null
 
-    val calls = mutableListOf<MapType>()
-
     override suspend fun getMyMaps(type: MapType): List<MyMap> {
-        calls += type
         failure?.let { throw it }
         return if (type == MapType.Community) communityMaps ?: maps else maps
     }
@@ -169,9 +167,12 @@ private class FakePlaceImportRepository : PlaceImportRepository {
         return extract()
     }
 
-    override suspend fun extractMapSharePlaces(url: String): List<ImportedPlace> {
+    /** 외부 지도에서 위치를 못 찾은 장소 이름. */
+    var unmatchedNames: List<String> = emptyList()
+
+    override suspend fun extractMapSharePlaces(url: String): MapShareImport {
         mapShareCallCount++
-        return extract()
+        return MapShareImport(extract(), unmatchedNames)
     }
 
     private suspend fun extract(): List<ImportedPlace> {
@@ -573,15 +574,6 @@ class PlaceImportViewModelTest {
     }
 
     @Test
-    fun `커뮤니티 지도의 일반 멤버만 승인을 기다린다`() {
-        val map = MyMaps[0]
-        assertTrue(map.copy(role = MapRole.Member).needsApproval(MapType.Community))
-        assertFalse(map.copy(role = MapRole.Admin).needsApproval(MapType.Community))
-        assertFalse(map.copy(role = MapRole.Owner).needsApproval(MapType.Community))
-        assertFalse(map.copy(role = MapRole.Member).needsApproval(MapType.Private))
-    }
-
-    @Test
     fun `편집한 태그와 메모를 저장 요청에 실어 보낸다`() = runTest(dispatcher) {
         startExtraction()
         advanceUntilIdle()
@@ -753,21 +745,9 @@ class PlaceImportViewModelTest {
         assertNull(repository.savedMapIds)
     }
 
+    /** 시안 「장소 가져오기 - 지도 선택」(이슈 #386·#390). 커뮤니티 지도는 방장만 넣는다. 두 흐름이 같다. */
     @Test
-    fun `외부 지도의 저장할 지도 목록은 내 프라이빗 지도만 읽는다`() = runTest(dispatcher) {
-        advanceUntilIdle()
-        mapRepository.calls.clear()
-
-        viewModel = viewModel(PlaceImportSource.MapShare)
-        advanceUntilIdle()
-
-        assertEquals(listOf(MapType.Private), mapRepository.calls)
-        assertEquals(MyMapsState.Success(MyMaps), viewModel.uiState.value.targetMaps)
-    }
-
-    /** 시안 「장소 가져오기 - 지도 선택」(이슈 #386). 커뮤니티 지도는 방장만 넣는다. */
-    @Test
-    fun `인스타그램은 나만의 지도를 맨 위에 두고 내가 방장인 커뮤니티 지도를 덧붙인다`() = runTest(dispatcher) {
+    fun `나만의 지도를 맨 위에 두고 내가 방장인 커뮤니티 지도를 덧붙인다`() = runTest(dispatcher) {
         val personal = MyMap(1L, "나만의 지도", null, memberCount = 1, placeCount = 0, official = false, personal = true)
         val owned = MyMap(21L, "내가 만든", null, 3, 0, official = false, personal = false, role = MapRole.Owner)
         val joined = MyMap(22L, "참여한", null, 3, 0, official = false, personal = false, role = MapRole.Member)
@@ -775,11 +755,26 @@ class PlaceImportViewModelTest {
         mapRepository.maps = MyMaps + personal
         mapRepository.communityMaps = listOf(joined, owned, official)
 
-        viewModel = viewModel(PlaceImportSource.Instagram)
+        for (source in PlaceImportSource.entries) {
+            viewModel = viewModel(source)
+            advanceUntilIdle()
+
+            val maps = (viewModel.uiState.value.targetMaps as MyMapsState.Success).maps
+            assertEquals(source.name, listOf(1L, 11L, 12L, 21L), maps.map { it.id })
+        }
+    }
+
+    @Test
+    fun `외부 지도에서 위치를 못 찾은 장소 이름을 남긴다`() = runTest(dispatcher) {
+        repository.unmatchedNames = listOf("나고미칸", "이름 없는 카페")
+        viewModel = viewModel(PlaceImportSource.MapShare)
+
+        viewModel.updateUrl("https://naver.me/xAbCdEf")
+        viewModel.startExtraction()
         advanceUntilIdle()
 
-        val maps = (viewModel.uiState.value.targetMaps as MyMapsState.Success).maps
-        assertEquals(listOf(1L, 11L, 12L, 21L), maps.map { it.id })
+        assertEquals(Places, viewModel.uiState.value.places)
+        assertEquals(listOf("나고미칸", "이름 없는 카페"), viewModel.uiState.value.unmatchedPlaceNames)
     }
 
     @Test
