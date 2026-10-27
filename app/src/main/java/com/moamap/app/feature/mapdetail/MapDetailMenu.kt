@@ -35,7 +35,7 @@ internal val MapDetailMenuEnd = 20.dp
  * @param canEditInfo 지도 정보 줄을 넣을지. 지도를 만든 방장만이다 - `MapDetail.canEditInfo` 참고.
  * @param canShareInviteCode 초대코드 줄을 넣을지. 초대코드를 쥔 프라이빗 지도 참여자다 -
  * `MapDetail.shareableInviteCode` 참고.
- * @param canLeave 나가기 줄을 넣을지. 나갈 수 없는 사람에게는 줄 자체를 보여주지 않는다 -
+ * @param canLeave 나가기 줄을 넣을지. 커뮤니티 지도 참여자다. 방장도 넣고 누르면 안내만 띄운다 -
  * `MapDetail.canLeaveFromMenu` 참고.
  */
 @Composable
@@ -59,7 +59,7 @@ internal fun MapDetailMenu(
             add(ActionMenuItem(R.drawable.ic_map, "장소 관리", onManageClick))
             if (canEditInfo) add(ActionMenuItem(R.drawable.ic_info, "지도 정보", onInfoClick))
             if (canShareInviteCode) add(ActionMenuItem(R.drawable.ic_key, "초대코드", onInviteCodeClick))
-            if (canLeave) add(ActionMenuItem(R.drawable.ic_exit, "나가기", onLeaveClick))
+            if (canLeave) add(ActionMenuItem(R.drawable.ic_exit, "나가기", onLeaveClick, danger = true))
         },
         scrimColor = MapDetailMenuScrim,
         hazeState = hazeState,

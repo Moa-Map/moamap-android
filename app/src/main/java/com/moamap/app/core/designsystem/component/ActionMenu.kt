@@ -35,12 +35,20 @@ import dev.chrisbanes.haze.hazeEffect
 
 private val ActionMenuRowHeight = 50.dp
 
-/** [ModalActionMenu] 한 줄. */
+/** 나가기처럼 되돌리기 어려운 줄의 색. 시안 「모달창」 나가기 #FF4347 - 색 토큰에 없는 값이다. */
+private val ActionMenuDangerColor = Color(0xFFFF4347)
+
+/**
+ * [ModalActionMenu] 한 줄.
+ *
+ * @param danger 아이콘·글자를 빨갛게 하고 오른쪽 화살표를 뺀다(시안 지도 메뉴의 나가기).
+ */
 @Immutable
 internal data class ActionMenuItem(
     @DrawableRes val iconRes: Int,
     val label: String,
     val onClick: () -> Unit,
+    val danger: Boolean = false,
 )
 
 private val ModalMenuShape = RoundedCornerShape(12.dp)
@@ -127,25 +135,28 @@ private fun ModalActionMenuRow(item: ActionMenuItem) {
             .padding(horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        val color = if (item.danger) ActionMenuDangerColor else MoaMapPrimitiveColors.White
         Icon(
             painter = painterResource(item.iconRes),
             contentDescription = null,
-            tint = MoaMapPrimitiveColors.White,
+            tint = color,
             modifier = Modifier.size(20.dp),
         )
         Spacer(Modifier.width(8.dp))
         Text(
             text = item.label,
             style = MoaMapTheme.typography.body2,
-            color = MoaMapPrimitiveColors.White,
+            color = color,
             modifier = Modifier.weight(1f),
         )
-        Icon(
-            painter = painterResource(R.drawable.ic_arrow_right),
-            contentDescription = null,
-            tint = MoaMapPrimitiveColors.White,
-            modifier = Modifier.size(20.dp),
-        )
+        if (!item.danger) {
+            Icon(
+                painter = painterResource(R.drawable.ic_arrow_right),
+                contentDescription = null,
+                tint = MoaMapPrimitiveColors.White,
+                modifier = Modifier.size(20.dp),
+            )
+        }
     }
 }
 

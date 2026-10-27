@@ -64,7 +64,12 @@ import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportS
 import com.mapbox.maps.plugin.animation.MapAnimationOptions
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import com.moamap.app.core.designsystem.component.MoaMapNoticeDialog
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+
+/** 방장 나가기 안내가 떠 있는 시간. 모음 탭 편집의 안내와 같다. */
+private const val OWNER_LEAVE_NOTICE_MILLIS = 2_500L
 
 /**
  * 지도를 옮겨 줄 장소와 그 시트의 높이(px).
@@ -202,6 +207,9 @@ fun MapDetailScreen(
 
     // 나가기는 바로 하지 않고 이 팝업에서 한 번 더 묻는다.
     var leaveDialogVisible by rememberSaveable { mutableStateOf(false) }
+
+    // 커뮤니티 방장이 메뉴의 나가기를 누르면 나갈 수 없다는 안내만 띄운다 - `MapDetail.canLeaveFromMenu` 참고.
+    var ownerLeaveNoticeVisible by rememberSaveable { mutableStateOf(false) }
 
     var uiState by rememberSaveable(stateSaver = MapDetailUiStateSaver) {
         mutableStateOf(MapDetailUiState())
@@ -736,7 +744,11 @@ fun MapDetailScreen(
                 },
                 onLeaveClick = {
                     menuVisible = false
-                    leaveDialogVisible = true
+                    if (screenState.leaveOutcome == null) {
+                        ownerLeaveNoticeVisible = true
+                    } else {
+                        leaveDialogVisible = true
+                    }
                 },
                 hazeState = menuHazeState,
                 modifier = Modifier
@@ -896,6 +908,19 @@ fun MapDetailScreen(
                 viewModel.leave()
             },
             onDismiss = { leaveDialogVisible = false },
+        )
+    }
+
+    // 모음 탭 편집의 방장 안내와 같은 팝업이다. 잠시 뒤 저절로 닫힌다.
+    if (ownerLeaveNoticeVisible) {
+        LaunchedEffect(Unit) {
+            delay(OWNER_LEAVE_NOTICE_MILLIS)
+            ownerLeaveNoticeVisible = false
+        }
+        MoaMapNoticeDialog(
+            title = "방장은 지도를 나갈 수 없습니다.",
+            message = "방장 넘기기 기능은 준비 중이에요",
+            onDismissRequest = { ownerLeaveNoticeVisible = false },
         )
     }
 }
