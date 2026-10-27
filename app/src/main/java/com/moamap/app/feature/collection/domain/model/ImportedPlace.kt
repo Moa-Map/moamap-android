@@ -41,6 +41,17 @@ data class ImportedPlace(
 }
 
 /**
+ * 외부 지도 공유 링크에서 읽어 온 결과.
+ *
+ * [unmatchedNames] 는 지도에는 있었지만 카카오 장소와 맞추지 못해 [places] 에서 빠진 장소의 이름이다.
+ * 장소 고르기에서 몇 곳을 못 찾았는지와 그 이름을 알려 준다.
+ */
+data class MapShareImport(
+    val places: List<ImportedPlace>,
+    val unmatchedNames: List<String> = emptyList(),
+)
+
+/**
  * 일괄 등록 결과.
  *
  * 서버가 건별로 부분 성공시키므로 요청 하나가 통째로 성공하거나 실패하지 않는다.

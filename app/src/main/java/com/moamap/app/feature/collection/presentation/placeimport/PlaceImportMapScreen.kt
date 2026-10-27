@@ -38,7 +38,7 @@ import com.moamap.app.feature.mapdetail.domain.model.MapRole
 private val BottomBarClearance = 88.dp
 
 /**
- * 인스타그램 지도 고르기 카드. 나만의 지도는 장소 수만, 나머지는 인원·장소 수를 둔다. 시안 카드에 역할 뱃지는 없다.
+ * 지도 고르기 카드. 나만의 지도는 장소 수만, 나머지는 인원·장소 수를 둔다. 시안 카드에 역할 뱃지는 없다.
  */
 private fun MyMap.toTargetUiModel() =
     if (personal) toPrivateUiModel() else toCommunityUiModel().copy(role = MapRole.None)
@@ -61,7 +61,7 @@ internal fun PlaceImportMapScreen(
 ) {
     // 고른 장소를 펼쳐 봤는지는 이 화면에서만 쓰고 끝나므로 ViewModel 까지 올리지 않는다.
     var placesExpanded by rememberSaveable { mutableStateOf(false) }
-    // 인스타그램은 시안 「장소 가져오기 - 지도 선택」 모양이다. 외부 지도는 아직 예전 그대로.
+    // 시안 「장소 가져오기 - 지도 선택」 모양은 같고, 인스타그램만 제목·버튼 문구가 「지도에 추가하기」·「추가하기」다.
     val instagram = source == PlaceImportSource.Instagram
 
     Box(
@@ -104,15 +104,13 @@ internal fun PlaceImportMapScreen(
                 ) { targetMaps ->
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         targetMaps.forEach { map ->
-                            // 한 장소를 여러 지도에 넣을 수 있어 체크박스로 복수 선택한다.
+                            // 시안은 동그라미지만 한 장소를 여러 지도에 넣을 수 있게 여러 개 고른다(사용자 결정, 이슈 #390).
                             val selected = map.id in selectedMapIds
                             CollectionMapCard(
-                                map = if (instagram) map.toTargetUiModel() else map.toPrivateUiModel(),
+                                map = map.toTargetUiModel(),
                                 onClick = { onMapClick(map.id) },
                                 border = selectedCardBorder(selected),
-                                trailingContent = {
-                                    if (instagram) SelectionRadio(selected) else PlaceImportCheckBox(checked = selected)
-                                },
+                                trailingContent = { SelectionRadio(selected) },
                             )
                         }
                     }

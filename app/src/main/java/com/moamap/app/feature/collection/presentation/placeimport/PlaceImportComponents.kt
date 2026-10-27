@@ -249,7 +249,7 @@ private val SelectionRadioDotSize = 14.dp
 
 /**
  * 동그라미 선택 표시. 시안 「모음탭_지도카드」 선택 off: 회색 테두리 원 20, on: 파란 테두리 + 안쪽 파란 점 14.
- * 모음 편집과 인스타그램 지도 고르기가 쓴다. 고를 수 없으면([enabled] = false) 회색으로 채운다.
+ * 모음 편집과 장소 가져오기 지도 고르기가 쓴다. 고를 수 없으면([enabled] = false) 회색으로 채운다.
  */
 @Composable
 internal fun SelectionRadio(selected: Boolean, enabled: Boolean = true) {

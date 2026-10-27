@@ -27,6 +27,7 @@ import com.moamap.app.feature.explore.data.remote.PlaceDto
 import com.moamap.app.feature.explore.data.remote.PlaceLikeDto
 import com.moamap.app.feature.explore.data.remote.PlaceService
 import com.moamap.app.feature.explore.data.remote.PlaceUpdateRequestDto
+import com.moamap.app.feature.explore.data.remote.UnmatchedPlaceDto
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -288,7 +289,7 @@ class PlaceImportRepositoryImplTest {
             ),
         )
 
-        val places = repository(service = service).extractMapSharePlaces("url")
+        val places = repository(service = service).extractMapSharePlaces("url").places
 
         assertEquals(listOf("a", "b"), places.map { it.id })
         assertEquals("서울 동작구 상도로 369", places[0].displayAddress)
@@ -301,9 +302,28 @@ class PlaceImportRepositoryImplTest {
             matched = listOf(shared(name = "커피나무"), shared(name = null), shared(name = " ")),
         )
 
-        val places = repository(service = service).extractMapSharePlaces("url")
+        val places = repository(service = service).extractMapSharePlaces("url").places
 
         assertEquals(listOf("커피나무"), places.map { it.name })
+    }
+
+    @Test
+    fun `위치를 못 찾은 장소는 이름만 따로 돌려준다`() = runTest {
+        val service = FakePlaceService(
+            mapShare = MapShareExtractResponseDto(
+                matched = listOf(shared()),
+                unmatched = listOf(
+                    UnmatchedPlaceDto(name = " 나고미칸 "),
+                    UnmatchedPlaceDto(name = null),
+                    UnmatchedPlaceDto(name = " "),
+                ),
+            ),
+        )
+
+        val imported = repository(service = service).extractMapSharePlaces("url")
+
+        assertEquals(listOf("커피나무"), imported.places.map { it.name })
+        assertEquals(listOf("나고미칸"), imported.unmatchedNames)
     }
 
     @Test
@@ -312,7 +332,7 @@ class PlaceImportRepositoryImplTest {
             matched = listOf(shared(kakaoPlaceId = null), shared(kakaoPlaceId = "")),
         )
 
-        val places = repository(service = service).extractMapSharePlaces("url")
+        val places = repository(service = service).extractMapSharePlaces("url").places
 
         assertEquals(listOf("candidate-0", "candidate-1"), places.map { it.id })
     }

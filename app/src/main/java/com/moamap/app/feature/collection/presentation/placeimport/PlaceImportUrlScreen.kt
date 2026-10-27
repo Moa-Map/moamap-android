@@ -32,7 +32,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.moamap.app.R
-import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.component.MoaMapSearchBar
 import com.moamap.app.core.designsystem.component.MoaMapSymbolNotice
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
@@ -57,12 +56,9 @@ internal fun PlaceImportUrlScreen(
     onUrlChange: (String) -> Unit,
     onBackClick: () -> Unit,
     onSubmit: () -> Unit,
-    onErrorShown: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val texts = linkStepTexts(source)
-    // 다시 입력하거나 다시 시도할 때 ViewModel 이 지운다 - 한 번 보이고 사라지는 안내가 아니다.
-    val inlineError = errorMessage.takeIf { source == PlaceImportSource.Instagram }
 
     Box(
         modifier = modifier
@@ -97,11 +93,12 @@ internal fun PlaceImportUrlScreen(
                             modifier = Modifier.padding(start = 2.dp, top = 4.dp),
                         )
                     }
-                    if (inlineError != null) {
-                        // 시안 「상세지도/장소추가 - 에러」: 안내 자리에 오류와 [다시 시도].
+                    if (errorMessage != null) {
+                        // 시안 「상세지도/장소추가 - 에러」: 안내 자리에 오류와 [다시 시도]. 다시 입력하거나 다시 시도할 때
+                        // ViewModel 이 지운다 - 한 번 보이고 사라지는 안내가 아니다. 외부 지도도 같다(이슈 #390).
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             MoaMapSymbolNotice(
-                                title = inlineError,
+                                title = errorMessage,
                                 modifier = Modifier.padding(top = SearchStatusTopGap),
                             ) {
                                 Text(
@@ -129,15 +126,6 @@ internal fun PlaceImportUrlScreen(
                     }
                 }
             }
-        }
-
-        // 인스타그램 불러오기 오류는 위 안내 자리에 남긴다. 외부 지도는 아직 아래 안내 한 줄이다.
-        if (inlineError == null) {
-            ErrorSnackbar(
-                message = errorMessage,
-                onShown = onErrorShown,
-                modifier = Modifier.align(Alignment.BottomCenter),
-            )
         }
     }
 }
@@ -233,7 +221,6 @@ private fun PlaceImportUrlScreenEmptyPreview() {
             onUrlChange = {},
             onBackClick = {},
             onSubmit = {},
-            onErrorShown = {},
         )
     }
 }
@@ -250,7 +237,6 @@ private fun PlaceImportUrlScreenInvalidPreview() {
             onUrlChange = {},
             onBackClick = {},
             onSubmit = {},
-            onErrorShown = {},
         )
     }
 }
