@@ -257,6 +257,7 @@ class PlaceImportViewModelTest {
         advanceUntilIdle()
 
         assertEquals(Places, viewModel.uiState.value.places)
+        assertFalse(viewModel.uiState.value.placesFromSearch)
     }
 
     @Test
@@ -806,6 +807,7 @@ class PlaceImportViewModelTest {
         assertEquals("777", place.kakaoPlaceId)
         assertEquals("KAKAO_SEARCH", place.sourceType)
         assertEquals(37.49, place.lat, 0.0)
+        assertTrue(viewModel.uiState.value.placesFromSearch)
     }
 
     @Test

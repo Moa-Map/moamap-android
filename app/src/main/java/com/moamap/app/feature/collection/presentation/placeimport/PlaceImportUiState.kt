@@ -70,6 +70,10 @@ internal data class PlaceImportUiState(
     val places: List<ImportedPlace>
         get() = (extraction as? ExtractionState.Success)?.places.orEmpty()
 
+    /** 영상에서 못 찾아 「직접 장소 검색하기」로 고른 장소인지. 장소 고르기 안내 문구가 달라진다. */
+    val placesFromSearch: Boolean
+        get() = places.any { place -> place.sourceType == SEARCHED_PLACE_SOURCE_TYPE }
+
     /**
      * 고른 장소들. 고른 순서가 아니라 목록에 나온 순서로 준다.
      *

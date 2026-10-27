@@ -329,6 +329,8 @@ internal fun PlaceImportCheckBox(
  *
  * 장소를 여러 개 고를 수 있어 지도 카드와 같이 파란 테두리 + 체크박스로 표시한다. 링크에서는 장소 사진을
  * 가져올 수 없어 이름·주소만 둔다.
+ *
+ * 인스타그램은 시안 「인스타그램 장소 찾기 - 장소 선택」대로 체크박스 대신 고른 카드에만 「편집하기」를 둔다.
  */
 @Composable
 internal fun ImportedPlaceCard(
@@ -338,6 +340,9 @@ internal fun ImportedPlaceCard(
     modifier: Modifier = Modifier,
     /** 인스타그램은 시안대로 파란 테두리만으로 고른 것을 보인다. */
     showsCheckBox: Boolean = true,
+    /** 있으면 고른 카드 오른쪽에 「편집하기」를 둔다. */
+    onEditClick: (() -> Unit)? = null,
+    edit: PlaceEdit? = null,
 ) {
     ShadowedSurface(
         modifier = modifier.fillMaxWidth(),
@@ -358,6 +363,7 @@ internal fun ImportedPlaceCard(
                 modifier = Modifier.weight(1f),
             )
             if (showsCheckBox) PlaceImportCheckBox(checked = selected)
+            if (selected && onEditClick != null) EditLink(edit = edit, onClick = onEditClick)
         }
     }
 }
@@ -390,26 +396,32 @@ internal fun EditablePlaceCard(
                 address = place.displayAddress,
                 modifier = Modifier.weight(1f),
             )
-            Text(
-                text = "편집하기",
-                style = MoaMapTheme.typography.button4,
-                color = if (edit != null && !edit.isEmpty) {
-                    MoaMapTheme.colors.textAlternative
-                } else {
-                    MoaMapTheme.colors.statusAlert
-                },
-                textDecoration = TextDecoration.Underline,
-                maxLines = 1,
-                modifier = Modifier
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = onEditClick,
-                    )
-                    .padding(vertical = EditLinkTouchPadding),
-            )
+            EditLink(edit = edit, onClick = onEditClick)
         }
     }
+}
+
+/** 밑줄 「편집하기」. 사진·태그·메모 중 하나라도 넣었으면 회색이다(시안 `4362:34992`). */
+@Composable
+private fun EditLink(edit: PlaceEdit?, onClick: () -> Unit) {
+    Text(
+        text = "편집하기",
+        style = MoaMapTheme.typography.button4,
+        color = if (edit != null && !edit.isEmpty) {
+            MoaMapTheme.colors.textAlternative
+        } else {
+            MoaMapTheme.colors.statusAlert
+        },
+        textDecoration = TextDecoration.Underline,
+        maxLines = 1,
+        modifier = Modifier
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(vertical = EditLinkTouchPadding),
+    )
 }
 
 /**
