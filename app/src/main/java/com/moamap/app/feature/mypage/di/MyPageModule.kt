@@ -1,11 +1,14 @@
 package com.moamap.app.feature.mypage.di
 
+import com.moamap.app.feature.mypage.data.remote.BlockService
 import com.moamap.app.feature.mypage.data.remote.InquiryService
 import com.moamap.app.feature.mypage.data.remote.NoticeService
 import com.moamap.app.feature.mypage.data.remote.UserService
+import com.moamap.app.feature.mypage.data.repository.BlockRepositoryImpl
 import com.moamap.app.feature.mypage.data.repository.InquiryRepositoryImpl
 import com.moamap.app.feature.mypage.data.repository.NoticeRepositoryImpl
 import com.moamap.app.feature.mypage.data.repository.UserRepositoryImpl
+import com.moamap.app.feature.mypage.domain.repository.BlockRepository
 import com.moamap.app.feature.mypage.domain.repository.InquiryRepository
 import com.moamap.app.feature.mypage.domain.repository.NoticeRepository
 import com.moamap.app.feature.mypage.domain.repository.UserRepository
@@ -33,7 +36,16 @@ internal abstract class MyPageModule {
     @Singleton
     abstract fun bindInquiryRepository(impl: InquiryRepositoryImpl): InquiryRepository
 
+    @Binds
+    @Singleton
+    abstract fun bindBlockRepository(impl: BlockRepositoryImpl): BlockRepository
+
     companion object {
+        @Provides
+        @Singleton
+        fun provideBlockService(retrofit: Retrofit): BlockService =
+            retrofit.create(BlockService::class.java)
+
         @Provides
         @Singleton
         fun provideNoticeService(retrofit: Retrofit): NoticeService =
