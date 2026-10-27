@@ -476,7 +476,10 @@ internal fun instagramTargetMaps(private: List<MyMap>, community: List<MyMap>): 
     private.sortedBy { map -> !map.personal } +
         community.filter { map -> !map.official && map.role == MapRole.Owner }
 
-/** 카카오 검색 결과를 링크에서 찾은 장소와 같은 모양으로. 장소 추가와 같은 출처(`KAKAO_SEARCH`)로 등록한다. */
+/** 직접 검색해 고른 장소의 출처. 장소 추가와 같다. */
+internal const val SEARCHED_PLACE_SOURCE_TYPE = "KAKAO_SEARCH"
+
+/** 카카오 검색 결과를 링크에서 찾은 장소와 같은 모양으로. 장소 추가와 같은 출처로 등록한다. */
 internal fun PlaceCandidate.toImportedPlace() = ImportedPlace(
     id = kakaoPlaceId,
     name = name,
@@ -486,7 +489,7 @@ internal fun PlaceCandidate.toImportedPlace() = ImportedPlace(
     lng = longitude,
     category = category,
     kakaoPlaceId = kakaoPlaceId,
-    sourceType = "KAKAO_SEARCH",
+    sourceType = SEARCHED_PLACE_SOURCE_TYPE,
     sourceUrl = placeUrl,
 )
 
