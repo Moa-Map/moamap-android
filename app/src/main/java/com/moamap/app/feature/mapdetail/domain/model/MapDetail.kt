@@ -158,15 +158,15 @@ val MapDetail.staysAfterLeaving: Boolean
     get() = type == MapType.Official
 
 /**
- * 메뉴에 나가기를 넣을지.
+ * 메뉴에 나가기를 넣을지. 참여한 커뮤니티 지도다.
  *
- * 누를 수 없는 나가기(방장)와 나갈 대상이 아닌 나만의 지도는 메뉴에서 뺀다. 비활성 줄로 남겨
- * 봐야 왜 누를 수 없는지 설명할 자리가 메뉴에는 없다.
+ * 방장도 넣는다(시안 `5159:34371`). 아직 나갈 수 없어서 누르면 안내만 띄운다 - [leaveOutcome] 이 null 이다.
+ * 방장을 넘기는 API 가 생기면 그 화면으로 바꾼다(10-27 사용자 결정).
  *
- * 프라이빗 지도도 뺀다. 메뉴 자리를 초대코드가 쓰고, 나가기는 모음 탭 편집에서 한다(10-06 시안·사용자 결정).
+ * 프라이빗 지도는 뺀다. 메뉴 자리를 초대코드가 쓰고, 나가기는 모음 탭 편집에서 한다(10-06 시안·사용자 결정).
  */
 val MapDetail.canLeaveFromMenu: Boolean
-    get() = topBarAction == MapDetailAction.Leave && type != MapType.Private
+    get() = showsMenu && type == MapType.Community
 
 /**
  * 나가기가 지도 삭제로 처리되는 경우.

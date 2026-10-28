@@ -254,9 +254,19 @@ class MapDetailRuleTest {
     }
 
     @Test
-    fun `나갈 수 있는 사람의 메뉴에만 나가기가 있다`() {
+    fun `커뮤니티 지도 메뉴에는 나가기가 있다`() {
         assertTrue(map(MapType.Community, MapRole.Member, joined = true).canLeaveFromMenu)
         assertTrue(map(MapType.Community, MapRole.Admin, joined = true).canLeaveFromMenu)
+        assertFalse(map(MapType.Community, MapRole.None, joined = false).canLeaveFromMenu)
+    }
+
+    /** 방장도 메뉴에 나가기가 있지만 나갈 수는 없다. 누르면 안내만 뜬다(10-27 시안). */
+    @Test
+    fun `커뮤니티 방장 메뉴에도 나가기가 있고 누르면 안내만 뜬다`() {
+        val owner = map(MapType.Community, MapRole.Owner, joined = true)
+        assertTrue(owner.canLeaveFromMenu)
+        assertNull(owner.leaveOutcome)
+        assertTrue(map(MapType.Community, MapRole.Owner, joined = true, memberCount = 1).canLeaveFromMenu)
     }
 
     /** 프라이빗 지도의 메뉴 자리는 초대코드가 쓰고, 나가기는 모음 탭 편집에서 한다(10-06 시안). */
@@ -272,10 +282,8 @@ class MapDetailRuleTest {
         )
     }
 
-    /** 누를 수 없는 줄을 남겨 봐야 이유를 설명할 자리가 메뉴에는 없다. */
     @Test
-    fun `나갈 수 없으면 메뉴에서 나가기를 뺀다`() {
-        assertFalse(map(MapType.Community, MapRole.Owner, joined = true).canLeaveFromMenu)
+    fun `프라이빗 방장과 나만의 지도 메뉴에는 나가기가 없다`() {
         assertFalse(map(MapType.Private, MapRole.Owner, joined = true, memberCount = 3).canLeaveFromMenu)
         assertFalse(
             map(MapType.Private, MapRole.Owner, joined = true, personal = true).canLeaveFromMenu,
