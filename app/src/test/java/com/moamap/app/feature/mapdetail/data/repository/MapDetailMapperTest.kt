@@ -5,7 +5,9 @@ import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.explore.data.remote.PlaceDto
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MapDetailMapperTest {
@@ -23,6 +25,12 @@ class MapDetailMapperTest {
         assertNull(map.description)
         assertNull(map.imageUrl)
         assertNull(map.ownerName)
+    }
+
+    @Test
+    fun `멤버 장소 바로 추가 여부를 옮긴다`() {
+        assertTrue(MapDetailDto(memberAutoApproval = true).toMapDetail(null).memberAutoApproval)
+        assertFalse(MapDetailDto().toMapDetail(null).memberAutoApproval)
     }
 
     @Test

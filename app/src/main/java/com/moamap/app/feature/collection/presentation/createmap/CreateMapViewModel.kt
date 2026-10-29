@@ -97,6 +97,10 @@ internal class CreateMapViewModel @Inject constructor(
         updateState { state -> state.copy(tags = state.tags - tag) }
     }
 
+    fun setMemberAutoApproval(enabled: Boolean) {
+        updateState { state -> state.copy(memberAutoApproval = enabled) }
+    }
+
     /**
      * 외부 지도에서 불러온 장소를 받는다. 앞서 불러온 것이 있으면 **바꾼다** - 덧붙이면 같은
      * 리스트를 다시 불러왔을 때 장소가 두 번 들어간다.
@@ -133,6 +137,7 @@ internal class CreateMapViewModel @Inject constructor(
             description = current.description,
             visibility = visibility,
             tags = current.tags,
+            memberAutoApproval = current.memberAutoApproval,
         )
 
         // 코루틴이 시작되기를 기다리지 않고 여기서 잠근다. 시작 시점에 잠그면 그 전에
@@ -248,6 +253,7 @@ private const val KEY_DESCRIPTION = "createMap.description"
 private const val KEY_VISIBILITY = "createMap.visibility"
 private const val KEY_TAGS = "createMap.tags"
 private const val KEY_TAG_INPUT = "createMap.tagInput"
+private const val KEY_MEMBER_AUTO_APPROVAL = "createMap.memberAutoApproval"
 private const val KEY_CREATED_MAP_ID = "createMap.createdMapId"
 private const val KEY_INVITE_CODE = "createMap.inviteCode"
 private const val KEY_IMPORTED_PLACES = "createMap.importedPlaces"
@@ -272,6 +278,7 @@ private fun SavedStateHandle.toCreateMapUiState() = CreateMapUiState(
     },
     tags = get<ArrayList<String>>(KEY_TAGS).orEmpty(),
     tagInput = get<String>(KEY_TAG_INPUT).orEmpty(),
+    memberAutoApproval = get<Boolean>(KEY_MEMBER_AUTO_APPROVAL) ?: false,
     importedPlaces = get<String>(KEY_IMPORTED_PLACES)?.let(::decodeImportedPlaces).orEmpty(),
     // 진행 중 상태는 복원하지 않는다. 요청은 프로세스와 함께 사라졌는데 "만드는 중" 으로
     // 되살아나면 버튼이 영영 잠긴다.
@@ -306,6 +313,7 @@ private fun SavedStateHandle.save(state: CreateMapUiState) {
     // Bundle 이 담을 수 있는 형태여야 해서 ArrayList 로 넘긴다.
     this[KEY_TAGS] = ArrayList(state.tags)
     this[KEY_TAG_INPUT] = state.tagInput
+    this[KEY_MEMBER_AUTO_APPROVAL] = state.memberAutoApproval
     this[KEY_IMPORTED_PLACES] = state.importedPlaces
         .takeIf { places -> places.isNotEmpty() }
         ?.let(::encodeImportedPlaces)

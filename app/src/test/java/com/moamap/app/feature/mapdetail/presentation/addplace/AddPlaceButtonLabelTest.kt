@@ -61,6 +61,15 @@ class AddPlaceButtonLabelTest {
     }
 
     @Test
+    fun `멤버 장소 바로 추가가 켜진 커뮤니티 지도는 멤버도 바로 추가한다`() {
+        val map = map(MapType.Community, MapRole.Member).copy(memberAutoApproval = true)
+
+        assertTrue(map.addsPlaceDirectly)
+        assertEquals("추가하기", addPlaceButtonLabel(map))
+        assertEquals("장소를 추가했어요", addPlaceDoneMessage(map))
+    }
+
+    @Test
     fun `완료 안내가 등록과 승인 대기로 갈린다`() {
         // 승인 대기는 목록에 나타나지 않는다. 안내가 없으면 사라진 것처럼 보인다.
         assertEquals(

@@ -161,9 +161,12 @@ internal fun VisibilityCard(
     }
 }
 
-/** URL 가져오기 설정의 UI. 전체 행을 눌러도 스위치를 전환할 수 있다. */
+/**
+ * 「멤버도 장소를 추가할 수 있어요」 설정. 새 지도 만들기와 지도 정보 수정이 함께 쓴다.
+ * 전체 행을 눌러도 스위치를 전환할 수 있다.
+ */
 @Composable
-internal fun UrlImportPermissionSection(
+internal fun MemberAutoApprovalSection(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -179,9 +182,9 @@ internal fun UrlImportPermissionSection(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            MapFormSectionTitle("URL로 장소 추가 허용하기")
+            MapFormSectionTitle("멤버도 장소를 추가할 수 있어요")
             Text(
-                text = "URL을 붙여넣어 장소를 추가할 수 있어요",
+                text = "방장이나 관리자의 승인 없이 바로 추가돼요",
                 style = MoaMapTheme.typography.body2.withDesignLineHeight(),
                 color = MoaMapTheme.colors.textAssistive,
             )
@@ -190,14 +193,17 @@ internal fun UrlImportPermissionSection(
             modifier = Modifier
                 .size(width = 48.dp, height = 24.dp)
                 .clip(CircleShape)
-                .background(if (checked) MoaMapTheme.colors.primary else Color(0xFFB1B3B4))
+                .background(if (checked) MoaMapPrimitiveColors.Blue100 else Color(0xFFB1B3B4))
                 .padding(3.dp),
             contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart,
         ) {
             Box(
                 modifier = Modifier
                     .size(18.dp)
-                    .background(MoaMapPrimitiveColors.White, CircleShape),
+                    .background(
+                        if (checked) MoaMapPrimitiveColors.Blue500 else MoaMapPrimitiveColors.White,
+                        CircleShape,
+                    ),
             )
         }
     }

@@ -43,6 +43,7 @@ import com.moamap.app.core.designsystem.theme.MoaMapTheme
 import com.moamap.app.core.designsystem.theme.withDesignLineHeight
 import com.moamap.app.feature.collection.domain.model.MapType
 import com.moamap.app.feature.collection.presentation.createmap.MapCoverPickerField
+import com.moamap.app.feature.collection.presentation.createmap.MemberAutoApprovalSection
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
 import dev.chrisbanes.haze.hazeSource
@@ -58,7 +59,7 @@ private val SaveButtonAreaHeight = 80.dp
 /**
  * 지도 정보 수정. 지도 정보 화면 오른쪽 위 연필로 들어온다.
  *
- * 새 지도 만들기에서 공개 범위·URL 허용·외부 지도를 뺀 모양이다. 공개 범위는 서버가 바꾸지 못한다.
+ * 새 지도 만들기에서 공개 범위·외부 지도를 뺀 모양이다. 공개 범위는 서버가 바꾸지 못한다.
  * 키보드·하단 버튼 배치도 새 지도 만들기(`CreateMapContent`)와 같다.
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -75,6 +76,7 @@ internal fun MapInfoEditScreen(
     onTagInputChange: (String) -> Unit,
     onTagCommit: () -> Unit,
     onTagRemove: (String) -> Unit,
+    onMemberAutoApprovalChange: (Boolean) -> Unit,
     onSaveClick: () -> Unit,
     onErrorShown: () -> Unit,
     modifier: Modifier = Modifier,
@@ -164,6 +166,14 @@ internal fun MapInfoEditScreen(
                         { MapTagChipRow(tags = form.tags, onRemoveTag = onTagRemove) }
                     },
                 )
+
+                // 프라이빗 지도는 원래 모두 바로 들어가 고를 것이 없다.
+                if (form.original.type == MapType.Community) {
+                    MemberAutoApprovalSection(
+                        checked = form.memberAutoApproval,
+                        onCheckedChange = onMemberAutoApprovalChange,
+                    )
+                }
             }
         }
 
@@ -225,6 +235,7 @@ private fun MapInfoEditScreenPreview() {
             onTagInputChange = {},
             onTagCommit = {},
             onTagRemove = {},
+            onMemberAutoApprovalChange = {},
             onSaveClick = {},
             onErrorShown = {},
         )

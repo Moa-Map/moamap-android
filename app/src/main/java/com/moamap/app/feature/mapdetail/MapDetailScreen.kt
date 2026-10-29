@@ -706,6 +706,7 @@ fun MapDetailScreen(
                 onTagInputChange = mapInfoEditViewModel::updateTagInput,
                 onTagCommit = mapInfoEditViewModel::commitTag,
                 onTagRemove = mapInfoEditViewModel::removeTag,
+                onMemberAutoApprovalChange = mapInfoEditViewModel::setMemberAutoApproval,
                 onSaveClick = mapInfoEditViewModel::save,
                 onErrorShown = mapInfoEditViewModel::consumeError,
             )

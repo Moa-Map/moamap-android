@@ -12,4 +12,6 @@ data class NewMap(
      * 기기 안의 `content://` 가 아니라 서버가 준 URL 이다. 사진을 안 골랐으면 null.
      */
     val imageUrl: String? = null,
+    /** 멤버가 등록한 장소도 바로 승인할지. 공개 지도에서만 뜻이 있다. */
+    val memberAutoApproval: Boolean = false,
 )

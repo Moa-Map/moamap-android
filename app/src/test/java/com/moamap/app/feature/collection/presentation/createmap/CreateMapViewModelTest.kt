@@ -97,6 +97,7 @@ class CreateMapViewModelTest {
             description: String?,
             imageUrl: String?,
             tags: List<String>,
+            memberAutoApproval: Boolean,
         ) = TODO("사용하지 않음")
         override suspend fun joinByInviteCode(inviteCode: String) = TODO("사용하지 않음")
         override suspend fun getLeaveOutcome(mapId: Long) = TODO("사용하지 않음")
@@ -260,6 +261,7 @@ class CreateMapViewModelTest {
         viewModel.selectVisibility(MapVisibility.Private)
         viewModel.updateTagInput("카페 성수 ")
         viewModel.updateTagInput("데이")
+        viewModel.setMemberAutoApproval(true)
 
         val restored = recreateViewModel().uiState.value
 
@@ -269,6 +271,7 @@ class CreateMapViewModelTest {
         assertEquals(MapVisibility.Private, restored.visibility)
         assertEquals(listOf("카페", "성수"), restored.tags)
         assertEquals("데이", restored.tagInput)
+        assertTrue(restored.memberAutoApproval)
     }
 
     @Test
@@ -315,6 +318,18 @@ class CreateMapViewModelTest {
             repository.createdMaps.single(),
         )
         assertEquals(SubmitState.Done(CREATED_MAP_ID), state.submit)
+    }
+
+    @Test
+    fun `멤버 장소 바로 추가를 켜면 함께 실려 나간다`() = runTest(dispatcher) {
+        fillRequiredInput()
+        assertFalse(state.memberAutoApproval)
+
+        viewModel.setMemberAutoApproval(true)
+        viewModel.submit()
+        advanceUntilIdle()
+
+        assertTrue(repository.createdMaps.single().memberAutoApproval)
     }
 
     @Test

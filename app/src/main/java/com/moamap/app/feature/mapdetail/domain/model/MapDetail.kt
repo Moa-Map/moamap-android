@@ -36,6 +36,8 @@ data class MapDetail(
      * 서버가 아무에게나 주는 값이 아니다. 참여자가 아니거나 코드가 없는 지도는 null 로 온다.
      */
     val inviteCode: String?,
+    /** 커뮤니티 지도에서 멤버가 등록한 장소도 승인 없이 바로 들어가는지. */
+    val memberAutoApproval: Boolean = false,
 )
 
 /**
