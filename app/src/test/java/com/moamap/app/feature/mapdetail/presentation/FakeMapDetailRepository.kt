@@ -108,11 +108,20 @@ internal open class FakeMapDetailRepository(
     /** 마지막 수정 요청의 메모·태그. */
     var lastUpdate: Pair<String, List<String>>? = null
 
-    override suspend fun updatePlace(placeId: Long, memo: String, tags: List<String>): MapPlace {
+    /** 마지막 수정에 실린 사진 목록. null 이면 사진을 보내지 않았다. */
+    var lastPhotoUrls: List<String>? = null
+
+    override suspend fun updatePlace(
+        placeId: Long,
+        memo: String,
+        tags: List<String>,
+        photoUrls: List<String>?,
+    ): MapPlace {
         calls += "updatePlace"
         delay(responseDelayMillis)
         placeChangeFailure?.let { throw it }
         lastUpdate = memo to tags
+        lastPhotoUrls = photoUrls
         return testPlace(placeId).copy(description = memo, tags = tags)
     }
 

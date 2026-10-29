@@ -61,8 +61,15 @@ class MapDetailRepositoryImpl @Inject constructor(
         return PlaceLike(liked = dto.liked, likeCount = dto.likeCount)
     }
 
-    override suspend fun updatePlace(placeId: Long, memo: String, tags: List<String>): MapPlace =
-        placeService.updatePlace(placeId, PlaceUpdateRequestDto(description = memo, tags = tags)).toMapPlace()
+    override suspend fun updatePlace(
+        placeId: Long,
+        memo: String,
+        tags: List<String>,
+        photoUrls: List<String>?,
+    ): MapPlace = placeService.updatePlace(
+        placeId,
+        PlaceUpdateRequestDto(description = memo, tags = tags, photoUrls = photoUrls),
+    ).toMapPlace()
 
     override suspend fun deletePlace(placeId: Long) {
         placeService.deletePlace(placeId)

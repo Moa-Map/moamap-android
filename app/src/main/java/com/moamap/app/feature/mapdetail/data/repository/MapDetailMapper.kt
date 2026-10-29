@@ -45,6 +45,7 @@ fun PlaceDto.toMapPlace(): MapPlace = MapPlace(
     latitude = lat,
     longitude = lng,
     photoUrl = photoUrls.firstOrNull { url -> url.isNotBlank() },
+    photoUrls = photoUrls.filter { url -> url.isNotBlank() },
     description = description?.takeIf { it.isNotBlank() }.orEmpty(),
     category = category?.takeIf { it.isNotBlank() }.orEmpty(),
     tags = tags.map { tag -> tag.trim() }.filter { tag -> tag.isNotEmpty() },

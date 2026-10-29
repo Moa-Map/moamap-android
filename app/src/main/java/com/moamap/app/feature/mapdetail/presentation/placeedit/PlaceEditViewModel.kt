@@ -1,13 +1,19 @@
 package com.moamap.app.feature.mapdetail.presentation.placeedit
 
+import android.net.Uri
 import android.util.Log
 import androidx.compose.runtime.Immutable
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.common.PLACE_UPDATED_TOAST
+import com.moamap.app.core.common.toUploadMessage
 import com.moamap.app.core.common.toUserMessage
+import com.moamap.app.core.navigation.requireMapId
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.domain.repository.MapDetailRepository
+import com.moamap.app.feature.mapdetail.domain.repository.PlaceAddRepository
+import com.moamap.app.feature.mapdetail.presentation.addplace.MAX_PLACE_PHOTOS
 import com.moamap.app.feature.mapdetail.presentation.addplace.applyTagInput
 import com.moamap.app.feature.mapdetail.presentation.addplace.removeLastTag
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -26,7 +32,7 @@ private const val DELETE_FAILED_MESSAGE = "장소를 삭제하지 못했어요"
 /**
  * 고치는 중인 장소. [original] 에서 시작하고, 하나라도 달라져야 저장할 수 있다.
  *
- * 메모·태그만 고친다. 서버가 사진을 바꾸지 못하고, 이름·주소는 시안에서 보여 주기만 한다.
+ * 메모·태그·사진을 고친다. 이름·주소는 시안에서 보여 주기만 한다.
  */
 @Immutable
 internal data class PlaceEditForm(
@@ -35,14 +41,23 @@ internal data class PlaceEditForm(
     /** 아직 확정하지 않은 태그 입력값. 스페이스·엔터로 확정한다. */
     val tagInput: String = "",
     val memo: String = original.description,
+    /** 보여 줄 사진. 올라가 있던 사진은 주소, 새로 고른 사진은 `content://` 다. */
+    val photos: List<String> = original.photoUrls,
 ) {
+    val canAddPhoto: Boolean
+        get() = photos.size < MAX_PLACE_PHOTOS
+
+    /** 사진을 더하거나 지웠는지. 그대로면 사진은 보내지 않아 서버가 그대로 둔다. */
+    val photosChanged: Boolean
+        get() = photos != original.photoUrls
+
     /**
      * 처음 값과 달라졌는지. 고쳤다가 되돌리면 다시 false 다.
      *
      * 확정하지 않은 태그 입력도 바뀐 것으로 본다 - 저장할 때 태그로 확정해 함께 보낸다.
      */
     val changed: Boolean
-        get() = tags != original.tags || memo != original.description || tagInput.isNotBlank()
+        get() = tags != original.tags || memo != original.description || photosChanged || tagInput.isNotBlank()
 }
 
 @Immutable
@@ -50,6 +65,11 @@ internal data class PlaceEditUiState(
     /** 수정 화면이 열려 있으면 값이 있다. */
     val form: PlaceEditForm? = null,
     val saving: Boolean = false,
+    /**
+     * 이미 올린 새 사진(`content://` → 주소). 저장만 실패해 다시 누를 때 같은 사진을 또 올리지 않으려고
+     * 붙잡는다. 올린 사진은 지울 방법이 없다.
+     */
+    val uploadedPhotos: Map<String, String> = emptyMap(),
     val errorMessage: String? = null,
     /** 고친 채로 뒤로 가려 할 때 「수정을 그만둘까요?」를 띄운다. */
     val discardConfirmVisible: Boolean = false,
@@ -73,15 +93,26 @@ internal data class PlaceEditUiState(
  */
 @HiltViewModel
 internal class PlaceEditViewModel @Inject constructor(
+    savedStateHandle: SavedStateHandle,
     private val repository: MapDetailRepository,
+    private val addRepository: PlaceAddRepository,
 ) : ViewModel() {
+
+    /** 새 사진을 올릴 주소를 받을 때 쓴다. 지도 상세와 같은 자리에서 살아 같은 값을 받는다. */
+    private val mapId: Long = savedStateHandle.requireMapId()
 
     private val _uiState = MutableStateFlow(PlaceEditUiState())
     val uiState: StateFlow<PlaceEditUiState> = _uiState.asStateFlow()
 
     fun open(place: MapPlace) {
         _uiState.update { state ->
-            state.copy(form = PlaceEditForm(place), saving = false, errorMessage = null, discardConfirmVisible = false)
+            state.copy(
+                form = PlaceEditForm(place),
+                saving = false,
+                uploadedPhotos = emptyMap(),
+                errorMessage = null,
+                discardConfirmVisible = false,
+            )
         }
     }
 
@@ -132,6 +163,17 @@ internal class PlaceEditViewModel @Inject constructor(
         updateForm { form -> form.copy(memo = memo) }
     }
 
+    /** 서버가 한 장소에 [MAX_PLACE_PHOTOS] 장까지 받는다. 같은 사진을 두 번 넣지도 않는다. */
+    fun addPhoto(photo: String) {
+        updateForm { form ->
+            if (!form.canAddPhoto || photo in form.photos) form else form.copy(photos = form.photos + photo)
+        }
+    }
+
+    fun removePhoto(photo: String) {
+        updateForm { form -> form.copy(photos = form.photos - photo) }
+    }
+
     fun consumeError() {
         _uiState.update { state -> state.copy(errorMessage = null) }
     }
@@ -152,7 +194,12 @@ internal class PlaceEditViewModel @Inject constructor(
         _uiState.update { state -> state.copy(deletedPlaceId = null) }
     }
 
-    /** 메모·태그를 보낸다. 성공하면 화면을 닫고 장소 페이지에 토스트를 띄운다. */
+    /**
+     * 메모·태그·사진을 보낸다. 성공하면 화면을 닫고 장소 페이지에 토스트를 띄운다.
+     *
+     * 새 사진은 여기서 올린다. 고를 때마다 올리면 그만둔 사진이 지울 수 없게 남는다. 업로드가 실패하면
+     * 아무것도 저장하지 않는다 - 사진만 빠진 채 저장되면 성공한 줄 알고 나간다.
+     */
     fun save() {
         if (!_uiState.value.canSave) return
 
@@ -164,11 +211,26 @@ internal class PlaceEditViewModel @Inject constructor(
         _uiState.update { state -> state.copy(saving = true, errorMessage = null) }
 
         viewModelScope.launch {
+            val photoUrls = if (form.photosChanged) {
+                try {
+                    uploadNewPhotos(form)
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    Log.w(TAG, "장소 사진 업로드 실패 (placeId=${form.original.id})", e)
+                    _uiState.update { state -> state.copy(saving = false, errorMessage = e.toUploadMessage()) }
+                    return@launch
+                }
+            } else {
+                null
+            }
+
             try {
                 val updated = repository.updatePlace(
                     placeId = form.original.id,
                     memo = form.memo.trim(),
                     tags = form.tags,
+                    photoUrls = photoUrls,
                 )
                 _uiState.update { state ->
                     state.copy(form = null, saving = false, savedPlace = updated, toast = PLACE_UPDATED_TOAST)
@@ -202,6 +264,21 @@ internal class PlaceEditViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    /** 앞선 시도에서 올리지 않은 새 사진만 올리고, 남길 사진과 합친 전체 목록을 화면 순서대로 돌려준다. */
+    private suspend fun uploadNewPhotos(form: PlaceEditForm): List<String> {
+        val alreadyUploaded = _uiState.value.uploadedPhotos
+        val toUpload = form.photos.filter { photo -> photo !in form.original.photoUrls && photo !in alreadyUploaded }
+        val uploaded = if (toUpload.isEmpty()) {
+            alreadyUploaded
+        } else {
+            val urls = addRepository.uploadPhotos(mapId, toUpload.map(Uri::parse))
+            (alreadyUploaded + toUpload.zip(urls)).also { all ->
+                _uiState.update { state -> state.copy(uploadedPhotos = all) }
+            }
+        }
+        return form.photos.map { photo -> uploaded[photo] ?: photo }
     }
 
     private fun updateForm(transform: (PlaceEditForm) -> PlaceEditForm) {
