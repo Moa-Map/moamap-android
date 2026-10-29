@@ -30,6 +30,28 @@ class MapRequestMapperTest {
     }
 
     @Test
+    fun `공개 지도는 멤버 장소 바로 추가를 그대로 보낸다`() {
+        val request = newMap(visibility = MapVisibility.Public).copy(memberAutoApproval = true).toCreateRequest()
+
+        assertEquals(true, request.memberAutoApproval)
+    }
+
+    @Test
+    fun `프라이빗 지도는 켜 둔 멤버 장소 바로 추가를 보내지 않는다`() {
+        // 공개로 켰다가 프라이빗으로 바꾸면 화면에서 숨은 값이 남는다.
+        val request = newMap(visibility = MapVisibility.Private).copy(memberAutoApproval = true).toCreateRequest()
+
+        assertEquals(false, request.memberAutoApproval)
+    }
+
+    @Test
+    fun `수정 요청은 멤버 장소 바로 추가를 끈 값도 담는다`() {
+        val request = mapUpdateRequest("이름", null, null, emptyList(), memberAutoApproval = false)
+
+        assertEquals(false, request.memberAutoApproval)
+    }
+
+    @Test
     fun `프라이빗 지도는 PRIVATE 으로 보낸다`() {
         val request = newMap(visibility = MapVisibility.Private).toCreateRequest()
 
@@ -82,6 +104,7 @@ class MapRequestMapperTest {
             description = "  ",
             imageUrl = "https://cdn/cover.jpg",
             tags = emptyList(),
+            memberAutoApproval = false,
         )
 
         assertEquals("새 이름", request.name)

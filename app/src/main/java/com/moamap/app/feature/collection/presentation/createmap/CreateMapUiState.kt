@@ -53,6 +53,8 @@ internal data class CreateMapUiState(
     val tags: List<String> = emptyList(),
     /** 아직 확정되지 않은 태그 입력값. */
     val tagInput: String = "",
+    /** 멤버가 등록한 장소도 바로 승인할지. 공개 지도를 골랐을 때만 보이고 실린다. */
+    val memberAutoApproval: Boolean = false,
     /**
      * 외부 지도에서 불러와 새 지도에 함께 넣을 장소. 편집값이 붙어 있다.
      *

@@ -35,7 +35,7 @@ interface MapRepository {
     suspend fun createMap(newMap: NewMap): CreatedMap
 
     /**
-     * 지도 이름·설명·사진·태그를 고친다.
+     * 지도 이름·설명·사진·태그·멤버 장소 바로 승인을 고친다.
      *
      * 서버가 통째로 덮어써서 빠진 값은 지워진다. 그대로 둘 값도 늘 함께 넘긴다.
      *
@@ -47,6 +47,7 @@ interface MapRepository {
         description: String?,
         imageUrl: String?,
         tags: List<String>,
+        memberAutoApproval: Boolean,
     )
 
     /** 초대 코드로 프라이빗 지도에 합류하고, 합류한 지도의 id 를 돌려준다. */

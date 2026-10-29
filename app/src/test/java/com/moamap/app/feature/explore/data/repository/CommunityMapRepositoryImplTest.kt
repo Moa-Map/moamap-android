@@ -44,6 +44,7 @@ private class JoinedMapsRepository(private val joinedIds: List<Long>) : MapRepos
         description: String?,
         imageUrl: String?,
         tags: List<String>,
+        memberAutoApproval: Boolean,
     ) = TODO("사용하지 않음")
     override suspend fun joinByInviteCode(inviteCode: String) = TODO("사용하지 않음")
     override suspend fun getLeaveOutcome(mapId: Long) = TODO("사용하지 않음")

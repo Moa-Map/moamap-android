@@ -47,8 +47,9 @@ internal class MapRepositoryImpl @Inject constructor(
         description: String?,
         imageUrl: String?,
         tags: List<String>,
+        memberAutoApproval: Boolean,
     ) {
-        mapService.updateMap(mapId, mapUpdateRequest(name, description, imageUrl, tags))
+        mapService.updateMap(mapId, mapUpdateRequest(name, description, imageUrl, tags, memberAutoApproval))
     }
 
     override suspend fun joinByInviteCode(inviteCode: String): Long =

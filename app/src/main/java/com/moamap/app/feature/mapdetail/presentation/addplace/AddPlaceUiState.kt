@@ -71,13 +71,15 @@ data class AddPlaceUiState(
 /**
  * 이 지도에 장소를 바로 넣을 수 있는지.
  *
- * 프라이빗은 역할을 보지 않는다. 권한 분류가 없는 지도다.
+ * 프라이빗은 역할을 보지 않는다. 권한 분류가 없는 지도다. 커뮤니티 지도도 방장이 「멤버도 장소를
+ * 추가할 수 있어요」를 켜 두면 멤버가 바로 넣는다.
  *
  * 실제 등록 상태(APPROVED/PENDING)는 **서버가 정한다.** 이 값은 버튼 글씨와 완료 안내를
  * 고르는 데만 쓴다.
  */
 val MapDetail.addsPlaceDirectly: Boolean
-    get() = type == MapType.Private || role == MapRole.Owner || role == MapRole.Admin
+    get() = type == MapType.Private || role == MapRole.Owner || role == MapRole.Admin ||
+        (type == MapType.Community && memberAutoApproval)
 
 /** 등록 버튼 글씨. */
 fun addPlaceButtonLabel(map: MapDetail): String =

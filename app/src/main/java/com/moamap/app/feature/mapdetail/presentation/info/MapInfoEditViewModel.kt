@@ -39,6 +39,7 @@ internal data class MapInfoForm(
     val tagInput: String = "",
     /** 새로 고른 사진의 `content://`. 고르지 않았으면 null 이고 원래 사진을 그대로 둔다. */
     val newPhotoUri: String? = null,
+    val memberAutoApproval: Boolean = original.memberAutoApproval,
 ) {
     /** 사진 칸에 띄울 사진. 새로 고른 사진이 먼저다. */
     val photo: String?
@@ -54,6 +55,7 @@ internal data class MapInfoForm(
             name != original.title ||
             description != original.description.orEmpty() ||
             tags != original.tags ||
+            memberAutoApproval != original.memberAutoApproval ||
             tagInput.isNotBlank()
 }
 
@@ -131,6 +133,10 @@ internal class MapInfoEditViewModel @Inject constructor(
         updateForm { form -> form.copy(tags = form.tags - tag) }
     }
 
+    fun setMemberAutoApproval(enabled: Boolean) {
+        updateForm { form -> form.copy(memberAutoApproval = enabled) }
+    }
+
     fun consumeError() {
         _uiState.update { state -> state.copy(errorMessage = null) }
     }
@@ -175,6 +181,7 @@ internal class MapInfoEditViewModel @Inject constructor(
                     description = form.description,
                     imageUrl = imageUrl,
                     tags = form.tags,
+                    memberAutoApproval = form.memberAutoApproval,
                 )
                 _uiState.update { state ->
                     MapInfoEditUiState(savedCount = state.savedCount + 1, toast = MAP_INFO_UPDATED_TOAST)

@@ -12,6 +12,8 @@ data class MapCreateRequestDto(
     // PUBLIC, PRIVATE
     val visibility: String,
     val tags: List<String>? = null,
+    /** 커뮤니티 지도에서 멤버가 등록한 장소도 바로 승인할지. 서버 기본값이 false 라 켰을 때만 실린다. */
+    val memberAutoApproval: Boolean = false,
 )
 
 /** PATCH api/v1/maps/{mapId} 요청 */
@@ -21,6 +23,8 @@ data class MapUpdateRequestDto(
     val description: String? = null,
     val imageUrl: String? = null,
     val tags: List<String>? = null,
+    /** 기본값을 두지 않는다 - 빼면 서버가 이전 값을 유지해, 끈 값이 실리지 않으면 꺼지지 않는다. */
+    val memberAutoApproval: Boolean,
 )
 
 /**
@@ -101,6 +105,8 @@ data class MapDetailDto(
     // OWNER, ADMIN, MEMBER, NONE
     val myRole: String? = null,
     val inviteCode: String? = null,
+    /** 커뮤니티 지도에서 멤버가 등록한 장소도 바로 승인되는지. 프라이빗은 늘 false. */
+    val memberAutoApproval: Boolean = false,
     val createdAt: String? = null,
     val updatedAt: String? = null,
 )

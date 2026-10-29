@@ -24,7 +24,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -110,6 +109,7 @@ internal fun CreateMapScreen(
         onTagInputChange = viewModel::updateTagInput,
         onTagCommit = viewModel::commitTag,
         onTagRemove = viewModel::removeTag,
+        onMemberAutoApprovalChange = viewModel::setMemberAutoApproval,
         onExternalImportClick = onExternalImportClick,
         onSubmitClick = viewModel::submit,
         onErrorShown = viewModel::consumeError,
@@ -130,6 +130,7 @@ private fun CreateMapContent(
     onTagInputChange: (String) -> Unit,
     onTagCommit: () -> Unit,
     onTagRemove: (String) -> Unit,
+    onMemberAutoApprovalChange: (Boolean) -> Unit,
     onExternalImportClick: () -> Unit,
     onSubmitClick: () -> Unit,
     onErrorShown: () -> Unit,
@@ -140,8 +141,6 @@ private fun CreateMapContent(
     val scrollState = rememberScrollState()
     var isTagFieldFocused by remember { mutableStateOf(false) }
     val tagBringIntoViewRequester = remember { BringIntoViewRequester() }
-    // UI 단계의 설정값. 지도 생성 API 연결 시 요청 상태로 옮긴다.
-    var allowUrlImport by rememberSaveable { mutableStateOf(false) }
 
     LaunchedEffect(isKeyboardVisible, isTagFieldFocused) {
         if (!isKeyboardVisible || !isTagFieldFocused) return@LaunchedEffect
@@ -229,10 +228,13 @@ private fun CreateMapContent(
                     },
                 )
 
-                UrlImportPermissionSection(
-                    checked = allowUrlImport,
-                    onCheckedChange = { allowUrlImport = it },
-                )
+                // 프라이빗 지도는 원래 모두 바로 들어가 고를 것이 없다.
+                if (uiState.visibility == MapVisibility.Public) {
+                    MemberAutoApprovalSection(
+                        checked = uiState.memberAutoApproval,
+                        onCheckedChange = onMemberAutoApprovalChange,
+                    )
+                }
 
                 ImportActionCard(
                     iconRes = R.drawable.ic_map,
@@ -330,6 +332,7 @@ private fun CreateMapScreenPreview() {
             onTagInputChange = {},
             onTagCommit = {},
             onTagRemove = {},
+            onMemberAutoApprovalChange = {},
             onExternalImportClick = {},
             onSubmitClick = {},
             onErrorShown = {},

@@ -86,6 +86,31 @@ class MapInfoEditViewModelTest {
     }
 
     @Test
+    fun `멤버 장소 바로 추가만 바꿔도 저장할 수 있고 그 값을 보낸다`() = runTest(dispatcher) {
+        viewModel.open(map)
+
+        viewModel.setMemberAutoApproval(true)
+        assertTrue(state.canSave)
+
+        viewModel.save()
+        advanceUntilIdle()
+
+        assertTrue(repository.updates.single().memberAutoApproval)
+    }
+
+    @Test
+    fun `켜져 있던 멤버 장소 바로 추가는 다른 값만 고쳐도 켜진 채 보낸다`() = runTest(dispatcher) {
+        // 빼면 서버가 이전 값을 유지하지만, 앱은 늘 지금 값을 함께 보낸다.
+        viewModel.open(map.copy(memberAutoApproval = true))
+        viewModel.updateDescription("새 설명")
+
+        viewModel.save()
+        advanceUntilIdle()
+
+        assertTrue(repository.updates.single().memberAutoApproval)
+    }
+
+    @Test
     fun `이름을 비우면 저장할 수 없다`() {
         viewModel.open(map)
 
@@ -210,6 +235,7 @@ private data class UpdateCall(
     val description: String?,
     val imageUrl: String?,
     val tags: List<String>,
+    val memberAutoApproval: Boolean = false,
 )
 
 private class FakeMapInfoRepository : MapRepository {
@@ -229,8 +255,9 @@ private class FakeMapInfoRepository : MapRepository {
         description: String?,
         imageUrl: String?,
         tags: List<String>,
+        memberAutoApproval: Boolean,
     ) {
-        updates += UpdateCall(mapId, name, description, imageUrl, tags)
+        updates += UpdateCall(mapId, name, description, imageUrl, tags, memberAutoApproval)
         updateFailure?.let { throw it }
     }
 

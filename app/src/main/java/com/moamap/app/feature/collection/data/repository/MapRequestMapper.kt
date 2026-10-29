@@ -19,6 +19,8 @@ fun NewMap.toCreateRequest() = MapCreateRequestDto(
     imageUrl = imageUrl.trimToNull(),
     visibility = visibility.toRequestValue(),
     tags = tags.normalized(),
+    // 공개로 켰다가 프라이빗으로 바꾸면 화면에서 숨은 값이 남는다. 서버도 무시하지만 보내지 않는다.
+    memberAutoApproval = memberAutoApproval && visibility == MapVisibility.Public,
 )
 
 /**
@@ -32,11 +34,13 @@ fun mapUpdateRequest(
     description: String?,
     imageUrl: String?,
     tags: List<String>,
+    memberAutoApproval: Boolean,
 ) = MapUpdateRequestDto(
     name = name.trim(),
     description = description.trimToNull(),
     imageUrl = imageUrl.trimToNull(),
     tags = tags,
+    memberAutoApproval = memberAutoApproval,
 )
 
 /**
