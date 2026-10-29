@@ -86,18 +86,32 @@ class MapDetailRepositoryImplTest {
 
     /** 서버는 null 칸을 그대로 두므로, 비운 메모·태그도 빈 값으로 실어야 지워진다(이슈 #376). */
     @Test
-    fun `장소 수정은 메모·태그만 싣고 비운 값도 보낸다`() = runTest {
+    fun `장소 수정은 사진을 안 바꾸면 메모·태그만 싣고 비운 값도 보낸다`() = runTest {
         server.enqueue(
             MockResponse().setBody("""{"success":true,"data":{"id":5,"name":"카페","description":"","tags":[]}}"""),
         )
 
-        val updated = repository.updatePlace(placeId = 5, memo = "", tags = emptyList())
+        val updated = repository.updatePlace(placeId = 5, memo = "", tags = emptyList(), photoUrls = null)
 
         val request = server.takeRequest()
         assertEquals("PATCH", request.method)
         assertEquals("/api/v1/places/5", request.path)
+        // 사진 칸이 빠져야 서버가 사진을 그대로 둔다.
         assertEquals("""{"description":"","tags":[]}""", request.body.readUtf8())
         assertEquals(5L, updated.id)
+    }
+
+    /** 서버가 사진을 통째로 바꿔, 지운 사진은 빈 목록으로 가야 지워진다(이슈 #398). */
+    @Test
+    fun `장소 수정은 바꾼 사진을 전체 목록으로 싣는다`() = runTest {
+        server.enqueue(MockResponse().setBody("""{"success":true,"data":{"id":5,"name":"카페"}}"""))
+
+        repository.updatePlace(placeId = 5, memo = "메모", tags = emptyList(), photoUrls = emptyList())
+
+        assertEquals(
+            """{"description":"메모","tags":[],"photoUrls":[]}""",
+            server.takeRequest().body.readUtf8(),
+        )
     }
 
     @Test

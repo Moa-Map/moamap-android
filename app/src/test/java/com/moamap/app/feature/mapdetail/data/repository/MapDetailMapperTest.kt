@@ -107,6 +107,14 @@ class MapDetailMapperTest {
     }
 
     @Test
+    fun `장소 사진은 빈 주소만 빼고 모두 옮기고 첫 장이 대표 사진이다`() {
+        val place = PlaceDto(photoUrls = listOf(" ", "https://cdn/a.jpg", "https://cdn/b.jpg")).toMapPlace()
+
+        assertEquals(listOf("https://cdn/a.jpg", "https://cdn/b.jpg"), place.photoUrls)
+        assertEquals("https://cdn/a.jpg", place.photoUrl)
+    }
+
+    @Test
     fun `장소 사진은 공백이 아닌 첫 장을 쓴다`() {
         assertNull(PlaceDto(photoUrls = emptyList()).toMapPlace().photoUrl)
         assertNull(PlaceDto(photoUrls = listOf(" ")).toMapPlace().photoUrl)

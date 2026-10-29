@@ -826,6 +826,8 @@ fun MapDetailScreen(
                 onTagBackspace = placeEditViewModel::removeLastTagIfInputEmpty,
                 onRemoveTag = placeEditViewModel::removeTag,
                 onMemoChange = placeEditViewModel::updateMemo,
+                onAddPhoto = placeEditViewModel::addPhoto,
+                onRemovePhoto = placeEditViewModel::removePhoto,
                 onSaveClick = placeEditViewModel::save,
                 onErrorShown = placeEditViewModel::consumeError,
                 onKeepEditing = placeEditViewModel::keepEditing,

@@ -15,6 +15,7 @@ data class MapPlace(
     val address: String,
     val latitude: Double,
     val longitude: Double,
+    /** 대표 사진. [photoUrls] 의 첫 장이다. */
     val photoUrl: String?,
     /** 등록자가 적은 한 줄 설명. 안 적었으면 빈 문자열. */
     val description: String = "",
@@ -34,6 +35,8 @@ data class MapPlace(
     val liked: Boolean = false,
     /** 등록한 사람의 id. 수정·삭제 메뉴를 띄울지 가린다 - `MapDetail.canManagePlace`. */
     val createdBy: Long = 0,
+    /** 장소의 사진 전부. 장소 수정이 남길 사진까지 담아 보내야 해서 따로 든다. */
+    val photoUrls: List<String> = emptyList(),
 )
 
 /** 하트를 누르거나 취소한 뒤 서버가 확정한 상태. */

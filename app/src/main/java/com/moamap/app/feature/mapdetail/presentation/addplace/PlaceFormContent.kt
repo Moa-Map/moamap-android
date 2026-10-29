@@ -78,11 +78,8 @@ internal fun PlaceFormContent(
     modifier: Modifier = Modifier,
     /** 본문 맨 위 「장소등록」 제목. 단계 제목이 상단 바에 있는 장소 추가는 뺀다. */
     showsTitle: Boolean = true,
-    /**
-     * 사진 칸과 장소 카드의 썸네일. 장소 수정은 뺀다 - 서버가 장소 사진을 바꾸지 못하고, 시안 카드에도
-     * 사진이 없다.
-     */
-    showsPhotos: Boolean = true,
+    /** 고른 장소 카드의 썸네일. 장소 수정은 시안 카드에 사진이 없어 뺀다. */
+    showsPlaceThumbnail: Boolean = true,
 ) {
     Column(
         modifier = modifier
@@ -101,17 +98,15 @@ internal fun PlaceFormContent(
             )
         }
 
-        SelectedPlaceCard(name = placeName, address = placeAddress, showsThumbnail = showsPhotos)
+        SelectedPlaceCard(name = placeName, address = placeAddress, showsThumbnail = showsPlaceThumbnail)
 
-        if (showsPhotos) {
-            FormSection(title = "사진") {
-                PhotoPicker(
-                    photos = photos,
-                    canAddPhoto = canAddPhoto,
-                    onAddPhotoClick = onAddPhotoClick,
-                    onRemovePhoto = onRemovePhoto,
-                )
-            }
+        FormSection(title = "사진") {
+            PhotoPicker(
+                photos = photos,
+                canAddPhoto = canAddPhoto,
+                onAddPhotoClick = onAddPhotoClick,
+                onRemovePhoto = onRemovePhoto,
+            )
         }
 
         FormSection(title = "태그") {

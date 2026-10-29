@@ -28,8 +28,12 @@ interface MapDetailRepository {
     /** 하트를 누르거나([liked] = true) 취소한다. 서버가 확정한 상태를 돌려준다. */
     suspend fun setPlaceLiked(placeId: Long, liked: Boolean): PlaceLike
 
-    /** 장소의 메모·태그를 바꾼다. 비운 값도 그대로 보내 서버에서 지운다. 바뀐 장소를 돌려준다. */
-    suspend fun updatePlace(placeId: Long, memo: String, tags: List<String>): MapPlace
+    /**
+     * 장소의 메모·태그·사진을 바꾼다. 비운 값도 그대로 보내 서버에서 지운다. 바뀐 장소를 돌려준다.
+     *
+     * @param photoUrls 남길 사진까지 담은 전체 목록. null 이면 사진은 그대로 둔다.
+     */
+    suspend fun updatePlace(placeId: Long, memo: String, tags: List<String>, photoUrls: List<String>?): MapPlace
 
     suspend fun deletePlace(placeId: Long)
 }
