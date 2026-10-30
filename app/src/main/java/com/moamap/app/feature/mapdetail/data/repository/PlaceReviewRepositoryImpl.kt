@@ -6,9 +6,10 @@ import com.moamap.app.core.common.upload.PhotoUploader
 import com.moamap.app.core.common.upload.uploadOne
 import com.moamap.app.feature.explore.data.remote.PlaceReviewCreateRequestDto
 import com.moamap.app.feature.explore.data.remote.PlaceReviewPhotoUploadUrlRequestDto
-import com.moamap.app.feature.explore.data.remote.PlaceReviewUpdateRequestDto
+import com.moamap.app.feature.explore.data.remote.ReportRequestDto
 import com.moamap.app.feature.explore.data.remote.ReviewService
 import com.moamap.app.feature.mapdetail.domain.model.PlaceReview
+import com.moamap.app.feature.mapdetail.domain.model.ReportReason
 import com.moamap.app.feature.mapdetail.domain.repository.PlaceReviewRepository
 import com.moamap.app.feature.mypage.data.remote.UserService
 import javax.inject.Inject
@@ -66,17 +67,16 @@ internal class PlaceReviewRepositoryImpl @Inject constructor(
         )
     }
 
-    override suspend fun updateReview(placeId: Long, reviewId: Long, content: String) {
-        reviewService.updateReview(
-            placeId = placeId,
-            reviewId = reviewId,
-            request = PlaceReviewUpdateRequestDto(content = content),
-        )
-    }
-
     override suspend fun deleteReview(placeId: Long, reviewId: Long) {
         reviewService.deleteReview(placeId = placeId, reviewId = reviewId)
     }
+
+    override suspend fun reportReview(placeId: Long, reviewId: Long, reason: ReportReason, detail: String) =
+        reviewService.reportReview(
+            placeId = placeId,
+            reviewId = reviewId,
+            request = ReportRequestDto(reason = reason.serverValue, detail = detail.trim().ifEmpty { null }),
+        )
 
     private suspend fun uploadPhoto(placeId: Long, uri: Uri): String =
         uploader.uploadOne(uri, maxFileSize = MAX_REVIEW_PHOTO_FILE_SIZE) { contentType, fileSize ->

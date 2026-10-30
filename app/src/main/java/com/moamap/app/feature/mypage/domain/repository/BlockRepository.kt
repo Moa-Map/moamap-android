@@ -7,5 +7,7 @@ interface BlockRepository {
     /** 최근 차단한 순. */
     suspend fun getBlockedUsers(): List<BlockedUser>
 
+    suspend fun block(userId: Long)
+
     suspend fun unblock(userId: Long)
 }

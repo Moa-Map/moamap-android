@@ -2,6 +2,7 @@ package com.moamap.app.feature.mapdetail.domain.repository
 
 import android.net.Uri
 import com.moamap.app.feature.mapdetail.domain.model.PlaceReview
+import com.moamap.app.feature.mapdetail.domain.model.ReportReason
 
 interface PlaceReviewRepository {
 
@@ -25,14 +26,9 @@ interface PlaceReviewRepository {
      */
     suspend fun createReview(placeId: Long, content: String, photo: Uri?)
 
-    /**
-     * 내 후기의 글을 고친다. 작성자만 할 수 있다.
-     *
-     * 글만 보낸다. 서버는 보내지 않은 필드를 그대로 두므로 사진은 남는다. 빈 글도 보낸다 -
-     * 사진만 남기고 글을 지우는 경우다(비워서 안 보내면 서버가 옛 글을 그대로 둔다).
-     */
-    suspend fun updateReview(placeId: Long, reviewId: Long, content: String)
-
     /** 후기를 지운다. 작성자(또는 방장·관리자)만 할 수 있다. */
     suspend fun deleteReview(placeId: Long, reviewId: Long)
+
+    /** 남의 후기를 신고한다. [detail] 은 앞뒤 공백을 지우고 비면 싣지 않는다. */
+    suspend fun reportReview(placeId: Long, reviewId: Long, reason: ReportReason, detail: String)
 }

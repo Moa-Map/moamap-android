@@ -233,7 +233,7 @@ internal data class PlaceReviewUiModel(
     val relativeTime: String,
     /** 첨부 사진. 서버가 한 장까지만 받아 첫 장만 보여준다. */
     val photoUrl: String? = null,
-    /** 내가 쓴 댓글. 밀면 수정·삭제가, 아니면 신고가 나온다. */
+    /** 내가 쓴 댓글. 꾹 누르면 삭제가, 아니면 차단·신고가 나온다. */
     val mine: Boolean = false,
 )
 
@@ -249,10 +249,10 @@ internal data class PlaceReviewsUiModel(
     val submitting: Boolean = false,
     /** 시트 위에는 스낵바를 띄울 수 없어 입력창 아래에 남긴다. */
     val submitErrorMessage: String? = null,
-    /** 서버가 받아들인 작성·수정 수. 늘어나면 입력창을 비운다. */
+    /** 서버가 받아들인 작성 수. 늘어나면 입력창을 비운다. */
     val submittedCount: Int = 0,
-    /** 입력창에서 고치고 있는 내 댓글. */
-    val editingReviewId: Long? = null,
+    /** 꾹 눌러 삭제·차단·신고 메뉴를 띄울 수 있다. 내가 누군지 알아야 내 댓글을 가린다. */
+    val menuEnabled: Boolean = false,
 )
 
 /** 닉네임을 못 얻은 작성자. 이름 자리가 빈 줄로 보이지 않게 채운다. */

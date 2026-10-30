@@ -85,14 +85,15 @@ class ReviewServiceTest {
     }
 
     @Test
-    fun `댓글 수정은 comments 아래 댓글 id 경로를 호출한다`() = runTest {
-        enqueueComment()
+    fun `댓글 신고는 댓글 아래 reports 경로로 사유와 내용을 보낸다`() = runTest {
+        enqueueData("null")
 
-        service.updateReview(placeId = 7, reviewId = 3, request = PlaceReviewUpdateRequestDto(content = "수정"))
+        service.reportReview(placeId = 7, reviewId = 3, request = ReportRequestDto(reason = "OTHER", detail = "광고예요"))
 
         val request = server.takeRequest()
-        assertEquals("PATCH", request.method)
-        assertEquals("/api/v1/places/7/comments/3", request.path)
+        assertEquals("POST", request.method)
+        assertEquals("/api/v1/places/7/comments/3/reports", request.path)
+        assertEquals("""{"reason":"OTHER","detail":"광고예요"}""", request.body.readUtf8())
     }
 
     @Test

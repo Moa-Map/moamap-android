@@ -7,7 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.common.UNBLOCKED_TOAST
 import com.moamap.app.core.common.toUserMessage
 import com.moamap.app.feature.mypage.domain.model.BlockedUser
-import com.moamap.app.feature.mypage.domain.repository.BlockRepository
+import com.moamap.app.feature.mypage.domain.BlockedUserStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,7 +42,7 @@ data class BlockManagementUiState(
 
 @HiltViewModel
 class BlockManagementViewModel @Inject constructor(
-    private val repository: BlockRepository,
+    private val blockedUsers: BlockedUserStore,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(BlockManagementUiState())
@@ -61,7 +61,7 @@ class BlockManagementViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                repository.unblock(userId)
+                blockedUsers.unblock(userId)
                 _uiState.update { state ->
                     state.copy(
                         users = state.users.filterNot { user -> user.userId == userId },
@@ -92,7 +92,7 @@ class BlockManagementViewModel @Inject constructor(
         _uiState.update { state -> state.copy(loading = true, loadErrorMessage = null) }
         viewModelScope.launch {
             try {
-                val users = repository.getBlockedUsers()
+                val users = blockedUsers.reload()
                 _uiState.update { state -> state.copy(loading = false, users = users) }
             } catch (e: CancellationException) {
                 throw e

@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.feature.mapdetail.domain.model.ReportReason
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
@@ -151,9 +152,9 @@ internal fun PlaceDetailScreen(
     onAddToPersonalMapClick: () -> Unit = {},
     onSubmitReview: ((reviewText: String, photo: Uri?) -> Boolean)? = null,
     onLikeClick: () -> Unit = {},
-    onEditReview: (Long) -> Unit = {},
-    onCancelEdit: () -> Unit = {},
     onDeleteReview: (Long) -> Unit = {},
+    onReportReview: (Long, ReportReason, String) -> Unit = { _, _, _ -> },
+    onBlockReview: (Long) -> Unit = {},
     /** false 면 하트·신고하기·댓글을 뺀다. 공식지도다. 나만의 지도 추가·지도 보기는 남는다. */
     showsReactions: Boolean = true,
     /** 시트 자리가 정해졌을 때. 화면 아래에서 시트 윗변까지의 높이(px)를 준다. */
@@ -240,9 +241,9 @@ internal fun PlaceDetailScreen(
             onAddToPersonalMapClick = onAddToPersonalMapClick,
             onSubmitReview = onSubmitReview,
             onLikeClick = onLikeClick,
-            onEditReview = onEditReview,
-            onCancelEdit = onCancelEdit,
             onDeleteReview = onDeleteReview,
+            onReportReview = onReportReview,
+            onBlockReview = onBlockReview,
             showsReactions = showsReactions,
             onEditPlaceClick = onEditPlaceClick,
             onDeletePlace = onDeletePlace,
@@ -299,3 +300,4 @@ internal fun PlaceDetailScreen(
         BackHandler(onBack = onBack)
     }
 }
+

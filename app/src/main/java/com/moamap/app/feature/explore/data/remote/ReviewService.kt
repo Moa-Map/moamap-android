@@ -4,7 +4,6 @@ import com.moamap.app.core.network.model.PageResponse
 import retrofit2.http.Body
 import retrofit2.http.DELETE
 import retrofit2.http.GET
-import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 import retrofit2.http.Query
@@ -41,16 +40,17 @@ interface ReviewService {
         @Body request: PlaceReviewCreateRequestDto,
     ): PlaceReviewDto
 
-    @PATCH("api/v1/places/{placeId}/comments/{reviewId}")
-    suspend fun updateReview(
-        @Path("placeId") placeId: Long,
-        @Path("reviewId") reviewId: Long,
-        @Body request: PlaceReviewUpdateRequestDto,
-    ): PlaceReviewDto
-
     @DELETE("api/v1/places/{placeId}/comments/{reviewId}")
     suspend fun deleteReview(
         @Path("placeId") placeId: Long,
         @Path("reviewId") reviewId: Long,
+    )
+
+    /** 지도 멤버만 할 수 있다. 내 댓글은 400 `PLACE_020`, 이미 신고했으면 409 `PLACE_019`. */
+    @POST("api/v1/places/{placeId}/comments/{reviewId}/reports")
+    suspend fun reportReview(
+        @Path("placeId") placeId: Long,
+        @Path("reviewId") reviewId: Long,
+        @Body request: ReportRequestDto,
     )
 }
