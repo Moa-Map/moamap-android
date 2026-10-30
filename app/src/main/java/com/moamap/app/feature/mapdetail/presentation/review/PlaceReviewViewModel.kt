@@ -9,9 +9,11 @@ import com.moamap.app.core.auth.CurrentUserStore
 import com.moamap.app.core.common.toUploadMessage
 import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.mapdetail.domain.model.PlaceReview
+import com.moamap.app.feature.mapdetail.domain.model.ReportReason
 import com.moamap.app.feature.mapdetail.domain.repository.PlaceReviewRepository
 import com.moamap.app.core.common.toUserMessage
 import com.moamap.app.feature.mapdetail.presentation.NOT_MAP_MEMBER_CODE
+import com.moamap.app.feature.mypage.domain.BlockedUserStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -28,14 +30,13 @@ internal const val REVIEW_LOAD_FAILED_MESSAGE = "댓글을 불러오지 못했�
 internal const val REVIEW_SUBMIT_FAILED_MESSAGE = "댓글을 남기지 못했어요"
 internal const val NOT_MAP_MEMBER_MESSAGE = "지도에 참여해야 댓글을 남길 수 있어요"
 internal const val REVIEW_EMPTY_MESSAGE = "내용이나 사진을 남겨주세요"
-internal const val REVIEW_UPDATE_FAILED_MESSAGE = "댓글을 수정하지 못했어요"
 internal const val REVIEW_DELETE_FAILED_MESSAGE = "댓글을 삭제하지 못했어요"
 
 /**
  * 내가 쓴 후기인가.
  *
  * 로그인한 사람의 식별자를 모르면(저장되기 전에 로그인한 세션) 아무것도 내 것으로 보지 않는다.
- * 남의 글로 보면 수정·삭제가 안 보일 뿐이지만, 내 글로 잘못 보면 서버가 거절할 버튼이 뜬다.
+ * 남의 글로 보면 삭제가 안 보일 뿐이지만, 내 글로 잘못 보면 서버가 거절할 버튼이 뜬다.
  */
 internal fun PlaceReview.isMine(myUserId: Long?): Boolean = myUserId != null && authorId == myUserId
 
@@ -68,37 +69,38 @@ data class PlaceReviewUiState(
     val submitting: Boolean = false,
     val submitErrorMessage: String? = null,
     /**
-     * 서버가 받아들인 작성·수정 수.
+     * 서버가 받아들인 작성 수.
      *
      * 값이 늘어난 것만 신호로 쓴다. 입력창은 이때 비우고, 화면은 장소의 후기 수를
      * 다시 읽는다. 보내자마자 지우면 실패했을 때 적어 둔 게 날아간다.
      */
     val submittedCount: Int = 0,
-    /** 로그인한 사람. 내 후기를 가리는 데 쓴다 - [isMine]. */
+    /** 로그인한 사람. 내 후기를 가리는 데 쓴다 - [isMine]. 모르면 꾹 누름 메뉴를 띄우지 않는다. */
     val myUserId: Long? = null,
-    /** 입력창에서 고치고 있는 내 후기. null 이면 새로 쓰는 중이다. */
-    val editingReviewId: Long? = null,
-    val deleting: Boolean = false,
+    /** 삭제·신고·차단 중 하나가 서버로 가 있다. 그동안 다른 것을 받지 않는다. */
+    val moderating: Boolean = false,
     /**
      * 지운 후기 수. 늘어나면 화면이 장소의 후기 수를 다시 읽는다.
      *
      * [submittedCount] 와 나눈 이유: 그 값은 입력창도 비운다. 지울 때 적고 있던 글까지 날아가면 안 된다.
      */
     val deletedCount: Int = 0,
-) {
-    /** 고치고 있는 후기. 목록이 다시 읽혀 사라졌으면 null 이다. */
-    val editingReview: PlaceReview?
-        get() = editingReviewId?.let { id -> reviews.firstOrNull { review -> review.id == id } }
-}
+    /** 삭제·신고·차단 결과. 한 번 띄우고 지운다. 댓글 입력 줄 바로 위에 뜬다. */
+    val toast: String? = null,
+)
 
 @HiltViewModel
 class PlaceReviewViewModel @Inject constructor(
     private val repository: PlaceReviewRepository,
     private val currentUserStore: CurrentUserStore,
+    private val blockedUsers: BlockedUserStore,
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(PlaceReviewUiState())
     val uiState: StateFlow<PlaceReviewUiState> = _uiState.asStateFlow()
+
+    /** 지도 상세가 장소·로그·댓글에서 걸러 낼 작성자. 이 화면(지도 상세)과 같은 수명이라 여기서 내준다. */
+    val blockedUserIds: StateFlow<Set<Long>> = blockedUsers.ids
 
     private var loadJob: Job? = null
     private var submitJob: Job? = null
@@ -107,6 +109,16 @@ class PlaceReviewViewModel @Inject constructor(
         viewModelScope.launch {
             val myUserId = currentUserStore.load()
             _uiState.update { state -> state.copy(myUserId = myUserId) }
+        }
+        // 지도를 열 때마다 맞춘다. 못 읽어도 서버가 목록에서 걸러 주니 지도는 그대로 연다.
+        viewModelScope.launch {
+            try {
+                blockedUsers.reload()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "차단 목록 조회 실패", e)
+            }
         }
     }
 
@@ -154,7 +166,6 @@ class PlaceReviewViewModel @Inject constructor(
     fun submit(content: String, photo: Uri?): Boolean {
         val placeId = _uiState.value.placeId ?: return false
         if (_uiState.value.submitting) return false
-        _uiState.value.editingReview?.let { editing -> return update(placeId, editing, content) }
 
         if (content.isBlank() && photo == null) {
             _uiState.update { state -> state.copy(submitErrorMessage = REVIEW_EMPTY_MESSAGE) }
@@ -183,90 +194,71 @@ class PlaceReviewViewModel @Inject constructor(
         return true
     }
 
-    /** 내 후기를 입력창에서 고치기 시작한다. 남의 후기면 무시한다 - 서버가 작성자만 받는다. */
-    fun startEdit(reviewId: Long) {
-        val state = _uiState.value
-        val review = state.reviews.firstOrNull { item -> item.id == reviewId } ?: return
-        if (state.submitting || !review.isMine(state.myUserId)) return
-        _uiState.update { current -> current.copy(editingReviewId = reviewId, submitErrorMessage = null) }
-    }
-
-    fun cancelEdit() {
-        if (_uiState.value.submitting) return
-        _uiState.update { state -> state.copy(editingReviewId = null, submitErrorMessage = null) }
-    }
-
     /** 내 후기를 지운다. 확인은 화면이 먼저 받는다. */
     fun delete(reviewId: Long) {
         val state = _uiState.value
         val placeId = state.placeId ?: return
         val review = state.reviews.firstOrNull { item -> item.id == reviewId } ?: return
-        if (state.deleting || !review.isMine(state.myUserId)) return
+        if (state.moderating || !review.isMine(state.myUserId)) return
 
-        _uiState.update { current -> current.copy(deleting = true, submitErrorMessage = null) }
-        viewModelScope.launch {
-            try {
-                repository.deleteReview(placeId, reviewId)
-                _uiState.update { current ->
-                    current.copy(
-                        deleting = false,
-                        deletedCount = current.deletedCount + 1,
-                        // 고치던 후기를 지웠으면 고치기도 끝난다.
-                        editingReviewId = current.editingReviewId.takeUnless { id -> id == reviewId },
-                    )
-                }
-                load(placeId)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w(TAG, "후기 삭제 실패 (placeId=$placeId, reviewId=$reviewId)", e)
-                _uiState.update { current ->
-                    current.copy(
-                        deleting = false,
-                        submitErrorMessage = e.toUserMessage(REVIEW_DELETE_FAILED_MESSAGE),
-                    )
-                }
+        moderate(failureMessage = { e -> e.toUserMessage(REVIEW_DELETE_FAILED_MESSAGE) }) {
+            repository.deleteReview(placeId, reviewId)
+            _uiState.update { current ->
+                current.copy(deletedCount = current.deletedCount + 1, toast = REVIEW_DELETED_TOAST)
             }
+            load(placeId)
+        }
+    }
+
+    /** 남의 후기를 신고한다. 사유는 팝업이 먼저 받는다. 「기타」는 내용이 있어야 한다 - 서버가 꼭 받는다. */
+    fun report(reviewId: Long, reason: ReportReason, detail: String) {
+        val state = _uiState.value
+        val placeId = state.placeId ?: return
+        val review = state.reviews.firstOrNull { item -> item.id == reviewId } ?: return
+        if (state.moderating || review.isMine(state.myUserId)) return
+        if (reason == ReportReason.Other && detail.isBlank()) return
+
+        moderate(failureMessage = Throwable::toReportFailureMessage) {
+            repository.reportReview(placeId, reviewId, reason, detail)
+            _uiState.update { current -> current.copy(toast = REPORTED_TOAST) }
         }
     }
 
     /**
-     * 고친 글을 보낸다. 사진은 건드리지 않는다.
+     * 후기를 쓴 사람을 차단한다. 확인은 팝업이 먼저 받는다.
      *
-     * 사진이 있는 후기는 글을 비워도 된다. 사진도 없는데 글까지 비우면 빈 줄만 남는다.
+     * 다시 읽지 않는다 - [blockedUserIds] 가 바로 바뀌어 지금 화면에서 그 사람의 글이 사라진다.
      */
-    private fun update(placeId: Long, editing: PlaceReview, content: String): Boolean {
-        if (content.isBlank() && editing.imageUrls.isEmpty()) {
-            _uiState.update { state -> state.copy(submitErrorMessage = REVIEW_EMPTY_MESSAGE) }
-            return false
-        }
+    fun block(reviewId: Long) {
+        val state = _uiState.value
+        val review = state.reviews.firstOrNull { item -> item.id == reviewId } ?: return
+        if (state.moderating || review.isMine(state.myUserId)) return
 
-        _uiState.update { state -> state.copy(submitting = true, submitErrorMessage = null) }
-        submitJob?.cancel()
-        submitJob = viewModelScope.launch {
+        moderate(failureMessage = Throwable::toBlockFailureMessage) {
+            blockedUsers.block(review.authorId)
+            _uiState.update { current -> current.copy(toast = blockedToast(review.authorName)) }
+        }
+    }
+
+    fun consumeToast() {
+        _uiState.update { state -> state.copy(toast = null) }
+    }
+
+    /** 삭제·신고·차단을 하나씩만 보낸다. 실패하면 [failureMessage] 를 토스트로 띄운다. */
+    private fun moderate(failureMessage: (Throwable) -> String, action: suspend () -> Unit) {
+        _uiState.update { current -> current.copy(moderating = true) }
+        viewModelScope.launch {
             try {
-                repository.updateReview(placeId, editing.id, content.trim())
-                _uiState.update { state ->
-                    state.copy(
-                        submitting = false,
-                        editingReviewId = null,
-                        submittedCount = state.submittedCount + 1,
-                    )
-                }
-                load(placeId)
+                action()
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.w(TAG, "후기 수정 실패 (placeId=$placeId, reviewId=${editing.id})", e)
-                _uiState.update { state ->
-                    state.copy(
-                        submitting = false,
-                        submitErrorMessage = e.toUserMessage(REVIEW_UPDATE_FAILED_MESSAGE),
-                    )
-                }
+                Log.w(TAG, "댓글 삭제·신고·차단 실패 (placeId=${_uiState.value.placeId})", e)
+                _uiState.update { current -> current.copy(toast = failureMessage(e)) }
+            } finally {
+                _uiState.update { current -> current.copy(moderating = false) }
             }
         }
-        return true
     }
 
     /**

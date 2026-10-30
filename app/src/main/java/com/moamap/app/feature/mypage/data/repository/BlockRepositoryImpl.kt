@@ -15,6 +15,8 @@ internal class BlockRepositoryImpl @Inject constructor(
     override suspend fun getBlockedUsers(): List<BlockedUser> =
         blockService.getBlockedUsers().map { dto -> dto.toBlockedUser() }
 
+    override suspend fun block(userId: Long) = blockService.block(userId)
+
     override suspend fun unblock(userId: Long) = blockService.unblock(userId)
 }
 

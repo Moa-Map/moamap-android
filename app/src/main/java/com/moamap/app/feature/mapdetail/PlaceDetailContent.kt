@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.animateContentSize
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -18,6 +19,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
@@ -34,6 +36,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -56,7 +59,9 @@ import com.moamap.app.core.designsystem.component.MoaMapSheetGrabber
 import com.moamap.app.core.designsystem.component.MoaMapToast
 import com.moamap.app.core.designsystem.component.MoaMapTopBarIconEdgePadding
 import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
+import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
+import com.moamap.app.feature.mapdetail.domain.model.ReportReason
 import com.moamap.app.feature.mapdetail.presentation.addplace.PLACE_PHOTO_CACHE_DIRECTORY
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
@@ -69,6 +74,12 @@ private val SheetGrabberAreaHeight = 16.dp
 
 /** 사진 고르기 메뉴 아래 끝과 댓글 입력칸 사이(시안). */
 private val PhotoMenuGapAboveInput = 4.dp
+
+/** 꾹 누른 댓글 카드 위 끝과 메뉴 아래 끝 사이(시안 `5124:69760`). */
+private val ReviewMenuGap = 2.dp
+
+/** 꾹 눌렀을 때 화면을 덮는 검정 30%(시안). */
+private val ReviewMenuDim = MoaMapPrimitiveColors.Black.copy(alpha = 0.3f)
 
 /** 토스트 아래 끝과 댓글 입력칸 사이. 시안은 토스트가 입력 줄 위 끝에 거의 붙어 있다. */
 private val ToastGapAboveInput = 4.dp
@@ -105,9 +116,11 @@ internal fun PlaceDetailContent(
     onAddToPersonalMapClick: () -> Unit = {},
     onSubmitReview: ((reviewText: String, photo: Uri?) -> Boolean)? = null,
     onLikeClick: () -> Unit = {},
-    onEditReview: (Long) -> Unit = {},
-    onCancelEdit: () -> Unit = {},
     onDeleteReview: (Long) -> Unit = {},
+    /** 신고 팝업에서 사유를 고른 뒤 부른다. */
+    onReportReview: (Long, ReportReason, String) -> Unit = { _, _, _ -> },
+    /** 차단 팝업에서 확인한 뒤 부른다. */
+    onBlockReview: (Long) -> Unit = {},
     showsReactions: Boolean = true,
     /** null 이 아니면 페이지 상단 바에 ⋮ 메뉴(수정하기·삭제하기)를 둔다. 고치거나 지울 수 있는 장소다. */
     onEditPlaceClick: (() -> Unit)? = null,
@@ -122,10 +135,13 @@ internal fun PlaceDetailContent(
     var placeMenuVisible by remember(place.id) { mutableStateOf(false) }
     LaunchedEffect(sheet) { if (sheet) placeMenuVisible = false }
     var deletePlaceConfirmVisible by rememberSaveable(place.id) { mutableStateOf(false) }
-    // 옆으로 밀어 버튼이 드러난 댓글. 한 번에 한 줄만 연다.
-    var openReviewId by remember(place.id) { mutableStateOf<Long?>(null) }
-    // 삭제를 확인받는 중인 댓글.
-    var deleteTargetId by remember(place.id) { mutableStateOf<Long?>(null) }
+    // 꾹 눌러 메뉴를 띄운 댓글과 그 줄의 화면 위치. 시트로 내려가면 닫는다 - 메뉴는 페이지에서만 뜬다.
+    var menuTarget by remember(place.id) { mutableStateOf<Pair<PlaceReviewUiModel, Rect>?>(null) }
+    LaunchedEffect(sheet) { if (sheet) menuTarget = null }
+    // 메뉴에서 고른 뒤 팝업으로 확인받는 중인 댓글.
+    var deleteTarget by remember(place.id) { mutableStateOf<PlaceReviewUiModel?>(null) }
+    var blockTarget by remember(place.id) { mutableStateOf<PlaceReviewUiModel?>(null) }
+    var reportTarget by remember(place.id) { mutableStateOf<PlaceReviewUiModel?>(null) }
     val pickerState = rememberImagePickerState()
     val pickerController = rememberImagePickerController(
         state = pickerState,
@@ -220,19 +236,11 @@ internal fun PlaceDetailContent(
                     reviewItems(
                         reviews = reviews,
                         onRetryReviews = onRetryReviews,
-                        // 수정·삭제·신고는 모두 지도 멤버만 할 수 있다. 참여하지 않았으면 밀리지 않는다.
-                        swipeEnabled = onSubmitReview != null,
-                        openReviewId = openReviewId,
-                        onOpenChange = { id, open ->
-                            openReviewId = if (open) id else openReviewId.takeUnless { it == id }
-                        },
-                        onEditClick = { id ->
-                            openReviewId = null
-                            onEditReview(id)
-                        },
-                        onDeleteClick = { id ->
-                            openReviewId = null
-                            deleteTargetId = id
+                        // 시트를 끝까지 올린 페이지에서만 띄운다(iOS 와 같음). 시트에서는 끌면 시트가 움직인다.
+                        onReviewLongPress = if (!sheet && reviews.menuEnabled) {
+                            { review, bounds -> menuTarget = review to bounds }
+                        } else {
+                            null
                         },
                     )
                 }
@@ -247,23 +255,100 @@ internal fun PlaceDetailContent(
                     onRemovePhotoClick = { reviewPhoto = null },
                     onPhotoSubmitted = { reviewPhoto = null },
                     onSubmitReview = onSubmitReview,
-                    editing = reviews.items.firstOrNull { item -> item.id == reviews.editingReviewId },
-                    onCancelEdit = onCancelEdit,
                     onInputPositioned = { coordinates -> composerInputBounds = coordinates.boundsInRoot() },
                 )
             }
         }
 
-        deleteTargetId?.let { id ->
-            MoaMapConfirmDialog(
-                title = "댓글을 삭제하시겠습니까?",
-                message = "삭제한 댓글은 되돌릴 수 없습니다",
-                confirmText = "삭제",
-                onConfirm = {
-                    deleteTargetId = null
-                    onDeleteReview(id)
+        menuTarget?.let { (review, rootBounds) ->
+            val bounds = rootBounds.translate(-contentOrigin)
+            val density = LocalDensity.current
+            // 덮개를 누르면 닫는다. 덮개는 상단 바·입력 줄까지 다 덮는다(시안).
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(ReviewMenuDim)
+                    .pointerInput(Unit) { detectTapGestures { menuTarget = null } },
+            )
+            HighlightedReviewRow(
+                review = review,
+                modifier = Modifier
+                    .width(with(density) { bounds.width.toDp() })
+                    .layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+                        layout(placeable.width, placeable.height) {
+                            placeable.place(bounds.left.roundToInt(), bounds.top.roundToInt())
+                        }
+                    },
+            )
+            ReviewActionMenu(
+                mine = review.mine,
+                onDeleteClick = {
+                    menuTarget = null
+                    deleteTarget = review
                 },
-                onDismissRequest = { deleteTargetId = null },
+                onBlockClick = {
+                    menuTarget = null
+                    blockTarget = review
+                },
+                onReportClick = {
+                    menuTarget = null
+                    reportTarget = review
+                },
+                hazeState = photoMenuHazeState,
+                // 메뉴 왼쪽 끝은 댓글 카드 왼쪽 끝, 아래 끝은 카드 위 2(시안). 위에 자리가 없으면 카드 아래에 둔다.
+                modifier = Modifier.layout { measurable, constraints ->
+                    val placeable = measurable.measure(constraints.copy(minWidth = 0, minHeight = 0))
+                    layout(placeable.width, placeable.height) {
+                        val above = bounds.top - ReviewMenuGap.toPx() - placeable.height
+                        val y = if (above >= 0f) above else bounds.bottom + ReviewMenuGap.toPx()
+                        placeable.place(bounds.left.roundToInt(), y.roundToInt())
+                    }
+                },
+            )
+            BackHandler { menuTarget = null }
+        }
+
+        deleteTarget?.let { review ->
+            MoaMapConfirmDialog(
+                title = "댓글을 삭제할까요?",
+                message = "삭제한 댓글은 복구할 수 없어요",
+                confirmText = "삭제하기",
+                dismissText = "취소",
+                dismissColor = MoaMapPrimitiveColors.Gray200,
+                onConfirm = {
+                    deleteTarget = null
+                    onDeleteReview(review.id)
+                },
+                onDismissRequest = { deleteTarget = null },
+            )
+        }
+
+        blockTarget?.let { review ->
+            // 이름을 모르는 작성자는 화면에 「이름 없는 사용자」로 보이니 그대로 묻는다.
+            MoaMapConfirmDialog(
+                title = review.userName,
+                titleSuffix = "님을 차단할까요?",
+                message = "모든 지도에서 이 사람의 댓글, 게시물이\n보이지 않고 알림이 오지 않아요\n설정에서 차단을 해제할 수 있어요",
+                confirmText = "차단하기",
+                dismissText = "취소",
+                dismissColor = MoaMapPrimitiveColors.Gray200,
+                onConfirm = {
+                    blockTarget = null
+                    onBlockReview(review.id)
+                },
+                onDismissRequest = { blockTarget = null },
+            )
+        }
+
+        reportTarget?.let { review ->
+            ReportDialog(
+                title = "댓글 신고하기",
+                onSubmit = { reason, detail ->
+                    reportTarget = null
+                    onReportReview(review.id, reason, detail)
+                },
+                onDismissRequest = { reportTarget = null },
             )
         }
 

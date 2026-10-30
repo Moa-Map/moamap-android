@@ -90,6 +90,34 @@ internal fun PlaceDetailMenu(
     )
 }
 
+/**
+ * 댓글을 꾹 눌렀을 때의 메뉴(시안 `5124:69760`). 내 댓글은 삭제하기, 남의 댓글은 차단하기·신고하기(빨강).
+ */
+@Composable
+internal fun ReviewActionMenu(
+    mine: Boolean,
+    onDeleteClick: () -> Unit,
+    onBlockClick: () -> Unit,
+    onReportClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    hazeState: HazeState? = null,
+) {
+    ModalActionMenu(
+        items = if (mine) {
+            listOf(ActionMenuItem(R.drawable.ic_trash, "삭제하기", onDeleteClick))
+        } else {
+            listOf(
+                ActionMenuItem(R.drawable.ic_block, "차단하기", onBlockClick),
+                ActionMenuItem(R.drawable.ic_report, "신고하기", onReportClick, danger = true),
+            )
+        },
+        scrimColor = MapDetailMenuScrim,
+        hazeState = hazeState,
+        commandStyle = true,
+        modifier = modifier,
+    )
+}
+
 @Preview(showBackground = true, widthDp = 393, heightDp = 300)
 @Composable
 private fun MapDetailMenuPreview() {

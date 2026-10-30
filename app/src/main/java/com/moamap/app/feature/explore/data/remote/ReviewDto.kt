@@ -12,12 +12,6 @@ data class PlaceReviewCreateRequestDto(
 )
 
 /** PATCH api/v1/places/{placeId}/comments/{commentId} 요청. 변경할 필드만 채운다. */
-@Serializable
-data class PlaceReviewUpdateRequestDto(
-    val rating: Int? = null,
-    val content: String? = null,
-    val imageUrls: List<String>? = null,
-)
 
 /** POST api/v1/places/{placeId}/comments/photo-upload-url 요청. 서버가 한 장만 받는다. */
 @Serializable
@@ -47,4 +41,11 @@ data class PlaceReviewDto(
     val imageUrls: List<String> = emptyList(),
     val createdAt: String? = null,
     val updatedAt: String? = null,
+)
+
+/** 신고 요청. 장소·댓글·지도·로그·사용자 신고가 같은 모양이다. [detail] 은 「기타」일 때 꼭 실린다. */
+@Serializable
+data class ReportRequestDto(
+    val reason: String,
+    val detail: String? = null,
 )

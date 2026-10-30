@@ -67,6 +67,8 @@ internal fun ModalActionMenu(
     scrimColor: Color,
     modifier: Modifier = Modifier,
     hazeState: HazeState? = null,
+    /** 댓글 꾹 누름 메뉴(시안 `5124:69760`): 아이콘 24·글자 body1, 오른쪽 화살표 없음. */
+    commandStyle: Boolean = false,
 ) {
     Box(modifier = modifier) {
         Box(
@@ -93,7 +95,7 @@ internal fun ModalActionMenu(
                             },
                     )
                 }
-                ModalActionMenuRow(item)
+                ModalActionMenuRow(item, commandStyle)
             }
         }
     }
@@ -127,7 +129,7 @@ internal fun Modifier.modalScrim(hazeState: HazeState?, color: Color): Modifier 
     }
 
 @Composable
-private fun ModalActionMenuRow(item: ActionMenuItem) {
+private fun ModalActionMenuRow(item: ActionMenuItem, commandStyle: Boolean) {
     Row(
         modifier = Modifier
             .size(width = ModalMenuRowWidth, height = ActionMenuRowHeight)
@@ -140,16 +142,16 @@ private fun ModalActionMenuRow(item: ActionMenuItem) {
             painter = painterResource(item.iconRes),
             contentDescription = null,
             tint = color,
-            modifier = Modifier.size(20.dp),
+            modifier = Modifier.size(if (commandStyle) 24.dp else 20.dp),
         )
         Spacer(Modifier.width(8.dp))
         Text(
             text = item.label,
-            style = MoaMapTheme.typography.body2,
+            style = if (commandStyle) MoaMapTheme.typography.body1 else MoaMapTheme.typography.body2,
             color = color,
             modifier = Modifier.weight(1f),
         )
-        if (!item.danger) {
+        if (!item.danger && !commandStyle) {
             Icon(
                 painter = painterResource(R.drawable.ic_arrow_right),
                 contentDescription = null,

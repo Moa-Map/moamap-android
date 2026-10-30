@@ -5,6 +5,7 @@ import com.moamap.app.core.common.UNBLOCKED_TOAST
 import com.moamap.app.core.network.ConnectionException
 import com.moamap.app.feature.mypage.data.remote.BlockedUserDto
 import com.moamap.app.feature.mypage.data.repository.toBlockedUser
+import com.moamap.app.feature.mypage.domain.BlockedUserStore
 import com.moamap.app.feature.mypage.domain.model.BlockedUser
 import com.moamap.app.feature.mypage.domain.repository.BlockRepository
 import kotlinx.coroutines.CompletableDeferred
@@ -45,6 +46,8 @@ private class FakeBlockRepository : BlockRepository {
         return users
     }
 
+    override suspend fun block(userId: Long) = error("차단 관리는 차단하지 않는다")
+
     override suspend fun unblock(userId: Long) {
         unblocked += userId
         unblockPending?.await()
@@ -70,7 +73,7 @@ class BlockManagementViewModelTest {
 
     @Test
     fun `들어오면 차단 목록을 받는다`() = runTest(dispatcher) {
-        val viewModel = BlockManagementViewModel(repository)
+        val viewModel = BlockManagementViewModel(BlockedUserStore(repository))
         assertTrue(viewModel.uiState.value.loading)
 
         advanceUntilIdle()
@@ -82,7 +85,7 @@ class BlockManagementViewModelTest {
     @Test
     fun `차단한 사람이 없으면 빈 화면이다`() = runTest(dispatcher) {
         repository.users = emptyList()
-        val viewModel = BlockManagementViewModel(repository)
+        val viewModel = BlockManagementViewModel(BlockedUserStore(repository))
         advanceUntilIdle()
 
         assertTrue(viewModel.uiState.value.empty)
@@ -91,7 +94,7 @@ class BlockManagementViewModelTest {
     @Test
     fun `목록을 못 받으면 안내를 띄우고 다시 받을 수 있다`() = runTest(dispatcher) {
         repository.loadFailure = ConnectionException(IOException("boom"))
-        val viewModel = BlockManagementViewModel(repository)
+        val viewModel = BlockManagementViewModel(BlockedUserStore(repository))
         advanceUntilIdle()
 
         assertEquals(NETWORK_ERROR_MESSAGE, viewModel.uiState.value.loadErrorMessage)
@@ -107,7 +110,7 @@ class BlockManagementViewModelTest {
 
     @Test
     fun `해제하면 목록에서 빼고 토스트를 띄운다`() = runTest(dispatcher) {
-        val viewModel = BlockManagementViewModel(repository)
+        val viewModel = BlockManagementViewModel(BlockedUserStore(repository))
         advanceUntilIdle()
 
         viewModel.unblock(1L)
@@ -124,7 +127,7 @@ class BlockManagementViewModelTest {
     @Test
     fun `해제에 실패하면 목록은 그대로 두고 안내만 띄운다`() = runTest(dispatcher) {
         repository.unblockFailure = ConnectionException(IOException("boom"))
-        val viewModel = BlockManagementViewModel(repository)
+        val viewModel = BlockManagementViewModel(BlockedUserStore(repository))
         advanceUntilIdle()
 
         viewModel.unblock(1L)
@@ -139,7 +142,7 @@ class BlockManagementViewModelTest {
     @Test
     fun `해제 요청이 나가 있는 동안 다른 해제는 보내지 않는다`() = runTest(dispatcher) {
         repository.unblockPending = CompletableDeferred()
-        val viewModel = BlockManagementViewModel(repository)
+        val viewModel = BlockManagementViewModel(BlockedUserStore(repository))
         advanceUntilIdle()
 
         viewModel.unblock(1L)

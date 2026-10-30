@@ -8,7 +8,7 @@ import com.moamap.app.feature.explore.data.remote.PlaceReviewCreateRequestDto
 import com.moamap.app.feature.explore.data.remote.PlaceReviewDto
 import com.moamap.app.feature.explore.data.remote.PlaceReviewPhotoUploadUrlDto
 import com.moamap.app.feature.explore.data.remote.PlaceReviewPhotoUploadUrlRequestDto
-import com.moamap.app.feature.explore.data.remote.PlaceReviewUpdateRequestDto
+import com.moamap.app.feature.explore.data.remote.ReportRequestDto
 import com.moamap.app.feature.explore.data.remote.ReviewService
 import com.moamap.app.feature.mypage.data.remote.MyPageDto
 import com.moamap.app.feature.mypage.data.remote.ProfileUploadUrlDto
@@ -17,15 +17,16 @@ import com.moamap.app.feature.mypage.data.remote.UpdateMyPageRequestDto
 import com.moamap.app.feature.mypage.data.remote.UserProfileDto
 import com.moamap.app.feature.mypage.data.remote.UserService
 import kotlinx.coroutines.test.runTest
+import com.moamap.app.feature.mapdetail.domain.model.ReportReason
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
 
-/** 작성·수정·삭제 요청을 받아 둔다. */
+/** 작성·삭제·신고 요청을 받아 둔다. */
 private class RecordingReviewService : ReviewService {
 
     val created = mutableListOf<PlaceReviewCreateRequestDto>()
-    val updated = mutableListOf<PlaceReviewUpdateRequestDto>()
+    val reported = mutableListOf<ReportRequestDto>()
     val deleted = mutableListOf<Pair<Long, Long>>()
 
     override suspend fun createReview(
@@ -44,13 +45,8 @@ private class RecordingReviewService : ReviewService {
         request: PlaceReviewPhotoUploadUrlRequestDto,
     ): PlaceReviewPhotoUploadUrlDto = TODO("사진 없는 경로만 검증한다")
 
-    override suspend fun updateReview(
-        placeId: Long,
-        reviewId: Long,
-        request: PlaceReviewUpdateRequestDto,
-    ): PlaceReviewDto {
-        updated += request
-        return PlaceReviewDto()
+    override suspend fun reportReview(placeId: Long, reviewId: Long, request: ReportRequestDto) {
+        reported += request
     }
 
     override suspend fun deleteReview(placeId: Long, reviewId: Long) {
@@ -98,12 +94,15 @@ class PlaceReviewRepositoryImplTest {
         assertNull(service.created.single().content)
     }
 
-    /** 서버는 보내지 않은 필드를 그대로 둔다. 별점·사진을 실으면 원래 값을 덮는다. */
     @Test
-    fun `후기를 고칠 때는 글만 보낸다`() = runTest {
-        repository.updateReview(placeId = 7L, reviewId = 1L, content = "고친 글")
+    fun `신고 내용은 앞뒤 공백을 지우고 비면 싣지 않는다`() = runTest {
+        repository.reportReview(placeId = 7L, reviewId = 1L, reason = ReportReason.Other, detail = "  광고예요 ")
+        repository.reportReview(placeId = 7L, reviewId = 1L, reason = ReportReason.Spam, detail = "   ")
 
-        assertEquals(listOf(PlaceReviewUpdateRequestDto(content = "고친 글")), service.updated)
+        assertEquals(
+            listOf(ReportRequestDto(reason = "OTHER", detail = "광고예요"), ReportRequestDto(reason = "SPAM")),
+            service.reported,
+        )
     }
 
     @Test

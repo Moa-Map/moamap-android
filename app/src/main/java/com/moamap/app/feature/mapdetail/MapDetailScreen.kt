@@ -109,6 +109,8 @@ fun MapDetailScreen(
 
     val screenState by viewModel.uiState.collectAsStateWithLifecycle()
     val reviewState by reviewViewModel.uiState.collectAsStateWithLifecycle()
+    // 차단한 사람. 서버도 목록에서 걸러 주지만, 차단 직후엔 다시 읽지 않고 여기서 바로 지운다.
+    val blockedUserIds by reviewViewModel.blockedUserIds.collectAsStateWithLifecycle()
     val personalMapState by personalMapViewModel.uiState.collectAsStateWithLifecycle()
     val activityState by activityViewModel.uiState.collectAsStateWithLifecycle()
     val pendingState by pendingViewModel.uiState.collectAsStateWithLifecycle()
@@ -214,8 +216,16 @@ fun MapDetailScreen(
     var uiState by rememberSaveable(stateSaver = MapDetailUiStateSaver) {
         mutableStateOf(MapDetailUiState())
     }
-    val places = remember(screenState.places) {
-        screenState.places.map { place -> place.toPlaceUiModel() }
+    val places = remember(screenState.places, blockedUserIds) {
+        screenState.places
+            .filterNot { place -> place.createdBy in blockedUserIds }
+            .map { place -> place.toPlaceUiModel() }
+    }
+    val visiblePostList = remember(postListState, blockedUserIds) {
+        postListState.copy(posts = postListState.posts.filterNot { post -> post.authorId in blockedUserIds })
+    }
+    val visiblePostCalendar = remember(postCalendarState, blockedUserIds) {
+        postCalendarState.copy(posts = postCalendarState.posts.filterNot { post -> post.authorId in blockedUserIds })
     }
     val categoryFilters = remember(places) { categoryFilters(places) }
     val visiblePlaces = remember(places, uiState.selectedCategory, uiState.searchQuery) {
@@ -309,21 +319,21 @@ fun MapDetailScreen(
 
     // 시트가 읽는 후기 상태. 조회는 시트가 그려진 뒤에 시작하므로, 상태가 어느 장소의
     // 것인지 확인하지 않으면 직전 장소의 후기가 한 프레임 스쳐 간다.
-    val reviews = remember(reviewState, uiState.selectedPlaceId) {
+    val reviews = remember(reviewState, uiState.selectedPlaceId, blockedUserIds) {
         if (reviewState.placeId != uiState.selectedPlaceId) {
             PlaceReviewsUiModel(loading = true)
         } else {
             val now = System.currentTimeMillis()
             PlaceReviewsUiModel(
                 loading = reviewState.loading,
-                items = reviewState.reviews.map { review ->
-                    review.toPlaceReviewUiModel(now, reviewState.myUserId)
-                },
+                items = reviewState.reviews
+                    .filterNot { review -> review.authorId in blockedUserIds }
+                    .map { review -> review.toPlaceReviewUiModel(now, reviewState.myUserId) },
                 loadErrorMessage = reviewState.loadErrorMessage,
                 submitting = reviewState.submitting,
                 submitErrorMessage = reviewState.submitErrorMessage,
                 submittedCount = reviewState.submittedCount,
-                editingReviewId = reviewState.editingReviewId,
+                menuEnabled = reviewState.myUserId != null,
             )
         }
     }
@@ -556,13 +566,13 @@ fun MapDetailScreen(
             onSearchQueryChange = { query -> uiState = uiState.search(query) },
             onPlaceClick = { placeId -> uiState = uiState.selectPlace(placeId) },
             onLikeClick = viewModel::toggleLike,
-            postList = postListState,
+            postList = visiblePostList,
             onPostSortSelect = postListViewModel::selectSort,
             onPostsRetry = postListViewModel::retry,
             onPostsLoadMore = postListViewModel::loadMore,
             postViewMode = postViewMode,
             onPostViewModeSelect = { mode -> postViewMode = mode },
-            postCalendar = postCalendarState,
+            postCalendar = visiblePostCalendar,
             onCalendarPreviousMonth = postCalendarViewModel::showPreviousMonth,
             onCalendarNextMonth = postCalendarViewModel::showNextMonth,
             onCalendarDayClick = postCalendarViewModel::selectDay,
@@ -615,7 +625,9 @@ fun MapDetailScreen(
         postDetailState.post?.let { post ->
             MapPostDetailScreen(
                 post = post,
-                state = postDetailState,
+                state = postDetailState.copy(
+                    comments = postDetailState.comments.filterNot { comment -> comment.authorId in blockedUserIds },
+                ),
                 // 게시물을 쓸 수 있는 사람(참여한 커뮤니티·프라이빗)과 같은 기준이다. 서버도 멤버만 받는다.
                 canComment = screenState.canAddPlace,
                 onSendClick = postDetailViewModel::send,
@@ -791,9 +803,9 @@ fun MapDetailScreen(
                 personalMapAction = personalMapAction,
                 onAddToPersonalMapClick = personalMapViewModel::add,
                 onLikeClick = { viewModel.toggleLike(place.id) },
-                onEditReview = reviewViewModel::startEdit,
-                onCancelEdit = reviewViewModel::cancelEdit,
                 onDeleteReview = reviewViewModel::delete,
+                onReportReview = reviewViewModel::report,
+                onBlockReview = reviewViewModel::block,
                 // 참여 중인 지도에만 후기를 남길 수 있다. 서버도 같은 기준으로 막는다.
                 onSubmitReview = if (screenState.canAddPlace) {
                     { reviewText, photo -> reviewViewModel.submit(reviewText, photo) }
@@ -810,8 +822,11 @@ fun MapDetailScreen(
                     }
                     ?.let { mapPlace -> { placeEditViewModel.open(mapPlace) } },
                 onDeletePlace = { placeEditViewModel.delete(place.id) },
-                toastMessage = placeEditState.toast,
-                onToastShown = placeEditViewModel::consumeToast,
+                // 장소 수정 토스트가 먼저다. 둘이 겹치는 일은 거의 없다(수정 화면이 덮고 있을 때 댓글을 못 만진다).
+                toastMessage = placeEditState.toast ?: reviewState.toast,
+                onToastShown = {
+                    if (placeEditState.toast != null) placeEditViewModel.consumeToast() else reviewViewModel.consumeToast()
+                },
             )
         }
 
