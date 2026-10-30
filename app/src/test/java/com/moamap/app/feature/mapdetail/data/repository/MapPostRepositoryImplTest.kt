@@ -1,5 +1,6 @@
 package com.moamap.app.feature.mapdetail.data.repository
 
+import com.moamap.app.feature.explore.data.remote.ReportRequestDto
 import android.net.Uri
 import com.moamap.app.core.common.upload.PhotoSpec
 import com.moamap.app.core.common.upload.PhotoUploader
@@ -57,6 +58,12 @@ private class FakeMapPostService(
 
     override suspend fun createComment(mapId: Long, postId: Long, request: MapPostCommentCreateRequestDto) =
         TODO("게시물 저장소는 댓글을 쓰지 않는다")
+
+    override suspend fun deleteComment(mapId: Long, postId: Long, commentId: Long) =
+        TODO("게시물 저장소는 댓글을 지우지 않는다")
+
+    override suspend fun reportComment(mapId: Long, postId: Long, commentId: Long, request: ReportRequestDto) =
+        TODO("게시물 저장소는 댓글을 신고하지 않는다")
 }
 
 /**

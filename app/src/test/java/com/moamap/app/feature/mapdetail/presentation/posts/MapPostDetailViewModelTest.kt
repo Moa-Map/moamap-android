@@ -9,6 +9,13 @@ import com.moamap.app.feature.mapdetail.domain.model.MapPostComment
 import com.moamap.app.feature.mapdetail.domain.model.MapPostPage
 import com.moamap.app.feature.mapdetail.domain.model.MapPostSort
 import com.moamap.app.feature.mapdetail.domain.model.NewMapPost
+import com.moamap.app.feature.mapdetail.domain.model.ReportReason
+import com.moamap.app.core.network.ApiException
+import com.moamap.app.feature.mapdetail.presentation.review.REPORTED_TOAST
+import com.moamap.app.feature.mapdetail.presentation.review.REVIEW_DELETED_TOAST
+import com.moamap.app.feature.mypage.domain.BlockedUserStore
+import com.moamap.app.feature.mypage.domain.model.BlockedUser
+import com.moamap.app.feature.mypage.domain.repository.BlockRepository
 import com.moamap.app.feature.mapdetail.domain.repository.MapPostCommentRepository
 import com.moamap.app.feature.mapdetail.domain.repository.MapPostRepository
 import kotlinx.coroutines.Dispatchers
@@ -52,6 +59,31 @@ private class FakeCommentRepository(
         sent += content
         return detailComment(id = 100L + sent.size, authorId = 1, content = content)
     }
+
+    val calls = mutableListOf<String>()
+    var reportFailure: Exception? = null
+    var moderationDelayMillis = 0L
+
+    override suspend fun deleteComment(mapId: Long, postId: Long, commentId: Long) {
+        calls += "delete($mapId, $postId, $commentId)"
+        delay(moderationDelayMillis)
+    }
+
+    override suspend fun reportComment(mapId: Long, postId: Long, commentId: Long, reason: ReportReason, detail: String) {
+        calls += "report($mapId, $postId, $commentId, $reason, $detail)"
+        delay(moderationDelayMillis)
+        reportFailure?.let { throw it }
+    }
+}
+
+/** 차단만 받아 둔다. */
+private class FakeBlockRepository : BlockRepository {
+    val blocked = mutableListOf<Long>()
+    override suspend fun getBlockedUsers() = emptyList<BlockedUser>()
+    override suspend fun block(userId: Long) {
+        blocked += userId
+    }
+    override suspend fun unblock(userId: Long) = Unit
 }
 
 /** 게시물 하나를 읽는 쪽만 흉내 낸다. 알림에서 들어와 바로 열 때만 쓴다. */
@@ -74,6 +106,8 @@ private class FakePostRepository(var post: MapPost? = null) : MapPostRepository 
 class MapPostDetailViewModelTest {
 
     private val dispatcher = StandardTestDispatcher()
+    private val blockRepository = FakeBlockRepository()
+    private val blockedUsers = BlockedUserStore(blockRepository)
     private val post = MapPost(
         id = 5,
         authorId = 2,
@@ -103,6 +137,7 @@ class MapPostDetailViewModelTest {
         repository = repository,
         currentUserStore = FakeCurrentUserStore(myId),
         postRepository = postRepository,
+        blockedUsers = blockedUsers,
     )
 
     @Test
@@ -259,5 +294,94 @@ class MapPostDetailViewModelTest {
 
         assertEquals(listOf(7L to 5L, 7L to 6L), repository.loads)
         assertEquals(6L, viewModel.uiState.value.post?.id)
+    }
+
+    // ---------- 내 댓글 삭제, 남의 댓글 신고·차단 (1번은 남의 댓글(작성자 2), 2번은 내 댓글) ----------
+
+    private fun opened(repository: FakeCommentRepository = FakeCommentRepository()) =
+        viewModel(repository).apply {
+            open(post)
+            dispatcher.scheduler.advanceUntilIdle()
+        }
+
+    @Test
+    fun `내 댓글을 지우면 다시 읽지 않고 목록에서 빼고 토스트를 띄운다`() = runTest {
+        val repository = FakeCommentRepository()
+        val viewModel = opened(repository)
+
+        viewModel.delete(2L)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf("delete(7, 5, 2)"), repository.calls)
+        assertEquals(listOf(1L), viewModel.uiState.value.comments.map { comment -> comment.id })
+        assertEquals(1, repository.loads.size)
+        assertEquals(REVIEW_DELETED_TOAST, viewModel.uiState.value.toast)
+    }
+
+    @Test
+    fun `남의 댓글은 지우지 않고 내 댓글은 신고·차단하지 않는다`() = runTest {
+        val repository = FakeCommentRepository()
+        val viewModel = opened(repository)
+
+        viewModel.delete(1L)
+        viewModel.report(2L, ReportReason.Spam, "")
+        viewModel.block(2L)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(repository.calls.isEmpty())
+        assertTrue(blockRepository.blocked.isEmpty())
+    }
+
+    @Test
+    fun `남의 댓글을 신고하면 접수 토스트를 띄우고 실패하면 정한 문구를 띄운다`() = runTest {
+        val repository = FakeCommentRepository()
+        val viewModel = opened(repository)
+
+        viewModel.report(1L, ReportReason.Other, "광고예요")
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals(listOf("report(7, 5, 1, Other, 광고예요)"), repository.calls)
+        assertEquals(REPORTED_TOAST, viewModel.uiState.value.toast)
+
+        repository.reportFailure = ApiException(code = "MAP_026", status = 409, serverMessage = "")
+        viewModel.report(1L, ReportReason.Spam, "")
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals("이미 신고했어요", viewModel.uiState.value.toast)
+    }
+
+    @Test
+    fun `내용 없는 기타 신고는 보내지 않는다`() = runTest {
+        val repository = FakeCommentRepository()
+        val viewModel = opened(repository)
+
+        viewModel.report(1L, ReportReason.Other, "  ")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertTrue(repository.calls.isEmpty())
+    }
+
+    @Test
+    fun `차단하면 작성자를 차단 목록에 바로 넣는다`() = runTest {
+        val viewModel = opened()
+
+        viewModel.block(1L)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf(2L), blockRepository.blocked)
+        assertEquals(setOf(2L), blockedUsers.ids.value)
+        assertEquals("사용자를 차단했어요", viewModel.uiState.value.toast)
+    }
+
+    @Test
+    fun `처리 중에는 다른 삭제·신고·차단을 받지 않는다`() = runTest {
+        val repository = FakeCommentRepository().apply { moderationDelayMillis = 100L }
+        val viewModel = opened(repository)
+
+        viewModel.report(1L, ReportReason.Spam, "")
+        viewModel.delete(2L)
+        viewModel.block(1L)
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, repository.calls.size)
+        assertTrue(blockRepository.blocked.isEmpty())
     }
 }

@@ -633,6 +633,10 @@ fun MapDetailScreen(
                 onSendClick = postDetailViewModel::send,
                 onRetryClick = postDetailViewModel::retry,
                 onCloseClick = postDetailViewModel::close,
+                onDeleteComment = postDetailViewModel::delete,
+                onReportComment = postDetailViewModel::report,
+                onBlockComment = postDetailViewModel::block,
+                onToastShown = postDetailViewModel::consumeToast,
             )
         }
 

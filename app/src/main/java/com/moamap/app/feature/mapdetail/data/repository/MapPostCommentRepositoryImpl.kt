@@ -1,8 +1,10 @@
 package com.moamap.app.feature.mapdetail.data.repository
 
+import com.moamap.app.feature.explore.data.remote.ReportRequestDto
 import com.moamap.app.feature.mapdetail.data.remote.MapPostCommentCreateRequestDto
 import com.moamap.app.feature.mapdetail.data.remote.MapPostService
 import com.moamap.app.feature.mapdetail.domain.model.MapPostComment
+import com.moamap.app.feature.mapdetail.domain.model.ReportReason
 import com.moamap.app.feature.mapdetail.domain.repository.MapPostCommentRepository
 import com.moamap.app.feature.mypage.data.remote.UserService
 import javax.inject.Inject
@@ -43,4 +45,20 @@ internal class MapPostCommentRepositoryImpl @Inject constructor(
             postId = postId,
             request = MapPostCommentCreateRequestDto(content = content),
         ).toMapPostComment(authorName = null, authorImageUrl = null)
+
+    override suspend fun deleteComment(mapId: Long, postId: Long, commentId: Long) =
+        mapPostService.deleteComment(mapId = mapId, postId = postId, commentId = commentId)
+
+    override suspend fun reportComment(
+        mapId: Long,
+        postId: Long,
+        commentId: Long,
+        reason: ReportReason,
+        detail: String,
+    ) = mapPostService.reportComment(
+        mapId = mapId,
+        postId = postId,
+        commentId = commentId,
+        request = ReportRequestDto(reason = reason.serverValue, detail = detail.trim().ifEmpty { null }),
+    )
 }

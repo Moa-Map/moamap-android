@@ -1,7 +1,9 @@
 package com.moamap.app.feature.mapdetail.data.remote
 
 import com.moamap.app.core.network.model.PageResponse
+import com.moamap.app.feature.explore.data.remote.ReportRequestDto
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -74,4 +76,21 @@ interface MapPostService {
         @Path("postId") postId: Long,
         @Body request: MapPostCommentCreateRequestDto,
     ): MapPostCommentDto
+
+    /** 댓글 삭제. 앱은 내 댓글만 지운다(서버는 방장·관리자도 받는다). */
+    @DELETE("api/v1/maps/{mapId}/posts/{postId}/comments/{commentId}")
+    suspend fun deleteComment(
+        @Path("mapId") mapId: Long,
+        @Path("postId") postId: Long,
+        @Path("commentId") commentId: Long,
+    )
+
+    /** 댓글 신고. 내 댓글은 400 `MAP_025`, 이미 신고했으면 409 `MAP_026`, 볼 수 없으면 403 `MAP_002`. */
+    @POST("api/v1/maps/{mapId}/posts/{postId}/comments/{commentId}/reports")
+    suspend fun reportComment(
+        @Path("mapId") mapId: Long,
+        @Path("postId") postId: Long,
+        @Path("commentId") commentId: Long,
+        @Body request: ReportRequestDto,
+    )
 }
