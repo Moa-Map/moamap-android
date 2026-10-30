@@ -265,6 +265,13 @@ fun MapDetailScreen(
         postCalendarViewModel.refresh()
     }
 
+    // 참여하지 않았거나 나간 지도는 로그 탭이 없다. 저장해 둔 탭이 로그였으면 장소로 돌린다.
+    LaunchedEffect(screenState.showsLogTab) {
+        if (!screenState.showsLogTab && uiState.selectedTab == MapDetailTab.Logs) {
+            uiState = uiState.selectTab(MapDetailTab.Places)
+        }
+    }
+
     // 로그 탭을 처음 열 때 게시물을 읽는다. 장소 탭만 보고 나가면 조회가 아예 안 나간다.
     // 보기 방식마다 처음 열 때 한 번씩만 읽는다. 달력은 오늘이 있는 달을 보여준다.
     LaunchedEffect(uiState.selectedTab, postViewMode) {
@@ -532,9 +539,10 @@ fun MapDetailScreen(
             is3d = is3d,
             canAddPlace = screenState.canAddPlace,
             myLocationInProgress = myLocationInProgress,
-            // 공식지도는 로그 탭이 없다. 저장해 둔 탭이 로그여도 장소를 연다.
-            selectedTab = if (screenState.isOfficial) MapDetailTab.Places else uiState.selectedTab,
+            // 참여하지 않은 지도·공식지도는 로그 탭이 없다. 저장해 둔 탭이 로그여도 장소를 연다.
+            selectedTab = if (screenState.showsLogTab) uiState.selectedTab else MapDetailTab.Places,
             official = screenState.isOfficial,
+            showsLogTab = screenState.showsLogTab,
             onBackClick = { onBackClick(screenState.joinedHere) },
             // 상단바 글자 액션은 참여하기, 그리고 메뉴가 없는 공식지도의 나가기다.
             // 나가기는 바로 하지 않고 메뉴의 나가기와 같은 팝업에서 한 번 더 묻는다.

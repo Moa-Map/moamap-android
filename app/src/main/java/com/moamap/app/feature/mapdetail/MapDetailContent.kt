@@ -108,8 +108,10 @@ internal fun MapDetailContent(
     onPostClick: (MapPost) -> Unit = {},
     onWritePostClick: () -> Unit,
     modifier: Modifier = Modifier,
-    /** 공식지도. 시안대로 장소/로그 탭을 띄우지 않고, 장소 시트도 검색·칩·하트 없이 그린다. */
+    /** 공식지도. 시안대로 장소 시트를 검색·칩·하트 없이 그린다. */
     official: Boolean = false,
+    /** 「장소 · 로그」 탭을 띄울지. 참여한 지도에서만이다(공식지도·미참여 지도는 장소만). */
+    showsLogTab: Boolean = !official,
     /**
      * 한 번 띄우는 완료 토스트. 장소 탭은 목록 시트 바로 위(펼친 목록이면 그 위 화면 아래), 로그 탭은 화면 아래에
      * 뜬다.
@@ -162,6 +164,7 @@ internal fun MapDetailContent(
                         onAddPlaceClick = onAddPlaceClick,
                         onMyLocationClick = onMyLocationClick,
                         official = official,
+                        showsLogTab = showsLogTab,
                         toastMessage = toastMessage,
                         onToastShown = onToastShown,
                         mapContent = mapContent,
@@ -257,6 +260,7 @@ private fun MapDetailPlacesContent(
     onAddPlaceClick: () -> Unit,
     onMyLocationClick: () -> Unit,
     official: Boolean,
+    showsLogTab: Boolean,
     toastMessage: String?,
     onToastShown: () -> Unit,
     mapContent: @Composable () -> Unit,
@@ -347,7 +351,7 @@ private fun MapDetailPlacesContent(
                 // 장소 시트가 떠 있는 동안 지도 위 탭·버튼을 숨긴다. 시트 위가 비친 지도라 버튼이 시트 가장자리에
                 // 걸쳐 보이고, 로그 탭을 누르면 시트 뒤 화면만 바뀐다.
                 if (!placeSheetOpen) {
-                    if (!official) {
+                    if (showsLogTab) {
                         MapDetailTabBar(
                             selectedTab = MapDetailTab.Places,
                             onTabSelected = onTabSelected,

@@ -121,6 +121,13 @@ val MapDetail.topBarAction: MapDetailAction
 val MapDetail.showsMenu: Boolean
     get() = joined && type != MapType.Official
 
+/**
+ * 「장소 · 로그」 탭을 띄울지. 참여한 지도에서만이다 - 공식지도는 로그가 없고, 참여 전(지도 소개의 미리보기 등)에는
+ * 장소만 본다(iOS 와 같은 규칙, 이슈 #406).
+ */
+val MapDetail.showsLogTab: Boolean
+    get() = joined && type != MapType.Official
+
 /** 상단바 메뉴에 「멤버 관리」를 넣을지. 함께 쓰는 사람이 없는 나만의 지도는 뺀다. */
 val MapDetail.showsMembersMenu: Boolean
     get() = showsMenu && !personal

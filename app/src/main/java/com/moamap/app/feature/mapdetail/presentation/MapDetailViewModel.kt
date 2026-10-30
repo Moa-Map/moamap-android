@@ -9,6 +9,7 @@ import com.moamap.app.core.common.MAP_JOINED_TOAST
 import com.moamap.app.core.common.toUserMessage
 import com.moamap.app.core.navigation.MoaMapRoute
 import com.moamap.app.core.navigation.requireMapId
+import com.moamap.app.feature.mapdetail.domain.model.showsLogTab
 import com.moamap.app.feature.mapdetail.domain.model.LeaveOutcome
 import com.moamap.app.feature.mapdetail.domain.model.MapDetailAction
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
@@ -92,6 +93,13 @@ data class MapDetailScreenState(
      * 지도를 아직 못 읽었으면 false 다 - 종류를 모르는 동안은 지금까지의 모양을 그린다.
      */
     val isOfficial: Boolean get() = map.mapOrNull?.type == MapType.Official
+
+    /**
+     * 「장소 · 로그」 탭을 띄울지 - [MapDetail.showsLogTab].
+     *
+     * 지도를 아직 못 읽었으면 true 다 - 모르는 동안은 지금까지의 모양을 그리고, 저장해 둔 로그 탭을 지우지 않는다.
+     */
+    val showsLogTab: Boolean get() = map.mapOrNull?.showsLogTab ?: true
 
     val canLeave: Boolean get() = map.mapOrNull?.canLeaveFromMenu ?: false
 
