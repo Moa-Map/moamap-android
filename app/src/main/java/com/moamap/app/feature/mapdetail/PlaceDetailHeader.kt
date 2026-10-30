@@ -79,6 +79,8 @@ internal fun likeIconRes(liked: Boolean): Int = if (liked) {
  * 이름·태그·위치 → 사진(있을 때만) → 설명·하트·신고하기 순서다. 사진이 없는 장소는 사진 칸만
  * 빠지고 나머지 배치는 같다. 인스타그램에서 가져온 장소는 이름 줄 오른쪽 끝에 인스타그램 버튼이
  * 겹쳐 선다([onInstagramClick] 가 null 이면 없다).
+ *
+ * @param onReportClick 밑줄 「신고하기」. null 이면 그리지 않는다 - 내가 등록한 장소는 서버가 신고를 거절한다.
  */
 @Composable
 internal fun PlaceHeader(
@@ -86,6 +88,7 @@ internal fun PlaceHeader(
     onLikeClick: () -> Unit,
     onInstagramClick: (() -> Unit)?,
     showsReactions: Boolean,
+    onReportClick: (() -> Unit)? = null,
 ) {
     val clearance = if (onInstagramClick != null) InstagramButtonClearance else 0.dp
     Column(
@@ -137,12 +140,14 @@ internal fun PlaceHeader(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         PlaceLikeButton(place = place, onClick = onLikeClick)
-                        // 신고는 아직 기능이 없어 누르지 않는다(사용자 결정) - 시안의 밑줄 글자만 둔다.
-                        Text(
-                            text = "신고하기",
-                            style = MoaMapTheme.typography.body2.copy(textDecoration = TextDecoration.Underline),
-                            color = MoaMapTheme.colors.textAlternative,
-                        )
+                        onReportClick?.let { onClick ->
+                            Text(
+                                text = "신고하기",
+                                style = MoaMapTheme.typography.body2.copy(textDecoration = TextDecoration.Underline),
+                                color = MoaMapTheme.colors.textAlternative,
+                                modifier = Modifier.clickable(role = Role.Button, onClick = onClick),
+                            )
+                        }
                     }
                 }
             }

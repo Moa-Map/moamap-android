@@ -4,9 +4,11 @@ import com.moamap.app.core.network.ApiException
 import com.moamap.app.feature.collection.data.remote.MapService
 import com.moamap.app.feature.explore.data.remote.PlaceService
 import com.moamap.app.feature.explore.data.remote.PlaceUpdateRequestDto
+import com.moamap.app.feature.explore.data.remote.ReportRequestDto
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.domain.model.PlaceLike
+import com.moamap.app.feature.mapdetail.domain.model.ReportReason
 import com.moamap.app.feature.mapdetail.domain.repository.MapDetailRepository
 import com.moamap.app.feature.mypage.data.remote.UserService
 import javax.inject.Inject
@@ -74,6 +76,12 @@ class MapDetailRepositoryImpl @Inject constructor(
     override suspend fun deletePlace(placeId: Long) {
         placeService.deletePlace(placeId)
     }
+
+    override suspend fun reportPlace(placeId: Long, reason: ReportReason, detail: String) =
+        placeService.reportPlace(
+            placeId,
+            ReportRequestDto(reason = reason.serverValue, detail = detail.trim().ifEmpty { null }),
+        )
 }
 
 /** `[409] MAP_005: 이미 참여한 지도입니다.` */

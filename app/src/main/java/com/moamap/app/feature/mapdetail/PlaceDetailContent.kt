@@ -121,6 +121,8 @@ internal fun PlaceDetailContent(
     onReportReview: (Long, ReportReason, String) -> Unit = { _, _, _ -> },
     /** 차단 팝업에서 확인한 뒤 부른다. */
     onBlockReview: (Long) -> Unit = {},
+    /** 장소 신고 팝업에서 사유를 고른 뒤 부른다. null 이면 「신고하기」를 그리지 않는다(내가 등록한 장소). */
+    onReportPlace: ((ReportReason, String) -> Unit)? = null,
     showsReactions: Boolean = true,
     /** null 이 아니면 페이지 상단 바에 ⋮ 메뉴(수정하기·삭제하기)를 둔다. 고치거나 지울 수 있는 장소다. */
     onEditPlaceClick: (() -> Unit)? = null,
@@ -142,6 +144,7 @@ internal fun PlaceDetailContent(
     var deleteTarget by remember(place.id) { mutableStateOf<PlaceReviewUiModel?>(null) }
     var blockTarget by remember(place.id) { mutableStateOf<PlaceReviewUiModel?>(null) }
     var reportTarget by remember(place.id) { mutableStateOf<PlaceReviewUiModel?>(null) }
+    var placeReportVisible by rememberSaveable(place.id) { mutableStateOf(false) }
     val pickerState = rememberImagePickerState()
     val pickerController = rememberImagePickerController(
         state = pickerState,
@@ -213,6 +216,7 @@ internal fun PlaceDetailContent(
                                         onLikeClick = onLikeClick,
                                         onInstagramClick = instagramClick,
                                         showsReactions = showsReactions,
+                                        onReportClick = onReportPlace?.let { { placeReportVisible = true } },
                                     )
                                     Spacer(modifier = Modifier.height(12.dp))
                                     actions(Modifier.padding(horizontal = 20.dp), PageActionGap)
@@ -338,6 +342,18 @@ internal fun PlaceDetailContent(
                     onBlockReview(review.id)
                 },
                 onDismissRequest = { blockTarget = null },
+            )
+        }
+
+        val reportPlace = onReportPlace
+        if (placeReportVisible && reportPlace != null) {
+            ReportDialog(
+                title = "장소 신고하기",
+                onSubmit = { reason, detail ->
+                    placeReportVisible = false
+                    reportPlace(reason, detail)
+                },
+                onDismissRequest = { placeReportVisible = false },
             )
         }
 

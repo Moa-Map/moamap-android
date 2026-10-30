@@ -3,6 +3,7 @@ package com.moamap.app.feature.mapdetail.domain.repository
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.domain.model.PlaceLike
+import com.moamap.app.feature.mapdetail.domain.model.ReportReason
 
 interface MapDetailRepository {
 
@@ -36,4 +37,7 @@ interface MapDetailRepository {
     suspend fun updatePlace(placeId: Long, memo: String, tags: List<String>, photoUrls: List<String>?): MapPlace
 
     suspend fun deletePlace(placeId: Long)
+
+    /** 남의 장소를 신고한다. [detail] 은 앞뒤 공백을 지우고 비면 싣지 않는다. */
+    suspend fun reportPlace(placeId: Long, reason: ReportReason, detail: String)
 }

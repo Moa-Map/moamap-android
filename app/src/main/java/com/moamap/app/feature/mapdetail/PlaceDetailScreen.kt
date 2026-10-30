@@ -155,6 +155,7 @@ internal fun PlaceDetailScreen(
     onDeleteReview: (Long) -> Unit = {},
     onReportReview: (Long, ReportReason, String) -> Unit = { _, _, _ -> },
     onBlockReview: (Long) -> Unit = {},
+    onReportPlace: ((ReportReason, String) -> Unit)? = null,
     /** false 면 하트·신고하기·댓글을 뺀다. 공식지도다. 나만의 지도 추가·지도 보기는 남는다. */
     showsReactions: Boolean = true,
     /** 시트 자리가 정해졌을 때. 화면 아래에서 시트 윗변까지의 높이(px)를 준다. */
@@ -244,6 +245,7 @@ internal fun PlaceDetailScreen(
             onDeleteReview = onDeleteReview,
             onReportReview = onReportReview,
             onBlockReview = onBlockReview,
+            onReportPlace = onReportPlace,
             showsReactions = showsReactions,
             onEditPlaceClick = onEditPlaceClick,
             onDeletePlace = onDeletePlace,

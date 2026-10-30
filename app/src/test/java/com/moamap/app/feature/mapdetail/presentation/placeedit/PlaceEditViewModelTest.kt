@@ -3,9 +3,11 @@ package com.moamap.app.feature.mapdetail.presentation.placeedit
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import com.moamap.app.core.common.PLACE_UPDATED_TOAST
+import com.moamap.app.core.network.ApiException
 import com.moamap.app.core.navigation.MoaMapRoute
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.domain.model.NewPlace
+import com.moamap.app.feature.mapdetail.domain.model.ReportReason
 import com.moamap.app.feature.mapdetail.domain.repository.PlaceAddRepository
 import com.moamap.app.feature.mapdetail.presentation.FakeMapDetailRepository
 import com.moamap.app.feature.mapdetail.presentation.testPlace
@@ -305,6 +307,47 @@ class PlaceEditViewModelTest {
         assertNull(state.deletedPlaceId)
         assertEquals("장소를 삭제하지 못했어요", state.deleteErrorMessage)
         assertFalse(state.deleting)
+    }
+
+    @Test
+    fun `장소를 신고하면 접수 토스트를 띄운다`() = runTest {
+        val repository = FakeMapDetailRepository()
+        val viewModel = viewModel(repository)
+
+        viewModel.report(3L, ReportReason.FalseInfo, "")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(listOf("reportPlace(3, FalseInfo, )"), repository.calls)
+        assertEquals("신고가 접수됐어요", viewModel.uiState.value.toast)
+        assertFalse(viewModel.uiState.value.reporting)
+    }
+
+    @Test
+    fun `이미 신고한 장소면 정한 문구를 띄우고 내용 없는 기타는 보내지 않는다`() = runTest {
+        val repository = FakeMapDetailRepository().apply {
+            placeChangeFailure = ApiException(code = "PLACE_022", status = 409, serverMessage = "")
+        }
+        val viewModel = viewModel(repository)
+
+        viewModel.report(3L, ReportReason.Other, " ")
+        dispatcher.scheduler.advanceUntilIdle()
+        assertTrue(repository.calls.isEmpty())
+
+        viewModel.report(3L, ReportReason.Spam, "")
+        dispatcher.scheduler.advanceUntilIdle()
+        assertEquals("이미 신고했어요", viewModel.uiState.value.toast)
+    }
+
+    @Test
+    fun `신고 중에는 다시 보내지 않는다`() = runTest {
+        val repository = FakeMapDetailRepository(responseDelayMillis = 100L)
+        val viewModel = viewModel(repository)
+
+        viewModel.report(3L, ReportReason.Spam, "")
+        viewModel.report(3L, ReportReason.Spam, "")
+        dispatcher.scheduler.advanceUntilIdle()
+
+        assertEquals(1, repository.calls.size)
     }
 }
 
