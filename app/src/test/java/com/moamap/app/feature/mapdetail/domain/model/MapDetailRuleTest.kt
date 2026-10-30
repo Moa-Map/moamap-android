@@ -1,6 +1,8 @@
 package com.moamap.app.feature.mapdetail.domain.model
 
 import com.moamap.app.feature.collection.domain.model.MapType
+import com.moamap.app.feature.mapdetail.presentation.MapDetailScreenState
+import com.moamap.app.feature.mapdetail.presentation.MapLoadState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -385,5 +387,25 @@ class MapDetailRuleTest {
         assertEquals(MapRole.None, MapRole.from("NONE"))
         assertEquals(MapRole.None, MapRole.from(null))
         assertEquals(MapRole.None, MapRole.from("VIEWER"))
+    }
+
+    @Test
+    fun `로그 탭은 참여한 커뮤니티·프라이빗 지도에서만 띄운다`() {
+        assertTrue(map(MapType.Community, MapRole.Member, joined = true).showsLogTab)
+        assertTrue(map(MapType.Private, MapRole.Owner, joined = true).showsLogTab)
+        // 지도 소개의 미리보기처럼 참여하기 전에는 장소만 본다.
+        assertFalse(map(MapType.Community, MapRole.None, joined = false).showsLogTab)
+        // 공식지도는 참여해도 로그가 없다.
+        assertFalse(map(MapType.Official, MapRole.Member, joined = true).showsLogTab)
+    }
+
+    @Test
+    fun `지도를 아직 못 읽었으면 로그 탭을 그대로 둔다`() {
+        // 모르는 동안 탭을 지우면 화면을 돌릴 때 저장해 둔 로그 탭이 장소로 바뀐다.
+        assertTrue(MapDetailScreenState().showsLogTab)
+        assertFalse(
+            MapDetailScreenState(map = MapLoadState.Success(map(MapType.Community, MapRole.None, joined = false)))
+                .showsLogTab,
+        )
     }
 }
