@@ -1,6 +1,8 @@
 package com.moamap.app.feature.mapdetail.data.repository
 
 import com.moamap.app.core.network.model.PageResponse
+import com.moamap.app.feature.explore.data.remote.ReportRequestDto
+import com.moamap.app.feature.mapdetail.domain.model.ReportReason
 import com.moamap.app.feature.mapdetail.data.remote.MapPostCommentCreateRequestDto
 import com.moamap.app.feature.mapdetail.data.remote.MapPostCommentDto
 import com.moamap.app.feature.mapdetail.data.remote.MapPostCreateRequestDto
@@ -28,6 +30,16 @@ private class CommentRecordingPostService(
 
     val calls = mutableListOf<CommentsCall>()
     val created = mutableListOf<MapPostCommentCreateRequestDto>()
+    val deleted = mutableListOf<Triple<Long, Long, Long>>()
+    val reported = mutableListOf<ReportRequestDto>()
+
+    override suspend fun deleteComment(mapId: Long, postId: Long, commentId: Long) {
+        deleted += Triple(mapId, postId, commentId)
+    }
+
+    override suspend fun reportComment(mapId: Long, postId: Long, commentId: Long, request: ReportRequestDto) {
+        reported += request
+    }
 
     override suspend fun getComments(
         mapId: Long,
@@ -141,5 +153,21 @@ class MapPostCommentRepositoryImplTest {
         assertEquals(listOf(MapPostCommentCreateRequestDto("좋아요")), service.created)
         assertEquals(99L, created.id)
         assertEquals("좋아요", created.content)
+    }
+
+    @Test
+    fun `댓글을 지우고 신고한다 - 신고 내용은 공백을 지우고 비면 싣지 않는다`() = runTest {
+        val service = CommentRecordingPostService(pages = emptyList())
+        val repository = MapPostCommentRepositoryImpl(service, CommentProfileUserService())
+
+        repository.deleteComment(mapId = 7L, postId = 5L, commentId = 3L)
+        repository.reportComment(mapId = 7L, postId = 5L, commentId = 3L, reason = ReportReason.Other, detail = " 광고 ")
+        repository.reportComment(mapId = 7L, postId = 5L, commentId = 3L, reason = ReportReason.Spam, detail = "  ")
+
+        assertEquals(listOf(Triple(7L, 5L, 3L)), service.deleted)
+        assertEquals(
+            listOf(ReportRequestDto(reason = "OTHER", detail = "광고"), ReportRequestDto(reason = "SPAM")),
+            service.reported,
+        )
     }
 }

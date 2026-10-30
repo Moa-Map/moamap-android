@@ -10,9 +10,16 @@ import com.moamap.app.core.navigation.MoaMapRoute
 import com.moamap.app.core.navigation.requireMapId
 import com.moamap.app.feature.mapdetail.domain.model.MapPost
 import com.moamap.app.feature.mapdetail.domain.model.MapPostComment
+import com.moamap.app.feature.mapdetail.domain.model.ReportReason
 import com.moamap.app.feature.mapdetail.domain.repository.MapPostCommentRepository
 import com.moamap.app.feature.mapdetail.domain.repository.MapPostRepository
 import com.moamap.app.core.common.toUserMessage
+import com.moamap.app.feature.mapdetail.presentation.review.REPORTED_TOAST
+import com.moamap.app.feature.mapdetail.presentation.review.REVIEW_DELETED_TOAST
+import com.moamap.app.feature.mapdetail.presentation.review.blockedToast
+import com.moamap.app.feature.mapdetail.presentation.review.toBlockFailureMessage
+import com.moamap.app.feature.mapdetail.presentation.review.toReportFailureMessage
+import com.moamap.app.feature.mypage.domain.BlockedUserStore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -27,6 +34,7 @@ private const val TAG = "MapPostDetailViewModel"
 
 internal const val COMMENT_LOAD_FAILED_MESSAGE = "댓글을 불러오지 못했어요"
 internal const val COMMENT_SEND_FAILED_MESSAGE = "댓글을 남기지 못했어요"
+internal const val COMMENT_DELETE_FAILED_MESSAGE = "댓글을 삭제하지 못했어요"
 
 /** 댓글 한 건의 서버 한도. */
 internal const val COMMENT_MAX_LENGTH = 500
@@ -49,6 +57,10 @@ data class MapPostDetailUiState(
     val sendErrorMessage: String? = null,
     /** 남긴 댓글 수. 늘면 화면이 입력칸을 비우고 맨 아래로 내린다. */
     val sentCount: Int = 0,
+    /** 삭제·신고·차단 중 하나가 서버로 가 있다. 그동안 다른 것을 받지 않는다. */
+    val moderating: Boolean = false,
+    /** 삭제·신고·차단 결과. 한 번 띄우고 지운다. 입력칸 바로 위에 뜬다. */
+    val toast: String? = null,
 ) {
     /**
      * 댓글을 다 읽었다. 그 전에는 보내지 않는다 - 먼저 보낸 댓글을 늦게 온 목록이 덮어 사라지게 한다.
@@ -69,6 +81,7 @@ class MapPostDetailViewModel @Inject constructor(
     private val repository: MapPostCommentRepository,
     private val currentUserStore: CurrentUserStore,
     private val postRepository: MapPostRepository,
+    private val blockedUsers: BlockedUserStore,
 ) : ViewModel() {
 
     private val mapId: Long = savedStateHandle.requireMapId()
@@ -135,6 +148,71 @@ class MapPostDetailViewModel @Inject constructor(
         }
     }
 
+    /** 내 댓글을 지운다. 확인은 화면이 먼저 받는다. 다시 읽지 않고 목록에서 뺀다 - 남긴 댓글을 붙일 때와 같다. */
+    fun delete(commentId: Long) {
+        val state = _uiState.value
+        val post = state.post ?: return
+        val comment = state.comments.firstOrNull { item -> item.id == commentId } ?: return
+        if (state.moderating || !comment.isMine(state.myId)) return
+
+        moderate(failureMessage = { e -> e.toUserMessage(COMMENT_DELETE_FAILED_MESSAGE) }) {
+            repository.deleteComment(mapId = mapId, postId = post.id, commentId = commentId)
+            _uiState.update { current ->
+                current.copy(
+                    comments = current.comments.filterNot { item -> item.id == commentId },
+                    toast = REVIEW_DELETED_TOAST,
+                )
+            }
+        }
+    }
+
+    /** 남의 댓글을 신고한다. 「기타」는 내용이 있어야 한다 - 서버가 꼭 받는다. */
+    fun report(commentId: Long, reason: ReportReason, detail: String) {
+        val state = _uiState.value
+        val post = state.post ?: return
+        val comment = state.comments.firstOrNull { item -> item.id == commentId } ?: return
+        if (state.moderating || comment.isMine(state.myId)) return
+        if (reason == ReportReason.Other && detail.isBlank()) return
+
+        moderate(failureMessage = Throwable::toReportFailureMessage) {
+            repository.reportComment(mapId = mapId, postId = post.id, commentId = commentId, reason = reason, detail = detail)
+            _uiState.update { current -> current.copy(toast = REPORTED_TOAST) }
+        }
+    }
+
+    /** 댓글을 쓴 사람을 차단한다. 지도 상세가 차단 목록으로 바로 걸러 그 사람의 댓글이 사라진다. */
+    fun block(commentId: Long) {
+        val state = _uiState.value
+        val comment = state.comments.firstOrNull { item -> item.id == commentId } ?: return
+        if (state.moderating || comment.isMine(state.myId)) return
+
+        moderate(failureMessage = Throwable::toBlockFailureMessage) {
+            blockedUsers.block(comment.authorId)
+            _uiState.update { current -> current.copy(toast = blockedToast(comment.authorName)) }
+        }
+    }
+
+    fun consumeToast() {
+        _uiState.update { state -> state.copy(toast = null) }
+    }
+
+    /** 삭제·신고·차단을 하나씩만 보낸다. 실패하면 [failureMessage] 를 토스트로 띄운다. */
+    private fun moderate(failureMessage: (Throwable) -> String, action: suspend () -> Unit) {
+        _uiState.update { current -> current.copy(moderating = true) }
+        viewModelScope.launch {
+            try {
+                action()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "게시물 댓글 삭제·신고·차단 실패 (mapId=$mapId)", e)
+                _uiState.update { current -> current.copy(toast = failureMessage(e)) }
+            } finally {
+                _uiState.update { current -> current.copy(moderating = false) }
+            }
+        }
+    }
+
     private fun load(post: MapPost) {
         loadJob?.cancel()
         loadJob = viewModelScope.launch {
@@ -181,3 +259,6 @@ class MapPostDetailViewModel @Inject constructor(
         sendJob?.cancel()
     }
 }
+
+/** 내가 쓴 댓글인가. 누군지 모르면 아무것도 내 것이 아니다 - 서버가 거절할 메뉴를 띄우지 않는다. */
+internal fun MapPostComment.isMine(myId: Long?): Boolean = myId != null && authorId == myId
