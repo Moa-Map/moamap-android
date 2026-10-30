@@ -35,7 +35,9 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.MoaMapDialog
@@ -51,6 +53,9 @@ private val CodeFieldUnderlineHeight = 2.dp
 
 private val SubmitButtonSize = 40.dp
 private val SubmitIconSize = 32.dp
+
+/** 시안 「참여 코드 Modal」(`1264:3491`) 테두리. 확인 팝업(1)보다 두껍다. */
+private val JoinDialogBorderWidth = 2.dp
 
 /**
  * 초대 코드로 프라이빗 지도에 합류하는 모달.
@@ -74,6 +79,7 @@ internal fun JoinMapDialog(
         width = DialogWidth,
         contentPadding = DialogContentPadding,
         verticalSpacing = 12.dp,
+        borderWidth = JoinDialogBorderWidth,
         // 요청 중에 닫히면 결과를 알릴 곳이 사라진다.
         dismissible = !state.submitting,
     ) {
@@ -129,6 +135,14 @@ internal fun JoinMapDialog(
     }
 }
 
+/** 「#」과 입력 글자. 시안 Bold 30, 자간 -2%(같은 크기의 display1 은 ExtraBold 라 한 단계 굵다). */
+@Composable
+private fun CodeTextStyle() = MoaMapTheme.typography.display1.copy(
+    fontSize = 30.sp,
+    fontWeight = FontWeight.Bold,
+    letterSpacing = (-0.02).em,
+)
+
 @Composable
 private fun InviteCodeField(
     code: String,
@@ -144,7 +158,7 @@ private fun InviteCodeField(
         // 값에는 포함하지 않는 장식이다.
         Text(
             text = "#",
-            style = MoaMapTheme.typography.display1.copy(fontSize = 30.sp),
+            style = CodeTextStyle(),
             color = MoaMapTheme.colors.textNormal,
         )
 
@@ -154,8 +168,7 @@ private fun InviteCodeField(
                 onValueChange = onCodeChange,
                 enabled = enabled,
                 singleLine = true,
-                textStyle = MoaMapTheme.typography.display1.copy(
-                    fontSize = 30.sp,
+                textStyle = CodeTextStyle().copy(
                     color = MoaMapTheme.colors.textNormal,
                     textAlign = TextAlign.Center,
                 ),
