@@ -13,6 +13,7 @@ import com.moamap.app.feature.collection.data.remote.MapOrderUpdateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapService
 import com.moamap.app.feature.collection.data.remote.MapSummaryDto
 import com.moamap.app.feature.collection.data.remote.MapUpdateRequestDto
+import com.moamap.app.feature.explore.data.remote.ReportRequestDto
 import com.moamap.app.feature.explore.data.remote.InstagramExtractRequestDto
 import com.moamap.app.feature.explore.data.remote.MapShareExtractRequestDto
 import com.moamap.app.feature.explore.data.remote.MapShareExtractResponseDto
@@ -71,6 +72,7 @@ private class CopyingPlaceService(private val place: PlaceDto) : PlaceService {
     override suspend fun likePlace(placeId: Long): PlaceLikeDto = TODO("사용하지 않음")
     override suspend fun updatePlace(id: Long, request: PlaceUpdateRequestDto): PlaceDto = TODO("사용하지 않음")
     override suspend fun deletePlace(id: Long) = TODO("사용하지 않음")
+    override suspend fun reportPlace(id: Long, request: ReportRequestDto) = TODO("사용하지 않음")
 
     override suspend fun unlikePlace(placeId: Long): PlaceLikeDto = TODO("사용하지 않음")
 

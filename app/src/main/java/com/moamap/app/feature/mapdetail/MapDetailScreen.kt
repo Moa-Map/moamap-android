@@ -810,6 +810,14 @@ fun MapDetailScreen(
                 onDeleteReview = reviewViewModel::delete,
                 onReportReview = reviewViewModel::report,
                 onBlockReview = reviewViewModel::block,
+                // 내가 등록한 장소는 서버가 신고를 거절해 「신고하기」를 숨긴다. 내가 누군지 모르면 그대로 둔다.
+                onReportPlace = if (
+                    screenState.places.any { mapPlace -> mapPlace.id == place.id && mapPlace.createdBy == reviewState.myUserId }
+                ) {
+                    null
+                } else {
+                    { reason, detail -> placeEditViewModel.report(place.id, reason, detail) }
+                },
                 // 참여 중인 지도에만 후기를 남길 수 있다. 서버도 같은 기준으로 막는다.
                 onSubmitReview = if (screenState.canAddPlace) {
                     { reviewText, photo -> reviewViewModel.submit(reviewText, photo) }

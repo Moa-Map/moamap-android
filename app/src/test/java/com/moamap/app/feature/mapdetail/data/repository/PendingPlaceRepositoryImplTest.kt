@@ -1,6 +1,7 @@
 package com.moamap.app.feature.mapdetail.data.repository
 
 import com.moamap.app.core.network.model.PageResponse
+import com.moamap.app.feature.explore.data.remote.ReportRequestDto
 import com.moamap.app.feature.explore.data.remote.InstagramExtractRequestDto
 import com.moamap.app.feature.explore.data.remote.MapShareExtractRequestDto
 import com.moamap.app.feature.explore.data.remote.MapShareExtractResponseDto
@@ -63,6 +64,7 @@ private class FakePlaceService(
     override suspend fun likePlace(placeId: Long): PlaceLikeDto = TODO("사용하지 않음")
     override suspend fun updatePlace(id: Long, request: PlaceUpdateRequestDto): PlaceDto = TODO("사용하지 않음")
     override suspend fun deletePlace(id: Long) = TODO("사용하지 않음")
+    override suspend fun reportPlace(id: Long, request: ReportRequestDto) = TODO("사용하지 않음")
 
     override suspend fun unlikePlace(placeId: Long): PlaceLikeDto = TODO("사용하지 않음")
 

@@ -63,7 +63,7 @@ interface PlaceService {
      * 장소 정보를 고친다. 보낸 칸만 바뀌고 null 인 칸은 그대로다. 태그는 보낸 목록으로 통째로 바뀐다.
      *
      * 프라이빗 지도는 멤버 누구나, 그 밖에는 방장·관리자와 등록한 본인만 받는다(스웨거 설명보다 넓다,
-     * 백엔드 `PlaceService.checkModifyPermission`). 사진은 받지 않는다.
+     * 백엔드 `PlaceService.checkModifyPermission`). 사진은 보낸 목록으로 통째로 바뀐다(이슈 #398).
      */
     @PATCH("api/v1/places/{id}")
     suspend fun updatePlace(
@@ -74,6 +74,16 @@ interface PlaceService {
     /** 장소를 지운다(소프트 삭제). 권한은 [updatePlace] 와 같다. */
     @DELETE("api/v1/places/{id}")
     suspend fun deletePlace(@Path("id") id: Long)
+
+    /**
+     * 장소를 신고한다. 볼 수 있는 사람이면 누구나(프라이빗은 멤버만 403), 승인된 장소만(아니면 404).
+     * 내 장소는 400 `PLACE_021`, 이미 신고했으면 409 `PLACE_022`.
+     */
+    @POST("api/v1/places/{id}/reports")
+    suspend fun reportPlace(
+        @Path("id") id: Long,
+        @Body request: ReportRequestDto,
+    )
 
     @PATCH("api/v1/places/{id}/approve")
     suspend fun approvePlace(@Path("id") id: Long): PlaceDto

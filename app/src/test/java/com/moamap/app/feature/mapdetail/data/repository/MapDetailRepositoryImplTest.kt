@@ -12,6 +12,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
+import com.moamap.app.feature.mapdetail.domain.model.ReportReason
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Before
@@ -112,6 +113,18 @@ class MapDetailRepositoryImplTest {
             """{"description":"메모","tags":[],"photoUrls":[]}""",
             server.takeRequest().body.readUtf8(),
         )
+    }
+
+    @Test
+    fun `장소 신고는 장소 아래 reports 로 사유와 공백 지운 내용을 보낸다`() = runTest {
+        server.enqueue(MockResponse().setBody("""{"success":true,"data":null}"""))
+
+        repository.reportPlace(placeId = 5, reason = ReportReason.Other, detail = " 사진이 달라요 ")
+
+        val request = server.takeRequest()
+        assertEquals("POST", request.method)
+        assertEquals("/api/v1/places/5/reports", request.path)
+        assertEquals("""{"reason":"OTHER","detail":"사진이 달라요"}""", request.body.readUtf8())
     }
 
     @Test

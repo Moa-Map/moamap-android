@@ -11,10 +11,13 @@ import com.moamap.app.core.common.toUploadMessage
 import com.moamap.app.core.common.toUserMessage
 import com.moamap.app.core.navigation.requireMapId
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
+import com.moamap.app.feature.mapdetail.domain.model.ReportReason
 import com.moamap.app.feature.mapdetail.domain.repository.MapDetailRepository
 import com.moamap.app.feature.mapdetail.domain.repository.PlaceAddRepository
 import com.moamap.app.feature.mapdetail.presentation.addplace.MAX_PLACE_PHOTOS
 import com.moamap.app.feature.mapdetail.presentation.addplace.applyTagInput
+import com.moamap.app.feature.mapdetail.presentation.review.REPORTED_TOAST
+import com.moamap.app.feature.mapdetail.presentation.review.toReportFailureMessage
 import com.moamap.app.feature.mapdetail.presentation.addplace.removeLastTag
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -78,6 +81,8 @@ internal data class PlaceEditUiState(
     /** 저장하고 돌아간 장소 페이지가 한 번 띄우는 완료 토스트. */
     val toast: String? = null,
     val deleting: Boolean = false,
+    /** 장소 신고가 서버로 가 있다. 그동안 다시 보내지 않는다. */
+    val reporting: Boolean = false,
     /** 장소 페이지에서 지우다 실패한 안내. 수정 화면이 없을 때라 [errorMessage] 와 따로 든다. */
     val deleteErrorMessage: String? = null,
     /** 지운 장소. 지도 상세가 장소 페이지를 닫고 목록을 다시 읽은 뒤 비운다. */
@@ -263,6 +268,29 @@ internal class PlaceEditViewModel @Inject constructor(
                     state.copy(deleting = false, deleteErrorMessage = e.toUserMessage(DELETE_FAILED_MESSAGE))
                 }
             }
+        }
+    }
+
+    /**
+     * 장소를 신고한다. 사유는 팝업이 먼저 받는다. 「기타」는 내용이 있어야 한다 - 서버가 꼭 받는다.
+     * 결과는 장소 페이지 토스트([PlaceEditUiState.toast])로 띄운다 - 수정·삭제와 같은 자리다.
+     */
+    fun report(placeId: Long, reason: ReportReason, detail: String) {
+        if (_uiState.value.reporting) return
+        if (reason == ReportReason.Other && detail.isBlank()) return
+        _uiState.update { state -> state.copy(reporting = true) }
+
+        viewModelScope.launch {
+            val toast = try {
+                repository.reportPlace(placeId, reason, detail)
+                REPORTED_TOAST
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w(TAG, "장소 신고 실패 (placeId=$placeId)", e)
+                e.toReportFailureMessage()
+            }
+            _uiState.update { state -> state.copy(reporting = false, toast = toast) }
         }
     }
 

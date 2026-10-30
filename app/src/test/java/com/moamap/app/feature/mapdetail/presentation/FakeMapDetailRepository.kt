@@ -1,6 +1,7 @@
 package com.moamap.app.feature.mapdetail.presentation
 
 import com.moamap.app.feature.collection.domain.model.MapType
+import com.moamap.app.feature.mapdetail.domain.model.ReportReason
 import com.moamap.app.feature.mapdetail.domain.model.MapDetail
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
@@ -127,6 +128,12 @@ internal open class FakeMapDetailRepository(
 
     override suspend fun deletePlace(placeId: Long) {
         calls += "deletePlace"
+        delay(responseDelayMillis)
+        placeChangeFailure?.let { throw it }
+    }
+
+    override suspend fun reportPlace(placeId: Long, reason: ReportReason, detail: String) {
+        calls += "reportPlace($placeId, $reason, $detail)"
         delay(responseDelayMillis)
         placeChangeFailure?.let { throw it }
     }
