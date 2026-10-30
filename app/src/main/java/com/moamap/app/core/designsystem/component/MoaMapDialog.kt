@@ -26,7 +26,8 @@ import com.moamap.app.core.designsystem.modifier.dismissKeyboardOnBackgroundTap
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 
 private val DialogShape = RoundedCornerShape(16.dp)
-private val DialogBorderWidth = 2.dp
+/** 파란 테두리. 피그마 「팝업창」(`2039:13583`)은 1 이고, 초대 코드 팝업만 2 다. */
+private val DialogBorderWidth = 1.dp
 
 /** 팝업 뒤 어둡기. 시안 로그아웃·탈퇴 팝업의 검정 80% 를 모든 팝업에 쓴다(10-21 사용자 결정). */
 private const val DialogDimAmount = 0.8f
@@ -39,6 +40,7 @@ private const val DialogDimAmount = 0.8f
  *
  * @param dismissible 바깥을 누르거나 뒤로가기로 닫을 수 있는지. 요청이 진행 중일 때 잠근다.
  * @param shape 카드 모서리. 시안마다 달라서 받는다(확인 팝업은 12).
+ * @param borderWidth 파란 테두리 두께. 초대 코드 보기·입력 팝업은 시안대로 2 를 넘긴다.
  */
 @Composable
 fun MoaMapDialog(
@@ -50,6 +52,7 @@ fun MoaMapDialog(
     dismissible: Boolean = true,
     backgroundColor: Color = MoaMapPrimitiveColors.White,
     shape: Shape = DialogShape,
+    borderWidth: Dp = DialogBorderWidth,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Dialog(
@@ -72,7 +75,7 @@ fun MoaMapDialog(
                 .imePadding(),
             shape = shape,
             color = backgroundColor,
-            border = BorderStroke(DialogBorderWidth, MoaMapPrimitiveColors.Blue500),
+            border = BorderStroke(borderWidth, MoaMapPrimitiveColors.Blue500),
         ) {
             Column(
                 modifier = Modifier.padding(contentPadding),

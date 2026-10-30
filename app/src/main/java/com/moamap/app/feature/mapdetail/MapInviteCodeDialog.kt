@@ -76,6 +76,8 @@ internal fun MapInviteCodeDialog(
         contentPadding = DialogContentPadding,
         verticalSpacing = 24.dp,
         backgroundColor = MoaMapTheme.colors.backgroundSecondary,
+        // 시안 「초대 코드 Modal」은 확인 팝업(1)보다 두꺼운 2 다.
+        borderWidth = 2.dp,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth(),
