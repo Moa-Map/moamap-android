@@ -155,6 +155,33 @@ class MapPostCommentRepositoryImplTest {
         assertEquals("좋아요", created.content)
     }
 
+    /** 서버 응답에는 작성자 이름·사진이 없다. 방금 단 댓글에도 내 사진이 보이게 내 프로필을 받아 채운다. */
+    @Test
+    fun `댓글을 남기면 내 프로필을 받아 이름과 사진을 채운다`() = runTest {
+        val service = CommentRecordingPostService(pages = emptyList())
+        val users = CommentProfileUserService(
+            profiles = listOf(UserProfileDto(id = 1, nickname = "모아", profileImageUrl = "https://cdn/me.jpg")),
+        )
+        val repository = MapPostCommentRepositoryImpl(service, users)
+
+        val created = repository.createComment(mapId = 10, postId = 5, content = "좋아요")
+
+        assertEquals(listOf(listOf(1L)), users.asked)
+        assertEquals("모아", created.authorName)
+        assertEquals("https://cdn/me.jpg", created.authorImageUrl)
+    }
+
+    @Test
+    fun `내 프로필을 못 받아도 남긴 댓글은 돌려준다`() = runTest {
+        val service = CommentRecordingPostService(pages = emptyList())
+        val repository = MapPostCommentRepositoryImpl(service, CommentProfileUserService(failure = IOException("boom")))
+
+        val created = repository.createComment(mapId = 10, postId = 5, content = "좋아요")
+
+        assertEquals(99L, created.id)
+        assertNull(created.authorImageUrl)
+    }
+
     @Test
     fun `댓글을 지우고 신고한다 - 신고 내용은 공백을 지우고 비면 싣지 않는다`() = runTest {
         val service = CommentRecordingPostService(pages = emptyList())

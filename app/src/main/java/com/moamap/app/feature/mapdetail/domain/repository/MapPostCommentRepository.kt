@@ -9,7 +9,7 @@ interface MapPostCommentRepository {
     /** 오래된 것부터 전부. 작성자 이름·사진을 붙여 준다. */
     suspend fun getComments(mapId: Long, postId: Long): List<MapPostComment>
 
-    /** 남긴 댓글을 돌려준다. 내 댓글이라 작성자 이름·사진은 채우지 않는다. */
+    /** 남긴 댓글을 돌려준다. 작성자(나) 이름·사진도 채워 준다 - 못 받으면 비어 있다. */
     suspend fun createComment(mapId: Long, postId: Long, content: String): MapPostComment
 
     suspend fun deleteComment(mapId: Long, postId: Long, commentId: Long)
