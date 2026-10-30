@@ -85,7 +85,8 @@ private val CommentMenuDim = Color.Black.copy(alpha = 0.3f)
 /** 꾹 누른 말풍선과 메뉴 사이(시안 `5157:29048`). */
 private val CommentMenuGap = 8.dp
 private val CommentBubbleShape = RoundedCornerShape(16.dp)
-private val CommentAvatarSize = 18.dp
+/** 시안 「프라이빗 로그 댓글」(`2043:17503`) 작성자 사진. */
+private val CommentAvatarSize = 28.dp
 
 /** 말풍선이 줄 끝까지 차면 내 것·남의 것이 구별되지 않는다. 화면 폭(353)의 8할 쯤에서 줄을 바꾼다. */
 private val CommentBubbleMaxWidth = 280.dp
@@ -378,7 +379,7 @@ internal fun MapPostDetailScreen(
 /**
  * 댓글 한 줄. 시안 컴포넌트 「프라이빗 로그 댓글」.
  *
- * 남의 댓글은 왼쪽에 작성자 사진 18·이름(흰 글자)을 위에 두고, 내 댓글은 오른쪽에 말풍선만 둔다.
+ * 남의 댓글은 왼쪽에 작성자 사진 28·이름(흰 글자)을, 내 댓글은 오른쪽에 「나」·내 사진 28 을 말풍선 위에 둔다.
  * [onLongPress] 는 말풍선(흰 여백 포함)만 받는다 - 이름·옆 빈 곳은 받지 않는다(10-30 사용자 결정).
  */
 @Composable
@@ -388,22 +389,32 @@ private fun PostComment(comment: MapPostComment, mine: Boolean, onLongPress: ((R
         horizontalAlignment = if (mine) Alignment.End else Alignment.Start,
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        if (!mine) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val avatar = @Composable {
                 PhotoThumbnail(
                     imageUrl = comment.authorImageUrl,
                     size = CommentAvatarSize,
                     shape = CircleShape,
                     bordered = false,
                 )
+            }
+            val name = @Composable {
                 Text(
-                    text = comment.authorName ?: UNKNOWN_AUTHOR,
+                    text = if (mine) "나" else comment.authorName ?: UNKNOWN_AUTHOR,
                     style = MoaMapTheme.typography.caption0,
                     color = MoaMapTheme.colors.textWhite,
                 )
+            }
+            // 시안: 남의 댓글은 사진·이름, 내 댓글은 「나」·사진 순서다.
+            if (mine) {
+                name()
+                avatar()
+            } else {
+                avatar()
+                name()
             }
         }
         var bounds by remember { mutableStateOf<Rect?>(null) }

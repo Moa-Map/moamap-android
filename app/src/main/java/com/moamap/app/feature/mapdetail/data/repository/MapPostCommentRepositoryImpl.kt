@@ -39,12 +39,19 @@ internal class MapPostCommentRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun createComment(mapId: Long, postId: Long, content: String): MapPostComment =
-        mapPostService.createComment(
+    /**
+     * 서버는 남긴 댓글에 작성자 이름·사진을 주지 않는다. 내 프로필을 한 번 받아 채워, 방금 단 댓글에도 「나」 옆
+     * 내 사진이 바로 보이게 한다. 프로필을 못 받으면 이름·사진 없이 돌려준다 - 댓글은 이미 남았다.
+     */
+    override suspend fun createComment(mapId: Long, postId: Long, content: String): MapPostComment {
+        val dto = mapPostService.createComment(
             mapId = mapId,
             postId = postId,
             request = MapPostCommentCreateRequestDto(content = content),
-        ).toMapPostComment(authorName = null, authorImageUrl = null)
+        )
+        val profile = userService.fetchAuthorProfiles(listOf(dto.userId))[dto.userId]
+        return dto.toMapPostComment(authorName = profile?.nickname, authorImageUrl = profile?.profileImageUrl)
+    }
 
     override suspend fun deleteComment(mapId: Long, postId: Long, commentId: Long) =
         mapPostService.deleteComment(mapId = mapId, postId = postId, commentId = commentId)
