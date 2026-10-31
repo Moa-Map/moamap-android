@@ -82,7 +82,6 @@ internal fun AddPlaceScreen(
         state = pickerState,
         cacheDirectoryName = PLACE_PHOTO_CACHE_DIRECTORY,
         fileNamePrefix = "place",
-        galleryTitle = "장소 사진",
         // 남은 장수만큼 한 번에 고른다(10-11 사용자 결정).
         maxSelectable = MAX_PLACE_PHOTOS - uiState.photos.size,
         onImageSelected = viewModel::addPhoto,

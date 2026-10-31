@@ -68,7 +68,6 @@ internal fun MapCoverPickerField(
         state = pickerState,
         cacheDirectoryName = MapImageCacheDirectory,
         fileNamePrefix = MapImageFilePrefix,
-        galleryTitle = "지도 사진",
         onImageSelected = { uri -> onPhotoSelected(uri.toString()) },
     )
 

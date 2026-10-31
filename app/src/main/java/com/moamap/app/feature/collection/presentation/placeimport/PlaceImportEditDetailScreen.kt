@@ -62,7 +62,6 @@ internal fun PlaceImportEditDetailScreen(
         cacheDirectoryName = PLACE_PHOTO_CACHE_DIRECTORY,
         fileNamePrefix = "import_place",
         // 장소 추가와 같은 폼이라 제목·장수도 같다(남은 장수만큼 한 번에).
-        galleryTitle = "장소 사진",
         maxSelectable = MAX_PLACE_PHOTOS - edit.photos.size,
         onImageSelected = onAddPhoto,
     )

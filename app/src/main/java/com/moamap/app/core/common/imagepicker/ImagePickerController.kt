@@ -2,11 +2,14 @@ package com.moamap.app.core.common.imagepicker
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.result.contract.ActivityResultContracts.PickVisualMedia
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -17,8 +20,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
-import com.moamap.app.core.common.gallery.GalleryPickerDialog
-import com.moamap.app.core.common.gallery.openAppSettings
+import com.moamap.app.core.common.openAppSettings
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import java.io.File
@@ -38,31 +40,30 @@ internal class ImagePickerController(
 }
 
 /**
- * 카메라 런처·권한 요청과 앱 안 갤러리를 묶어 [ImagePickerController] 로 돌려준다.
+ * 카메라 런처·권한 요청과 시스템 사진 선택기를 묶어 [ImagePickerController] 로 돌려준다.
  *
  * 촬영본은 [cacheDirectoryName] 아래에 만들어 [FileProvider] 로 넘긴다. 새 디렉터리를 쓰려면
  * `res/xml/profile_image_paths.xml` 에 `cache-path` 를 함께 추가해야 한다.
  *
- * 갤러리는 시스템 사진 선택기가 아니라 앱 안 갤러리를 화면 전체를 덮는 창으로 띄운다(10-11 사용자
- * 결정 - 모든 사진 고르기를 로그 게시물과 같은 화면으로). 창이라 장소 시트 안이나 팝업 메뉴에서 열어도
- * 맨 위에 뜨고, 기기 뒤로가기는 갤러리부터 닫는다. 사진 접근 권한은 갤러리가 열릴 때 묻는다. 고른
- * 사진은 기기 사진 주소 그대로 넘긴다 - 권한이 있는 동안은 앱이 다시 살아나도 읽힌다.
+ * 갤러리는 시스템 사진 선택기(Photo Picker)를 띄운다. Google Play 정책상 사진 첨부만 하는 앱은
+ * `READ_MEDIA_IMAGES` 로 기기 사진을 직접 읽을 수 없어서다(#412). 사진 접근 권한이 필요 없고,
+ * 선택기가 없는 기기(11 미만, Play 서비스 백포트도 없음)에서는 androidx 가 문서 선택기로 대신 띄운다.
+ * 고른 사진은 앱이 다시 살아나도 읽히게 지속 읽기 권한을 받아 둔다. 받지 못하는 주소도 있어 실패는 넘긴다.
+ * 형식은 선택기가 거르지 못하므로 올릴 때 검사한다(`requireUploadableSourceType`).
  *
- * 갤러리에서 여러 장을 고르면 [onImageSelected] 를 고른 순서대로 한 장씩 부른다.
+ * 여러 장을 고르면 [onImageSelected] 를 고른 순서대로 한 장씩 부른다.
  *
  * 컨트롤러는 recomposition 마다 새로 만든다 - 붙잡고 있는 런처들은 이미 remember 된 값이라
  * 새로 만들어도 같은 대상을 가리키고, 클릭 시점에 최신 [onImageSelected] 를 보게 하려면
  * 오히려 붙잡아두지 않는 편이 안전하다.
  *
- * @param galleryTitle 갤러리 맨 위 제목. 고르는 사진 이름이다(「지도 사진」 등).
- * @param maxSelectable 갤러리에서 한 번에 고를 수 있는 장수.
+ * @param maxSelectable 갤러리에서 한 번에 고를 수 있는 장수. 0 이하면 갤러리를 열지 않는다.
  */
 @Composable
 internal fun rememberImagePickerController(
     state: ImagePickerState,
     cacheDirectoryName: String,
     fileNamePrefix: String,
-    galleryTitle: String,
     maxSelectable: Int = 1,
     onImageSelected: (Uri) -> Unit = {},
 ): ImagePickerController {
@@ -94,6 +95,36 @@ internal fun rememberImagePickerController(
         Unit
     }
 
+    val onPicked: (List<Uri>) -> Unit = { uris ->
+        uris.forEach { uri ->
+            runCatching {
+                context.contentResolver.takePersistableUriPermission(uri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            currentOnImageSelected(uri)
+        }
+    }
+
+    // 고르지 않고 닫으면 null·빈 목록이 온다.
+    val singlePhotoLauncher = rememberLauncherForActivityResult(
+        contract = PickVisualMedia(),
+    ) { uri -> onPicked(listOfNotNull(uri)) }
+
+    // 여러 장 선택기는 최대 장수가 2 이상이어야 한다. 장수는 남은 자리에 따라 바뀌어 매번 새로 넘긴다.
+    val multiplePhotoLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = maxSelectable.coerceAtLeast(2)),
+        onResult = onPicked,
+    )
+
+    val requestGallery: () -> Unit = {
+        state.dismissSourceMenu()
+        val request = PickVisualMediaRequest(PickVisualMedia.ImageOnly)
+        when {
+            maxSelectable <= 0 -> Unit
+            maxSelectable == 1 -> singlePhotoLauncher.launch(request)
+            else -> multiplePhotoLauncher.launch(request)
+        }
+    }
+
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { granted ->
@@ -111,23 +142,6 @@ internal fun rememberImagePickerController(
         } else {
             cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
         }
-    }
-
-    if (state.isGalleryVisible) {
-        GalleryPickerDialog(
-            title = galleryTitle,
-            maxSelectable = maxSelectable,
-            // 갤러리 첫 칸의 카메라. 갤러리를 닫고 메뉴의 카메라와 같은 길로 간다.
-            onCameraClick = {
-                state.dismissGallery()
-                requestCamera()
-            },
-            onConfirm = { uris ->
-                state.dismissGallery()
-                uris.forEach { uri -> currentOnImageSelected(uri) }
-            },
-            onDismiss = state::dismissGallery,
-        )
     }
 
     if (cameraDeniedVisible) {
@@ -148,7 +162,7 @@ internal fun rememberImagePickerController(
 
     return ImagePickerController(
         onRequestCamera = requestCamera,
-        onRequestGallery = state::showGallery,
+        onRequestGallery = requestGallery,
     )
 }
 

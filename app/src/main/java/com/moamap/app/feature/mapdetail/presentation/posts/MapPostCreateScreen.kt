@@ -69,8 +69,8 @@ private val ContentTextMinHeight = 56.dp
  * 지도 상세 위에 겹쳐 그린다. 태그할 장소는 지도 상세가 이미 불러온 목록([places])에서 고르고,
  * 올리고 나면 뒤의 로그 탭이 목록을 다시 읽어야 해서 같은 화면 안에 있는 편이 간단하다.
  *
- * 사진은 시안대로 카메라·갤러리 메뉴 없이 바로 앱 안 갤러리에서 고른다(다른 화면과 같은
- * `rememberImagePickerController` 의 갤러리). 촬영은 갤러리 첫 칸에서 이어 간다.
+ * 사진은 시안대로 카메라·갤러리 메뉴 없이 바로 시스템 사진 선택기에서 고른다(다른 화면과 같은
+ * `rememberImagePickerController` 의 갤러리). 선택기에는 카메라가 없어 이 화면에서는 촬영하지 않는다(#412).
  */
 @Composable
 internal fun MapPostCreateScreen(
@@ -91,7 +91,6 @@ internal fun MapPostCreateScreen(
         state = pickerState,
         cacheDirectoryName = POST_PHOTO_CACHE_DIRECTORY,
         fileNamePrefix = "post",
-        galleryTitle = "새 게시물",
         // 남은 자리만큼만 고르게 한다. 한 장을 채우면 더 고를 수 없다.
         maxSelectable = MAX_POST_PHOTOS - state.photos.size,
         onImageSelected = onAddPhoto,
@@ -342,7 +341,7 @@ private fun SubmitButton(
 /**
  * 이 지도에 등록된 장소에서 고른다. 게시물은 지도 안의 장소만 태그할 수 있다.
  *
- * 작성 화면 위를 덮는 한 장이다. 갤러리와 같은 방식으로 맞췄다 - 작성 화면 자체가 이미
+ * 작성 화면 위를 덮는 한 장이다. 작성 화면 자체가 이미
  * 덮는 화면이라, 그 위에 시트를 또 띄우면 겹쳐 보인다.
  */
 @Composable
