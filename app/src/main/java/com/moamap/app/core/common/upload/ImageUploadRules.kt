@@ -14,7 +14,7 @@ import android.os.Build
  * | 지도 로그 게시물 사진 | [MAX_POST_PHOTO_FILE_SIZE] |
  * | 장소 후기 사진 | [MAX_REVIEW_PHOTO_FILE_SIZE] |
  *
- * **한 곳에만 둔다.** 갤러리 선택기가 거르는 형식([uploadableSourceContentTypes])과 발급 전에 검증하는 형식이
+ * **한 곳에만 둔다.** 고른 원본을 거르는 형식([uploadableSourceContentTypes])과 발급 전에 검증하는 형식이
  * 따로 놀면, 서버 계약이 바뀔 때 한쪽만 고쳐도 티가 나지 않는다.
  */
 internal val ALLOWED_IMAGE_CONTENT_TYPES = setOf("image/jpeg", "image/png", "image/webp")
@@ -27,7 +27,7 @@ internal val ALLOWED_IMAGE_CONTENT_TYPES = setOf("image/jpeg", "image/png", "ima
 private val HEIF_IMAGE_CONTENT_TYPES = setOf("image/heic", "image/heif")
 
 /**
- * 줄여서 JPEG 로 바꿀 수 있는 원본 형식. 갤러리 선택기가 보여 주는 형식도 이것이다.
+ * 줄여서 JPEG 로 바꿀 수 있는 원본 형식. 시스템 사진 선택기는 형식을 거르지 못해, 고른 뒤 올릴 때 이것으로 검사한다.
  *
  * HEIC/HEIF 는 API 28 이상에서만 받는다. 그 아래는 `ImageDecoder` 가 없고, `BitmapFactory` 가 읽지 못하는
  * 기기가 있다. GIF 등 나머지는 읽을 수는 있어도 첫 장면만 조용히 올라가므로 받지 않는다.

@@ -70,7 +70,6 @@ internal fun PlaceEditScreen(
         state = pickerState,
         cacheDirectoryName = PLACE_PHOTO_CACHE_DIRECTORY,
         fileNamePrefix = "place",
-        galleryTitle = "장소 사진",
         maxSelectable = MAX_PLACE_PHOTOS - form.photos.size,
         onImageSelected = { uri -> onAddPhoto(uri.toString()) },
     )

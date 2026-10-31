@@ -9,14 +9,9 @@
     <uses-permission android:name="android.permission.CAMERA" />
 
     <!--
-      앱 안 갤러리(게시물 작성)가 기기 사진을 직접 읽는다.
-      13 미만은 저장소 권한으로만 읽을 수 있고, 14 이상은 "사진 선택"으로 일부만 허용할 수 있다.
+      사진은 시스템 사진 선택기로 고른다. 사진 첨부만 하는 앱은 Google Play 정책상
+      READ_MEDIA_IMAGES 등 사진 접근 권한을 선언할 수 없다(#412). 다시 넣지 말 것.
     -->
-    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
-    <uses-permission android:name="android.permission.READ_MEDIA_VISUAL_USER_SELECTED" />
-    <uses-permission
-        android:name="android.permission.READ_EXTERNAL_STORAGE"
-        android:maxSdkVersion="32" />
 
     <!--
       패키지 가시성 제한 때문에 이 선언이 없으면 카카오톡이 설치돼 있어도

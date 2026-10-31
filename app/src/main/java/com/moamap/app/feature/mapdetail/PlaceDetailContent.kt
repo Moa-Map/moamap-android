@@ -150,7 +150,6 @@ internal fun PlaceDetailContent(
         state = pickerState,
         cacheDirectoryName = PLACE_PHOTO_CACHE_DIRECTORY,
         fileNamePrefix = "review",
-        galleryTitle = "댓글 사진",
         onImageSelected = { uri -> reviewPhoto = uri },
     )
     // 사진 고르기 메뉴는 이 화면을 흐려 바탕으로 깔고, 댓글 입력칸 바로 위에 붙는다(시안).
