@@ -19,3 +19,8 @@
 # If you keep the line number information, uncomment this to
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
+
+# 카카오 SDK 는 오류 원인 enum 을 이름으로(리플렉션) 찾고 응답을 Gson 으로 읽는다. 이름이 바뀌면 앱을 열자마자
+# NoSuchFieldException(TokenNotFound)으로 죽는다(Play 심사 거부). 카카오 개발자 문서의 R8 규칙.
+-keep class com.kakao.sdk.**.model.* { <fields>; }
+-keep class * extends com.google.gson.TypeAdapter
