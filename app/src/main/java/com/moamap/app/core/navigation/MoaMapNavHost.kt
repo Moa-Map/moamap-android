@@ -141,13 +141,18 @@ internal fun MoaMapNavHost(
         ) {
             composable(MoaMapRoute.Splash.route) {
                 SplashScreen(
-                    onNavigateToLogin = { navController.replaceSplashWith(MoaMapRoute.Login) },
+                    onNavigateToLogin = {
+                        navController.replaceSplashWith(MoaMapRoute.Login)
+                        // 로그인 화면이 스플래시의 로고를 이어받아 옮겨 오게 알린다. 로그아웃해 온 로그인 화면은 옮겨 오지 않는다.
+                        navController.currentBackStackEntry?.savedStateHandle?.set(ArrivedFromSplashKey, true)
+                    },
                     onNavigateToTermsAgreement = { navController.replaceSplashWith(MoaMapRoute.TermsAgreement) },
                     onNavigateToMain = { navController.replaceSplashWith(MoaMapRoute.Explore) },
                 )
             }
-            composable(MoaMapRoute.Login.route) {
+            composable(MoaMapRoute.Login.route) { entry ->
                 LoginScreen(
+                    arrivedFromSplash = entry.savedStateHandle.get<Boolean>(ArrivedFromSplashKey) == true,
                     // 서버가 동의할 약관이 남았다고 하면 동의 화면으로, 아니면 홈으로 간다.
                     onLoginSuccess = { needsTermsAgreement ->
                         if (needsTermsAgreement) {
@@ -548,6 +553,9 @@ private val TabToastBottomPadding = 52.dp
 
 /** 장소 가져오기 흐름이 새 지도 만들기 화면에 돌려주는 결과. */
 private const val ImportedPlacesForNewMapKey = "create_map_imported_places"
+
+/** 스플래시가 로그인 화면에 남기는 신호. 로그인 화면이 스플래시의 로고를 이어받아 옮겨 온다. */
+private const val ArrivedFromSplashKey = "login_arrived_from_splash"
 
 /** 스플래시는 뒤로가기로 돌아올 곳이 아니므로 백스택에서 지우고 이동한다. */
 private fun NavHostController.replaceSplashWith(destination: MoaMapRoute) {
