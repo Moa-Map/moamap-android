@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Mapbox SDK 는 토큰을 R.string 이 아니라 getIdentifier("mapbox_access_token", ...) 로 찾는다.
+  앱 코드에 참조가 없어 리소스 축소에서 지워지면 릴리즈에서 지도를 여는 순간
+  MapboxConfigurationException 으로 죽는다.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@string/mapbox_access_token" />
