@@ -44,8 +44,8 @@ android {
         applicationId = "com.moamap.app"
         minSdk = 24
         targetSdk = 37
-        versionCode = 9
-        versionName = "1.7.1"
+        versionCode = 10
+        versionName = "1.8.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
