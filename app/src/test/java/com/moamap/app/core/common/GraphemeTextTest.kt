@@ -46,4 +46,26 @@ class GraphemeTextTest {
     fun `한도 0 이면 빈 문자열이다`() {
         assertEquals("", "abc".takeWithinUtf16(0))
     }
+
+    @Test
+    fun `기준 예시 - 이모지 거르기`() {
+        assertEquals("ab@c.com", "a${grin}b@c.com".removeEmoji())
+        assertEquals("https://naver.me/xy", "https://naver.me/x${flag}y".removeEmoji())
+        assertEquals("2#*", "1️⃣2#*".removeEmoji())
+        assertEquals("ab", "a${family}b".removeEmoji())
+    }
+
+    @Test
+    fun `피부색 이모지와 기본이 이모지인 BMP 글자도 거른다`() {
+        assertEquals("ab", "a${thumbsMedium}b".removeEmoji())
+        assertEquals("ab", "a✅⭐b".removeEmoji()) // ✅⭐
+        assertEquals("ab", "a❤️b".removeEmoji()) // ❤️
+    }
+
+    @Test
+    fun `이모지가 없으면 그대로 둔다`() {
+        val input = "https://map.naver.com/p/entry/place/123?c=15.00,0,0,0,dh#a*b 한글"
+
+        assertEquals(input, input.removeEmoji())
+    }
 }

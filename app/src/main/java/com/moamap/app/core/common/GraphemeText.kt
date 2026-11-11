@@ -28,3 +28,63 @@ internal fun String.takeWithinUtf16(maxLength: Int): String {
     val end = boundaries.preceding(maxLength + 1)
     return substring(0, end.coerceAtLeast(0))
 }
+
+/**
+ * 이모지로 그려지는 글자를 통째로 뺀다. 외부 지도 URL·문의 답변 이메일처럼 이모지가 들어갈 수 없는 칸에 쓴다.
+ *
+ * 국기·피부색·ZWJ 결합·키캡(1️⃣)은 한 글자로 묶여 함께 빠진다. 단독 숫자·`#`·`*` 는 이모지 속성이
+ * 있어도 글자로 그려지므로 남긴다.
+ */
+internal fun String.removeEmoji(): String {
+    if (isEmpty()) return this
+
+    val boundaries = BreakIterator.getCharacterInstance().apply { setText(this@removeEmoji) }
+    val result = StringBuilder(length)
+    var start = boundaries.first()
+    var end = boundaries.next()
+    while (end != BreakIterator.DONE) {
+        val grapheme = substring(start, end)
+        if (!grapheme.isEmojiGrapheme()) result.append(grapheme)
+        start = end
+        end = boundaries.next()
+    }
+    return result.toString()
+}
+
+private const val VARIATION_SELECTOR_EMOJI = 0xFE0F
+private const val COMBINING_ENCLOSING_KEYCAP = 0x20E3
+
+/** 이모지 블록(마작·카드·국기 글자·피부색·그림 문자 등). 이 범위의 기본 표시는 이모지다. */
+private val SupplementaryEmojiRange = 0x1F000..0x1FAFF
+
+/**
+ * BMP 안에서 기본 표시가 이모지인 글자(Unicode emoji-data 의 Emoji_Presentation).
+ * ☺·❤ 처럼 기본이 글자인 것은 FE0F 가 붙을 때만 이모지로 그려지므로 여기에 넣지 않는다.
+ */
+private val BmpEmojiPresentationRanges = listOf(
+    0x231A..0x231B, 0x23E9..0x23EC, 0x23F0..0x23F0, 0x23F3..0x23F3,
+    0x25FD..0x25FE, 0x2614..0x2615, 0x2648..0x2653, 0x267F..0x267F,
+    0x2693..0x2693, 0x26A1..0x26A1, 0x26AA..0x26AB, 0x26BD..0x26BE,
+    0x26C4..0x26C5, 0x26CE..0x26CE, 0x26D4..0x26D4, 0x26EA..0x26EA,
+    0x26F2..0x26F3, 0x26F5..0x26F5, 0x26FA..0x26FA, 0x26FD..0x26FD,
+    0x2705..0x2705, 0x270A..0x270B, 0x2728..0x2728, 0x274C..0x274C,
+    0x274E..0x274E, 0x2753..0x2755, 0x2757..0x2757, 0x2795..0x2797,
+    0x27B0..0x27B0, 0x27BF..0x27BF, 0x2B1B..0x2B1C, 0x2B50..0x2B50,
+    0x2B55..0x2B55,
+)
+
+private fun String.isEmojiGrapheme(): Boolean {
+    var index = 0
+    while (index < length) {
+        val codePoint = codePointAt(index)
+        if (codePoint.isEmojiCodePoint()) return true
+        index += Character.charCount(codePoint)
+    }
+    return false
+}
+
+private fun Int.isEmojiCodePoint(): Boolean =
+    this == VARIATION_SELECTOR_EMOJI ||
+        this == COMBINING_ENCLOSING_KEYCAP ||
+        this in SupplementaryEmojiRange ||
+        BmpEmojiPresentationRanges.any { range -> this in range }

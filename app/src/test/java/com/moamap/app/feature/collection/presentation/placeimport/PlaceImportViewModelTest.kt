@@ -272,6 +272,13 @@ class PlaceImportViewModelTest {
     }
 
     @Test
+    fun `링크에 들어온 이모지는 입력할 때 뺀다`() = runTest(dispatcher) {
+        viewModel.updateUrl("https://naver.me/x\uD83C\uDDF0\uD83C\uDDF7y")
+
+        assertEquals("https://naver.me/xy", viewModel.uiState.value.url)
+    }
+
+    @Test
     fun `캡션을 읽지 못하면 그 이유를 그대로 안내한다`() = runTest(dispatcher) {
         repository.failure = PlaceExtractionException.CaptionBlocked()
 

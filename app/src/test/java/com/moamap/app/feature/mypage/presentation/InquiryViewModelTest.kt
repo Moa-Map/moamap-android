@@ -119,6 +119,25 @@ class InquiryViewModelTest {
     }
 
     @Test
+    fun `답변 이메일에 들어온 이모지는 뺀다`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        viewModel.updateEmail("a\uD83D\uDE00b@c.com")
+
+        assertEquals("ab@c.com", viewModel.uiState.value.email)
+    }
+
+    @Test
+    fun `내용 끝 이모지가 한도에 걸치면 반쪽을 남기지 않는다`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+
+        viewModel.updateContent("가".repeat(1999) + "\uD83D\uDE00")
+
+        assertEquals("가".repeat(1999), viewModel.uiState.value.content)
+    }
+
+    @Test
     fun `내용은 2000자까지만 받는다`() = runTest(dispatcher) {
         val viewModel = viewModel()
 

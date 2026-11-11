@@ -6,6 +6,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.common.actionableMessage
+import com.moamap.app.core.common.removeEmoji
 import com.moamap.app.core.common.takeWithinUtf16
 import com.moamap.app.core.common.toUserMessage
 import com.moamap.app.core.network.ApiException
@@ -62,7 +63,7 @@ class InquiryViewModel @Inject constructor(
     fun updateEmail(email: String) {
         // 사용자가 손댄 칸은 늦게 도착한 계정 이메일로 덮지 않는다.
         savedStateHandle[KEY_EMAIL_PREFILLED] = true
-        updateState { state -> state.copy(email = email.takeWithinUtf16(INQUIRY_EMAIL_MAX_LENGTH)) }
+        updateState { state -> state.copy(email = email.removeEmoji().takeWithinUtf16(INQUIRY_EMAIL_MAX_LENGTH)) }
     }
 
     fun updateContent(content: String) =
@@ -108,7 +109,7 @@ class InquiryViewModel @Inject constructor(
             if (savedStateHandle.get<Boolean>(KEY_EMAIL_PREFILLED) == true) return@launch
             savedStateHandle[KEY_EMAIL_PREFILLED] = true
             if (_uiState.value.email.isEmpty()) {
-                updateState { state -> state.copy(email = email.takeWithinUtf16(INQUIRY_EMAIL_MAX_LENGTH)) }
+                updateState { state -> state.copy(email = email.removeEmoji().takeWithinUtf16(INQUIRY_EMAIL_MAX_LENGTH)) }
             }
         }
     }

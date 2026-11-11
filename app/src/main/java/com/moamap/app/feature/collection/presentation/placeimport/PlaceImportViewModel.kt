@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.common.NETWORK_ERROR_MESSAGE
 import com.moamap.app.core.common.actionableMessage
 import com.moamap.app.core.common.placeAddedToast
+import com.moamap.app.core.common.removeEmoji
 import com.moamap.app.core.common.toUserMessage
 import com.moamap.app.core.common.toggle
 import com.moamap.app.core.common.upload.ImageUploadException
@@ -95,11 +96,14 @@ internal class PlaceImportViewModel @Inject constructor(
      */
     private var previousResult: Pair<ExtractionState.Success, Set<String>>? = null
 
-    /** 한 줄 칸이라 붙여넣은 줄바꿈은 띄어쓰기로 바꾼다. 다시 입력하면 링크 오류 표시는 지운다. */
+    /**
+     * 한 줄 칸이라 붙여넣은 줄바꿈은 띄어쓰기로 바꾸고, 링크에 들어갈 수 없는 이모지는 뺀다.
+     * 다시 입력하면 링크 오류 표시는 지운다.
+     */
     fun updateUrl(url: String) {
         // 불러오기 오류도 입력칸 아래 안내 자리에 남아 있다. 다시 입력하면 함께 지운다.
         _uiState.update { state ->
-            state.copy(url = url.replace('\n', ' '), linkInvalid = false, errorMessage = null)
+            state.copy(url = url.replace('\n', ' ').removeEmoji(), linkInvalid = false, errorMessage = null)
         }
     }
 
