@@ -6,6 +6,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.auth.CurrentUserStore
+import com.moamap.app.core.common.takeWithinUtf16
 import com.moamap.app.core.navigation.MoaMapRoute
 import com.moamap.app.core.navigation.requireMapId
 import com.moamap.app.feature.mapdetail.domain.model.MapPost
@@ -123,7 +124,7 @@ class MapPostDetailViewModel @Inject constructor(
     fun send(content: String) {
         val state = _uiState.value
         val post = state.post ?: return
-        val text = content.trim().take(COMMENT_MAX_LENGTH)
+        val text = content.trim().takeWithinUtf16(COMMENT_MAX_LENGTH)
         if (text.isEmpty() || state.sending || !state.commentsReady) return
 
         _uiState.update { current -> current.copy(sending = true, sendErrorMessage = null) }

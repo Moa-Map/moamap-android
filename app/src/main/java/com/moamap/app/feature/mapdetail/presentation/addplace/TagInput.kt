@@ -1,5 +1,7 @@
 package com.moamap.app.feature.mapdetail.presentation.addplace
 
+import com.moamap.app.core.common.takeWithinUtf16
+
 /** 태그를 확정하는 글자. 스페이스나 줄바꿈이 들어오면 그 앞까지를 태그로 만든다. */
 private val TagDelimiters = charArrayOf(' ', '\n')
 
@@ -34,7 +36,7 @@ fun applyTagInput(
 
     val next = tags.toMutableList()
     confirmed.forEach { piece ->
-        val tag = piece.trim().take(MAX_TAG_LENGTH)
+        val tag = piece.trim().takeWithinUtf16(MAX_TAG_LENGTH)
         if (tag.isNotEmpty() && tag !in next) next += tag
     }
 

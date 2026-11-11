@@ -6,6 +6,7 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moamap.app.core.common.takeWithinUtf16
 import com.moamap.app.core.common.toUploadMessage
 import com.moamap.app.core.navigation.requireMapId
 import com.moamap.app.feature.mapdetail.domain.model.MapPlace
@@ -101,7 +102,7 @@ class MapPostCreateViewModel @Inject constructor(
 
     /** 한도를 넘는 입력은 잘라 낸다. 붙여 넣기로 한 번에 넘길 수 있다. */
     fun updateContent(content: String) {
-        _uiState.update { state -> state.copy(content = content.take(MAX_POST_CONTENT_LENGTH)) }
+        _uiState.update { state -> state.copy(content = content.takeWithinUtf16(MAX_POST_CONTENT_LENGTH)) }
     }
 
     fun addPhoto(uri: Uri) {

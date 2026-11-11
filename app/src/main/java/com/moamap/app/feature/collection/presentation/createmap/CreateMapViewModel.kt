@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moamap.app.core.common.takeWithinUtf16
 import com.moamap.app.core.common.toUploadMessage
 import com.moamap.app.core.common.toUserMessage
 import com.moamap.app.feature.collection.domain.model.EditedPlace
@@ -59,12 +60,12 @@ internal class CreateMapViewModel @Inject constructor(
     }
 
     fun updateName(name: String) {
-        updateState { state -> state.copy(name = name.take(NAME_MAX_LENGTH)) }
+        updateState { state -> state.copy(name = name.takeWithinUtf16(NAME_MAX_LENGTH)) }
     }
 
     fun updateDescription(description: String) {
         updateState { state ->
-            state.copy(description = description.take(DESCRIPTION_MAX_LENGTH))
+            state.copy(description = description.takeWithinUtf16(DESCRIPTION_MAX_LENGTH))
         }
     }
 
@@ -79,7 +80,7 @@ internal class CreateMapViewModel @Inject constructor(
     fun updateTagInput(input: String) {
         updateState { state ->
             val result = applyTagInput(state.tags, input)
-            state.copy(tags = result.tags, tagInput = result.input.take(TAG_MAX_LENGTH))
+            state.copy(tags = result.tags, tagInput = result.input.takeWithinUtf16(TAG_MAX_LENGTH))
         }
     }
 
@@ -342,7 +343,7 @@ private fun SavedStateHandle.save(state: CreateMapUiState) {
 /** 빈 값과 이미 담긴 태그는 걸러낸다. 한 번에 들어온 값들 사이의 중복도 마찬가지다. */
 internal fun List<String>.plusTags(candidates: List<String>): List<String> {
     val added = candidates
-        .map { candidate -> candidate.trim().take(TAG_MAX_LENGTH) }
+        .map { candidate -> candidate.trim().takeWithinUtf16(TAG_MAX_LENGTH) }
         .filter { candidate -> candidate.isNotEmpty() }
 
     return (this + added).distinct()

@@ -5,6 +5,7 @@ import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.moamap.app.core.common.MAP_INFO_UPDATED_TOAST
+import com.moamap.app.core.common.takeWithinUtf16
 import com.moamap.app.core.common.toUploadMessage
 import com.moamap.app.core.common.toUserMessage
 import com.moamap.app.feature.collection.domain.repository.MapRepository
@@ -112,16 +113,16 @@ internal class MapInfoEditViewModel @Inject constructor(
     }
 
     fun updateName(name: String) {
-        updateForm { form -> form.copy(name = name.take(NAME_MAX_LENGTH)) }
+        updateForm { form -> form.copy(name = name.takeWithinUtf16(NAME_MAX_LENGTH)) }
     }
 
     fun updateDescription(description: String) {
-        updateForm { form -> form.copy(description = description.take(DESCRIPTION_MAX_LENGTH)) }
+        updateForm { form -> form.copy(description = description.takeWithinUtf16(DESCRIPTION_MAX_LENGTH)) }
     }
 
     /** 스페이스로는 확정하지 않는다. 시안 「태그 입력 후 엔터」대로 띄어쓰기도 태그에 들어간다. */
     fun updateTagInput(input: String) {
-        updateForm { form -> form.copy(tagInput = input.take(TAG_MAX_LENGTH)) }
+        updateForm { form -> form.copy(tagInput = input.takeWithinUtf16(TAG_MAX_LENGTH)) }
     }
 
     /** 엔터로 확정할 때 쓴다. */

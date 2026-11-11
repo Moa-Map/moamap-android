@@ -55,6 +55,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.moamap.app.R
+import com.moamap.app.core.common.takeWithinUtf16
 import com.moamap.app.core.designsystem.component.MoaMapCenteredNotice
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
 import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
@@ -253,7 +254,7 @@ internal fun MapPostDetailScreen(
             val enabled = canComment && state.commentsReady && !state.sending
             CommentInputRow(
                 text = commentText,
-                onTextChange = { text -> commentText = text.take(COMMENT_MAX_LENGTH) },
+                onTextChange = { text -> commentText = text.takeWithinUtf16(COMMENT_MAX_LENGTH) },
                 placeholder = if (canComment) "댓글을 입력해주세요" else "지도에 참여하면 댓글을 남길 수 있어요",
                 enabled = enabled,
                 canSend = enabled && commentText.isNotBlank(),

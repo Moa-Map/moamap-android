@@ -3,6 +3,7 @@ package com.moamap.app.feature.mypage.presentation
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moamap.app.core.common.takeWithinUtf16
 import com.moamap.app.core.common.upload.ImageUploadException
 import com.moamap.app.feature.mypage.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -64,11 +65,11 @@ class ProfileEditViewModel @Inject constructor(
     }
 
     fun onNicknameChange(value: String) {
-        _uiState.update { it.copy(nickname = value) }
+        _uiState.update { it.copy(nickname = value.takeWithinUtf16(NICKNAME_MAX_LENGTH)) }
     }
 
     fun onIntroductionChange(value: String) {
-        _uiState.update { it.copy(introduction = value.take(MAX_INTRODUCTION_LENGTH)) }
+        _uiState.update { it.copy(introduction = value.takeWithinUtf16(MAX_INTRODUCTION_LENGTH)) }
     }
 
     /**
