@@ -23,7 +23,7 @@ internal class MapPostCommentRepositoryImpl @Inject constructor(
 ) : MapPostCommentRepository {
 
     override suspend fun getComments(mapId: Long, postId: Long): List<MapPostComment> {
-        val dtos = collectAllPages { page ->
+        val dtos = collectAllPages(idOf = { dto -> dto.id }) { page ->
             mapPostService.getComments(
                 mapId = mapId,
                 postId = postId,

@@ -30,8 +30,12 @@ const val MAX_PAGES = 20
  *
  * 멈추는 조건이 셋이다. `last` 가 참이거나, 빈 페이지가 오거나, [maxPages] 에 닿거나다.
  * 뒤의 둘은 서버 응답이 어긋났을 때의 안전장치다 - 한쪽만 믿으면 루프가 끝나지 않는다.
+ *
+ * 받는 사이에 항목이 새로 생기거나 지워지면 페이지 경계가 밀려 같은 항목이 두 페이지에 걸쳐 온다.
+ * 그대로 두면 id 를 key 로 쓰는 LazyColumn 이 같은 key 로 죽으므로 [idOf] 로 겹친 것을 빼고 먼저 받은 것을 남긴다.
  */
 suspend fun <T> collectAllPages(
+    idOf: (T) -> Any,
     maxPages: Int = MAX_PAGES,
     fetchPage: suspend (page: Int) -> PageResponse<T>,
 ): List<T> {
@@ -41,9 +45,9 @@ suspend fun <T> collectAllPages(
         val response = fetchPage(page)
         all += response.content
 
-        if (response.last || response.content.isEmpty()) return all
+        if (response.last || response.content.isEmpty()) return all.distinctBy(idOf)
     }
 
     Log.w(TAG, "페이지 상한 $maxPages 에 걸려 받은 데까지만 쓴다 (${all.size}건)")
-    return all
+    return all.distinctBy(idOf)
 }
