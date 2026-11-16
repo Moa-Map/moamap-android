@@ -8,18 +8,17 @@ import com.mapbox.maps.extension.compose.MapEffect
 import com.mapbox.maps.extension.compose.MapboxMapComposable
 
 /**
- * 지도 화면이 벗어날 수 없는 국내 범위. 앱 대상이 국내라 전 세계로 나갈 일이 없다. iOS 와 같은 값이다.
+ * 지도 화면이 벗어날 수 없는 범위. 앱 대상이 국내라 전 세계로 나갈 일은 없지만, 국토에 딱 맞추면 조금만 끌어도
+ * 막혀 부자연스럽다(사용자 피드백). 그래서 중국 동부·일본·대만까지 담는 동아시아로 넉넉하게 연다. iOS 는 아직 좁은 값이다.
  *
  * Mapbox 범위는 설명과 달리 카메라 중심이 아니라 화면에 보이는 영역 전체를 가둔다(11.24 실측). 화면이 범위보다
- * 커지려 하면 지도가 줌을 올려 버린다. 그래서 범위는 국토보다 넉넉하다.
- * - 남북은 360dp 세로로 긴 폰(20:9)이 국토 동서 폭을 다 담는 배율에서 화면 높이만큼(위도 17도쯤) 열어 둔다.
- * - 동서는 지도 소개 미리보기처럼 가로로 긴 작은 지도가 국토 남북을 다 담는 배율에서 화면 폭만큼 열어 둔다.
+ * 커지려 하면 지도가 줌을 올려 버린다.
  */
-internal val KoreaCameraSouthwest: Point = Point.fromLngLat(122.5, 26.9)
-internal val KoreaCameraNortheast: Point = Point.fromLngLat(134.0, 44.0)
+internal val KoreaCameraSouthwest: Point = Point.fromLngLat(110.0, 18.0)
+internal val KoreaCameraNortheast: Point = Point.fromLngLat(152.0, 52.0)
 
-/** 지도 소개 미리보기(가로로 긴 작은 지도)에서 국토 남북이 다 들어오는 배율. 세로 폰은 범위 남북 폭에 막혀 덜 줄어든다. */
-internal const val KoreaCameraMinZoom = 4.4
+/** 가장 멀리 축소하는 배율. 실제로는 화면이 범위를 넘지 않는 데서 먼저 멈춘다. */
+internal const val KoreaCameraMinZoom = 3.0
 
 /**
  * 카메라를 국내 범위([KoreaCameraSouthwest]~[KoreaCameraNortheast])와 최소 줌([KoreaCameraMinZoom]) 안에
