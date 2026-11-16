@@ -56,6 +56,14 @@ class DensityMapViewModel @Inject constructor(
         }
     }
 
+    /** 지도 빈 곳을 누르면 하단 카드를 닫는다. */
+    fun clearSelection() {
+        _uiState.update { state ->
+            if (state !is DensityMapUiState.Success) return@update state
+            state.copy(selectedCode = null)
+        }
+    }
+
     /** 레벨 필터 선택. 같은 레벨을 다시 고르면 전체로 돌아간다. */
     fun selectLevel(level: CongestionLevel?) {
         _uiState.update { state ->

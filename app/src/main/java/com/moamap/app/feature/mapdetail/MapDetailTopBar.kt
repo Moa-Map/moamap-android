@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -168,8 +169,15 @@ private fun TextAction(
         style = MoaMapTheme.typography.button2,
         color = if (enabled) color else MoaMapTheme.colors.textDisable,
         maxLines = 1,
+        // 눌러도 물결 효과를 그리지 않는다(iOS 와 같다).
         modifier = modifier
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(
+                interactionSource = null,
+                indication = null,
+                enabled = enabled,
+                role = Role.Button,
+                onClick = onClick,
+            )
             .padding(vertical = ActionTouchPadding),
     )
 }
