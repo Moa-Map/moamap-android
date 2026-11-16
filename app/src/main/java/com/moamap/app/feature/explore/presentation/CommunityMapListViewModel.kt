@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.runtime.Immutable
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.moamap.app.core.common.takeWithinUtf16
 import com.moamap.app.feature.explore.domain.model.CommunityMap
 import com.moamap.app.feature.explore.domain.model.CommunityMapPage
 import com.moamap.app.feature.explore.domain.model.CommunityMapSort
@@ -187,7 +188,7 @@ class CommunityMapListViewModel @Inject constructor(
      * 다 지우면 기다리지 않고 검색 전 태그·정렬 목록으로 돌아간다.
      */
     fun updateQuery(text: String) {
-        val query = text.take(SEARCH_KEYWORD_MAX_LENGTH)
+        val query = text.takeWithinUtf16(SEARCH_KEYWORD_MAX_LENGTH)
         _uiState.update { state -> state.copy(query = query) }
         searchJob?.cancel()
 

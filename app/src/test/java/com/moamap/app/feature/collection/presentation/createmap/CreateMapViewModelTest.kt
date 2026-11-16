@@ -189,6 +189,50 @@ class CreateMapViewModelTest {
     }
 
     @Test
+    fun `이름 끝 이모지가 한도에 걸치면 반쪽을 남기지 않고 통째로 뺀다`() {
+        viewModel.updateName("가".repeat(99) + GRIN)
+
+        assertEquals("가".repeat(99), state.name)
+    }
+
+    @Test
+    fun `이름 끝 이모지가 한도 안에 들면 그대로 둔다`() {
+        viewModel.updateName("가".repeat(98) + GRIN)
+
+        assertEquals("가".repeat(98) + GRIN, state.name)
+    }
+
+    @Test
+    fun `결합 이모지는 한도보다 앞에서도 쪼개지 않는다`() {
+        viewModel.updateName("가".repeat(97) + KOREA_FLAG)
+        assertEquals("가".repeat(97), state.name)
+
+        viewModel.updateName("가".repeat(98) + FAMILY)
+        assertEquals("가".repeat(98), state.name)
+    }
+
+    @Test
+    fun `설명 끝 이모지가 한도에 걸치면 반쪽을 남기지 않는다`() {
+        viewModel.updateDescription("나".repeat(499) + GRIN)
+
+        assertEquals("나".repeat(499), state.description)
+    }
+
+    @Test
+    fun `태그 입력 끝 이모지가 한도에 걸치면 반쪽을 남기지 않는다`() {
+        viewModel.updateTagInput("다".repeat(29) + GRIN)
+
+        assertEquals("다".repeat(29), state.tagInput)
+    }
+
+    @Test
+    fun `붙여 넣어 확정한 태그도 이모지를 쪼개지 않는다`() {
+        viewModel.updateTagInput("다".repeat(29) + GRIN + " ")
+
+        assertEquals(listOf("다".repeat(29)), state.tags)
+    }
+
+    @Test
     fun `스페이스를 입력하면 태그로 확정된다`() {
         viewModel.updateTagInput("맛집 ")
 
@@ -845,3 +889,7 @@ class CreateMapViewModelTest {
         )
     }
 }
+
+private const val GRIN = "\uD83D\uDE00" // 😀
+private const val KOREA_FLAG = "\uD83C\uDDF0\uD83C\uDDF7" // 🇰🇷
+private const val FAMILY = "\uD83D\uDC68\u200D\uD83D\uDC69\u200D\uD83D\uDC67" // 👨‍👩‍👧

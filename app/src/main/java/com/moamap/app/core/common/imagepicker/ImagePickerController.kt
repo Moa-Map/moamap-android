@@ -1,6 +1,7 @@
 package com.moamap.app.core.common.imagepicker
 
 import android.Manifest
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -21,12 +22,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import com.moamap.app.core.common.openAppSettings
+import com.moamap.app.core.designsystem.component.MoaMapAlertDialog
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import java.io.File
 
 /** 촬영본 확장자. 카메라 앱은 JPEG 로 저장한다. */
 private const val DEFAULT_PHOTO_EXTENSION = "jpg"
+
+/** 촬영 앱이 없어 카메라를 띄우지 못했을 때의 안내. */
+internal const val CAMERA_UNAVAILABLE_MESSAGE = "카메라를 열 수 없어요"
 
 /** 카메라·갤러리 실행 진입점. 권한 확인은 안에서 끝내고 호출부는 어느 쪽인지만 고른다. */
 @Stable
@@ -71,6 +76,7 @@ internal fun rememberImagePickerController(
     val currentOnImageSelected by rememberUpdatedState(onImageSelected)
     var pendingCameraUri by rememberSaveable { mutableStateOf<String?>(null) }
     var cameraDeniedVisible by rememberSaveable { mutableStateOf(false) }
+    var cameraUnavailableVisible by rememberSaveable { mutableStateOf(false) }
 
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture(),
@@ -90,7 +96,15 @@ internal fun rememberImagePickerController(
     val launchCamera: () -> Unit = {
         createImageCaptureUri(context, cacheDirectoryName, fileNamePrefix)?.let { uri ->
             pendingCameraUri = uri.toString()
-            cameraLauncher.launch(uri)
+            try {
+                cameraLauncher.launch(uri)
+            } catch (e: ActivityNotFoundException) {
+                // 카메라 앱이 없거나 꺼져 있는 기기다. 잡지 않으면 앱이 종료된다(이슈 #418).
+                Log.w("ImagePicker", "촬영 앱을 찾지 못했습니다", e)
+                runCatching { context.contentResolver.delete(uri, null, null) }
+                pendingCameraUri = null
+                cameraUnavailableVisible = true
+            }
         }
         Unit
     }
@@ -157,6 +171,15 @@ internal fun rememberImagePickerController(
             onDismissRequest = { cameraDeniedVisible = false },
             dismissText = "닫기",
             dismissColor = MoaMapPrimitiveColors.Gray200,
+        )
+    }
+
+    if (cameraUnavailableVisible) {
+        // 권한 안내처럼 피커가 직접 띄운다. 이 피커를 쓰는 모든 화면(커버·지도 수정·프로필·장소·게시물·리뷰)에 같다.
+        MoaMapAlertDialog(
+            title = CAMERA_UNAVAILABLE_MESSAGE,
+            buttonText = "닫기",
+            onDismissRequest = { cameraUnavailableVisible = false },
         )
     }
 

@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import com.moamap.app.core.common.takeWithinUtf16
 import com.moamap.app.core.designsystem.component.ConfirmDialogButton
 import com.moamap.app.core.designsystem.component.MoaMapInputSurface
 import com.moamap.app.core.designsystem.component.PopupCard
@@ -76,7 +77,7 @@ internal fun ReportDialog(
                 MoaMapInputSurface(modifier = Modifier.fillMaxWidth().height(90.dp)) {
                     BasicTextField(
                         value = detail,
-                        onValueChange = { value -> detail = value.take(REPORT_DETAIL_MAX_LENGTH) },
+                        onValueChange = { value -> detail = value.takeWithinUtf16(REPORT_DETAIL_MAX_LENGTH) },
                         textStyle = MoaMapTheme.typography.body2.withDesignLineHeight().copy(
                             color = MoaMapTheme.colors.textNormal,
                         ),

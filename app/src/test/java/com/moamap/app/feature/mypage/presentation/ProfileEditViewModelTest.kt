@@ -124,13 +124,36 @@ class ProfileEditViewModelTest {
     }
 
     @Test
-    fun `이름이 서른 자를 넘으면 저장할 수 없다`() = runTest(dispatcher) {
+    fun `이름은 서른 자에서 잘라 저장할 수 있게 둔다`() = runTest(dispatcher) {
         val viewModel = createViewModel()
         advanceUntilIdle()
 
         viewModel.onNicknameChange("가".repeat(NICKNAME_MAX_LENGTH + 1))
 
-        assertFalse(viewModel.uiState.value.canSave)
+        assertEquals("가".repeat(NICKNAME_MAX_LENGTH), viewModel.uiState.value.nickname)
+        assertTrue(viewModel.uiState.value.canSave)
+    }
+
+    @Test
+    fun `이름 끝 이모지가 한도에 걸치면 이모지를 통째로 빼고 저장할 수 있다`() = runTest(dispatcher) {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        // 눈으로는 30글자지만 UTF-16 으로는 31 이다. 예전에는 안내 없이 저장 버튼만 꺼졌다.
+        viewModel.onNicknameChange("가".repeat(NICKNAME_MAX_LENGTH - 1) + "\uD83D\uDE00")
+
+        assertEquals("가".repeat(NICKNAME_MAX_LENGTH - 1), viewModel.uiState.value.nickname)
+        assertTrue(viewModel.uiState.value.canSave)
+    }
+
+    @Test
+    fun `자기소개 끝 이모지가 한도에 걸치면 반쪽을 남기지 않는다`() = runTest(dispatcher) {
+        val viewModel = createViewModel()
+        advanceUntilIdle()
+
+        viewModel.onIntroductionChange("가".repeat(MAX_INTRODUCTION_LENGTH - 1) + "\uD83D\uDE00")
+
+        assertEquals("가".repeat(MAX_INTRODUCTION_LENGTH - 1), viewModel.uiState.value.introduction)
     }
 
     @Test

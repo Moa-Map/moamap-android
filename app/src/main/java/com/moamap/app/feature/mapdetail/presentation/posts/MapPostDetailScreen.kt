@@ -55,6 +55,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import com.moamap.app.R
+import com.moamap.app.core.common.takeWithinUtf16
 import com.moamap.app.core.designsystem.component.MoaMapCenteredNotice
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
 import com.moamap.app.core.designsystem.component.MoaMapErrorNotice
@@ -163,7 +164,8 @@ internal fun MapPostDetailScreen(
     LaunchedEffect(state.sentCount) {
         if (state.sentCount == 0) return@LaunchedEffect
         commentText = ""
-        listState.animateScrollToItem(listState.layoutInfo.totalItemsCount - 1)
+        // 첫 배치 전(회전·복원 직후)에는 항목 수가 0 이라 -1 이 된다. 음수를 넘기면 IllegalArgumentException 이다.
+        listState.animateScrollToItem((listState.layoutInfo.totalItemsCount - 1).coerceAtLeast(0))
     }
 
     // 지도 상세 위를 덮는다. 빈 곳을 누르면 키보드를 닫고, 뒤의 지도로 터치가 새지 않게 받는다.
@@ -253,7 +255,7 @@ internal fun MapPostDetailScreen(
             val enabled = canComment && state.commentsReady && !state.sending
             CommentInputRow(
                 text = commentText,
-                onTextChange = { text -> commentText = text.take(COMMENT_MAX_LENGTH) },
+                onTextChange = { text -> commentText = text.takeWithinUtf16(COMMENT_MAX_LENGTH) },
                 placeholder = if (canComment) "댓글을 입력해주세요" else "지도에 참여하면 댓글을 남길 수 있어요",
                 enabled = enabled,
                 canSend = enabled && commentText.isNotBlank(),

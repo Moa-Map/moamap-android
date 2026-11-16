@@ -37,7 +37,7 @@ internal class PlaceReviewRepositoryImpl @Inject constructor(
 ) : PlaceReviewRepository {
 
     override suspend fun getReviews(placeId: Long): List<PlaceReview> {
-        val dtos = collectAllPages { page ->
+        val dtos = collectAllPages(idOf = { dto -> dto.id }) { page ->
             reviewService.getReviews(
                 placeId = placeId,
                 page = page,

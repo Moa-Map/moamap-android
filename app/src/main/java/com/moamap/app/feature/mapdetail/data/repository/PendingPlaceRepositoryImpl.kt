@@ -20,7 +20,7 @@ class PendingPlaceRepositoryImpl @Inject constructor(
 ) : PendingPlaceRepository {
 
     override suspend fun getPendingPlaces(mapId: Long): List<PendingPlace> =
-        collectAllPages { page ->
+        collectAllPages(idOf = { dto -> dto.id }) { page ->
             placeService.getPendingPlaces(mapId = mapId, page = page, size = PENDING_PAGE_SIZE)
         }.map { dto -> dto.toPendingPlace() }
 

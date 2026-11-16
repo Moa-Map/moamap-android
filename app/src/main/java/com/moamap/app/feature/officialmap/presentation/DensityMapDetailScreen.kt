@@ -176,6 +176,7 @@ private fun DensityMapContent(
             mapViewportState = mapViewportState,
             mapState = mapState,
             compass = {},
+            scaleBar = {},
             style = {
                 MapboxStandardStyle(standardStyleState = standardStyleState)
             },

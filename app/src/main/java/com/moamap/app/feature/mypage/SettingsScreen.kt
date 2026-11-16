@@ -37,6 +37,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.moamap.app.BuildConfig
 import com.moamap.app.R
 import com.moamap.app.core.designsystem.component.ErrorSnackbar
 import com.moamap.app.core.designsystem.component.MoaMapConfirmDialog
@@ -196,7 +197,7 @@ private fun SettingsContent(
                             label = "버전 정보",
                             trailingContent = {
                                 Text(
-                                    text = "v1.0.0",
+                                    text = "v${BuildConfig.VERSION_NAME}",
                                     style = MoaMapTheme.typography.caption2,
                                     color = MoaMapTheme.colors.textAssistive,
                                 )
