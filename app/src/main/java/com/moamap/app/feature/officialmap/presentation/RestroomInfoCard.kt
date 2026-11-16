@@ -1,6 +1,8 @@
 package com.moamap.app.feature.officialmap.presentation
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -9,8 +11,16 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
@@ -63,6 +73,12 @@ internal fun RestroomInfoCard(
     detail: RestroomDetailState?,
     modifier: Modifier = Modifier,
 ) {
+    // 다른 화장실로 바꿔 누르면 받는 동안 앞 내용 모양으로 자리를 지켜 카드 높이가 출렁이지 않게 한다.
+    var lastLoaded by remember { mutableStateOf<RestroomDetail?>(null) }
+    LaunchedEffect(detail) {
+        if (detail is RestroomDetailState.Loaded) lastLoaded = detail.detail
+    }
+
     Surface(
         modifier = modifier,
         shape = RoundedCornerShape(12.dp),
@@ -99,27 +115,42 @@ internal fun RestroomInfoCard(
             when (detail) {
                 is RestroomDetailState.Loaded -> RestroomInfoRows(detail.detail)
                 RestroomDetailState.Failed -> CardMessage("정보를 불러오지 못했어요. 화장실을 다시 누르면 다시 불러와요")
-                RestroomDetailState.Loading, null -> CardMessage("정보를 불러오는 중이에요")
+                RestroomDetailState.Loading, null -> lastLoaded?.let { previous ->
+                    RestroomInfoRows(previous, placeholder = true)
+                } ?: CardMessage(LoadingMessage)
             }
         }
     }
 }
 
+private const val LoadingMessage = "정보를 불러오는 중이에요"
+
+/**
+ * @param placeholder 앞 화장실 내용으로 자리만 지킨다. 글자는 회색 막대로 가리고 읽기 도구에는 불러오는 중이라고 알린다.
+ */
 @Composable
-private fun RestroomInfoRows(detail: RestroomDetail) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+private fun RestroomInfoRows(detail: RestroomDetail, placeholder: Boolean = false) {
+    val bar = if (placeholder) Modifier.background(MoaMapPrimitiveColors.Gray50, RoundedCornerShape(4.dp)) else Modifier
+    fun Color.orHidden(): Color = if (placeholder) Color.Transparent else this
+    Column(
+        modifier = if (placeholder) Modifier.clearAndSetSemantics { contentDescription = LoadingMessage } else Modifier,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         detail.toInfoRows().forEach { (label, value) ->
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text(
-                    text = label,
-                    style = MoaMapTheme.typography.caption0,
-                    color = MoaMapTheme.colors.textAssistive,
-                    modifier = Modifier.width(56.dp),
-                )
+                Box(modifier = Modifier.width(56.dp)) {
+                    Text(
+                        text = label,
+                        style = MoaMapTheme.typography.caption0,
+                        color = MoaMapTheme.colors.textAssistive.orHidden(),
+                        modifier = bar,
+                    )
+                }
                 Text(
                     text = value,
                     style = MoaMapTheme.typography.body3,
-                    color = MoaMapTheme.colors.textAlternative,
+                    color = MoaMapTheme.colors.textAlternative.orHidden(),
+                    modifier = bar,
                 )
             }
         }
@@ -127,8 +158,8 @@ private fun RestroomInfoRows(detail: RestroomDetail) {
             Text(
                 text = "${date.replace('-', '.')} 기준 공공데이터",
                 style = MoaMapTheme.typography.caption0,
-                color = MoaMapTheme.colors.textAssistive,
-                modifier = Modifier.padding(top = 4.dp),
+                color = MoaMapTheme.colors.textAssistive.orHidden(),
+                modifier = Modifier.padding(top = 4.dp).then(bar),
             )
         }
     }

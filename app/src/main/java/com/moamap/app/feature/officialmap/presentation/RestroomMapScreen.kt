@@ -1,6 +1,5 @@
 package com.moamap.app.feature.officialmap.presentation
 
-import android.graphics.RectF
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -20,6 +19,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,6 +47,7 @@ import com.mapbox.geojson.Feature
 import com.mapbox.geojson.Point
 import com.mapbox.maps.MapboxDelicateApi
 import com.mapbox.maps.coroutine.mapIdleEvents
+import com.mapbox.maps.dsl.cameraOptions
 import com.mapbox.maps.extension.compose.MapEffect
 import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.MapViewportState
@@ -66,7 +67,7 @@ import com.mapbox.maps.plugin.gestures.generated.GesturesSettings
 private const val RESTROOM_LAYER_ID = "restroom-circle"
 private const val RESTROOM_ID_PROPERTY = "id"
 
-/** 처음 보는 자리. 서울 시청 앞. */
+/** 내 위치를 모를 때 보는 자리. 서울 시청 앞. */
 private val RestroomMapStart = Point.fromLngLat(126.9780, 37.5665)
 
 /** 처음 줌. 시청 근처 화장실이 한도(500)를 넘지 않고 마커가 겹치지 않는 정도. */
@@ -127,6 +128,8 @@ fun RestroomPreviewMap(
         modifier = modifier,
         // 소개 화면은 권한을 묻지 않는다. 이미 허용돼 있을 때만 내 위치가 보인다.
         showsMyLocation = hasLocationPermission(LocalContext.current),
+        // 되돌릴 나침반이 없는 작은 지도라 돌리거나 기울이지 못하게 한다.
+        allowsRotation = false,
     )
 }
 
@@ -140,18 +143,43 @@ private fun RestroomMapBody(
     val context = LocalContext.current
     val mapViewportState = rememberRestroomViewportState()
 
-    // 내 위치 이동은 지도 상세와 같은 방식이다. 다만 들어올 때 권한을 묻지 않는다 - 시작 자리가
-    // 내 위치가 아니라 시청이라, 버튼을 누를 때 물으면 된다.
+    // 내 위치 이동은 지도 상세와 같은 방식이다. 가까운 화장실을 찾는 지도라 들어올 때 권한을 묻고
+    // 허용되면 내 위치에서 시작한다. 거절하거나 위치를 못 찾으면 시청에 머문다.
     var locationGranted by remember { mutableStateOf(hasLocationPermission(context)) }
     var myLocationRequest by remember { mutableIntStateOf(0) }
     var myLocationInProgress by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf<String?>(null) }
 
+    /** 버튼 때문에 권한을 묻는 중인지. 들어올 때 묻는 것은 거절해도 안내하지 않는다. */
+    var awaitingLocationPermission by remember { mutableStateOf(false) }
+
+    /** 처음 자리를 정했는지. 화면을 돌려도 다시 옮기지 않는다. */
+    var startDecided by rememberSaveable { mutableStateOf(false) }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
         locationGranted = result.values.any { isGranted -> isGranted }
-        if (!locationGranted) notice = LOCATION_PERMISSION_DENIED_MESSAGE
+        if (!locationGranted) {
+            if (awaitingLocationPermission) notice = LOCATION_PERMISSION_DENIED_MESSAGE
+            startDecided = true
+        }
+        awaitingLocationPermission = false
+    }
+
+    LaunchedEffect(Unit) {
+        if (!startDecided && !locationGranted) permissionLauncher.launch(LocationPermissions)
+    }
+
+    LaunchedEffect(locationGranted) {
+        if (startDecided || !locationGranted) return@LaunchedEffect
+        startDecided = true
+        currentLocation()?.let { point ->
+            mapViewportState.setCameraOptions {
+                center(point)
+                zoom(RestroomMapZoom)
+            }
+        }
     }
 
     // 버튼은 요청만 올리고 옮기는 일은 여기서 한다. 권한을 묻느라 미뤄진 요청도 허용되면 이어진다.
@@ -180,7 +208,7 @@ private fun RestroomMapBody(
             onMapClick = onMapClick,
             mapViewportState = mapViewportState,
             modifier = Modifier.fillMaxSize(),
-            // 권한은 내 위치 버튼을 누를 때 묻는다. 허용되는 순간부터 내 위치가 보인다.
+            // 허용되는 순간부터 내 위치가 보인다.
             showsMyLocation = locationGranted,
         )
 
@@ -212,7 +240,10 @@ private fun RestroomMapBody(
                 onClick = {
                     if (!myLocationInProgress) {
                         myLocationRequest++
-                        if (!locationGranted) permissionLauncher.launch(LocationPermissions)
+                        if (!locationGranted) {
+                            awaitingLocationPermission = true
+                            permissionLauncher.launch(LocationPermissions)
+                        }
                     }
                 },
             )
@@ -245,7 +276,8 @@ private fun rememberRestroomViewportState(): MapViewportState = rememberMapViewp
  * 화장실 마커 지도. 카메라가 멈출 때마다 보이는 범위를 [onCameraIdle] 로 알린다.
  *
  * 마커는 많게는 500개라 지도 상세처럼 마커마다 뷰를 띄우지 않고 원 레이어 하나로 그린다.
- * 회전·기울기는 닫는다 - 화장실을 찾는 데 쓸 일이 없고, 기울이면 먼 곳까지 범위에 들어간다.
+ *
+ * @param allowsRotation 두 손가락 회전·기울기. 미리보기처럼 되돌릴 방법이 없는 화면에서는 끈다.
  */
 @OptIn(MapboxDelicateApi::class)
 @Composable
@@ -259,11 +291,12 @@ private fun RestroomMarkersMap(
     mapViewportState: MapViewportState = rememberRestroomViewportState(),
     /** 위치 권한이 있으면 지도 위에 내 위치를 그린다. */
     showsMyLocation: Boolean = false,
+    allowsRotation: Boolean = true,
 ) {
     val mapState = rememberMapState {
         gesturesSettings = GesturesSettings {
-            rotateEnabled = false
-            pitchEnabled = false
+            rotateEnabled = allowsRotation
+            pitchEnabled = allowsRotation
         }
     }
 
@@ -307,8 +340,16 @@ private fun RestroomMarkersMap(
         MapEffect(Unit) { mapView ->
             val map = mapView.mapboxMap
             map.mapIdleEvents.collect {
-                val bounds = map.coordinateBoundsForRect(
-                    RectF(0f, 0f, mapView.width.toFloat(), mapView.height.toFloat()),
+                // 기울이면 지평선 쪽 먼 곳까지 보인다. 펴서 본 범위만 읽어 서버 한도(500곳)를 넘기지 않는다.
+                val camera = map.cameraState
+                val bounds = map.coordinateBoundsForCamera(
+                    cameraOptions {
+                        center(camera.center)
+                        zoom(camera.zoom)
+                        bearing(camera.bearing)
+                        padding(camera.padding)
+                        pitch(0.0)
+                    },
                 )
                 currentOnCameraIdle(
                     ViewportBounds(
