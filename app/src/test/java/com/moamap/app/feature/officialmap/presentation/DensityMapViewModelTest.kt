@@ -95,6 +95,16 @@ class DensityMapViewModelTest {
     }
 
     @Test
+    fun `빈 곳을 누르면 선택이 해제된다`() = runTest {
+        val viewModel = DensityMapViewModel(FakeRepository { listOf(sampleArea("A")) })
+        dispatcher.scheduler.advanceUntilIdle()
+
+        viewModel.selectArea("A")
+        viewModel.clearSelection()
+        assertEquals(null, (viewModel.uiState.value as DensityMapUiState.Success).selectedCode)
+    }
+
+    @Test
     fun `레벨을 고르면 해당 레벨 지역만 남는다`() = runTest {
         val viewModel = DensityMapViewModel(
             FakeRepository {

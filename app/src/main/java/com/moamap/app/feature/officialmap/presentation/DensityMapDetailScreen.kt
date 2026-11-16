@@ -28,15 +28,19 @@ import com.mapbox.geojson.Point
 import com.mapbox.maps.MapboxDelicateApi
 import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
+import com.mapbox.maps.extension.compose.rememberMapState
 import com.mapbox.maps.extension.compose.style.ColorValue
 import com.mapbox.maps.extension.compose.style.DoubleValue
 import com.mapbox.maps.extension.compose.style.layers.generated.FillLayer
 import com.mapbox.maps.extension.compose.style.layers.generated.LineLayer
 import com.mapbox.maps.extension.compose.style.sources.GeoJSONData
 import com.mapbox.maps.extension.compose.style.sources.generated.rememberGeoJsonSourceState
+import com.mapbox.maps.extension.compose.style.standard.LightPresetValue
 import com.mapbox.maps.extension.compose.style.standard.MapboxStandardStyle
+import com.mapbox.maps.extension.compose.style.standard.ThemeValue
 import com.mapbox.maps.extension.compose.style.standard.rememberStandardStyleState
 import com.mapbox.maps.extension.style.expressions.generated.Expression
+import com.mapbox.maps.plugin.gestures.generated.GesturesSettings
 
 private const val DENSITY_FILL_LAYER_ID = "density-fill"
 
@@ -66,6 +70,7 @@ fun DensityMapDetailScreen(
             uiState = uiState,
             onRetryClick = viewModel::retry,
             onAreaClick = viewModel::selectArea,
+            onMapClick = viewModel::clearSelection,
             onLevelClick = viewModel::selectLevel,
         )
     }
@@ -76,6 +81,7 @@ private fun DensityMapBody(
     uiState: DensityMapUiState,
     onRetryClick: () -> Unit,
     onAreaClick: (String?) -> Unit,
+    onMapClick: () -> Unit,
     onLevelClick: (CongestionLevel?) -> Unit,
 ) {
     Box(modifier = Modifier.fillMaxSize()) {
@@ -98,6 +104,7 @@ private fun DensityMapBody(
                     selectedArea = uiState.selectedArea,
                     filterLevel = uiState.filterLevel,
                     onAreaClick = onAreaClick,
+                    onMapClick = onMapClick,
                     onLevelClick = onLevelClick,
                 )
             }
@@ -112,6 +119,7 @@ private fun DensityMapContent(
     selectedArea: DensityArea?,
     filterLevel: CongestionLevel?,
     onAreaClick: (String?) -> Unit,
+    onMapClick: () -> Unit,
     onLevelClick: (CongestionLevel?) -> Unit,
 ) {
     val featureCollectionJson = remember(areas) { areas.toFeatureCollectionJson() }
@@ -137,13 +145,27 @@ private fun DensityMapContent(
     densitySource.data = GeoJSONData(featureCollectionJson)
     selectedSource.data = GeoJSONData(selectedFeatureJson)
 
+    // 한 번 탭은 두 번 탭 확대가 아닌 게 확정될 때까지 늦게 온다. 구역을 누르면 바로 칠하도록 끈다.
+    val mapState = rememberMapState {
+        gesturesSettings = GesturesSettings { doubleTapToZoomInEnabled = false }
+    }
+
     // 클릭 리스너는 최초 1회만 등록하고, 콜백은 항상 최신 onAreaClick을 바라보게 한다.
     val currentOnAreaClick by rememberUpdatedState(onAreaClick)
+    val currentOnMapClick by rememberUpdatedState(onMapClick)
     val standardStyleState = rememberStandardStyleState {
+        // 흐린 밤 지도 위에 혼잡도 색을 올린다(iOS 와 같다).
+        configurationsState.theme = ThemeValue.FADED
+        configurationsState.lightPreset = LightPresetValue.NIGHT
         // 폴리곤 탭 → 지역 코드 추출 후 선택 토글
         interactionsState.onLayerClicked(id = DENSITY_FILL_LAYER_ID) { feature, _ ->
             val code = feature.properties.optString("code")
             if (code.isNotEmpty()) currentOnAreaClick(code)
+            true
+        }
+        // 지역이 받은 탭은 여기까지 오지 않는다. 빈 곳을 눌렀을 때만 온다.
+        interactionsState.onMapClicked { _ ->
+            currentOnMapClick()
             true
         }
     }
@@ -152,6 +174,7 @@ private fun DensityMapContent(
         MapboxMap(
             modifier = Modifier.fillMaxSize(),
             mapViewportState = mapViewportState,
+            mapState = mapState,
             compass = {},
             style = {
                 MapboxStandardStyle(standardStyleState = standardStyleState)
@@ -161,24 +184,29 @@ private fun DensityMapContent(
             // 이 화면은 권한을 묻지 않는다. 이미 허용돼 있을 때만 내 위치가 보인다.
             MyLocationPuck(enabled = hasLocationPermission(LocalContext.current))
             // 평상시: 부드러운 채움 + 흐린 경계 (하이브리드의 그라데이션 느낌)
+            // 밤 조명을 받으면 혼잡도 색이 어두워지므로 레이어마다 조명을 받지 않게 한다(emissive 1).
             FillLayer(sourceState = densitySource, layerId = DENSITY_FILL_LAYER_ID) {
                 fillColor = ColorValue(levelColorExpression())
-                fillOpacity = DoubleValue(0.35)
+                fillOpacity = DoubleValue(0.55)
+                fillEmissiveStrength = DoubleValue(1.0)
             }
             LineLayer(sourceState = densitySource, layerId = "density-line") {
                 lineColor = ColorValue(levelColorExpression())
                 lineWidth = DoubleValue(10.0)
                 lineBlur = DoubleValue(8.0)
                 lineOpacity = DoubleValue(0.5)
+                lineEmissiveStrength = DoubleValue(1.0)
             }
             // 선택된 지역: 진한 채움 + 또렷한 테두리
             FillLayer(sourceState = selectedSource, layerId = "density-selected-fill") {
                 fillColor = ColorValue(levelColorExpression())
-                fillOpacity = DoubleValue(0.55)
+                fillOpacity = DoubleValue(0.75)
+                fillEmissiveStrength = DoubleValue(1.0)
             }
             LineLayer(sourceState = selectedSource, layerId = "density-selected-line") {
                 lineColor = ColorValue(levelColorExpression())
                 lineWidth = DoubleValue(2.5)
+                lineEmissiveStrength = DoubleValue(1.0)
             }
         }
 

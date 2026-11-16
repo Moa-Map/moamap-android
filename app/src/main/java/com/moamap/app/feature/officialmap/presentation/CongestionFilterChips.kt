@@ -9,12 +9,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.moamap.app.core.designsystem.theme.MoaMapPrimitiveColors
 import com.moamap.app.core.designsystem.theme.MoaMapTheme
@@ -65,8 +67,15 @@ private fun CongestionFilterChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
+    // 눌러도 물결 효과를 그리지 않는다(iOS 와 같다). 고른 칩은 읽기 도구가 「선택됨」으로 읽는다.
     Surface(
-        onClick = onClick,
+        modifier = Modifier.selectable(
+            selected = selected,
+            interactionSource = null,
+            indication = null,
+            role = Role.Button,
+            onClick = onClick,
+        ),
         shape = CircleShape,
         color = if (selected) MoaMapPrimitiveColors.Gray800 else MoaMapPrimitiveColors.White,
         shadowElevation = 2.dp,
