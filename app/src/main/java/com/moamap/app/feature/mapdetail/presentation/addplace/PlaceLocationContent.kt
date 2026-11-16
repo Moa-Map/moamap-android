@@ -33,9 +33,12 @@ import com.mapbox.maps.ViewAnnotationAnchor
 import com.mapbox.maps.extension.compose.MapboxMap
 import com.mapbox.maps.extension.compose.animation.viewport.rememberMapViewportState
 import com.mapbox.maps.extension.compose.annotation.ViewAnnotation
+import com.mapbox.maps.extension.compose.rememberMapState
+import com.mapbox.maps.extension.compose.style.BooleanValue
 import com.mapbox.maps.extension.compose.style.standard.LightPresetValue
 import com.mapbox.maps.extension.compose.style.standard.MapboxStandardStyle
 import com.mapbox.maps.extension.compose.style.standard.rememberStandardStyleState
+import com.mapbox.maps.plugin.gestures.generated.GesturesSettings
 import com.mapbox.maps.viewannotation.annotationAnchor
 import com.mapbox.maps.viewannotation.geometry
 import com.mapbox.maps.viewannotation.viewAnnotationOptions
@@ -91,8 +94,16 @@ internal fun PlaceLocationContent(
             zoom(PlaceFocusZoom)
         }
     }
+    // 되돌릴 나침반이 없는 화면이라 돌리거나 기울이지 못하게 한다(설명 화면 미리보기·iOS 와 같다).
+    val mapState = rememberMapState {
+        gesturesSettings = GesturesSettings {
+            rotateEnabled = false
+            pitchEnabled = false
+        }
+    }
     val styleState = rememberStandardStyleState {
         configurationsState.lightPreset = LightPresetValue.DAY
+        configurationsState.show3dObjects = BooleanValue(false)
     }
 
     // 시트가 지도 아래쪽을 덮는다. 시트 높이를 알면 장소가 시트 위 빈 곳 가운데에 오도록 여백을 준다.
@@ -118,6 +129,7 @@ internal fun PlaceLocationContent(
         MapboxMap(
             modifier = Modifier.fillMaxSize(),
             mapViewportState = mapViewportState,
+            mapState = mapState,
             // 축척과 나침반을 띄우지 않는다. 로고와 저작권 표시는 약관상 남긴다.
             compass = {},
             scaleBar = {},
