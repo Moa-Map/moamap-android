@@ -13,6 +13,12 @@ import com.moamap.app.feature.mapdetail.presentation.info.MapInfoEditScreen
 import com.moamap.app.feature.mapdetail.presentation.info.MapInfoEditViewModel
 import com.moamap.app.feature.mapdetail.presentation.info.MapInfoScreen
 import com.moamap.app.feature.mapdetail.presentation.manage.MapManageScreen
+import com.moamap.app.feature.mapdetail.domain.model.LeaveOutcome
+import com.moamap.app.feature.mapdetail.presentation.handover.HANDOVER_ALONE_MESSAGE
+import com.moamap.app.feature.mapdetail.presentation.handover.NewOwnerDialog
+import com.moamap.app.feature.mapdetail.presentation.handover.NewOwnerNoticeViewModel
+import com.moamap.app.feature.mapdetail.presentation.handover.OwnerHandoverPromptDialog
+import com.moamap.app.feature.mapdetail.presentation.handover.OwnerHandoverPromptViewModel
 import com.moamap.app.feature.mapdetail.presentation.members.MemberScreen
 import com.moamap.app.feature.mapdetail.presentation.members.MemberViewModel
 import com.moamap.app.feature.mapdetail.presentation.posts.MapPostDetailScreen
@@ -90,6 +96,10 @@ fun MapDetailScreen(
     modifier: Modifier = Modifier,
     /** 서버 응답이 오기 전 상단바를 채우는 초기값. 응답이 도착하면 덮어쓴다. */
     initialTitle: String = "",
+    /** 방장 위임 화면에서 방장을 넘기고 나왔다. 이미 나간 지도라 이 화면도 닫는다. */
+    ownerHandedOver: Boolean = false,
+    /** 위임 안내에서 [멤버 선택]을 눌렀다. 방장 위임 화면으로 간다. */
+    onOwnerHandoverClick: (mapId: Long) -> Unit = {},
     viewModel: MapDetailViewModel = hiltViewModel(),
     addPlaceViewModel: AddPlaceViewModel = hiltViewModel(),
     reviewViewModel: PlaceReviewViewModel = hiltViewModel(),
@@ -106,6 +116,8 @@ fun MapDetailScreen(
     val memberViewModel: MemberViewModel = hiltViewModel()
     val mapInfoEditViewModel: MapInfoEditViewModel = hiltViewModel()
     val placeEditViewModel: PlaceEditViewModel = hiltViewModel()
+    val handoverPromptViewModel: OwnerHandoverPromptViewModel = hiltViewModel()
+    val newOwnerNoticeViewModel: NewOwnerNoticeViewModel = hiltViewModel()
 
     val screenState by viewModel.uiState.collectAsStateWithLifecycle()
     val reviewState by reviewViewModel.uiState.collectAsStateWithLifecycle()
@@ -121,11 +133,19 @@ fun MapDetailScreen(
     val memberState by memberViewModel.uiState.collectAsStateWithLifecycle()
     val mapInfoEditState by mapInfoEditViewModel.uiState.collectAsStateWithLifecycle()
     val placeEditState by placeEditViewModel.uiState.collectAsStateWithLifecycle()
+    val handoverPrompt by handoverPromptViewModel.uiState.collectAsStateWithLifecycle()
+    val newOwnerNoticeVisible by newOwnerNoticeViewModel.visible.collectAsStateWithLifecycle()
 
-    // 나가기가 끝나면 왔던 곳(탐색 또는 모음)으로 돌아간다.
-    LaunchedEffect(screenState.left) {
+    // 나가기가 끝나면 왔던 곳(탐색 또는 모음)으로 돌아간다. 방장을 넘기고 나간 것도 같다.
+    LaunchedEffect(screenState.left, ownerHandedOver) {
         // 나간 뒤에는 멤버가 아니다. 소개 화면이 남아 있으면 그쪽으로 돌아가는 게 맞다.
-        if (screenState.left) onBackClick(false)
+        if (screenState.left || ownerHandedOver) onBackClick(false)
+    }
+
+    // 지도를 읽을 때마다 내 역할을 기억해 두고, 멤버·관리자였다가 방장이 됐으면 한 번 알린다.
+    val loadedMap = screenState.map.mapOrNull
+    LaunchedEffect(loadedMap?.joined, loadedMap?.role) {
+        loadedMap?.let { map -> newOwnerNoticeViewModel.onRoleLoaded(joined = map.joined, role = map.role) }
     }
 
     val context = LocalContext.current
@@ -210,7 +230,7 @@ fun MapDetailScreen(
     // 나가기는 바로 하지 않고 이 팝업에서 한 번 더 묻는다.
     var leaveDialogVisible by rememberSaveable { mutableStateOf(false) }
 
-    // 커뮤니티 방장이 메뉴의 나가기를 누르면 나갈 수 없다는 안내만 띄운다 - `MapDetail.canLeaveFromMenu` 참고.
+    // 혼자 남은 커뮤니티 방장이 메뉴의 나가기를 누르면 나갈 수 없다는 안내만 띄운다 - `MapDetail.canLeaveFromMenu` 참고.
     var ownerLeaveNoticeVisible by rememberSaveable { mutableStateOf(false) }
 
     var uiState by rememberSaveable(stateSaver = MapDetailUiStateSaver) {
@@ -769,10 +789,13 @@ fun MapDetailScreen(
                 },
                 onLeaveClick = {
                     menuVisible = false
-                    if (screenState.leaveOutcome == null) {
-                        ownerLeaveNoticeVisible = true
-                    } else {
-                        leaveDialogVisible = true
+                    val mapId = screenState.map.mapOrNull?.id
+                    when {
+                        screenState.leaveOutcome == null -> ownerLeaveNoticeVisible = true
+                        // 다른 멤버가 있는 방장은 넘길 사람을 고르고 나간다.
+                        screenState.leaveOutcome == LeaveOutcome.HandOverOwner && mapId != null ->
+                            handoverPromptViewModel.open(mapId)
+                        else -> leaveDialogVisible = true
                     }
                 },
                 hazeState = menuHazeState,
@@ -935,8 +958,20 @@ fun MapDetailScreen(
     }
 
     // 초대 코드 팝업과 같다. 나갈 수 없는 상태가 되면 같이 닫힌다.
+    OwnerHandoverPromptDialog(
+        prompt = handoverPrompt.prompt,
+        onSelectMemberClick = onOwnerHandoverClick,
+        onDismiss = handoverPromptViewModel::dismiss,
+    )
+    LaunchedEffect(handoverPrompt.errorMessage) {
+        val message = handoverPrompt.errorMessage ?: return@LaunchedEffect
+        mapNotice = message
+        handoverPromptViewModel.consumeError()
+    }
+    if (newOwnerNoticeVisible) NewOwnerDialog(onDismiss = newOwnerNoticeViewModel::dismiss)
+
     val leaveOutcome = screenState.leaveOutcome
-    if (leaveDialogVisible && leaveOutcome != null) {
+    if (leaveDialogVisible && leaveOutcome != null && leaveOutcome != LeaveOutcome.HandOverOwner) {
         MapLeaveDialog(
             mapName = screenState.title ?: initialTitle,
             outcome = leaveOutcome,
@@ -957,7 +992,7 @@ fun MapDetailScreen(
         }
         MoaMapNoticeDialog(
             title = "방장은 지도를 나갈 수 없습니다.",
-            message = "방장 넘기기 기능은 준비 중이에요",
+            message = HANDOVER_ALONE_MESSAGE,
             onDismissRequest = { ownerLeaveNoticeVisible = false },
         )
     }

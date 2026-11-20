@@ -23,6 +23,8 @@ import com.moamap.app.feature.mapdetail.domain.repository.PersonalMapRepository
 import com.moamap.app.feature.mapdetail.domain.repository.PlaceAddRepository
 import com.moamap.app.feature.mapdetail.domain.repository.PlaceReviewRepository
 import com.moamap.app.feature.mapdetail.domain.repository.PlaceSearchRepository
+import com.moamap.app.feature.mapdetail.presentation.handover.MapRoleHistory
+import com.moamap.app.feature.mapdetail.presentation.handover.SharedPreferencesMapRoleHistory
 import dagger.Binds
 import dagger.Module
 import dagger.Provides
@@ -66,6 +68,10 @@ internal abstract class MapDetailModule {
     @Binds
     @Singleton
     abstract fun bindMapMemberRepository(impl: MapMemberRepositoryImpl): MapMemberRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindMapRoleHistory(impl: SharedPreferencesMapRoleHistory): MapRoleHistory
 
     @Binds
     @Singleton

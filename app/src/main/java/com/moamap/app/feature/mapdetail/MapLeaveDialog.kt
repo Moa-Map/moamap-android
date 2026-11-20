@@ -41,10 +41,12 @@ internal fun leaveConfirmMessage(outcome: LeaveOutcome): String = when (outcome)
     LeaveOutcome.LeaveNeedsInviteCode ->
         "나가시면 모음 탭에서 지도가 사라집니다\n다시 들어오려면 초대코드가 필요합니다"
     LeaveOutcome.DeleteMap -> "혼자 남은 지도라 나가면 지도가 삭제됩니다\n되돌릴 수 없습니다"
+    // 방장 위임은 이 팝업 대신 위임 안내를 띄운다. 잘못 이어져도 무엇을 해야 하는지는 알린다.
+    LeaveOutcome.HandOverOwner -> "나가기 전에 방장을 다른 멤버에게 넘겨주세요"
 }
 
 private class LeaveOutcomeProvider : PreviewParameterProvider<LeaveOutcome> {
-    override val values = LeaveOutcome.entries.asSequence()
+    override val values = LeaveOutcome.entries.asSequence().filter { outcome -> outcome != LeaveOutcome.HandOverOwner }
 }
 
 @Preview(showBackground = true, widthDp = 393, heightDp = 852)

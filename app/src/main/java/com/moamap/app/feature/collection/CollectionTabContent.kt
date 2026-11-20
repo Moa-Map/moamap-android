@@ -423,7 +423,8 @@ private fun MyMapCard(
                     selected = selected,
                     enabled = eligibility == LeaveEligibility.Allowed ||
                         eligibility == LeaveEligibility.Checking ||
-                        eligibility == LeaveEligibility.Owner,
+                        eligibility == LeaveEligibility.Owner ||
+                        eligibility == LeaveEligibility.HandOver,
                 )
             }
         },

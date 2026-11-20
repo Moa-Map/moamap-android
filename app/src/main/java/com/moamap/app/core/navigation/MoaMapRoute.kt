@@ -170,6 +170,19 @@ sealed interface MoaMapRoute {
         ): String = "map_detail/$mapId?$ARG_MAP_TITLE=${Uri.encode(mapTitle)}&$ARG_POST_ID=$postId&$ARG_JOINED=$joined"
     }
 
+    /**
+     * 방장 위임. 방장이 새 방장을 고르고 지도에서 나간다. 모음 편집과 지도 상세에서 온다.
+     *
+     * 지도 id 이름을 [MapDetail.ARG_MAP_ID] 와 같게 둬 [requireMapId] 를 그대로 쓴다.
+     */
+    data object OwnerHandover : MoaMapRoute {
+        const val ARG_MAP_ID = MapDetail.ARG_MAP_ID
+
+        override val route = "owner_handover/{$ARG_MAP_ID}"
+
+        fun createRoute(mapId: Long): String = "owner_handover/$mapId"
+    }
+
     data object ProfileEdit : MoaMapRoute {
         override val route = "profile_edit"
     }

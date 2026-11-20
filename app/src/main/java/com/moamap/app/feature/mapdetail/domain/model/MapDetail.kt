@@ -169,8 +169,8 @@ val MapDetail.staysAfterLeaving: Boolean
 /**
  * 메뉴에 나가기를 넣을지. 참여한 커뮤니티 지도다.
  *
- * 방장도 넣는다(시안 `5159:34371`). 아직 나갈 수 없어서 누르면 안내만 띄운다 - [leaveOutcome] 이 null 이다.
- * 방장을 넘기는 API 가 생기면 그 화면으로 바꾼다(10-27 사용자 결정).
+ * 방장도 넣는다(시안 `5159:34371`). 다른 멤버가 있으면 방장을 넘기고 나가고([LeaveOutcome.HandOverOwner]),
+ * 혼자 남았으면 나갈 수 없어 안내만 띄운다([leaveOutcome] 이 null).
  *
  * 프라이빗 지도는 뺀다. 메뉴 자리를 초대코드가 쓰고, 나가기는 모음 탭 편집에서 한다(10-06 시안·사용자 결정).
  */
@@ -203,11 +203,22 @@ enum class LeaveOutcome {
 
     /** 지도가 삭제된다. 되돌릴 수 없다 - [leavingDeletesMap] 참고. */
     DeleteMap,
+
+    /**
+     * 방장이 새 방장을 골라 넘긴 뒤 나간다. 확인 팝업 대신 위임 안내와 방장 위임 화면을 거친다.
+     *
+     * 다른 멤버가 있는 커뮤니티 지도의 방장이다. 프라이빗 지도의 방장은 아직 넣지 않았다 - 프라이빗 나가기는
+     * 사용자가 따로 정리하기로 했다(11-20).
+     */
+    HandOverOwner,
 }
 
 /** 메뉴의 나가기를 눌렀을 때 일어날 일. 나갈 수 없으면 null 이다. */
 val MapDetail.leaveOutcome: LeaveOutcome?
     get() = when {
+        // 인원은 상세를 읽은 때의 값이다. 그사이 모두 나갔으면 후보 조회가 비어 혼자 남은 안내로 바뀐다.
+        joined && !personal && type == MapType.Community && role == MapRole.Owner && memberCount > 1 ->
+            LeaveOutcome.HandOverOwner
         // 메뉴에 나가기를 띄우는지([canLeaveFromMenu])가 아니라 나갈 수 있는지를 본다. 프라이빗 지도는
         // 메뉴에 나가기가 없어도 모음 탭 편집에서 나간다.
         topBarAction != MapDetailAction.Leave -> null

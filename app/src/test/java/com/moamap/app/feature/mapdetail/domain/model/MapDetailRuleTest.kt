@@ -327,6 +327,20 @@ class MapDetailRuleTest {
     }
 
     @Test
+    fun `다른 멤버가 있는 커뮤니티 방장은 방장을 넘기고 나간다`() {
+        assertEquals(
+            LeaveOutcome.HandOverOwner,
+            map(MapType.Community, MapRole.Owner, joined = true, memberCount = 3).leaveOutcome,
+        )
+        // 프라이빗 방장은 아직 넣지 않았다(사용자가 따로 정리).
+        assertNull(map(MapType.Private, MapRole.Owner, joined = true, memberCount = 3).leaveOutcome)
+        // 나만의 지도는 혼자라 넘길 사람이 없다.
+        assertNull(
+            map(MapType.Community, MapRole.Owner, joined = true, memberCount = 3, personal = true).leaveOutcome,
+        )
+    }
+
+    @Test
     fun `나갈 수 없는 지도는 물어볼 것이 없다`() {
         assertNull(map(MapType.Community, MapRole.Owner, joined = true).leaveOutcome)
         assertNull(map(MapType.Private, MapRole.Owner, joined = true, memberCount = 3).leaveOutcome)

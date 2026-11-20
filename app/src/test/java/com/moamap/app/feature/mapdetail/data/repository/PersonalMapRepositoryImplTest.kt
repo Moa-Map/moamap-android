@@ -7,6 +7,7 @@ import com.moamap.app.feature.collection.data.remote.JoinByInviteCodeRequestDto
 import com.moamap.app.feature.collection.data.remote.MapCreateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapDetailDto
 import com.moamap.app.feature.collection.data.remote.MapMemberListDto
+import com.moamap.app.feature.collection.data.remote.MapMemberSummaryDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleUpdateDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleUpdateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapOrderUpdateRequestDto
@@ -124,7 +125,8 @@ private class PagedMyMapService(private val pages: List<List<MapSummaryDto>>) : 
     override suspend fun getMap(mapId: Long) = notUsed()
     override suspend fun updateMap(mapId: Long, request: MapUpdateRequestDto) = notUsed()
     override suspend fun deleteMap(mapId: Long): Unit = notUsed()
-    override suspend fun leaveMap(mapId: Long): Unit = notUsed()
+    override suspend fun leaveMap(mapId: Long, newOwnerId: Long?): Unit = notUsed()
+    override suspend fun getOwnerCandidates(mapId: Long): List<MapMemberSummaryDto> = notUsed()
     override suspend fun getMembers(mapId: Long): MapMemberListDto = notUsed()
     override suspend fun updateMemberRole(
         mapId: Long,

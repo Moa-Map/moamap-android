@@ -37,6 +37,7 @@ import com.moamap.app.feature.collection.share.SharedLink
 import com.moamap.app.feature.explore.CommunityMapListScreen
 import com.moamap.app.feature.explore.ExploreScreen
 import com.moamap.app.feature.mapdetail.MapDetailScreen
+import com.moamap.app.feature.mapdetail.presentation.handover.OwnerHandoverScreen
 import com.moamap.app.feature.mapdetail.presentation.intro.MapIntroScreen
 import com.moamap.app.feature.mypage.BlockManagementScreen
 import com.moamap.app.feature.mypage.InquiryScreen
@@ -240,9 +241,18 @@ internal fun MoaMapNavHost(
                     .getStateFlow<String?>(CreateMapNoticeKey, null)
                     .collectAsStateWithLifecycle()
 
+                val ownerHandedOver by entry.savedStateHandle
+                    .getStateFlow(OwnerHandedOverKey, false)
+                    .collectAsStateWithLifecycle()
+
                 CollectionScreen(
                     pendingNotice = createMapNotice,
                     onPendingNoticeConsumed = { entry.savedStateHandle[CreateMapNoticeKey] = null },
+                    ownerHandedOver = ownerHandedOver,
+                    onOwnerHandedOverConsumed = { entry.savedStateHandle[OwnerHandedOverKey] = false },
+                    onOwnerHandoverClick = { mapId ->
+                        navController.navigate(MoaMapRoute.OwnerHandover.createRoute(mapId))
+                    },
                     onToast = { message -> tabToast = message },
                     onSelectionBarVisibleChange = { visible -> collectionSelectionBarVisible = visible },
                     // 로고는 홈(탐색)으로 가는 버튼이다. 하단 탭으로 옮기는 것과 같게 옮기되,
@@ -384,6 +394,10 @@ internal fun MoaMapNavHost(
                     defaultValue = MoaMapRoute.MapDetail.NO_POST_ID
                 },
             ) { backStackEntry ->
+                val ownerHandedOver by backStackEntry.savedStateHandle
+                    .getStateFlow(OwnerHandedOverKey, false)
+                    .collectAsStateWithLifecycle()
+
                 MapDetailScreen(
                     // 미리보기를 거쳐 들어와 참여했으면 소개 화면은 볼 일이 없다. 함께 지워
                     // 들어왔던 화면(탐색 또는 모음)으로 돌려보낸다. 소개를 거치지 않았으면
@@ -394,6 +408,23 @@ internal fun MoaMapNavHost(
                         if (!skippedIntro) navController.popBackStack()
                     },
                     initialTitle = backStackEntry.mapTitleArgument(),
+                    ownerHandedOver = ownerHandedOver,
+                    onOwnerHandoverClick = { mapId ->
+                        navController.navigate(MoaMapRoute.OwnerHandover.createRoute(mapId))
+                    },
+                )
+            }
+            composable(
+                route = MoaMapRoute.OwnerHandover.route,
+                arguments = listOf(navArgument(MoaMapRoute.OwnerHandover.ARG_MAP_ID) { type = NavType.LongType }),
+            ) {
+                OwnerHandoverScreen(
+                    onBackClick = navController::popBackStack,
+                    // 연 화면(모음 또는 지도 상세)에 알리고 닫는다. 지도 상세는 이어서 자기도 닫는다 - 이미 나간 지도다.
+                    onHandedOver = {
+                        navController.previousBackStackEntry?.savedStateHandle?.set(OwnerHandedOverKey, true)
+                        navController.popBackStack(MoaMapRoute.OwnerHandover.route, inclusive = true)
+                    },
                 )
             }
             composable(MoaMapRoute.ProfileEdit.route) {
@@ -545,6 +576,9 @@ private const val UNSUPPORTED_SHARE_MESSAGE = "인스타그램과 네이버·카
  * 보여줘야 해서 한 번짜리 신호를 남긴다.
  */
 private const val ScrollToTopKey = "explore_scroll_to_top"
+
+/** 방장 위임 화면이 연 화면에 남기는 신호. 방장을 넘기고 지도에서 나갔다. */
+private const val OwnerHandedOverKey = "owner_handed_over"
 
 /** 새 지도 만들기가 모음 탭에 돌려주는 안내. 불러온 장소를 다 넣지 못했을 때만 온다. */
 private const val CreateMapNoticeKey = "collection_create_map_notice"
