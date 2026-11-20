@@ -24,4 +24,11 @@ class MapMemberRepositoryImpl @Inject constructor(
             request = MapMemberRoleUpdateRequestDto(role = ROLE_ADMIN),
         )
     }
+
+    override suspend fun getOwnerCandidates(mapId: Long): List<MapMember> =
+        mapService.getOwnerCandidates(mapId).map { dto -> dto.toMapMember() }
+
+    override suspend fun handOverAndLeave(mapId: Long, newOwnerId: Long) {
+        mapService.leaveMap(mapId = mapId, newOwnerId = newOwnerId)
+    }
 }

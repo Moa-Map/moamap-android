@@ -10,6 +10,7 @@ import com.moamap.app.feature.collection.data.remote.JoinByInviteCodeRequestDto
 import com.moamap.app.feature.collection.data.remote.MapCreateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapDetailDto
 import com.moamap.app.feature.collection.data.remote.MapMemberListDto
+import com.moamap.app.feature.collection.data.remote.MapMemberSummaryDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleUpdateDto
 import com.moamap.app.feature.collection.data.remote.MapMemberRoleUpdateRequestDto
 import com.moamap.app.feature.collection.data.remote.MapOrderUpdateRequestDto
@@ -35,9 +36,11 @@ private class LeaveRecordingMapService(var detail: MapDetailDto) : MapService {
         calls += "deleteMap"
     }
 
-    override suspend fun leaveMap(mapId: Long) {
+    override suspend fun leaveMap(mapId: Long, newOwnerId: Long?) {
         calls += "leaveMap"
     }
+
+    override suspend fun getOwnerCandidates(mapId: Long): List<MapMemberSummaryDto> = TODO("사용하지 않음")
 
     override suspend fun createMap(request: MapCreateRequestDto): MapDetailDto = TODO("사용하지 않음")
 

@@ -210,7 +210,7 @@ class CollectionViewModel @Inject constructor(
 
         val notice = when (edit.eligibilityOf(mapId)) {
             LeaveEligibility.Checking -> return
-            LeaveEligibility.Allowed, LeaveEligibility.Owner -> null
+            LeaveEligibility.Allowed, LeaveEligibility.Owner, LeaveEligibility.HandOver -> null
             LeaveEligibility.Personal -> PERSONAL_CANNOT_LEAVE_MESSAGE
             LeaveEligibility.Unknown -> LEAVE_CHECK_FAILED_MESSAGE
         }
@@ -224,13 +224,25 @@ class CollectionViewModel @Inject constructor(
         _uiState.update { state -> state.copy(edit = edit.copy(selected = selected)) }
     }
 
+    /** 방장을 넘기고 나갈 지도([CollectionEditState.handOverMapId])는 화면이 위임 안내로 보낸다. 여기서는 묻지 않는다. */
     fun openLeaveConfirm() {
         val edit = _uiState.value.edit ?: return
-        if (edit.leaving || edit.selected.isEmpty()) return
+        if (edit.leaving || edit.selected.isEmpty() || edit.handOverMapId != null) return
         val hasOwnerMap = edit.selected.any { mapId -> edit.eligibilityOf(mapId) == LeaveEligibility.Owner }
         _uiState.update { state ->
             state.copy(edit = if (hasOwnerMap) edit.copy(ownerNoticeVisible = true) else edit.copy(confirmVisible = true))
         }
+    }
+
+    /**
+     * 방장 위임 화면에서 방장을 넘기고 나왔다. 그 지도는 이미 나갔으니 편집을 닫고 알린다. 목록은 화면이 다시
+     * 보일 때 새로 읽는다.
+     *
+     * 편집 중 바꾼 순서는 저장하지 않는다. 나간 지도가 섞인 순서를 보내면 서버가 거절한다.
+     */
+    fun onOwnerHandedOver() {
+        editJob?.cancel()
+        _uiState.update { state -> state.copy(edit = null, toast = MAP_LIST_UPDATED_TOAST) }
     }
 
     fun closeOwnerNotice() {
@@ -304,6 +316,7 @@ class CollectionViewModel @Inject constructor(
     private suspend fun checkEligibility(mapId: Long): LeaveEligibility = try {
         when (repository.getLeaveOutcome(mapId)) {
             null, LeaveOutcome.DeleteMap -> LeaveEligibility.Owner
+            LeaveOutcome.HandOverOwner -> LeaveEligibility.HandOver
             else -> LeaveEligibility.Allowed
         }
     } catch (e: CancellationException) {

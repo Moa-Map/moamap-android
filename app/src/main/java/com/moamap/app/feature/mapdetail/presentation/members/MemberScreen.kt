@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
@@ -261,21 +262,36 @@ private fun MemberSectionTitle(text: String, modifier: Modifier = Modifier) {
     )
 }
 
-/** @param mine 내 카드. 시안 「사용자 리스트 / State=본인」 대로 노란 바탕에 노란 테두리다. */
+/**
+ * 멤버 한 사람의 카드. 방장 위임 화면도 같은 카드를 쓴다.
+ *
+ * @param mine 내 카드. 시안 「사용자 리스트 / State=본인」 대로 노란 바탕에 노란 테두리다.
+ * @param selected 방장 위임에서 고른 카드. 시안 「State=방장 위임」 대로 파란 테두리다.
+ * @param onClick 카드를 눌러 고를 수 있을 때만 준다.
+ */
 @Composable
-private fun MemberCard(
+internal fun MemberCard(
     member: MemberUiModel,
     tag: MemberRole?,
     canGrant: Boolean,
     grantEnabled: Boolean,
     onGrantRoleClick: () -> Unit,
     mine: Boolean = false,
+    selected: Boolean = false,
+    onClick: (() -> Unit)? = null,
 ) {
     ShadowedSurface(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(if (onClick != null) Modifier.semantics { this.selected = selected } else Modifier),
         shape = MemberCardShape,
         color = if (mine) MoaMapPrimitiveColors.Yellow50 else MoaMapPrimitiveColors.White,
-        border = if (mine) BorderStroke(1.dp, MoaMapPrimitiveColors.Yellow500) else null,
+        border = when {
+            mine -> BorderStroke(1.dp, MoaMapPrimitiveColors.Yellow500)
+            selected -> BorderStroke(1.dp, MoaMapPrimitiveColors.Blue500)
+            else -> null
+        },
+        onClick = onClick,
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),

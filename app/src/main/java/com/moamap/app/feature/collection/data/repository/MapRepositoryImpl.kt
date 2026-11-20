@@ -65,7 +65,8 @@ internal class MapRepositoryImpl @Inject constructor(
         when (getLeaveOutcome(mapId)) {
             LeaveOutcome.DeleteMap -> mapService.deleteMap(mapId)
             LeaveOutcome.Leave, LeaveOutcome.LeaveNeedsInviteCode -> mapService.leaveMap(mapId)
-            null -> error("나갈 수 없는 지도다 (mapId=$mapId)")
+            // 방장 위임은 새 방장을 골라야 해서 방장 위임 화면이 따로 부른다.
+            LeaveOutcome.HandOverOwner, null -> error("여기서 나갈 수 없는 지도다 (mapId=$mapId)")
         }
     }
 

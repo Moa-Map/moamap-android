@@ -36,6 +36,9 @@ enum class LeaveEligibility {
     /** 방장이라 나갈 수 없다. 고를 수는 있고, [나가기]를 누르면 막는다(iOS·피그마). */
     Owner,
 
+    /** 방장이지만 다른 멤버가 있어 방장을 넘기고 나갈 수 있다. [나가기]를 누르면 위임 안내를 띄운다. */
+    HandOver,
+
     /** 나만의 지도. 나갈 대상이 아니다. */
     Personal,
 
@@ -60,6 +63,10 @@ data class CollectionEditState(
 ) {
     fun eligibilityOf(mapId: Long): LeaveEligibility =
         eligibility[mapId] ?: LeaveEligibility.Checking
+
+    /** 고른 지도가 방장을 넘기고 나갈 지도면 그 id. [나가기]가 확인 팝업 대신 위임 안내로 간다. */
+    val handOverMapId: Long?
+        get() = selected.singleOrNull()?.takeIf { mapId -> eligibilityOf(mapId) == LeaveEligibility.HandOver }
 }
 
 /**

@@ -93,6 +93,7 @@ internal fun MyMap.toPrivateUiModel() = CollectionMapUiModel(
  * @param reorderable 순서를 바꿀 수 있는 모음 목록의 카드다.
  * @param showDragHandle 왼쪽에 순서 손잡이를 둔다. 손잡이가 들면 왼쪽 여백이 12 로 준다.
  * @param dragHandleModifier 손잡이에 다는 끌기 동작.
+ * @param color 카드 바탕. 방장 위임 화면은 내 지도라 노란 바탕이다(시안 `5104:58545`).
  * @param pressFeedback 누르는 동안 회색(Gray50)으로 바꾼다. 앱은 누름 효과를 꺼 두었지만
  *  모음 편집은 시안(`1974:8284`)에 있다.
  */
@@ -102,6 +103,7 @@ internal fun CollectionMapCard(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     border: BorderStroke? = null,
+    color: Color = MoaMapPrimitiveColors.White,
     reorderable: Boolean = false,
     showDragHandle: Boolean = false,
     dragHandleModifier: Modifier = Modifier,
@@ -114,7 +116,7 @@ internal fun CollectionMapCard(
     ShadowedSurface(
         modifier = modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
-        color = if (pressFeedback && pressed) MoaMapPrimitiveColors.Gray50 else MoaMapPrimitiveColors.White,
+        color = if (pressFeedback && pressed) MoaMapPrimitiveColors.Gray50 else color,
         border = border,
     ) {
         Row(

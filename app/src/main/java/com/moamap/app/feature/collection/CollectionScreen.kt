@@ -57,6 +57,8 @@ import com.moamap.app.feature.collection.presentation.JoinState
 import com.moamap.app.feature.collection.presentation.LeaveEligibility
 import com.moamap.app.feature.collection.presentation.MyMapsState
 import com.moamap.app.feature.mapdetail.domain.model.MapRole
+import com.moamap.app.feature.mapdetail.presentation.handover.OwnerHandoverPromptDialog
+import com.moamap.app.feature.mapdetail.presentation.handover.OwnerHandoverPromptViewModel
 import kotlinx.coroutines.delay
 
 /** 「지도 나가기」 버튼과 홈 인디케이터 사이. 새 지도 만들기 버튼과 같다. */
@@ -97,10 +99,33 @@ fun CollectionScreen(
     onPendingNoticeConsumed: () -> Unit = {},
     /** 완료 토스트. 하단 탭 위에 그려야 해서 NavHost 가 띄운다. */
     onToast: (String) -> Unit = {},
+    /** 방장 위임 화면에서 방장을 넘기고 나왔다. 받았으면 [onOwnerHandedOverConsumed] 로 내린다. */
+    ownerHandedOver: Boolean = false,
+    onOwnerHandedOverConsumed: () -> Unit = {},
+    /** 위임 안내에서 [멤버 선택]을 눌렀다. 방장 위임 화면으로 간다. */
+    onOwnerHandoverClick: (mapId: Long) -> Unit = {},
     modifier: Modifier = Modifier,
     viewModel: CollectionViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val handoverPromptViewModel: OwnerHandoverPromptViewModel = hiltViewModel()
+    val handoverPrompt by handoverPromptViewModel.uiState.collectAsStateWithLifecycle()
+
+    LaunchedEffect(ownerHandedOver) {
+        if (!ownerHandedOver) return@LaunchedEffect
+        viewModel.onOwnerHandedOver()
+        onOwnerHandedOverConsumed()
+    }
+    LaunchedEffect(handoverPrompt.errorMessage) {
+        val message = handoverPrompt.errorMessage ?: return@LaunchedEffect
+        viewModel.showNotice(message)
+        handoverPromptViewModel.consumeError()
+    }
+    OwnerHandoverPromptDialog(
+        prompt = handoverPrompt.prompt,
+        onSelectMemberClick = onOwnerHandoverClick,
+        onDismiss = handoverPromptViewModel::dismiss,
+    )
 
     LaunchedEffect(pendingNotice) {
         pendingNotice ?: return@LaunchedEffect
@@ -177,7 +202,11 @@ fun CollectionScreen(
         },
         onEditClick = { if (edit != null) viewModel.finishEdit() else viewModel.startEdit() },
         onMapMove = viewModel::moveMap,
-        onLeaveClick = viewModel::openLeaveConfirm,
+        // 방장을 넘기고 나갈 지도는 확인 팝업 대신 위임 안내로 간다.
+        onLeaveClick = {
+            val handOverMapId = edit?.handOverMapId
+            if (handOverMapId != null) handoverPromptViewModel.open(handOverMapId) else viewModel.openLeaveConfirm()
+        },
         onNoticeShown = viewModel::consumeNotice,
         modifier = modifier,
     )

@@ -56,7 +56,16 @@ private class FakeMapService(
     override suspend fun updateMap(mapId: Long, request: MapUpdateRequestDto) = notUsed()
     override suspend fun deleteMap(mapId: Long) = notUsed()
     override suspend fun joinMap(mapId: Long): MapDetailDto = notUsed()
-    override suspend fun leaveMap(mapId: Long) = notUsed()
+    val leaveCalls = mutableListOf<Pair<Long, Long?>>()
+
+    override suspend fun leaveMap(mapId: Long, newOwnerId: Long?) {
+        leaveCalls += mapId to newOwnerId
+    }
+
+    override suspend fun getOwnerCandidates(mapId: Long): List<MapMemberSummaryDto> {
+        memberCalls += mapId
+        return members
+    }
 
     private fun notUsed(): Nothing = error("멤버 저장소가 부를 일이 없는 호출이다")
 }
@@ -117,5 +126,28 @@ class MapMemberRepositoryImplTest {
         val service = FakeMapService().apply { roleError = IllegalStateException("boom") }
 
         MapMemberRepositoryImpl(service).grantAdmin(mapId = 7, userId = 2)
+    }
+
+    @Test
+    fun `방장 후보를 도메인으로 옮겨 돌려준다`() = runTest {
+        val service = FakeMapService(
+            members = listOf(MapMemberSummaryDto(userId = 2, nickname = "이서연", role = "ADMIN", placeCount = 3)),
+        )
+
+        val candidates = MapMemberRepositoryImpl(service).getOwnerCandidates(mapId = 7)
+
+        assertEquals(listOf(7L), service.memberCalls)
+        assertEquals(listOf(2L), candidates.map { it.id })
+        assertEquals(MapRole.Admin, candidates[0].role)
+        assertEquals(3L, candidates[0].placeCount)
+    }
+
+    @Test
+    fun `방장을 넘기며 나가면 새 방장을 함께 보낸다`() = runTest {
+        val service = FakeMapService()
+
+        MapMemberRepositoryImpl(service).handOverAndLeave(mapId = 7, newOwnerId = 2)
+
+        assertEquals(listOf(7L to 2L), service.leaveCalls)
     }
 }

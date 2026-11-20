@@ -67,8 +67,19 @@ interface MapService {
     @POST("api/v1/maps/{mapId}/join")
     suspend fun joinMap(@Path("mapId") mapId: Long): MapDetailDto
 
+    /**
+     * 지도에서 나간다. 다른 멤버가 있는 지도의 방장은 [newOwnerId] 로 새 방장을 정해야 나갈 수 있고, 넘기기와
+     * 나가기가 한 번에 처리된다. 방장이 아니면 null 로 둔다(null 이면 질의에 싣지 않는다).
+     */
     @DELETE("api/v1/maps/{mapId}/members/me")
-    suspend fun leaveMap(@Path("mapId") mapId: Long)
+    suspend fun leaveMap(
+        @Path("mapId") mapId: Long,
+        @Query("newOwnerId") newOwnerId: Long? = null,
+    )
+
+    /** 방장이 나가기 전에 넘길 수 있는 사람. 관리자가 있으면 관리자만, 없으면 멤버 전체다. 방장만 부른다. */
+    @GET("api/v1/maps/{mapId}/owner-candidates")
+    suspend fun getOwnerCandidates(@Path("mapId") mapId: Long): List<MapMemberSummaryDto>
 
     /** 지도에 참여한 사람 전부. 페이지를 나누지 않고 한 번에 내려온다. */
     @GET("api/v1/maps/{mapId}/members")

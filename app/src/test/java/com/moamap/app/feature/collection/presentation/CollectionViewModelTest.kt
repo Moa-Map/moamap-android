@@ -596,6 +596,39 @@ class CollectionViewModelTest {
     }
 
     @Test
+    fun `다른 멤버가 있는 방장 지도는 골라서 위임 안내로 보낸다`() = runTest(dispatcher) {
+        repository.result = { listOf(myMap(1L), myMap(2L)) }
+        repository.leaveOutcome = { mapId -> if (mapId == 2L) LeaveOutcome.HandOverOwner else LeaveOutcome.Leave }
+        val viewModel = startedViewModel()
+        viewModel.startEdit()
+        advanceUntilIdle()
+
+        assertEquals(LeaveEligibility.HandOver, viewModel.uiState.value.edit!!.eligibilityOf(2L))
+        viewModel.toggleSelection(2L)
+        assertEquals(2L, viewModel.uiState.value.edit!!.handOverMapId)
+
+        // 확인 팝업·방장 안내 대신 화면이 위임 안내를 띄운다.
+        viewModel.openLeaveConfirm()
+        val edit = viewModel.uiState.value.edit!!
+        assertFalse(edit.confirmVisible)
+        assertFalse(edit.ownerNoticeVisible)
+
+        // 다른 지도를 고르면 위임 대상이 아니다.
+        viewModel.toggleSelection(1L)
+        assertNull(viewModel.uiState.value.edit!!.handOverMapId)
+    }
+
+    @Test
+    fun `방장을 넘기고 돌아오면 편집을 닫고 알린다`() = runTest(dispatcher) {
+        val viewModel = editingViewModel()
+
+        viewModel.onOwnerHandedOver()
+
+        assertNull(viewModel.uiState.value.edit)
+        assertEquals(MAP_LIST_UPDATED_TOAST, viewModel.uiState.value.toast)
+    }
+
+    @Test
     fun `나갈 수 있는 지도는 눌러서 고르고 다시 누르면 푼다`() = runTest(dispatcher) {
         val viewModel = editingViewModel()
 

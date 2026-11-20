@@ -43,6 +43,10 @@ private open class FakeMapMemberRepository(
         grantError?.let { throw it }
         grantCalls += mapId to userId
     }
+
+    override suspend fun getOwnerCandidates(mapId: Long): List<MapMember> = error("멤버 관리가 부를 일이 없다")
+
+    override suspend fun handOverAndLeave(mapId: Long, newOwnerId: Long) = error("멤버 관리가 부를 일이 없다")
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
